@@ -111,8 +111,19 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - `ImageGenerationError` exception for proper error handling
   - Updated `generators/__init__.py` with exports
 
+- [x] **Task 4.2: Implement GCS Upload for Reference Images**
+  - Created `src/sip_videogen/storage/gcs.py` with Google Cloud Storage client
+  - `GCSStorage` class using `google-cloud-storage` Client with Application Default Credentials (ADC)
+  - `upload_file()`: Upload local files to GCS bucket, returns GCS URI (gs://bucket/path)
+  - `download_file()`: Download files from GCS URIs to local filesystem
+  - `file_exists()`: Check if a file exists in the bucket
+  - `delete_file()`: Delete files from the bucket
+  - `generate_remote_path()`: Helper to generate remote paths with prefixes
+  - Automatic retry logic with exponential backoff using `tenacity`
+  - `GCSStorageError` exception for proper error handling
+  - Updated `storage/__init__.py` with exports
+
 ### Pending Tasks
-- [ ] Task 4.2: GCS Upload for Reference Images
 - [ ] Task 5.1-5.3: Video Generation
 - [ ] Task 6.1: FFmpeg Wrapper
 - [ ] Task 7.1-7.4: Integration and Polish
@@ -154,14 +165,15 @@ sip-videogen/
 │       │   ├── assets.py
 │       │   └── script.py
 │       └── storage/
-│           └── __init__.py
+│           ├── __init__.py
+│           └── gcs.py
 └── tests/
     └── __init__.py
 ```
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 4.2: Implement GCS Upload for Reference Images**
+2. The next task is **Task 5.1: Implement VEO 3.1 Video Generator**
 3. Follow the implementation hints in the task description
 
 ## Testing
