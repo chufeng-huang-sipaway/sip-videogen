@@ -7,8 +7,10 @@ reference images and video clips.
 import logging
 from pathlib import Path
 
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import storage
-from google.cloud.exceptions import GoogleCloudError
+from google.cloud.exceptions import Forbidden, GoogleCloudError, NotFound
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
@@ -18,6 +20,18 @@ class GCSStorageError(Exception):
     """Exception raised for GCS storage errors."""
 
 
+class GCSAuthenticationError(GCSStorageError):
+    """Raised when GCS authentication fails."""
+
+
+class GCSBucketNotFoundError(GCSStorageError):
+    """Raised when the specified bucket does not exist."""
+
+
+class GCSPermissionError(GCSStorageError):
+    """Raised when permission is denied for a GCS operation."""
+
+
 class GCSStorage:
     """Google Cloud Storage client for uploading and downloading assets.
 
@@ -25,16 +39,56 @@ class GCSStorage:
     Run `gcloud auth application-default login` to set up credentials.
     """
 
-    def __init__(self, bucket_name: str):
+    def __init__(self, bucket_name: str, verify_bucket: bool = True):
         """Initialize GCS storage client.
 
         Args:
             bucket_name: Name of the GCS bucket to use.
+            verify_bucket: Whether to verify bucket exists on initialization.
+
+        Raises:
+            GCSAuthenticationError: If Google Cloud credentials are not configured.
+            GCSBucketNotFoundError: If the specified bucket does not exist.
+            GCSPermissionError: If access to the bucket is denied.
         """
-        self.client = storage.Client()
+        try:
+            self.client = storage.Client()
+        except DefaultCredentialsError as e:
+            raise GCSAuthenticationError(
+                "Google Cloud credentials not configured.\n"
+                "Run: gcloud auth application-default login"
+            ) from e
+
         self.bucket = self.client.bucket(bucket_name)
         self.bucket_name = bucket_name
+
+        if verify_bucket:
+            self._verify_bucket_access()
+
         logger.debug("Initialized GCS storage with bucket: %s", bucket_name)
+
+    def _verify_bucket_access(self) -> None:
+        """Verify that the bucket exists and is accessible.
+
+        Raises:
+            GCSBucketNotFoundError: If the bucket does not exist.
+            GCSPermissionError: If access to the bucket is denied.
+        """
+        try:
+            # Try to get bucket metadata to verify access
+            self.bucket.reload()
+        except NotFound:
+            raise GCSBucketNotFoundError(
+                f"Bucket '{self.bucket_name}' not found.\n"
+                f"Create it with: gsutil mb -l us-central1 gs://{self.bucket_name}"
+            )
+        except Forbidden:
+            raise GCSPermissionError(
+                f"Permission denied for bucket '{self.bucket_name}'.\n"
+                "Ensure your account has 'Storage Object Admin' role on the bucket."
+            )
+        except GoogleCloudError as e:
+            raise GCSStorageError(f"Failed to access bucket: {e}") from e
 
     @retry(
         stop=stop_after_attempt(3),
@@ -52,7 +106,9 @@ class GCSStorage:
             GCS URI of the uploaded file (gs://bucket/path).
 
         Raises:
-            GCSStorageError: If the upload fails.
+            GCSStorageError: If the local file is not found.
+            GCSPermissionError: If permission is denied.
+            GCSStorageError: If the upload fails for other reasons.
         """
         if not local_path.exists():
             raise GCSStorageError(f"Local file not found: {local_path}")
@@ -63,6 +119,11 @@ class GCSStorage:
             gcs_uri = f"gs://{self.bucket_name}/{remote_path}"
             logger.info("Uploaded %s to %s", local_path, gcs_uri)
             return gcs_uri
+        except Forbidden as e:
+            raise GCSPermissionError(
+                f"Permission denied uploading to gs://{self.bucket_name}/{remote_path}.\n"
+                "Ensure your account has 'Storage Object Admin' role."
+            ) from e
         except GoogleCloudError as e:
             raise GCSStorageError(f"Failed to upload {local_path} to GCS: {e}") from e
 
@@ -82,7 +143,10 @@ class GCSStorage:
             Path to the downloaded file.
 
         Raises:
-            GCSStorageError: If the download fails or URI is invalid.
+            GCSStorageError: If the URI format is invalid.
+            GCSBucketNotFoundError: If the file does not exist.
+            GCSPermissionError: If permission is denied.
+            GCSStorageError: If the download fails for other reasons.
         """
         # Parse gs://bucket/path format
         if not gcs_uri.startswith("gs://"):
@@ -104,6 +168,15 @@ class GCSStorage:
 
             logger.info("Downloaded %s to %s", gcs_uri, local_path)
             return local_path
+        except NotFound as e:
+            raise GCSBucketNotFoundError(
+                f"File not found: {gcs_uri}. It may have been deleted or not generated."
+            ) from e
+        except Forbidden as e:
+            raise GCSPermissionError(
+                f"Permission denied downloading {gcs_uri}.\n"
+                "Ensure your account has 'Storage Object Viewer' role."
+            ) from e
         except GoogleCloudError as e:
             raise GCSStorageError(f"Failed to download {gcs_uri}: {e}") from e
 

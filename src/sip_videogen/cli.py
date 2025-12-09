@@ -6,18 +6,25 @@ from datetime import datetime
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from .agents import develop_script
+from .agents import ScriptDevelopmentError, develop_script
 from .assembler import FFmpegAssembler, FFmpegError
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
 from .generators import ImageGenerationError, ImageGenerator, VideoGenerationError, VideoGenerator
 from .models import GeneratedAsset, ProductionPackage, VideoScript
-from .storage import GCSStorage, GCSStorageError
+from .storage import (
+    GCSAuthenticationError,
+    GCSBucketNotFoundError,
+    GCSPermissionError,
+    GCSStorage,
+    GCSStorageError,
+)
 
 app = typer.Typer(
     name="sip-videogen",
@@ -26,6 +33,32 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def _validate_idea(idea: str) -> str:
+    """Validate and normalize the user's idea input.
+
+    Args:
+        idea: The raw idea string from user input.
+
+    Returns:
+        Normalized idea string.
+
+    Raises:
+        typer.BadParameter: If the idea is invalid.
+    """
+    if not idea or not idea.strip():
+        raise typer.BadParameter("Idea cannot be empty")
+
+    idea = idea.strip()
+
+    if len(idea) < 5:
+        raise typer.BadParameter("Idea is too short (minimum 5 characters)")
+
+    if len(idea) > 2000:
+        raise typer.BadParameter("Idea is too long (maximum 2000 characters)")
+
+    return idea
 
 
 @app.command()
@@ -57,8 +90,24 @@ def generate(
     """
     logger = get_logger(__name__)
 
+    # Validate idea input
+    try:
+        idea = _validate_idea(idea)
+    except typer.BadParameter as e:
+        console.print(f"[red]Invalid idea:[/red] {e}")
+        raise typer.Exit(1)
+
+    # Load and validate configuration
     try:
         settings = get_settings()
+    except ValidationError as e:
+        logger.error("Configuration validation error: %s", e)
+        console.print(
+            "[red]Configuration error:[/red] Invalid configuration values.\n"
+            "Check your .env file for correct format.\n"
+            f"Details: {e}"
+        )
+        raise typer.Exit(1)
     except Exception as e:
         logger.error("Configuration error: %s", e)
         console.print(
@@ -72,8 +121,14 @@ def generate(
     if not all(config_status.values()):
         missing = [k for k, v in config_status.items() if not v]
         console.print(
-            f"[red]Missing configuration:[/red] {', '.join(missing)}\n"
-            "Run [bold]sip-videogen status[/bold] to check your configuration."
+            Panel(
+                f"[red]Missing configuration:[/red]\n\n"
+                + "\n".join(f"  • {m}" for m in missing)
+                + "\n\n"
+                "Run [bold]sip-videogen setup[/bold] for setup instructions.",
+                title="Configuration Error",
+                border_style="red",
+            )
         )
         raise typer.Exit(1)
 
@@ -103,9 +158,70 @@ def generate(
     except KeyboardInterrupt:
         console.print("\n[yellow]Generation cancelled by user.[/yellow]")
         raise typer.Exit(130)
+    except ScriptDevelopmentError as e:
+        logger.error("Script development failed: %s", e)
+        console.print(
+            Panel(
+                f"[red]Script development failed[/red]\n\n{e}\n\n"
+                "This may be due to:\n"
+                "  • Invalid OpenAI API key\n"
+                "  • API rate limits exceeded\n"
+                "  • Network connectivity issues",
+                title="Script Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+    except GCSAuthenticationError as e:
+        logger.error("GCS authentication failed: %s", e)
+        console.print(
+            Panel(
+                f"[red]Google Cloud authentication failed[/red]\n\n{e}",
+                title="Authentication Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+    except GCSBucketNotFoundError as e:
+        logger.error("GCS bucket not found: %s", e)
+        console.print(
+            Panel(
+                f"[red]GCS bucket error[/red]\n\n{e}",
+                title="Storage Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+    except GCSPermissionError as e:
+        logger.error("GCS permission denied: %s", e)
+        console.print(
+            Panel(
+                f"[red]GCS permission denied[/red]\n\n{e}",
+                title="Permission Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+    except FFmpegError as e:
+        logger.error("FFmpeg error: %s", e)
+        console.print(
+            Panel(
+                f"[red]FFmpeg error[/red]\n\n{e}",
+                title="Video Assembly Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
     except Exception as e:
         logger.error("Pipeline failed: %s", e)
-        console.print(f"\n[red]Generation failed:[/red] {e}")
+        console.print(
+            Panel(
+                f"[red]Generation failed unexpectedly[/red]\n\n{e}\n\n"
+                "Check the logs for more details.",
+                title="Error",
+                border_style="red",
+            )
+        )
         raise typer.Exit(1)
 
 

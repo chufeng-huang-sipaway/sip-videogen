@@ -11,12 +11,22 @@ invoked as a tool to perform its specialized function.
 from pathlib import Path
 
 from agents import Agent, Runner
+from agents.exceptions import AgentsException
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from sip_videogen.agents.continuity_supervisor import continuity_supervisor_agent
 from sip_videogen.agents.production_designer import production_designer_agent
 from sip_videogen.agents.screenwriter import screenwriter_agent
+from sip_videogen.config.logging import get_logger
 from sip_videogen.models.agent_outputs import ShowrunnerOutput
 from sip_videogen.models.script import VideoScript
+
+logger = get_logger(__name__)
 
 # Load the detailed prompt from the prompts directory
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -64,6 +74,18 @@ showrunner_agent = Agent(
 )
 
 
+class ScriptDevelopmentError(Exception):
+    """Raised when script development fails."""
+
+    pass
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    retry=retry_if_exception_type((AgentsException, TimeoutError, ConnectionError)),
+    reraise=True,
+)
 async def develop_script(idea: str, num_scenes: int) -> VideoScript:
     """Develop a complete video script from a creative idea.
 
@@ -78,7 +100,22 @@ async def develop_script(idea: str, num_scenes: int) -> VideoScript:
     Returns:
         A complete VideoScript ready for production, with shared elements
         identified and prompts optimized for AI generation.
+
+    Raises:
+        ScriptDevelopmentError: If script development fails after retries.
+        ValueError: If input validation fails.
     """
+    # Validate inputs
+    if not idea or not idea.strip():
+        raise ValueError("Idea cannot be empty")
+    if len(idea) > 2000:
+        raise ValueError("Idea is too long (max 2000 characters)")
+    if num_scenes < 1 or num_scenes > 10:
+        raise ValueError("Number of scenes must be between 1 and 10")
+
+    idea = idea.strip()
+    logger.info(f"Starting script development: '{idea[:50]}...' with {num_scenes} scenes")
+
     prompt = f"""Create a {num_scenes}-scene video from this idea:
 
 {idea}
@@ -98,14 +135,33 @@ Requirements:
 Be creative and make bold artistic choices that will result in an engaging video.
 """
 
-    result = await Runner.run(showrunner_agent, prompt)
-    output = result.final_output
+    try:
+        result = await Runner.run(showrunner_agent, prompt)
+        output = result.final_output
 
-    # Return the VideoScript from the output
-    if isinstance(output, ShowrunnerOutput):
-        return output.script
-    # Handle case where output is already a VideoScript (shouldn't happen but be safe)
-    if isinstance(output, VideoScript):
-        return output
-    # If somehow we get neither, raise an error
-    raise TypeError(f"Unexpected output type from showrunner: {type(output)}")
+        # Return the VideoScript from the output
+        if isinstance(output, ShowrunnerOutput):
+            logger.info(f"Script development complete: '{output.script.title}'")
+            return output.script
+        # Handle case where output is already a VideoScript (shouldn't happen but be safe)
+        if isinstance(output, VideoScript):
+            logger.info(f"Script development complete: '{output.title}'")
+            return output
+        # If somehow we get neither, raise an error
+        raise ScriptDevelopmentError(
+            f"Unexpected output type from showrunner: {type(output).__name__}. "
+            "Expected ShowrunnerOutput or VideoScript."
+        )
+    except AgentsException as e:
+        logger.error(f"Agent orchestration failed: {e}")
+        raise ScriptDevelopmentError(
+            f"Script development failed: {e}. "
+            "Please check your OpenAI API key and try again."
+        ) from e
+    except Exception as e:
+        if isinstance(e, (ValueError, ScriptDevelopmentError)):
+            raise
+        logger.error(f"Unexpected error during script development: {e}")
+        raise ScriptDevelopmentError(
+            f"Script development failed unexpectedly: {e}"
+        ) from e

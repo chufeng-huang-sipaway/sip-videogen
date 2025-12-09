@@ -14,6 +14,7 @@ from sip_videogen.agents.production_designer import (
 )
 from sip_videogen.agents.screenwriter import develop_scenes, screenwriter_agent
 from sip_videogen.agents.showrunner import (
+    ScriptDevelopmentError,
     develop_script,
     showrunner_agent,
 )
@@ -27,4 +28,5 @@ __all__ = [
     "validate_and_optimize",
     "showrunner_agent",
     "develop_script",
+    "ScriptDevelopmentError",
 ]
