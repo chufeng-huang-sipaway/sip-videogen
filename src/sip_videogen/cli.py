@@ -1,12 +1,23 @@
 """CLI interface for sip-videogen."""
 
+import asyncio
+import uuid
+from datetime import datetime
+from pathlib import Path
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from .agents import develop_script
+from .assembler import FFmpegAssembler, FFmpegError
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
+from .generators import ImageGenerationError, ImageGenerator, VideoGenerationError, VideoGenerator
+from .models import GeneratedAsset, ProductionPackage, VideoScript
+from .storage import GCSStorage, GCSStorageError
 
 app = typer.Typer(
     name="sip-videogen",
@@ -56,6 +67,16 @@ def generate(
         )
         raise typer.Exit(1)
 
+    # Validate configuration
+    config_status = settings.is_configured()
+    if not all(config_status.values()):
+        missing = [k for k, v in config_status.items() if not v]
+        console.print(
+            f"[red]Missing configuration:[/red] {', '.join(missing)}\n"
+            "Run [bold]sip-videogen status[/bold] to check your configuration."
+        )
+        raise typer.Exit(1)
+
     # Use default scenes from config if not specified
     num_scenes = scenes if scenes is not None else settings.sip_default_scenes
 
@@ -76,8 +97,368 @@ def generate(
         console.print("[yellow]Dry run mode:[/yellow] Will only generate script, no videos.")
         logger.info("Dry run mode enabled - will only generate script")
 
-    # TODO: Implement full pipeline in Task 7.1
-    console.print("\n[dim]Pipeline not yet implemented - see Task 7.1[/dim]")
+    # Run the async pipeline
+    try:
+        asyncio.run(_run_pipeline(idea, num_scenes, dry_run, settings, logger))
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Generation cancelled by user.[/yellow]")
+        raise typer.Exit(130)
+    except Exception as e:
+        logger.error("Pipeline failed: %s", e)
+        console.print(f"\n[red]Generation failed:[/red] {e}")
+        raise typer.Exit(1)
+
+
+async def _run_pipeline(
+    idea: str,
+    num_scenes: int,
+    dry_run: bool,
+    settings,
+    logger,
+) -> None:
+    """Run the full video generation pipeline.
+
+    Flow:
+    1. Run Showrunner to develop script
+    2. Generate reference images for shared elements (dry-run stops here)
+    3. Upload reference images to GCS
+    4. Generate video clips (parallel)
+    5. Download video clips from GCS
+    6. Concatenate clips with FFmpeg
+    7. Display final video path
+    """
+    # Create unique project ID for this run
+    project_id = f"sip_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+
+    # Ensure output directory exists
+    output_dir = settings.ensure_output_dir()
+    project_dir = output_dir / project_id
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    # Initialize production package
+    package = ProductionPackage(
+        script=VideoScript(
+            title="",
+            logline="",
+            tone="",
+            shared_elements=[],
+            scenes=[],
+        )
+    )
+
+    # ========== STAGE 1: Develop Script ==========
+    console.print("\n[bold cyan]Stage 1/6:[/bold cyan] Developing script...")
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("[cyan]AI agents developing script...", total=None)
+        try:
+            script = await develop_script(idea, num_scenes)
+            package = ProductionPackage(script=script)
+            progress.update(task, description="[green]Script developed ✓")
+        except Exception as e:
+            progress.update(task, description=f"[red]Script development failed: {e}")
+            raise
+
+    # Display script summary
+    _display_script_summary(script)
+
+    # Save script to JSON
+    script_path = project_dir / "script.json"
+    script_path.write_text(script.model_dump_json(indent=2))
+    console.print(f"\n[dim]Script saved to: {script_path}[/dim]")
+
+    if dry_run:
+        console.print(
+            Panel(
+                "[green]Dry run complete![/green]\n\n"
+                f"Script saved to: {script_path}\n"
+                "Run without --dry-run to generate video.",
+                title="Dry Run Summary",
+                border_style="green",
+            )
+        )
+        return
+
+    # ========== STAGE 2: Generate Reference Images ==========
+    console.print("\n[bold cyan]Stage 2/6:[/bold cyan] Generating reference images...")
+
+    if not script.shared_elements:
+        console.print("[yellow]No shared elements found - skipping reference images.[/yellow]")
+    else:
+        images_dir = project_dir / "reference_images"
+        images_dir.mkdir(exist_ok=True)
+
+        image_generator = ImageGenerator(api_key=settings.gemini_api_key)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task(
+                "[cyan]Generating images...",
+                total=len(script.shared_elements),
+            )
+
+            for element in script.shared_elements:
+                try:
+                    asset = await image_generator.generate_reference_image(
+                        element=element,
+                        output_dir=images_dir,
+                    )
+                    package.reference_images.append(asset)
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[green]Generated: {element.name}",
+                    )
+                except ImageGenerationError as e:
+                    logger.warning(f"Failed to generate image for {element.name}: {e}")
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[red]Failed: {element.name}",
+                    )
+
+        console.print(
+            f"[green]Generated {len(package.reference_images)}/{len(script.shared_elements)} "
+            "reference images.[/green]"
+        )
+
+    # ========== STAGE 3: Upload Reference Images to GCS ==========
+    console.print("\n[bold cyan]Stage 3/6:[/bold cyan] Uploading images to GCS...")
+
+    gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
+    gcs_prefix = f"sip-videogen/{project_id}"
+
+    if package.reference_images:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task(
+                "[cyan]Uploading to GCS...",
+                total=len(package.reference_images),
+            )
+
+            for asset in package.reference_images:
+                try:
+                    local_path = Path(asset.local_path)
+                    remote_path = gcs_storage.generate_remote_path(
+                        f"{gcs_prefix}/reference_images",
+                        local_path.name,
+                    )
+                    gcs_uri = gcs_storage.upload_file(local_path, remote_path)
+                    asset.gcs_uri = gcs_uri
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[green]Uploaded: {local_path.name}",
+                    )
+                except GCSStorageError as e:
+                    logger.warning(f"Failed to upload {asset.local_path}: {e}")
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[red]Failed: {local_path.name}",
+                    )
+
+        console.print(
+            f"[green]Uploaded {sum(1 for a in package.reference_images if a.gcs_uri)} images to GCS.[/green]"
+        )
+    else:
+        console.print("[yellow]No images to upload.[/yellow]")
+
+    # ========== STAGE 4: Generate Video Clips ==========
+    console.print("\n[bold cyan]Stage 4/6:[/bold cyan] Generating video clips...")
+
+    video_generator = VideoGenerator(
+        project=settings.google_cloud_project,
+        location=settings.google_cloud_location,
+    )
+
+    output_gcs_prefix = f"gs://{settings.sip_gcs_bucket_name}/{gcs_prefix}/videos"
+
+    try:
+        video_clips = await video_generator.generate_all_video_clips(
+            script=script,
+            output_gcs_prefix=output_gcs_prefix,
+            reference_images=package.reference_images,
+            show_progress=True,
+        )
+        package.video_clips = video_clips
+
+        if not video_clips:
+            console.print("[red]No video clips were generated.[/red]")
+            raise typer.Exit(1)
+
+        console.print(
+            f"[green]Generated {len(video_clips)}/{len(script.scenes)} video clips.[/green]"
+        )
+    except VideoGenerationError as e:
+        logger.error(f"Video generation failed: {e}")
+        console.print(f"[red]Video generation failed:[/red] {e}")
+        raise
+
+    # ========== STAGE 5: Download Video Clips ==========
+    console.print("\n[bold cyan]Stage 5/6:[/bold cyan] Downloading video clips...")
+
+    videos_dir = project_dir / "clips"
+    videos_dir.mkdir(exist_ok=True)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            "[cyan]Downloading from GCS...",
+            total=len(package.video_clips),
+        )
+
+        for clip in package.video_clips:
+            if not clip.gcs_uri:
+                progress.update(task, advance=1)
+                continue
+
+            try:
+                # Determine local filename from GCS URI
+                filename = f"scene_{clip.scene_number:03d}.mp4"
+                local_path = videos_dir / filename
+
+                gcs_storage.download_file(clip.gcs_uri, local_path)
+                clip.local_path = str(local_path)
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"[green]Downloaded: {filename}",
+                )
+            except GCSStorageError as e:
+                logger.warning(f"Failed to download {clip.gcs_uri}: {e}")
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"[red]Failed: scene {clip.scene_number}",
+                )
+
+    downloaded_clips = [c for c in package.video_clips if c.local_path]
+    console.print(
+        f"[green]Downloaded {len(downloaded_clips)}/{len(package.video_clips)} clips.[/green]"
+    )
+
+    if not downloaded_clips:
+        console.print("[red]No clips available for concatenation.[/red]")
+        raise typer.Exit(1)
+
+    # ========== STAGE 6: Concatenate Clips ==========
+    console.print("\n[bold cyan]Stage 6/6:[/bold cyan] Assembling final video...")
+
+    try:
+        assembler = FFmpegAssembler()
+    except FFmpegError as e:
+        console.print(f"[red]FFmpeg error:[/red] {e}")
+        raise typer.Exit(1)
+
+    # Sort clips by scene number
+    clip_paths = sorted(
+        [Path(c.local_path) for c in downloaded_clips if c.local_path],
+        key=lambda p: int(p.stem.split("_")[-1]),
+    )
+
+    final_video_path = project_dir / f"{script.title.replace(' ', '_').lower()[:50]}_final.mp4"
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("[cyan]Concatenating clips...", total=None)
+        try:
+            assembler.concatenate_clips(clip_paths, final_video_path)
+            package.final_video_path = str(final_video_path)
+            progress.update(task, description="[green]Video assembled ✓")
+        except FFmpegError as e:
+            progress.update(task, description=f"[red]Assembly failed: {e}")
+            raise
+
+    # ========== FINAL SUMMARY ==========
+    _display_final_summary(package, project_dir)
+
+
+def _display_script_summary(script: VideoScript) -> None:
+    """Display a summary of the generated script."""
+    console.print(
+        Panel(
+            f"[bold]Title:[/bold] {script.title}\n"
+            f"[bold]Logline:[/bold] {script.logline}\n"
+            f"[bold]Tone:[/bold] {script.tone}\n"
+            f"[bold]Scenes:[/bold] {len(script.scenes)}\n"
+            f"[bold]Shared Elements:[/bold] {len(script.shared_elements)}\n"
+            f"[bold]Total Duration:[/bold] ~{script.total_duration}s",
+            title="Script Summary",
+            border_style="green",
+        )
+    )
+
+    # List scenes
+    console.print("\n[bold]Scenes:[/bold]")
+    for scene in script.scenes:
+        console.print(
+            f"  [cyan]Scene {scene.scene_number}[/cyan] ({scene.duration_seconds}s): "
+            f"{scene.action_description[:60]}..."
+            if len(scene.action_description) > 60
+            else f"  [cyan]Scene {scene.scene_number}[/cyan] ({scene.duration_seconds}s): "
+            f"{scene.action_description}"
+        )
+
+    # List shared elements
+    if script.shared_elements:
+        console.print("\n[bold]Shared Elements:[/bold]")
+        for element in script.shared_elements:
+            console.print(
+                f"  [magenta]{element.element_type.value}:[/magenta] {element.name} "
+                f"(appears in scenes: {element.appears_in_scenes})"
+            )
+
+
+def _display_final_summary(package: ProductionPackage, project_dir: Path) -> None:
+    """Display the final generation summary."""
+    # Get video info if available
+    duration_info = ""
+    if package.final_video_path:
+        try:
+            assembler = FFmpegAssembler()
+            duration = assembler.get_video_duration(Path(package.final_video_path))
+            duration_info = f"\n[bold]Duration:[/bold] {duration:.1f}s"
+        except FFmpegError:
+            pass
+
+    console.print(
+        Panel(
+            "[bold green]Video generation complete![/bold green]\n\n"
+            f"[bold]Final Video:[/bold] {package.final_video_path}{duration_info}\n"
+            f"[bold]Project Folder:[/bold] {project_dir}\n"
+            f"[bold]Reference Images:[/bold] {len(package.reference_images)}\n"
+            f"[bold]Video Clips:[/bold] {len(package.video_clips)}",
+            title="Generation Complete",
+            border_style="green",
+        )
+    )
 
 
 @app.command()
