@@ -82,8 +82,16 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Prompt covers element types (characters, environments, props), visual description guidelines, ID naming conventions
   - Updated `agents/__init__.py` with exports for agent and function
 
+- [x] **Task 3.3: Implement Continuity Supervisor Agent**
+  - Created `src/sip_videogen/agents/continuity_supervisor.py` with OpenAI Agents SDK
+  - `continuity_supervisor_agent`: Agent configured with structured output using `ContinuitySupervisorOutput`
+  - `validate_and_optimize()`: Async function to review scenes/elements for consistency and optimize prompts
+  - Detailed prompt stored in `src/sip_videogen/agents/prompts/continuity_supervisor.md`
+  - Prompt covers continuity checks (visual, logical, technical), prompt optimization for AI video generation, reference image compatibility
+  - Updated `agents/__init__.py` with exports for agent and function
+
 ### Pending Tasks
-- [ ] Task 3.3-3.4: Remaining Agent Team Implementation (Continuity Supervisor, Showrunner)
+- [ ] Task 3.4: Showrunner Orchestrator Implementation
 - [ ] Task 4.1-4.2: Image Generation
 - [ ] Task 5.1-5.3: Video Generation
 - [ ] Task 6.1: FFmpeg Wrapper
@@ -104,10 +112,12 @@ sip-videogen/
 │       │   ├── __init__.py
 │       │   ├── screenwriter.py
 │       │   ├── production_designer.py
+│       │   ├── continuity_supervisor.py
 │       │   └── prompts/
 │       │       ├── __init__.py
 │       │       ├── screenwriter.md
-│       │       └── production_designer.md
+│       │       ├── production_designer.md
+│       │       └── continuity_supervisor.md
 │       ├── assembler/
 │       │   └── __init__.py
 │       ├── config/
@@ -129,7 +139,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 3.3: Implement Continuity Supervisor Agent**
+2. The next task is **Task 3.4: Implement Showrunner Orchestrator**
 3. Follow the implementation hints in the task description
 
 ## Testing
