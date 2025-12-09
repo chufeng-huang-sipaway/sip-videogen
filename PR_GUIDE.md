@@ -39,8 +39,15 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Logging initialized in CLI `main()` function
   - Added logging calls to `generate` command for traceability
 
+- [x] **Task 2.1: Implement Core Script Models**
+  - Created `src/sip_videogen/models/script.py` with Pydantic models
+  - `ElementType` enum: character, environment, prop
+  - `SharedElement`: Visual elements needing consistency across scenes with reference image paths
+  - `SceneAction`: Scene breakdown with action, setting, dialogue, camera direction
+  - `VideoScript`: Complete script with helper methods (`total_duration`, `get_element_by_id`, `get_elements_for_scene`)
+  - Updated `models/__init__.py` with exports
+
 ### Pending Tasks
-- [ ] Task 2.1: Implement Core Script Models
 - [ ] Task 2.2: Implement Asset and Production Models
 - [ ] Task 2.3: Implement Agent Output Models
 - [ ] Task 3.1-3.4: Agent Team Implementation
@@ -73,7 +80,8 @@ sip-videogen/
 │       ├── generators/
 │       │   └── __init__.py
 │       ├── models/
-│       │   └── __init__.py
+│       │   ├── __init__.py
+│       │   └── script.py
 │       └── storage/
 │           └── __init__.py
 └── tests/
@@ -82,7 +90,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 2.1: Implement Core Script Models**
+2. The next task is **Task 2.2: Implement Asset and Production Models**
 3. Follow the implementation hints in the task description
 
 ## Testing
