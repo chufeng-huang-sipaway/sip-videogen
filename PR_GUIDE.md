@@ -212,8 +212,26 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Updated `storage/__init__.py` and `agents/__init__.py` with new exception exports
   - Updated main `__init__.py` to export base exception classes
 
+- [x] **Task 7.3: Add Cost Estimation**
+  - Created `src/sip_videogen/config/costs.py` with cost estimation functions
+  - `CostEstimate` dataclass for structured cost breakdown:
+    - Image generation costs (count, per-unit, total)
+    - Video generation costs (count, duration, per-second, total)
+    - Total cost range (min/max)
+  - `estimate_costs()`: Calculate costs from VideoScript or explicit counts
+  - `estimate_pre_generation_costs()`: Estimate costs before script generation
+  - Pricing constants (Dec 2024):
+    - Gemini image: ~$0.02-0.13/image
+    - VEO video: ~$0.08-0.15/second
+    - OpenAI agent orchestration: ~$0.10 estimated
+  - Enhanced `src/sip_videogen/cli.py` with cost confirmation:
+    - Cost estimate panel displayed before video generation
+    - Interactive confirmation prompt (can cancel)
+    - `--yes/-y` flag to skip confirmation for automation
+    - Cost estimation skipped for dry-run mode
+  - Updated `config/__init__.py` with cost estimation exports
+
 ### Pending Tasks
-- [ ] Task 7.3: Add Cost Estimation
 - [ ] Task 7.4: Write Tests
 
 ## Project Structure
@@ -245,6 +263,7 @@ sip-videogen/
 │       │   └── ffmpeg.py
 │       ├── config/
 │       │   ├── __init__.py
+│       │   ├── costs.py               # NEW: Cost estimation module
 │       │   ├── logging.py
 │       │   └── settings.py
 │       ├── generators/
@@ -265,7 +284,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 7.3: Add Cost Estimation**
+2. The next task is **Task 7.4: Write Tests**
 3. Follow the implementation hints in the task description
 
 ## Testing
