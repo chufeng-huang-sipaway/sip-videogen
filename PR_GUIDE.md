@@ -57,8 +57,16 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
     - `is_complete` property: Verify all required assets are generated
   - Updated `models/__init__.py` with exports
 
+- [x] **Task 2.3: Implement Agent Output Models**
+  - Created `src/sip_videogen/models/agent_outputs.py` with structured output types
+  - `ScreenwriterOutput`: Contains scenes list and narrative notes
+  - `ProductionDesignerOutput`: Contains shared elements and design notes
+  - `ContinuityIssue`: Model for tracking continuity issues found during validation
+  - `ContinuitySupervisorOutput`: Contains validated script with optimized prompts and issues list
+  - `ShowrunnerOutput`: Contains complete VideoScript ready for production
+  - Updated `models/__init__.py` with exports for all agent output models
+
 ### Pending Tasks
-- [ ] Task 2.3: Implement Agent Output Models
 - [ ] Task 3.1-3.4: Agent Team Implementation
 - [ ] Task 4.1-4.2: Image Generation
 - [ ] Task 5.1-5.3: Video Generation
@@ -90,6 +98,7 @@ sip-videogen/
 │       │   └── __init__.py
 │       ├── models/
 │       │   ├── __init__.py
+│       │   ├── agent_outputs.py
 │       │   ├── assets.py
 │       │   └── script.py
 │       └── storage/
@@ -100,7 +109,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 2.3: Implement Agent Output Models**
+2. The next task is **Task 3.1: Implement Screenwriter Agent**
 3. Follow the implementation hints in the task description
 
 ## Testing
