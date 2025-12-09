@@ -31,8 +31,15 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Uses Rich for pretty output: Console, Panel, and Table components
   - Configuration validation with clear error messages
 
+- [x] **Task 1.4: Set Up Logging with Rich**
+  - Created `src/sip_videogen/config/logging.py` with `setup_logging()` and `get_logger()` functions
+  - Uses `RichHandler` for pretty console output with rich tracebacks
+  - Supports optional file logging
+  - Log level configured from `SIP_LOG_LEVEL` environment variable (default: INFO)
+  - Logging initialized in CLI `main()` function
+  - Added logging calls to `generate` command for traceability
+
 ### Pending Tasks
-- [ ] Task 1.4: Set Up Logging with Rich
 - [ ] Task 2.1: Implement Core Script Models
 - [ ] Task 2.2: Implement Asset and Production Models
 - [ ] Task 2.3: Implement Agent Output Models
@@ -61,6 +68,7 @@ sip-videogen/
 │       │   └── __init__.py
 │       ├── config/
 │       │   ├── __init__.py
+│       │   ├── logging.py
 │       │   └── settings.py
 │       ├── generators/
 │       │   └── __init__.py
@@ -74,7 +82,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 1.4: Set Up Logging with Rich**
+2. The next task is **Task 2.1: Implement Core Script Models**
 3. Follow the implementation hints in the task description
 
 ## Testing
