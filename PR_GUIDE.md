@@ -135,8 +135,22 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - `VideoGenerationError` exception for proper error handling
   - Updated `generators/__init__.py` with exports
 
+- [x] **Task 5.2: Implement Parallel Video Generation**
+  - Added `generate_all_video_clips()` async method to `VideoGenerator` class
+  - Uses `asyncio.gather()` for concurrent video generation across all scenes
+  - Semaphore-controlled concurrency (default: 3 concurrent generations)
+  - Inter-request delay (default: 2.0s) for API rate limit compliance
+  - Rich progress bar with real-time status updates (spinner, progress %, elapsed time)
+  - `_build_scene_reference_map()`: Maps scenes to their relevant reference images
+  - Results sorted by scene number for proper video ordering
+  - `VideoGenerationResult` dataclass for tracking generation outcomes:
+    - `successful`: List of generated video clips
+    - `failed_scenes`: List of scene numbers that failed
+    - `success_rate` property: Percentage of successful generations
+    - `all_succeeded` property: Boolean check for complete success
+  - Updated `generators/__init__.py` with `VideoGenerationResult` export
+
 ### Pending Tasks
-- [ ] Task 5.2: Implement Parallel Video Generation
 - [ ] Task 5.3: Implement Video Download from GCS
 - [ ] Task 6.1: FFmpeg Wrapper
 - [ ] Task 7.1-7.4: Integration and Polish
@@ -188,7 +202,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 5.2: Implement Parallel Video Generation**
+2. The next task is **Task 5.3: Implement Video Download from GCS**
 3. Follow the implementation hints in the task description
 
 ## Testing
