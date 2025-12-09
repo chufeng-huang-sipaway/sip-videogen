@@ -90,8 +90,16 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Prompt covers continuity checks (visual, logical, technical), prompt optimization for AI video generation, reference image compatibility
   - Updated `agents/__init__.py` with exports for agent and function
 
+- [x] **Task 3.4: Implement Showrunner Orchestrator**
+  - Created `src/sip_videogen/agents/showrunner.py` with OpenAI Agents SDK
+  - `showrunner_agent`: Orchestrator agent using agent-as-tool pattern
+  - Coordinates screenwriter, production_designer, and continuity_supervisor agents as tools
+  - `develop_script()`: Async function as main entry point for script development
+  - Detailed prompt stored in `src/sip_videogen/agents/prompts/showrunner.md`
+  - Prompt covers 5-step orchestration process, creative guidelines, technical awareness (VEO constraints)
+  - Updated `agents/__init__.py` with exports for showrunner_agent and develop_script
+
 ### Pending Tasks
-- [ ] Task 3.4: Showrunner Orchestrator Implementation
 - [ ] Task 4.1-4.2: Image Generation
 - [ ] Task 5.1-5.3: Video Generation
 - [ ] Task 6.1: FFmpeg Wrapper
@@ -113,11 +121,13 @@ sip-videogen/
 │       │   ├── screenwriter.py
 │       │   ├── production_designer.py
 │       │   ├── continuity_supervisor.py
+│       │   ├── showrunner.py
 │       │   └── prompts/
 │       │       ├── __init__.py
 │       │       ├── screenwriter.md
 │       │       ├── production_designer.md
-│       │       └── continuity_supervisor.md
+│       │       ├── continuity_supervisor.md
+│       │       └── showrunner.md
 │       ├── assembler/
 │       │   └── __init__.py
 │       ├── config/
@@ -139,7 +149,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 3.4: Implement Showrunner Orchestrator**
+2. The next task is **Task 4.1: Implement Gemini Image Generator**
 3. Follow the implementation hints in the task description
 
 ## Testing
