@@ -5,6 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
 
 app = typer.Typer(
@@ -43,9 +44,12 @@ def generate(
         sip-videogen generate "A day in the life of a robot" --scenes 5
         sip-videogen generate "Underwater adventure" --dry-run
     """
+    logger = get_logger(__name__)
+
     try:
         settings = get_settings()
     except Exception as e:
+        logger.error("Configuration error: %s", e)
         console.print(
             f"[red]Configuration error:[/red] {e}\n"
             "Run [bold]sip-videogen status[/bold] to check your configuration."
@@ -54,6 +58,9 @@ def generate(
 
     # Use default scenes from config if not specified
     num_scenes = scenes if scenes is not None else settings.sip_default_scenes
+
+    logger.info("Starting video generation for idea: %s", idea[:50] + "..." if len(idea) > 50 else idea)
+    logger.debug("Configuration: scenes=%d, dry_run=%s", num_scenes, dry_run)
 
     console.print(
         Panel(
@@ -67,6 +74,7 @@ def generate(
 
     if dry_run:
         console.print("[yellow]Dry run mode:[/yellow] Will only generate script, no videos.")
+        logger.info("Dry run mode enabled - will only generate script")
 
     # TODO: Implement full pipeline in Task 7.1
     console.print("\n[dim]Pipeline not yet implemented - see Task 7.1[/dim]")
@@ -213,6 +221,15 @@ def setup() -> None:
 
 def main() -> None:
     """Entry point for the CLI."""
+    # Initialize logging with settings
+    try:
+        settings = get_settings()
+        log_level = settings.sip_log_level
+    except Exception:
+        # Use default log level if settings fail to load
+        log_level = "INFO"
+
+    setup_logging(level=log_level)
     app()
 
 
