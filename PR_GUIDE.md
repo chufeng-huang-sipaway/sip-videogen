@@ -123,8 +123,21 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - `GCSStorageError` exception for proper error handling
   - Updated `storage/__init__.py` with exports
 
+- [x] **Task 5.1: Implement VEO 3.1 Video Generator**
+  - Created `src/sip_videogen/generators/video_generator.py` with Google VEO 3.1 via Vertex AI
+  - `VideoGenerator` class using `google-genai` Client with Vertex AI authentication
+  - `generate_video_clip()`: Async method to generate video for a SceneAction
+  - Supports up to 3 reference images for visual consistency
+  - Handles VEO constraints: valid durations (4, 6, 8 seconds), forced 8s with reference images
+  - Builds prompts from scene details (setting, action, camera direction, dialogue)
+  - Polls for operation completion with configurable interval (15 seconds default)
+  - Automatic retry logic with exponential backoff using `tenacity`
+  - `VideoGenerationError` exception for proper error handling
+  - Updated `generators/__init__.py` with exports
+
 ### Pending Tasks
-- [ ] Task 5.1-5.3: Video Generation
+- [ ] Task 5.2: Implement Parallel Video Generation
+- [ ] Task 5.3: Implement Video Download from GCS
 - [ ] Task 6.1: FFmpeg Wrapper
 - [ ] Task 7.1-7.4: Integration and Polish
 
@@ -158,7 +171,9 @@ sip-videogen/
 │       │   ├── logging.py
 │       │   └── settings.py
 │       ├── generators/
-│       │   └── __init__.py
+│       │   ├── __init__.py
+│       │   ├── image_generator.py
+│       │   └── video_generator.py
 │       ├── models/
 │       │   ├── __init__.py
 │       │   ├── agent_outputs.py
@@ -173,7 +188,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 5.1: Implement VEO 3.1 Video Generator**
+2. The next task is **Task 5.2: Implement Parallel Video Generation**
 3. Follow the implementation hints in the task description
 
 ## Testing
