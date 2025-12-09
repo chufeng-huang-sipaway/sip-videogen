@@ -187,8 +187,32 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Configuration validation before pipeline start
   - Proper error handling with user-friendly messages
 
+- [x] **Task 7.2: Implement Error Handling**
+  - Created `src/sip_videogen/exceptions.py` with centralized exception hierarchy:
+    - `SipVideoGenError`: Base exception for all custom errors
+    - `ConfigurationError`: For missing or invalid configuration
+    - `AuthenticationError`: For API authentication failures
+    - `APIError`, `RateLimitError`, `QuotaExceededError`: For API-related issues
+    - `ValidationError`: For input validation failures
+    - `PipelineError`: For pipeline execution failures
+  - Enhanced `src/sip_videogen/storage/gcs.py` with specific GCS exceptions:
+    - `GCSAuthenticationError`: For Google Cloud credential issues
+    - `GCSBucketNotFoundError`: For missing buckets with creation instructions
+    - `GCSPermissionError`: For access denied with IAM guidance
+    - Bucket access verification on initialization
+  - Added retry logic with `tenacity` to `src/sip_videogen/agents/showrunner.py`:
+    - `ScriptDevelopmentError` exception for agent failures
+    - Automatic retry (3 attempts) with exponential backoff
+    - Input validation for idea string (length, emptiness)
+  - Enhanced `src/sip_videogen/cli.py` with comprehensive error handling:
+    - `_validate_idea()` function for input validation
+    - Specific error handlers for each exception type
+    - User-friendly error panels with actionable guidance
+    - Descriptive error messages with troubleshooting hints
+  - Updated `storage/__init__.py` and `agents/__init__.py` with new exception exports
+  - Updated main `__init__.py` to export base exception classes
+
 ### Pending Tasks
-- [ ] Task 7.2: Implement Error Handling
 - [ ] Task 7.3: Add Cost Estimation
 - [ ] Task 7.4: Write Tests
 
@@ -203,6 +227,7 @@ sip-videogen/
 │       ├── __init__.py
 │       ├── __main__.py
 │       ├── cli.py
+│       ├── exceptions.py          # NEW: Centralized exception hierarchy
 │       ├── agents/
 │       │   ├── __init__.py
 │       │   ├── screenwriter.py
@@ -240,7 +265,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 7.2: Implement Error Handling**
+2. The next task is **Task 7.3: Add Cost Estimation**
 3. Follow the implementation hints in the task description
 
 ## Testing
