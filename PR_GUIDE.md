@@ -15,8 +15,15 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - `.gitignore` for Python projects
   - Placeholder `cli.py` with Typer app
 
+- [x] **Task 1.2: Implement Configuration with Pydantic Settings**
+  - Created `src/sip_videogen/config/settings.py` with `Settings` class using pydantic-settings
+  - All required settings: `OPENAI_API_KEY`, `GEMINI_API_KEY`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `SIP_GCS_BUCKET_NAME`, `SIP_OUTPUT_DIR`, `SIP_DEFAULT_SCENES`, `SIP_VIDEO_DURATION`, `SIP_LOG_LEVEL`
+  - Singleton `get_settings()` function with LRU cache for efficient access
+  - `is_configured()` helper method to check setup status
+  - Video duration validation to VEO-supported values (4, 6, 8 seconds)
+  - Added `README.md` for package building requirements
+
 ### Pending Tasks
-- [ ] Task 1.2: Implement Configuration with Pydantic Settings
 - [ ] Task 1.3: Create CLI Skeleton with Typer
 - [ ] Task 1.4: Set Up Logging with Rich
 - [ ] Task 2.1: Implement Core Script Models
@@ -46,7 +53,8 @@ sip-videogen/
 │       ├── assembler/
 │       │   └── __init__.py
 │       ├── config/
-│       │   └── __init__.py
+│       │   ├── __init__.py
+│       │   └── settings.py
 │       ├── generators/
 │       │   └── __init__.py
 │       ├── models/
@@ -59,7 +67,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 1.2: Implement Configuration with Pydantic Settings**
+2. The next task is **Task 1.3: Create CLI Skeleton with Typer**
 3. Follow the implementation hints in the task description
 
 ## Testing
