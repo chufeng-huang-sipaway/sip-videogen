@@ -4,6 +4,10 @@ This module contains the agent team that collaborates to transform
 vague video ideas into structured video scripts.
 """
 
+from sip_videogen.agents.continuity_supervisor import (
+    continuity_supervisor_agent,
+    validate_and_optimize,
+)
 from sip_videogen.agents.production_designer import (
     identify_shared_elements,
     production_designer_agent,
@@ -15,4 +19,6 @@ __all__ = [
     "develop_scenes",
     "production_designer_agent",
     "identify_shared_elements",
+    "continuity_supervisor_agent",
+    "validate_and_optimize",
 ]
