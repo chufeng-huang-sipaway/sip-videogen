@@ -170,8 +170,24 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - `FFmpegError` exception for proper error handling
   - Updated `assembler/__init__.py` with exports
 
+- [x] **Task 7.1: Wire Up the Full Pipeline in CLI**
+  - Implemented complete video generation pipeline in `src/sip_videogen/cli.py`
+  - 6-stage pipeline with Rich progress bars:
+    - Stage 1: Develop script using Showrunner agent orchestration
+    - Stage 2: Generate reference images for shared elements using Gemini
+    - Stage 3: Upload reference images to GCS for VEO consumption
+    - Stage 4: Generate video clips in parallel using VEO 3.1
+    - Stage 5: Download video clips from GCS
+    - Stage 6: Concatenate clips into final video using FFmpeg
+  - Dry-run mode (`--dry-run`) stops after script generation
+  - Unique project IDs with timestamped folders for each run
+  - Script saved as JSON for debugging/reuse
+  - Script summary display with scenes and shared elements
+  - Final summary with video duration and asset counts
+  - Configuration validation before pipeline start
+  - Proper error handling with user-friendly messages
+
 ### Pending Tasks
-- [ ] Task 7.1: Wire Up the Full Pipeline in CLI
 - [ ] Task 7.2: Implement Error Handling
 - [ ] Task 7.3: Add Cost Estimation
 - [ ] Task 7.4: Write Tests
@@ -224,7 +240,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 7.1: Wire Up the Full Pipeline in CLI**
+2. The next task is **Task 7.2: Implement Error Handling**
 3. Follow the implementation hints in the task description
 
 ## Testing
