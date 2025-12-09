@@ -13,6 +13,10 @@ from sip_videogen.agents.production_designer import (
     production_designer_agent,
 )
 from sip_videogen.agents.screenwriter import develop_scenes, screenwriter_agent
+from sip_videogen.agents.showrunner import (
+    develop_script,
+    showrunner_agent,
+)
 
 __all__ = [
     "screenwriter_agent",
@@ -21,4 +25,6 @@ __all__ = [
     "identify_shared_elements",
     "continuity_supervisor_agent",
     "validate_and_optimize",
+    "showrunner_agent",
+    "develop_script",
 ]
