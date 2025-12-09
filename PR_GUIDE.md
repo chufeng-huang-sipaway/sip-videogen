@@ -150,10 +150,31 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
     - `all_succeeded` property: Boolean check for complete success
   - Updated `generators/__init__.py` with `VideoGenerationResult` export
 
+- [x] **Task 5.3: Implement Video Download from GCS**
+  - Already implemented as part of Task 4.2
+  - `download_file()` method in `GCSStorage` class handles GCS to local file downloads
+  - Parses GCS URI format (gs://bucket/path)
+  - Creates parent directories automatically
+  - Includes retry logic with exponential backoff
+
+- [x] **Task 6.1: Implement FFmpeg Wrapper**
+  - Created `src/sip_videogen/assembler/ffmpeg.py` with FFmpeg integration
+  - `FFmpegAssembler` class for video concatenation operations
+  - `concatenate_clips()`: Concatenate multiple video clips using FFmpeg concat demuxer
+    - Supports both stream copy (fast, -c copy) and re-encode (compatible) modes
+    - Creates temporary concat list file, cleans up after completion
+    - Handles path escaping for special characters
+  - `get_video_duration()`: Get video duration using ffprobe
+  - `get_video_info()`: Get detailed video metadata (codec, resolution, fps, size)
+  - `_verify_ffmpeg_installed()`: Automatic verification that FFmpeg is available in PATH
+  - `FFmpegError` exception for proper error handling
+  - Updated `assembler/__init__.py` with exports
+
 ### Pending Tasks
-- [ ] Task 5.3: Implement Video Download from GCS
-- [ ] Task 6.1: FFmpeg Wrapper
-- [ ] Task 7.1-7.4: Integration and Polish
+- [ ] Task 7.1: Wire Up the Full Pipeline in CLI
+- [ ] Task 7.2: Implement Error Handling
+- [ ] Task 7.3: Add Cost Estimation
+- [ ] Task 7.4: Write Tests
 
 ## Project Structure
 ```
@@ -179,7 +200,8 @@ sip-videogen/
 │       │       ├── continuity_supervisor.md
 │       │       └── showrunner.md
 │       ├── assembler/
-│       │   └── __init__.py
+│       │   ├── __init__.py
+│       │   └── ffmpeg.py
 │       ├── config/
 │       │   ├── __init__.py
 │       │   ├── logging.py
@@ -202,7 +224,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 5.3: Implement Video Download from GCS**
+2. The next task is **Task 7.1: Wire Up the Full Pipeline in CLI**
 3. Follow the implementation hints in the task description
 
 ## Testing
