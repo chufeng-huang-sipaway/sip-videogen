@@ -99,8 +99,20 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Prompt covers 5-step orchestration process, creative guidelines, technical awareness (VEO constraints)
   - Updated `agents/__init__.py` with exports for showrunner_agent and develop_script
 
+- [x] **Task 4.1: Implement Gemini Image Generator**
+  - Created `src/sip_videogen/generators/image_generator.py` with Google GenAI SDK
+  - `ImageGenerator` class using `google-genai` Client with API key authentication
+  - `generate_reference_image()`: Async method to generate image for a SharedElement
+  - `generate_all_reference_images()`: Batch method to process all shared elements
+  - Uses `gemini-2.5-flash-image` model (production-ready, GA)
+  - Automatic retry logic with exponential backoff using `tenacity`
+  - Element-type-aware aspect ratios (1:1 for characters/props, 16:9 for environments)
+  - Prompt building with type-specific context for better generation results
+  - `ImageGenerationError` exception for proper error handling
+  - Updated `generators/__init__.py` with exports
+
 ### Pending Tasks
-- [ ] Task 4.1-4.2: Image Generation
+- [ ] Task 4.2: GCS Upload for Reference Images
 - [ ] Task 5.1-5.3: Video Generation
 - [ ] Task 6.1: FFmpeg Wrapper
 - [ ] Task 7.1-7.4: Integration and Polish
@@ -149,7 +161,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 4.1: Implement Gemini Image Generator**
+2. The next task is **Task 4.2: Implement GCS Upload for Reference Images**
 3. Follow the implementation hints in the task description
 
 ## Testing
