@@ -4,16 +4,19 @@ This module provides video generation functionality using Google's VEO 3.1 API
 via Vertex AI to create video clips for each scene in the script.
 """
 
+import asyncio
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from google import genai
 from google.genai.types import GenerateVideosConfig, Image, VideoGenerationReferenceImage
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from sip_videogen.config.logging import get_logger
 from sip_videogen.models.assets import AssetType, GeneratedAsset
-from sip_videogen.models.script import SceneAction
+from sip_videogen.models.script import SceneAction, VideoScript
 
 logger = get_logger(__name__)
 
@@ -267,3 +270,195 @@ class VideoGenerator:
         else:
             # Default to PNG for unknown
             return "image/png"
+
+    async def generate_all_video_clips(
+        self,
+        script: VideoScript,
+        output_gcs_prefix: str,
+        reference_images: list[GeneratedAsset] | None = None,
+        max_concurrent: int = 3,
+        inter_request_delay: float = 2.0,
+        show_progress: bool = True,
+    ) -> list[GeneratedAsset]:
+        """Generate video clips for all scenes in parallel with progress tracking.
+
+        This method generates video clips for all scenes in the script,
+        managing concurrency and rate limits while displaying progress.
+
+        Args:
+            script: The VideoScript containing scenes to generate videos for.
+            output_gcs_prefix: GCS URI prefix for outputs (e.g., gs://bucket/project).
+            reference_images: Optional list of reference images for visual consistency.
+            max_concurrent: Maximum number of concurrent video generations. Defaults to 3.
+            inter_request_delay: Delay in seconds between starting new requests. Defaults to 2.0.
+            show_progress: Whether to display a Rich progress bar. Defaults to True.
+
+        Returns:
+            List of GeneratedAssets for all successfully generated video clips,
+            sorted by scene number.
+        """
+        scenes = script.scenes
+        if not scenes:
+            logger.warning("No scenes to generate video clips for")
+            return []
+
+        logger.info(
+            f"Starting parallel video generation for {len(scenes)} scenes "
+            f"(max concurrent: {max_concurrent})"
+        )
+
+        # Build a mapping of scene elements to reference images
+        scene_references = self._build_scene_reference_map(script, reference_images)
+
+        # Create results container
+        results: list[GeneratedAsset | None] = [None] * len(scenes)
+        errors: list[tuple[int, Exception]] = []
+
+        # Semaphore to limit concurrency
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def generate_with_semaphore(
+            idx: int,
+            scene: SceneAction,
+            progress: Progress | None,
+            task_id: TaskID | None,
+        ) -> None:
+            """Generate a single video clip with semaphore control."""
+            async with semaphore:
+                # Add delay between requests to respect rate limits
+                if idx > 0:
+                    await asyncio.sleep(inter_request_delay)
+
+                try:
+                    # Get reference images for this scene
+                    scene_refs = scene_references.get(scene.scene_number, [])
+
+                    # Generate GCS output URI for this scene
+                    scene_output_uri = f"{output_gcs_prefix}/scene_{scene.scene_number:03d}"
+
+                    result = await self.generate_video_clip(
+                        scene=scene,
+                        output_gcs_uri=scene_output_uri,
+                        reference_images=scene_refs,
+                    )
+                    results[idx] = result
+
+                    if progress and task_id is not None:
+                        progress.update(
+                            task_id,
+                            advance=1,
+                            description=f"[green]Scene {scene.scene_number} ✓",
+                        )
+
+                except Exception as e:
+                    errors.append((scene.scene_number, e))
+                    logger.error(f"Failed to generate video for scene {scene.scene_number}: {e}")
+
+                    if progress and task_id is not None:
+                        progress.update(
+                            task_id,
+                            advance=1,
+                            description=f"[red]Scene {scene.scene_number} ✗",
+                        )
+
+        if show_progress:
+            # Use Rich progress bar
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TextColumn("({task.completed}/{task.total})"),
+                TimeElapsedColumn(),
+            ) as progress:
+                task_id = progress.add_task(
+                    "[cyan]Generating videos...",
+                    total=len(scenes),
+                )
+
+                # Create all tasks
+                tasks = [
+                    generate_with_semaphore(idx, scene, progress, task_id)
+                    for idx, scene in enumerate(scenes)
+                ]
+
+                # Run all tasks concurrently
+                await asyncio.gather(*tasks)
+        else:
+            # No progress bar
+            tasks = [
+                generate_with_semaphore(idx, scene, None, None)
+                for idx, scene in enumerate(scenes)
+            ]
+            await asyncio.gather(*tasks)
+
+        # Filter out None results and sort by scene number
+        successful_results = [r for r in results if r is not None]
+        successful_results.sort(key=lambda x: x.scene_number or 0)
+
+        logger.info(
+            f"Video generation complete: {len(successful_results)}/{len(scenes)} clips generated"
+        )
+
+        if errors:
+            logger.warning(f"Failed scenes: {[e[0] for e in errors]}")
+
+        return successful_results
+
+    def _build_scene_reference_map(
+        self,
+        script: VideoScript,
+        reference_images: list[GeneratedAsset] | None,
+    ) -> dict[int, list[GeneratedAsset]]:
+        """Build a mapping of scene numbers to their reference images.
+
+        Args:
+            script: The VideoScript with scene and element information.
+            reference_images: List of generated reference image assets.
+
+        Returns:
+            Dictionary mapping scene numbers to lists of relevant reference images.
+        """
+        if not reference_images:
+            return {}
+
+        # Build element ID to reference image mapping
+        element_to_ref: dict[str, GeneratedAsset] = {}
+        for ref in reference_images:
+            if ref.element_id:
+                element_to_ref[ref.element_id] = ref
+
+        # Build scene to reference images mapping
+        scene_refs: dict[int, list[GeneratedAsset]] = {}
+        for scene in script.scenes:
+            refs = []
+            for element_id in scene.shared_element_ids:
+                if element_id in element_to_ref:
+                    refs.append(element_to_ref[element_id])
+
+            # Limit to MAX_REFERENCE_IMAGES per scene
+            if refs:
+                scene_refs[scene.scene_number] = refs[: self.MAX_REFERENCE_IMAGES]
+
+        return scene_refs
+
+
+@dataclass
+class VideoGenerationResult:
+    """Result of parallel video generation."""
+
+    successful: list[GeneratedAsset]
+    failed_scenes: list[int]
+    total_scenes: int
+
+    @property
+    def success_rate(self) -> float:
+        """Calculate the success rate as a percentage."""
+        if self.total_scenes == 0:
+            return 0.0
+        return len(self.successful) / self.total_scenes * 100
+
+    @property
+    def all_succeeded(self) -> bool:
+        """Check if all scenes were generated successfully."""
+        return len(self.successful) == self.total_scenes
