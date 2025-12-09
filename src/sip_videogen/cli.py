@@ -14,6 +14,7 @@ from rich.table import Table
 
 from .agents import ScriptDevelopmentError, develop_script
 from .assembler import FFmpegAssembler, FFmpegError
+from .config.costs import estimate_costs, estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
 from .generators import ImageGenerationError, ImageGenerator, VideoGenerationError, VideoGenerator
@@ -77,6 +78,12 @@ def generate(
         "--dry-run",
         help="Only generate script, skip video generation",
     ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip cost confirmation prompt",
+    ),
 ) -> None:
     """Generate a video from your idea.
 
@@ -87,6 +94,7 @@ def generate(
         sip-videogen generate "A cat astronaut explores Mars"
         sip-videogen generate "A day in the life of a robot" --scenes 5
         sip-videogen generate "Underwater adventure" --dry-run
+        sip-videogen generate "Epic space battle" --yes  # Skip cost confirmation
     """
     logger = get_logger(__name__)
 
@@ -147,6 +155,35 @@ def generate(
             border_style="blue",
         )
     )
+
+    # Show cost estimation if not dry-run
+    if not dry_run:
+        # Estimate costs before generation
+        # With reference images, VEO forces 8-second duration
+        cost_estimate = estimate_pre_generation_costs(
+            num_scenes=num_scenes,
+            estimated_shared_elements=3,  # Typical number of shared elements
+            video_duration_per_scene=8,  # VEO forces 8s with reference images
+        )
+
+        console.print(
+            Panel(
+                f"[bold yellow]Estimated Cost[/bold yellow]\n\n"
+                f"Image Generation ({cost_estimate.image_count} images): ~${cost_estimate.image_total:.2f}\n"
+                f"Video Generation ({cost_estimate.video_count} clips, ~{cost_estimate.video_duration_seconds}s): ~${cost_estimate.video_total:.2f}\n"
+                f"\n[bold]Total: ${cost_estimate.total_min:.2f} - ${cost_estimate.total_max:.2f}[/bold]\n"
+                f"\n[dim]Note: Actual costs depend on final script. VEO pricing may vary.[/dim]",
+                title="Cost Estimate",
+                border_style="yellow",
+            )
+        )
+
+        # Ask for confirmation unless --yes flag is provided
+        if not yes:
+            proceed = typer.confirm("Do you want to proceed with video generation?")
+            if not proceed:
+                console.print("[yellow]Generation cancelled.[/yellow]")
+                raise typer.Exit(0)
 
     if dry_run:
         console.print("[yellow]Dry run mode:[/yellow] Will only generate script, no videos.")
