@@ -66,8 +66,16 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - `ShowrunnerOutput`: Contains complete VideoScript ready for production
   - Updated `models/__init__.py` with exports for all agent output models
 
+- [x] **Task 3.1: Implement Screenwriter Agent**
+  - Created `src/sip_videogen/agents/screenwriter.py` with OpenAI Agents SDK
+  - `screenwriter_agent`: Agent configured with structured output using `ScreenwriterOutput`
+  - `develop_scenes()`: Async function to develop scene breakdown from creative idea
+  - Detailed prompt stored in `src/sip_videogen/agents/prompts/screenwriter.md`
+  - Prompt covers scene structure, action descriptions, duration guidelines, camera directions
+  - Updated `agents/__init__.py` with exports for agent and function
+
 ### Pending Tasks
-- [ ] Task 3.1-3.4: Agent Team Implementation
+- [ ] Task 3.2-3.4: Remaining Agent Team Implementation
 - [ ] Task 4.1-4.2: Image Generation
 - [ ] Task 5.1-5.3: Video Generation
 - [ ] Task 6.1: FFmpeg Wrapper
@@ -86,8 +94,10 @@ sip-videogen/
 │       ├── cli.py
 │       ├── agents/
 │       │   ├── __init__.py
+│       │   ├── screenwriter.py
 │       │   └── prompts/
-│       │       └── __init__.py
+│       │       ├── __init__.py
+│       │       └── screenwriter.md
 │       ├── assembler/
 │       │   └── __init__.py
 │       ├── config/
@@ -109,7 +119,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 3.1: Implement Screenwriter Agent**
+2. The next task is **Task 3.2: Implement Production Designer Agent**
 3. Follow the implementation hints in the task description
 
 ## Testing
