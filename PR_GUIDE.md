@@ -74,8 +74,16 @@ This PR implements the sip-videogen CLI tool that transforms vague video ideas i
   - Prompt covers scene structure, action descriptions, duration guidelines, camera directions
   - Updated `agents/__init__.py` with exports for agent and function
 
+- [x] **Task 3.2: Implement Production Designer Agent**
+  - Created `src/sip_videogen/agents/production_designer.py` with OpenAI Agents SDK
+  - `production_designer_agent`: Agent configured with structured output using `ProductionDesignerOutput`
+  - `identify_shared_elements()`: Async function to analyze scenes and identify recurring visual elements
+  - Detailed prompt stored in `src/sip_videogen/agents/prompts/production_designer.md`
+  - Prompt covers element types (characters, environments, props), visual description guidelines, ID naming conventions
+  - Updated `agents/__init__.py` with exports for agent and function
+
 ### Pending Tasks
-- [ ] Task 3.2-3.4: Remaining Agent Team Implementation
+- [ ] Task 3.3-3.4: Remaining Agent Team Implementation (Continuity Supervisor, Showrunner)
 - [ ] Task 4.1-4.2: Image Generation
 - [ ] Task 5.1-5.3: Video Generation
 - [ ] Task 6.1: FFmpeg Wrapper
@@ -95,9 +103,11 @@ sip-videogen/
 │       ├── agents/
 │       │   ├── __init__.py
 │       │   ├── screenwriter.py
+│       │   ├── production_designer.py
 │       │   └── prompts/
 │       │       ├── __init__.py
-│       │       └── screenwriter.md
+│       │       ├── screenwriter.md
+│       │       └── production_designer.md
 │       ├── assembler/
 │       │   └── __init__.py
 │       ├── config/
@@ -119,7 +129,7 @@ sip-videogen/
 
 ## How to Continue
 1. Read `TASKS.md` for detailed task specifications
-2. The next task is **Task 3.2: Implement Production Designer Agent**
+2. The next task is **Task 3.3: Implement Continuity Supervisor Agent**
 3. Follow the implementation hints in the task description
 
 ## Testing
