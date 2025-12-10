@@ -9,8 +9,9 @@ from sip_videogen.generators.image_generator import (
     ImageGenerationError,
     ImageGenerator,
 )
+from sip_videogen.generators.video_generator import VideoGenerator
 from sip_videogen.models.assets import AssetType
-from sip_videogen.models.script import ElementType, SharedElement
+from sip_videogen.models.script import ElementType, SceneAction, SharedElement
 
 
 class TestImageGenerator:
@@ -269,3 +270,138 @@ class TestImageGenerationError:
         error.__cause__ = cause
 
         assert error.__cause__ == cause
+
+
+class TestVideoGeneratorSceneFlow:
+    """Tests for VideoGenerator scene flow context."""
+
+    def test_build_flow_context_first_scene(self) -> None:
+        """Test flow context for first scene includes opening guidance."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=1,
+                setting_description="A forest",
+                action_description="Hero walks through trees",
+            )
+            context = generator._build_flow_context(scene, total_scenes=3)
+
+            assert context is not None
+            assert "scene 1 of 3" in context
+            assert "opening scene" in context
+            assert "Do NOT end with" in context
+            assert "continues into the next scene" in context
+
+    def test_build_flow_context_middle_scene(self) -> None:
+        """Test flow context for middle scene requires seamless flow."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=2,
+                setting_description="A forest path",
+                action_description="Hero continues walking",
+            )
+            context = generator._build_flow_context(scene, total_scenes=3)
+
+            assert context is not None
+            assert "scene 2 of 3" in context
+            assert "middle scene" in context
+            assert "NO opening pause" in context
+            assert "NO closing pause" in context
+            assert "NO looking at camera" in context
+
+    def test_build_flow_context_last_scene(self) -> None:
+        """Test flow context for last scene allows conclusion."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=3,
+                setting_description="A clearing",
+                action_description="Hero reaches destination",
+            )
+            context = generator._build_flow_context(scene, total_scenes=3)
+
+            assert context is not None
+            assert "scene 3 of 3" in context
+            assert "final scene" in context
+            assert "begin mid-action" in context
+            assert "natural conclusion" in context
+
+    def test_build_flow_context_single_scene_returns_none(self) -> None:
+        """Test flow context returns None for single-scene videos."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=1,
+                setting_description="A room",
+                action_description="Something happens",
+            )
+            context = generator._build_flow_context(scene, total_scenes=1)
+
+            assert context is None
+
+    def test_build_flow_context_none_total_scenes(self) -> None:
+        """Test flow context returns None when total_scenes is None."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=1,
+                setting_description="A room",
+                action_description="Something happens",
+            )
+            context = generator._build_flow_context(scene, total_scenes=None)
+
+            assert context is None
+
+    def test_build_prompt_includes_flow_context(self) -> None:
+        """Test that _build_prompt includes flow context when total_scenes provided."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=2,
+                setting_description="A forest",
+                action_description="Hero walks",
+            )
+            prompt = generator._build_prompt(scene, total_scenes=3)
+
+            assert "scene 2 of 3" in prompt
+            assert "middle scene" in prompt
+            assert "Hero walks" in prompt
+
+    def test_build_prompt_without_flow_context(self) -> None:
+        """Test that _build_prompt works without total_scenes (backward compat)."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=1,
+                setting_description="A forest",
+                action_description="Hero walks",
+            )
+            prompt = generator._build_prompt(scene)  # No total_scenes
+
+            # Should still work, just without flow context
+            assert "Hero walks" in prompt
+            assert "Setting: A forest" in prompt
+            # Flow context should NOT be present
+            assert "scene 1 of" not in prompt
+
+    def test_build_prompt_includes_all_scene_fields(self) -> None:
+        """Test that _build_prompt includes all scene fields with flow context."""
+        with patch("sip_videogen.generators.video_generator.genai.Client"):
+            generator = VideoGenerator(project="test", location="us-central1")
+            scene = SceneAction(
+                scene_number=2,
+                setting_description="Dark alley",
+                action_description="Detective searches for clues",
+                camera_direction="Slow pan right",
+                dialogue="Where could it be?",
+            )
+            prompt = generator._build_prompt(scene, total_scenes=4)
+
+            # Flow context should be first
+            assert "scene 2 of 4" in prompt
+            # All scene fields should be present
+            assert "Setting: Dark alley" in prompt
+            assert "Detective searches for clues" in prompt
+            assert "Camera: Slow pan right" in prompt
+            assert "Dialogue: Where could it be?" in prompt

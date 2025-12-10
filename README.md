@@ -94,6 +94,18 @@ The tool uses a hub-and-spoke agent pattern:
   - **Production Designer** - Identifies shared visual elements
   - **Continuity Supervisor** - Validates consistency and optimizes prompts
 
+### Seamless Scene Flow
+
+Video clips are generated in parallel for speed, but the system ensures smooth transitions between clips:
+
+- **VEO Prompt Context**: Each clip receives position-aware instructions (first/middle/last scene) to avoid awkward pauses at clip boundaries
+- **Agent Guidelines**: Screenwriter and Continuity Supervisor are instructed to create scenes that flow seamlessly:
+  - First scene: May open naturally, must end with action in progress
+  - Middle scenes: Must begin AND end mid-action (no pauses at either end)
+  - Last scene: Must begin mid-action, may conclude naturally
+
+This prevents the "breathing space" effect where assembled clips have noticeable gaps between scenes.
+
 ## Development
 
 ```bash

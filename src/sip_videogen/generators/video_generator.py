@@ -91,6 +91,7 @@ class VideoGenerator:
         reference_images: list[GeneratedAsset] | None = None,
         aspect_ratio: str = "16:9",
         generate_audio: bool = True,
+        total_scenes: int | None = None,
     ) -> GeneratedAsset:
         """Generate a video clip for a scene.
 
@@ -101,6 +102,9 @@ class VideoGenerator:
                              Maximum 3 images allowed.
             aspect_ratio: Video aspect ratio. Defaults to 16:9. Options: 16:9, 9:16.
             generate_audio: Whether to generate audio. Defaults to True.
+            total_scenes: Total number of scenes in the video sequence. When provided,
+                         adds flow context to prompts to eliminate awkward pauses
+                         between clips when assembled.
 
         Returns:
             GeneratedAsset with the GCS URI to the generated video.
@@ -119,8 +123,8 @@ class VideoGenerator:
         # Determine duration (forced to 8s when using reference images)
         duration = self._get_duration(scene, has_references=bool(ref_configs))
 
-        # Build the prompt
-        prompt = self._build_prompt(scene)
+        # Build the prompt with flow context for seamless clip assembly
+        prompt = self._build_prompt(scene, total_scenes=total_scenes)
         logger.debug(f"Video prompt: {prompt}")
 
         try:
@@ -254,16 +258,73 @@ class VideoGenerator:
 
         return configs
 
-    def _build_prompt(self, scene: SceneAction) -> str:
+    def _build_flow_context(
+        self,
+        scene: SceneAction,
+        total_scenes: int | None,
+    ) -> str | None:
+        """Build scene flow context to eliminate awkward pauses between clips.
+
+        This adds context to each scene's prompt to inform VEO that the clip
+        is part of a continuous sequence, guiding it to avoid pauses at
+        scene boundaries that would create awkward gaps when assembled.
+
+        Args:
+            scene: The SceneAction being processed.
+            total_scenes: Total number of scenes in the video sequence.
+
+        Returns:
+            Flow context string, or None if context cannot be determined.
+        """
+        if total_scenes is None or total_scenes <= 1:
+            return None
+
+        scene_num = scene.scene_number
+        is_first = scene_num == 1
+        is_last = scene_num == total_scenes
+
+        parts = [f"This is scene {scene_num} of {total_scenes} in a continuous video sequence"]
+
+        if is_first:
+            parts.append(
+                "As the opening scene, it may begin with an establishing moment, "
+                "but must end with action in progress that continues into the next scene. "
+                "Do NOT end with characters pausing, looking at camera, or any sense of conclusion"
+            )
+        elif is_last:
+            parts.append(
+                "As the final scene, begin mid-action continuing from the previous scene - "
+                "NO pause at the start. A natural conclusion is appropriate for the ending"
+            )
+        else:
+            parts.append(
+                "As a middle scene, flow seamlessly: begin mid-action (NO opening pause), "
+                "end with action in progress (NO closing pause, NO looking at camera). "
+                "Continuous motion throughout"
+            )
+
+        return ". ".join(parts)
+
+    def _build_prompt(
+        self,
+        scene: SceneAction,
+        total_scenes: int | None = None,
+    ) -> str:
         """Build a generation prompt from scene details.
 
         Args:
             scene: The SceneAction to build a prompt for.
+            total_scenes: Total number of scenes in the video (for flow context).
 
         Returns:
             A detailed prompt string for video generation.
         """
         parts = []
+
+        # Add scene flow context first (crucial for eliminating inter-clip pauses)
+        flow_context = self._build_flow_context(scene, total_scenes)
+        if flow_context:
+            parts.append(flow_context)
 
         # Add setting context
         if scene.setting_description:
@@ -405,6 +466,9 @@ class VideoGenerator:
         # Semaphore to limit concurrency
         semaphore = asyncio.Semaphore(max_concurrent)
 
+        # Total scenes for flow context
+        total_scene_count = len(scenes)
+
         async def generate_with_semaphore(
             idx: int,
             scene: SceneAction,
@@ -428,6 +492,7 @@ class VideoGenerator:
                         scene=scene,
                         output_gcs_uri=scene_output_uri,
                         reference_images=scene_refs,
+                        total_scenes=total_scene_count,
                     )
                     results[idx] = result
 

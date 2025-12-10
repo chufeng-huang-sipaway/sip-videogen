@@ -51,6 +51,9 @@ async def develop_scenes(idea: str, num_scenes: int) -> ScreenwriterOutput:
     """
     from agents import Runner
 
+    # Calculate middle scene range for flow instructions
+    middle_end = num_scenes - 1 if num_scenes > 2 else num_scenes
+
     prompt = f"""Create a {num_scenes}-scene video from this idea:
 
 {idea}
@@ -62,6 +65,15 @@ Requirements:
 - Write concrete, visual action descriptions suitable for AI video generation
 - Include camera directions where helpful
 - Add dialogue only when it enhances the story
+
+**CRITICAL - Scene Flow Requirements:**
+These scenes will be generated as separate video clips and assembled together.
+To avoid awkward pauses between clips:
+- Scene 1 may open naturally but MUST end with action in progress
+- Scenes 2-{middle_end} MUST begin AND end mid-action (no pauses at either end)
+- Scene {num_scenes} MUST begin mid-action (natural conclusion is allowed)
+- NO scene should end with characters pausing, looking at camera, or creating a sense of finality (except scene {num_scenes})
+- Think of all scenes as segments of ONE continuous video, not separate clips
 """
 
     result = await Runner.run(screenwriter_agent, prompt)

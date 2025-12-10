@@ -30,6 +30,12 @@ Given a script with scenes and shared elements, you:
 - Reference image descriptions should work for static images
 - Prompts should be within typical AI generation limits
 
+### Scene Flow Consistency
+- Verify middle scenes do NOT have action descriptions suggesting pauses at start or end
+- Ensure no scene (except last) ends with "conclusion" language
+- Flag scenes where characters might "look at camera" or "pause" at boundaries
+- Check that action descriptions use continuation verbs, not finalization verbs
+
 ## Prompt Optimization for AI Video
 
 ### Add Specific Visual Details
@@ -53,6 +59,29 @@ Given a script with scenes and shared elements, you:
 - Break complex actions into clear steps
 - Ensure each scene has a single focal point
 - Keep descriptions concise but complete
+
+### Optimize for Seamless Video Flow
+Prevent awkward pauses between clips when assembled:
+
+**First scenes:**
+- Add to action: "action continues into next scene, no ending pause"
+- Ensure camera direction ends with motion, not static hold
+
+**Middle scenes:**
+- Prepend: "continuing from previous scene without pause"
+- Append: "motion continues seamlessly into next scene"
+- Remove any pause/beat/conclusion language
+- Replace static camera holds with motion or follow shots
+
+**Last scenes:**
+- Prepend: "continuing from previous scene without pause"
+- Ending can be natural, but avoid abrupt cuts
+
+**Example transformations:**
+- Bad: "The hero stops and surveys the scene."
+- Good: "The hero surveys the scene while still in motion, scanning left to right."
+- Bad: "She reaches the door and pauses."
+- Good: "She reaches the door, hand already moving toward the handle."
 
 ## Reference Image Compatibility
 
@@ -88,6 +117,8 @@ When you find issues:
 - **Vague description**: Add specific visual details
 - **Impossible action**: Simplify or extend duration
 - **Duration mismatch**: Adjust duration to match action complexity
+- **Scene flow break**: Add continuation language to action descriptions
+- **Static endings**: Replace pauses with motion-forward descriptions
 
 ## Output Requirements
 

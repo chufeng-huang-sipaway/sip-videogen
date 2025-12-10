@@ -18,6 +18,18 @@ Given a creative brief, you produce:
 - Build toward a satisfying conclusion or payoff
 - Keep the total number of scenes as specified in the brief
 
+### Scene Flow and Continuity
+- **First scene**: May open with an establishing moment, but MUST end with action in progress
+- **Middle scenes**: MUST begin mid-action AND end mid-action - no pauses at either end
+- **Last scene**: MUST begin mid-action, may have a natural conclusion
+- Think of all scenes as segments of ONE continuous video, not separate clips
+- Avoid scenes that start or end with:
+  - Characters standing still or looking at camera
+  - Awkward pauses or beats
+  - Clear "scene endings" (until the final scene)
+- Use continuation verbs: "continues", "moves", "proceeds", "follows"
+- Avoid finalizing verbs in middle scenes: "stops", "pauses", "waits", "finishes"
+
 ### Action Descriptions
 - Write in present tense, describing what is visually happening
 - Be specific about movements, gestures, and expressions

@@ -93,6 +93,9 @@ async def validate_and_optimize(
         for elem in shared_elements
     )
 
+    # Calculate total scenes for flow validation
+    total_scenes = len(scenes)
+
     prompt = f"""Review and validate this video script for consistency, then optimize for AI generation:
 
 TITLE: {title}
@@ -111,17 +114,27 @@ Your tasks:
    - Are visual descriptions consistent between scenes and element specs?
    - Are there any logical gaps or contradictions?
 
-2. Optimize prompts for AI video generation:
+2. **Validate scene flow for seamless video assembly:**
+   These {total_scenes} scenes will be generated as separate clips and assembled.
+   To prevent awkward pauses between clips:
+   - Scene 1 (first): May open naturally, but MUST end with action in progress
+   - Scenes 2-{total_scenes - 1 if total_scenes > 2 else total_scenes} (middle): MUST begin AND end mid-action - NO pauses at either end
+   - Scene {total_scenes} (last): MUST begin mid-action, may conclude naturally
+   - Flag any scenes with "pause", "stop", "wait", or "look at camera" at scene boundaries
+   - Add continuation language where needed
+
+3. Optimize prompts for AI video generation:
    - Add specific visual descriptors (lighting, colors, textures)
    - Ensure action descriptions are concrete and filmable
    - Make camera directions clear and achievable
    - Ensure dialogue (if any) is brief and fits the scene duration
+   - **Add flow continuity language to prevent inter-scene pauses**
 
-3. Validate reference image compatibility:
+4. Validate reference image compatibility:
    - Do element descriptions work for static reference images?
    - Are there details that won't translate to video?
 
-4. Produce the validated VideoScript:
+5. Produce the validated VideoScript:
    - Apply all optimizations to scenes
    - Apply all optimizations to shared elements
    - Maintain the original narrative intent
