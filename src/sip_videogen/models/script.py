@@ -4,7 +4,10 @@ This module defines the data structures that represent the video script,
 including shared visual elements and scene actions.
 """
 
+from __future__ import annotations
+
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -27,9 +30,7 @@ class SharedElement(BaseModel):
     id: str = Field(description="Unique identifier, e.g., 'char_protagonist'")
     element_type: ElementType = Field(description="Type of visual element")
     name: str = Field(description="Human-readable name for the element")
-    visual_description: str = Field(
-        description="Detailed description for image generation"
-    )
+    visual_description: str = Field(description="Detailed description for image generation")
     appears_in_scenes: list[int] = Field(
         description="List of scene numbers where this element appears"
     )
@@ -80,6 +81,10 @@ class VideoScript(BaseModel):
         default_factory=list, description="Visual elements needing consistency"
     )
     scenes: list[SceneAction] = Field(description="Ordered list of scenes")
+    music_brief: Any | None = Field(
+        default=None,
+        description="Background music style from Music Director agent (MusicBrief)",
+    )
 
     @property
     def total_duration(self) -> int:
@@ -110,7 +115,5 @@ class VideoScript(BaseModel):
             List of SharedElements appearing in that scene.
         """
         return [
-            element
-            for element in self.shared_elements
-            if scene_number in element.appears_in_scenes
+            element for element in self.shared_elements if scene_number in element.appears_in_scenes
         ]

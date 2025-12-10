@@ -7,6 +7,7 @@ orchestration pipeline. These models are used with OpenAI Agents SDK's
 
 from pydantic import BaseModel, Field
 
+from sip_videogen.models.music import MusicBrief
 from sip_videogen.models.script import SceneAction, SharedElement, VideoScript
 
 
@@ -80,8 +81,10 @@ class ShowrunnerOutput(BaseModel):
     ready for image and video generation.
     """
 
-    script: VideoScript = Field(
-        description="The complete video script ready for production"
+    script: VideoScript = Field(description="The complete video script ready for production")
+    music_brief: MusicBrief | None = Field(
+        default=None,
+        description="Background music style from Music Director agent",
     )
     creative_brief: str | None = Field(
         default=None,

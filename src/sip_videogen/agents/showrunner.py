@@ -8,11 +8,11 @@ The Showrunner uses the agent-as-tool pattern where each specialist agent is
 invoked as a tool to perform its specialized function.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from agents import Agent, Runner, RunHooks, Tool
+from agents import Agent, RunHooks, Runner, Tool
 from agents.exceptions import AgentsException
 from agents.run_context import RunContextWrapper
 from tenacity import (
@@ -36,6 +36,7 @@ logger = get_logger(__name__)
 @dataclass
 class AgentProgress:
     """Progress update from agent orchestration."""
+
     event_type: str  # "agent_start", "agent_end", "tool_start", "tool_end", "thinking"
     agent_name: str
     message: str
@@ -66,50 +67,63 @@ class ProgressTrackingHooks(RunHooks):
 
     async def on_agent_start(self, context: RunContextWrapper, agent: Agent) -> None:
         """Called when an agent starts processing."""
-        self._report(AgentProgress(
-            event_type="agent_start",
-            agent_name=agent.name,
-            message=f"{agent.name} is analyzing the task...",
-        ))
+        self._report(
+            AgentProgress(
+                event_type="agent_start",
+                agent_name=agent.name,
+                message=f"{agent.name} is analyzing the task...",
+            )
+        )
 
     async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output) -> None:
         """Called when an agent finishes processing."""
-        self._report(AgentProgress(
-            event_type="agent_end",
-            agent_name=agent.name,
-            message=f"{agent.name} completed",
-        ))
+        self._report(
+            AgentProgress(
+                event_type="agent_end",
+                agent_name=agent.name,
+                message=f"{agent.name} completed",
+            )
+        )
 
     async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Tool) -> None:
         """Called when an agent starts using a tool (calling another agent)."""
         tool_name = tool.name
         description = self._tool_descriptions.get(tool_name, f"Running {tool_name}")
-        self._report(AgentProgress(
-            event_type="tool_start",
-            agent_name=agent.name,
-            message=f"Delegating to {tool_name.replace('_', ' ').title()}",
-            detail=description,
-        ))
+        self._report(
+            AgentProgress(
+                event_type="tool_start",
+                agent_name=agent.name,
+                message=f"Delegating to {tool_name.replace('_', ' ').title()}",
+                detail=description,
+            )
+        )
 
-    async def on_tool_end(self, context: RunContextWrapper, agent: Agent, tool: Tool, result: str) -> None:
+    async def on_tool_end(
+        self, context: RunContextWrapper, agent: Agent, tool: Tool, result: str
+    ) -> None:
         """Called when a tool call completes."""
         tool_name = tool.name
         # Truncate result for display
         result_preview = str(result)[:100] + "..." if len(str(result)) > 100 else str(result)
-        self._report(AgentProgress(
-            event_type="tool_end",
-            agent_name=agent.name,
-            message=f"{tool_name.replace('_', ' ').title()} finished",
-            detail=result_preview,
-        ))
+        self._report(
+            AgentProgress(
+                event_type="tool_end",
+                agent_name=agent.name,
+                message=f"{tool_name.replace('_', ' ').title()} finished",
+                detail=result_preview,
+            )
+        )
 
     async def on_llm_start(self, context: RunContextWrapper, agent: Agent, *args, **kwargs) -> None:
         """Called when the LLM starts generating."""
-        self._report(AgentProgress(
-            event_type="thinking",
-            agent_name=agent.name,
-            message=f"{agent.name} is thinking...",
-        ))
+        self._report(
+            AgentProgress(
+                event_type="thinking",
+                agent_name=agent.name,
+                message=f"{agent.name} is thinking...",
+            )
+        )
+
 
 # Load the detailed prompt from the prompts directory
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -241,6 +255,9 @@ scenes with multiple actions. When in doubt, split a complex scene into two simp
         # Return the VideoScript from the output
         if isinstance(output, ShowrunnerOutput):
             logger.info(f"Script development complete: '{output.script.title}'")
+            # Transfer music_brief to the script if present
+            if output.music_brief and output.script.music_brief is None:
+                output.script.music_brief = output.music_brief
             return output.script
         # Handle case where output is already a VideoScript (shouldn't happen but be safe)
         if isinstance(output, VideoScript):
@@ -254,13 +271,10 @@ scenes with multiple actions. When in doubt, split a complex scene into two simp
     except AgentsException as e:
         logger.error(f"Agent orchestration failed: {e}")
         raise ScriptDevelopmentError(
-            f"Script development failed: {e}. "
-            "Please check your OpenAI API key and try again."
+            f"Script development failed: {e}. Please check your OpenAI API key and try again."
         ) from e
     except Exception as e:
         if isinstance(e, (ValueError, ScriptDevelopmentError)):
             raise
         logger.error(f"Unexpected error during script development: {e}")
-        raise ScriptDevelopmentError(
-            f"Script development failed unexpectedly: {e}"
-        ) from e
+        raise ScriptDevelopmentError(f"Script development failed unexpectedly: {e}") from e

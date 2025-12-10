@@ -11,16 +11,23 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from rich.prompt import Confirm, IntPrompt, Prompt
+from rich.prompt import IntPrompt, Prompt
 from rich.table import Table
 
 from .agents import AgentProgress, ScriptDevelopmentError, develop_script
 from .assembler import FFmpegAssembler, FFmpegError
-from .config.costs import estimate_costs, estimate_pre_generation_costs
+from .config.costs import estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
-from .generators import ImageGenerationError, ImageGenerator, VideoGenerationError, VideoGenerator
-from .models import GeneratedAsset, ProductionPackage, VideoScript
+from .generators import (
+    ImageGenerationError,
+    ImageGenerator,
+    MusicGenerationError,
+    MusicGenerator,
+    VideoGenerationError,
+    VideoGenerator,
+)
+from .models import GeneratedMusic, ProductionPackage, VideoScript
 from .storage import (
     GCSAuthenticationError,
     GCSBucketNotFoundError,
@@ -95,6 +102,18 @@ def generate(
         "-y",
         help="Skip cost confirmation prompt",
     ),
+    no_music: bool = typer.Option(
+        False,
+        "--no-music",
+        help="Disable background music generation",
+    ),
+    music_volume: float = typer.Option(
+        None,
+        "--music-volume",
+        help="Background music volume (0.0-1.0, default from config)",
+        min=0.0,
+        max=1.0,
+    ),
 ) -> None:
     """Generate a video from your idea.
 
@@ -106,6 +125,8 @@ def generate(
         sip-videogen generate "A day in the life of a robot" --scenes 5
         sip-videogen generate "Underwater adventure" --dry-run
         sip-videogen generate "Epic space battle" --yes  # Skip cost confirmation
+        sip-videogen generate "Cooking show" --no-music  # No background music
+        sip-videogen generate "Action scene" --music-volume 0.3  # Louder music
     """
     logger = get_logger(__name__)
 
@@ -141,7 +162,7 @@ def generate(
         missing = [k for k, v in config_status.items() if not v]
         console.print(
             Panel(
-                f"[red]Missing configuration:[/red]\n\n"
+                "[red]Missing configuration:[/red]\n\n"
                 + "\n".join(f"  • {m}" for m in missing)
                 + "\n\n"
                 "Run [bold]sip-videogen setup[/bold] for setup instructions.",
@@ -154,7 +175,9 @@ def generate(
     # Use default scenes from config if not specified
     num_scenes = scenes if scenes is not None else settings.sip_default_scenes
 
-    logger.info("Starting video generation for idea: %s", idea[:50] + "..." if len(idea) > 50 else idea)
+    logger.info(
+        "Starting video generation for idea: %s", idea[:50] + "..." if len(idea) > 50 else idea
+    )
     logger.debug("Configuration: scenes=%d, dry_run=%s", num_scenes, dry_run)
 
     console.print(
@@ -200,9 +223,23 @@ def generate(
         console.print("[yellow]Dry run mode:[/yellow] Will only generate script, no videos.")
         logger.info("Dry run mode enabled - will only generate script")
 
+    # Determine music settings
+    enable_music = settings.sip_enable_background_music and not no_music
+    actual_music_volume = music_volume if music_volume is not None else settings.sip_music_volume
+
     # Run the async pipeline
     try:
-        asyncio.run(_run_pipeline(idea, num_scenes, dry_run, settings, logger))
+        asyncio.run(
+            _run_pipeline(
+                idea,
+                num_scenes,
+                dry_run,
+                settings,
+                logger,
+                enable_music=enable_music,
+                music_volume=actual_music_volume,
+            )
+        )
     except KeyboardInterrupt:
         console.print("\n[yellow]Generation cancelled by user.[/yellow]")
         raise typer.Exit(130)
@@ -260,6 +297,17 @@ def generate(
             )
         )
         raise typer.Exit(1)
+    except MusicGenerationError as e:
+        logger.error("Music generation error: %s", e)
+        console.print(
+            Panel(
+                f"[red]Music generation failed[/red]\n\n{e}\n\n"
+                "The video will be generated without background music.",
+                title="Music Error",
+                border_style="yellow",
+            )
+        )
+        # Don't exit - continue without music
     except Exception as e:
         logger.error("Pipeline failed: %s", e)
         console.print(
@@ -279,6 +327,8 @@ async def _run_pipeline(
     dry_run: bool,
     settings,
     logger,
+    enable_music: bool = True,
+    music_volume: float = 0.2,
 ) -> None:
     """Run the full video generation pipeline.
 
@@ -288,8 +338,9 @@ async def _run_pipeline(
     3. Upload reference images to GCS
     4. Generate video clips (parallel)
     5. Download video clips from GCS
-    6. Concatenate clips with FFmpeg
-    7. Display final video path
+    6. Generate background music (if enabled)
+    7. Assemble clips with FFmpeg (with music overlay if enabled)
+    8. Display final video path
     """
     # Create unique project ID for this run
     project_id = f"sip_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
@@ -310,14 +361,18 @@ async def _run_pipeline(
         )
     )
 
+    # Track generated music (if enabled)
+    generated_music: GeneratedMusic | None = None
+
+    # Determine total stages based on music setting
+    total_stages = 7 if enable_music else 6
+
     # ========== STAGE 1: Develop Script ==========
-    console.print("\n[bold cyan]Stage 1/6:[/bold cyan] Developing script...")
+    console.print(f"\n[bold cyan]Stage 1/{total_stages}:[/bold cyan] Developing script...")
     console.print("[dim]Agent team is collaborating on your video script...[/dim]\n")
 
     # Create a live display for agent progress
     from rich.live import Live
-    from rich.layout import Layout
-    from rich.text import Text
 
     # Track agent activities
     agent_activities: list[str] = []
@@ -369,6 +424,7 @@ async def _run_pipeline(
 
     try:
         with Live(build_progress_display(), console=console, refresh_per_second=4) as live:
+
             async def run_with_updates():
                 # Run the script development with progress callback
                 return await develop_script(
@@ -428,7 +484,7 @@ async def _run_pipeline(
         return
 
     # ========== STAGE 2: Generate Reference Images ==========
-    console.print("\n[bold cyan]Stage 2/6:[/bold cyan] Generating reference images...")
+    console.print("\n[bold cyan]Stage 2/{total_stages}:[/bold cyan] Generating reference images...")
 
     if not script.shared_elements:
         console.print("[yellow]No shared elements found - skipping reference images.[/yellow]")
@@ -477,7 +533,7 @@ async def _run_pipeline(
         )
 
     # ========== STAGE 3: Upload Reference Images to GCS ==========
-    console.print("\n[bold cyan]Stage 3/6:[/bold cyan] Uploading images to GCS...")
+    console.print("\n[bold cyan]Stage 3/{total_stages}:[/bold cyan] Uploading images to GCS...")
 
     gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
     gcs_prefix = f"sip-videogen/{project_id}"
@@ -525,7 +581,7 @@ async def _run_pipeline(
         console.print("[yellow]No images to upload.[/yellow]")
 
     # ========== STAGE 4: Generate Video Clips ==========
-    console.print("\n[bold cyan]Stage 4/6:[/bold cyan] Generating video clips...")
+    console.print("\n[bold cyan]Stage 4/{total_stages}:[/bold cyan] Generating video clips...")
 
     video_generator = VideoGenerator(
         project=settings.google_cloud_project,
@@ -556,7 +612,7 @@ async def _run_pipeline(
         raise
 
     # ========== STAGE 5: Download Video Clips ==========
-    console.print("\n[bold cyan]Stage 5/6:[/bold cyan] Downloading video clips...")
+    console.print("\n[bold cyan]Stage 5/{total_stages}:[/bold cyan] Downloading video clips...")
 
     videos_dir = project_dir / "clips"
     videos_dir.mkdir(exist_ok=True)
@@ -608,8 +664,61 @@ async def _run_pipeline(
         console.print("[red]No clips available for concatenation.[/red]")
         raise typer.Exit(1)
 
-    # ========== STAGE 6: Concatenate Clips ==========
-    console.print("\n[bold cyan]Stage 6/6:[/bold cyan] Assembling final video...")
+    # ========== STAGE 6: Generate Background Music (if enabled) ==========
+    if enable_music and script.music_brief:
+        console.print(
+            f"\n[bold cyan]Stage 6/{total_stages}:[/bold cyan] Generating background music..."
+        )
+
+        music_dir = project_dir / "music"
+        music_dir.mkdir(exist_ok=True)
+
+        try:
+            music_generator = MusicGenerator(
+                project_id=settings.google_cloud_project,
+                location=settings.google_cloud_location,
+            )
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                mood = script.music_brief.mood.value
+                genre = script.music_brief.genre.value
+                task = progress.add_task(
+                    f"[cyan]Generating {mood} {genre} music...",
+                    total=None,
+                )
+                generated_music = await music_generator.generate(
+                    brief=script.music_brief,
+                    output_dir=music_dir,
+                )
+                progress.update(task, description="[green]Music generated ✓")
+
+            console.print(
+                f"[green]Generated background music:[/green] {script.music_brief.mood.value} "
+                f"{script.music_brief.genre.value} (~{generated_music.duration_seconds:.0f}s)"
+            )
+        except MusicGenerationError as e:
+            logger.warning(f"Music generation failed: {e}")
+            console.print(
+                f"[yellow]Music generation failed:[/yellow] {e}\n"
+                "[dim]Continuing without background music...[/dim]"
+            )
+            generated_music = None
+    elif enable_music and not script.music_brief:
+        console.print(
+            "[yellow]No music brief in script - skipping music generation.[/yellow]\n"
+            "[dim]The Music Director agent may not have been called.[/dim]"
+        )
+
+    # ========== STAGE 7 (or 6): Assemble Final Video ==========
+    assembly_stage = 7 if enable_music else 6
+    console.print(
+        f"\n[bold cyan]Stage {assembly_stage}/{total_stages}:[/bold cyan] Assembling final video..."
+    )
 
     try:
         assembler = FFmpegAssembler()
@@ -631,17 +740,32 @@ async def _run_pipeline(
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task("[cyan]Concatenating clips...", total=None)
-        try:
-            assembler.concatenate_clips(clip_paths, final_video_path)
-            package.final_video_path = str(final_video_path)
-            progress.update(task, description="[green]Video assembled ✓")
-        except FFmpegError as e:
-            progress.update(task, description=f"[red]Assembly failed: {e}")
-            raise
+        if generated_music:
+            task = progress.add_task("[cyan]Assembling video with background music...", total=None)
+            try:
+                assembler.assemble_with_music(
+                    clip_paths=clip_paths,
+                    music=generated_music,
+                    output_path=final_video_path,
+                    music_volume=music_volume,
+                )
+                package.final_video_path = str(final_video_path)
+                progress.update(task, description="[green]Video with music assembled ✓")
+            except FFmpegError as e:
+                progress.update(task, description=f"[red]Assembly failed: {e}")
+                raise
+        else:
+            task = progress.add_task("[cyan]Concatenating clips...", total=None)
+            try:
+                assembler.concatenate_clips(clip_paths, final_video_path)
+                package.final_video_path = str(final_video_path)
+                progress.update(task, description="[green]Video assembled ✓")
+            except FFmpegError as e:
+                progress.update(task, description=f"[red]Assembly failed: {e}")
+                raise
 
     # ========== FINAL SUMMARY ==========
-    _display_final_summary(package, project_dir)
+    _display_final_summary(package, project_dir, generated_music)
 
 
 def _display_script_summary(script: VideoScript) -> None:
@@ -680,7 +804,11 @@ def _display_script_summary(script: VideoScript) -> None:
             )
 
 
-def _display_final_summary(package: ProductionPackage, project_dir: Path) -> None:
+def _display_final_summary(
+    package: ProductionPackage,
+    project_dir: Path,
+    generated_music: GeneratedMusic | None = None,
+) -> None:
     """Display the final generation summary."""
     # Get video info if available
     duration_info = ""
@@ -692,10 +820,18 @@ def _display_final_summary(package: ProductionPackage, project_dir: Path) -> Non
         except FFmpegError:
             pass
 
+    # Build music info if available
+    music_info = ""
+    if generated_music:
+        music_info = (
+            f"\n[bold]Background Music:[/bold] {generated_music.brief.mood.value} "
+            f"{generated_music.brief.genre.value}"
+        )
+
     console.print(
         Panel(
             "[bold green]Video generation complete![/bold green]\n\n"
-            f"[bold]Final Video:[/bold] {package.final_video_path}{duration_info}\n"
+            f"[bold]Final Video:[/bold] {package.final_video_path}{duration_info}{music_info}\n"
             f"[bold]Project Folder:[/bold] {project_dir}\n"
             f"[bold]Reference Images:[/bold] {len(package.reference_images)}\n"
             f"[bold]Video Clips:[/bold] {len(package.video_clips)}",
@@ -782,7 +918,7 @@ def status() -> None:
     # Summary
     if all_configured:
         console.print("\n[green]✓ All required settings are configured![/green]")
-        console.print("Run [bold]sip-videogen generate \"your idea\"[/bold] to create a video.")
+        console.print('Run [bold]sip-videogen generate "your idea"[/bold] to create a video.')
     else:
         console.print("\n[red]✗ Missing required configuration[/red]")
         console.print(
@@ -799,8 +935,7 @@ def setup() -> None:
     """
     console.print(
         Panel(
-            "[bold]sip-videogen Setup[/bold]\n\n"
-            "This command will help you configure sip-videogen.",
+            "[bold]sip-videogen Setup[/bold]\n\nThis command will help you configure sip-videogen.",
             border_style="blue",
         )
     )
@@ -871,7 +1006,7 @@ def _show_menu() -> str:
     return Prompt.ask(
         "[bold yellow]Select an option[/bold yellow]",
         choices=["1", "2", "3", "4", "5"],
-        default="1"
+        default="1",
     )
 
 
@@ -937,12 +1072,26 @@ def menu() -> None:
             if choice == "1":
                 idea, scenes = _get_video_idea()
                 # Call the actual generate function
-                generate(idea=idea, scenes=scenes, dry_run=False, yes=False)
+                generate(
+                    idea=idea,
+                    scenes=scenes,
+                    dry_run=False,
+                    yes=False,
+                    no_music=False,
+                    music_volume=None,
+                )
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
             elif choice == "2":
                 idea, scenes = _get_video_idea()
-                generate(idea=idea, scenes=scenes, dry_run=True, yes=False)
+                generate(
+                    idea=idea,
+                    scenes=scenes,
+                    dry_run=True,
+                    yes=False,
+                    no_music=False,
+                    music_volume=None,
+                )
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
             elif choice == "3":
