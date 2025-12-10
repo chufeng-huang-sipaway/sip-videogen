@@ -14,6 +14,9 @@ from sip_videogen.agents.production_designer import (
 )
 from sip_videogen.agents.screenwriter import develop_scenes, screenwriter_agent
 from sip_videogen.agents.showrunner import (
+    AgentProgress,
+    ProgressCallback,
+    ProgressTrackingHooks,
     ScriptDevelopmentError,
     develop_script,
     showrunner_agent,
@@ -29,4 +32,7 @@ __all__ = [
     "showrunner_agent",
     "develop_script",
     "ScriptDevelopmentError",
+    "AgentProgress",
+    "ProgressCallback",
+    "ProgressTrackingHooks",
 ]

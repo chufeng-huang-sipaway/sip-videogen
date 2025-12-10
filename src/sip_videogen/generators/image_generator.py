@@ -30,15 +30,18 @@ class ImageGenerator:
     that need visual consistency across video scenes.
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash-image"):
+    def __init__(self, api_key: str, model: str = "gemini-3-pro-image-preview"):
         """Initialize the image generator.
 
         Args:
             api_key: Google Gemini API key.
-            model: Model to use for image generation. Defaults to gemini-2.5-flash-image.
-                   Use gemini-3-pro-image-preview for higher quality.
+            model: Model to use for image generation. Defaults to gemini-3-pro-image-preview
+                   which supports high-quality image generation.
         """
-        self.client = genai.Client(api_key=api_key)
+        # Explicitly use API key authentication, NOT Vertex AI
+        # This is important because GOOGLE_GENAI_USE_VERTEXAI env var may be set
+        # for VEO video generation, but Gemini image gen works with API keys
+        self.client = genai.Client(api_key=api_key, vertexai=False)
         self.model = model
         logger.debug(f"Initialized ImageGenerator with model: {model}")
 
@@ -81,6 +84,7 @@ class ImageGenerator:
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
                         aspect_ratio=aspect_ratio,
+                        image_size="2K",
                     ),
                 ),
             )
@@ -157,22 +161,54 @@ class ImageGenerator:
         Returns:
             A detailed prompt string for image generation.
         """
-        # Start with the visual description
-        prompt_parts = [element.visual_description]
+        description = element.visual_description
+        prompt_parts = [description]
 
-        # Add context based on element type
-        type_context = {
-            "character": "Full body character reference, clear details, neutral pose, professional illustration style.",
-            "environment": "Establishing shot, wide view, atmospheric lighting, cinematic composition.",
-            "prop": "Detailed object reference, clear view, clean background, product photography style.",
-        }
+        element_type = element.element_type.value
+        lower_desc = description.lower()
 
-        context = type_context.get(element.element_type.value, "")
-        if context:
-            prompt_parts.append(context)
+        if element_type == "character":
+            # If the character is described as cartoon/mascot, lean into a clean,
+            # professional illustration style rather than conflicting with it.
+            is_cartoon_like = any(
+                keyword in lower_desc
+                for keyword in ["cartoon", "mascot", "illustration", "animated", "2d"]
+            )
 
-        # Add quality modifiers
-        prompt_parts.append("High quality, detailed, suitable for video production reference.")
+            if is_cartoon_like:
+                prompt_parts.append(
+                    "Professional 2D character illustration of a single character, "
+                    "centered in frame, upper-body or head-and-shoulders portrait, "
+                    "neutral pose facing the viewer, clean plain background, "
+                    "no humans, no cameras, no studio equipment, no computer screens."
+                )
+            else:
+                prompt_parts.append(
+                    "Photorealistic studio portrait of a single person, "
+                    "centered in frame, upper-body or head-and-shoulders, "
+                    "plain neutral background, soft studio lighting, sharp focus, "
+                    "no extra people or objects."
+                )
+
+        elif element_type == "environment":
+            prompt_parts.append(
+                "High-quality wide establishing shot of this location, "
+                "showing the overall space clearly, with no characters in the foreground, "
+                "balanced composition, sharp focus, clean and uncluttered."
+            )
+
+        elif element_type == "prop":
+            prompt_parts.append(
+                "Single-object product-style shot on a neutral seamless background, "
+                "centered in frame, no people, no other props, "
+                "soft studio lighting, sharp focus, clear silhouette."
+            )
+
+        # Global quality modifiers for all element types
+        prompt_parts.append(
+            "High-resolution, professional-quality image with clean finish, "
+            "studio-style lighting, no text, no watermark, no split-screen."
+        )
 
         return " ".join(prompt_parts)
 

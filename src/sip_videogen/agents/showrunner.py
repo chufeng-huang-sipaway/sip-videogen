@@ -8,10 +8,13 @@ The Showrunner uses the agent-as-tool pattern where each specialist agent is
 invoked as a tool to perform its specialized function.
 """
 
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
-from agents import Agent, Runner
+from agents import Agent, Runner, RunHooks, Tool
 from agents.exceptions import AgentsException
+from agents.run_context import RunContextWrapper
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -27,6 +30,84 @@ from sip_videogen.models.agent_outputs import ShowrunnerOutput
 from sip_videogen.models.script import VideoScript
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class AgentProgress:
+    """Progress update from agent orchestration."""
+    event_type: str  # "agent_start", "agent_end", "tool_start", "tool_end", "thinking"
+    agent_name: str
+    message: str
+    detail: str = ""
+
+
+# Type alias for progress callback
+ProgressCallback = Callable[[AgentProgress], None]
+
+
+class ProgressTrackingHooks(RunHooks):
+    """Hooks for tracking agent progress and reporting to callback."""
+
+    def __init__(self, callback: ProgressCallback | None = None):
+        self.callback = callback
+        self._tool_descriptions = {
+            "screenwriter": "Writing scene breakdown and dialogue",
+            "production_designer": "Identifying visual elements for consistency",
+            "continuity_supervisor": "Validating continuity and optimizing prompts",
+        }
+
+    def _report(self, progress: AgentProgress) -> None:
+        """Report progress to callback if set."""
+        if self.callback:
+            self.callback(progress)
+        logger.debug(f"[{progress.event_type}] {progress.agent_name}: {progress.message}")
+
+    async def on_agent_start(self, context: RunContextWrapper, agent: Agent) -> None:
+        """Called when an agent starts processing."""
+        self._report(AgentProgress(
+            event_type="agent_start",
+            agent_name=agent.name,
+            message=f"{agent.name} is analyzing the task...",
+        ))
+
+    async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output) -> None:
+        """Called when an agent finishes processing."""
+        self._report(AgentProgress(
+            event_type="agent_end",
+            agent_name=agent.name,
+            message=f"{agent.name} completed",
+        ))
+
+    async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Tool) -> None:
+        """Called when an agent starts using a tool (calling another agent)."""
+        tool_name = tool.name
+        description = self._tool_descriptions.get(tool_name, f"Running {tool_name}")
+        self._report(AgentProgress(
+            event_type="tool_start",
+            agent_name=agent.name,
+            message=f"Delegating to {tool_name.replace('_', ' ').title()}",
+            detail=description,
+        ))
+
+    async def on_tool_end(self, context: RunContextWrapper, agent: Agent, tool: Tool, result: str) -> None:
+        """Called when a tool call completes."""
+        tool_name = tool.name
+        # Truncate result for display
+        result_preview = str(result)[:100] + "..." if len(str(result)) > 100 else str(result)
+        self._report(AgentProgress(
+            event_type="tool_end",
+            agent_name=agent.name,
+            message=f"{tool_name.replace('_', ' ').title()} finished",
+            detail=result_preview,
+        ))
+
+    async def on_llm_start(self, context: RunContextWrapper, agent: Agent, *args, **kwargs) -> None:
+        """Called when the LLM starts generating."""
+        self._report(AgentProgress(
+            event_type="thinking",
+            agent_name=agent.name,
+            message=f"{agent.name} is thinking...",
+        ))
 
 # Load the detailed prompt from the prompts directory
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -86,7 +167,11 @@ class ScriptDevelopmentError(Exception):
     retry=retry_if_exception_type((AgentsException, TimeoutError, ConnectionError)),
     reraise=True,
 )
-async def develop_script(idea: str, num_scenes: int) -> VideoScript:
+async def develop_script(
+    idea: str,
+    num_scenes: int,
+    progress_callback: ProgressCallback | None = None,
+) -> VideoScript:
     """Develop a complete video script from a creative idea.
 
     This is the main entry point for script development. The Showrunner
@@ -96,6 +181,7 @@ async def develop_script(idea: str, num_scenes: int) -> VideoScript:
     Args:
         idea: The user's creative idea or concept.
         num_scenes: Target number of scenes to produce (3-5 recommended).
+        progress_callback: Optional callback for real-time progress updates.
 
     Returns:
         A complete VideoScript ready for production, with shared elements
@@ -135,8 +221,11 @@ Requirements:
 Be creative and make bold artistic choices that will result in an engaging video.
 """
 
+    # Create progress tracking hooks
+    hooks = ProgressTrackingHooks(callback=progress_callback)
+
     try:
-        result = await Runner.run(showrunner_agent, prompt)
+        result = await Runner.run(showrunner_agent, prompt, hooks=hooks)
         output = result.final_output
 
         # Return the VideoScript from the output

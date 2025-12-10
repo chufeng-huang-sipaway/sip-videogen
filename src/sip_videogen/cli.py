@@ -1,6 +1,7 @@
 """CLI interface for sip-videogen."""
 
 import asyncio
+import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -10,9 +11,10 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
 
-from .agents import ScriptDevelopmentError, develop_script
+from .agents import AgentProgress, ScriptDevelopmentError, develop_script
 from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_costs, estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
@@ -34,6 +36,15 @@ app = typer.Typer(
 )
 
 console = Console()
+
+BANNER = """
+[bold cyan]╔═══════════════════════════════════════════════════════════╗
+║                                                           ║
+║   [bold magenta]SIP VideoGen[/bold magenta]                                        ║
+║   [dim]Transform ideas into videos with AI agents[/dim]             ║
+║                                                           ║
+╚═══════════════════════════════════════════════════════════╝[/bold cyan]
+"""
 
 
 def _validate_idea(idea: str) -> str:
@@ -301,20 +312,100 @@ async def _run_pipeline(
 
     # ========== STAGE 1: Develop Script ==========
     console.print("\n[bold cyan]Stage 1/6:[/bold cyan] Developing script...")
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task("[cyan]AI agents developing script...", total=None)
-        try:
-            script = await develop_script(idea, num_scenes)
-            package = ProductionPackage(script=script)
-            progress.update(task, description="[green]Script developed ✓")
-        except Exception as e:
-            progress.update(task, description=f"[red]Script development failed: {e}")
-            raise
+    console.print("[dim]Agent team is collaborating on your video script...[/dim]\n")
+
+    # Create a live display for agent progress
+    from rich.live import Live
+    from rich.layout import Layout
+    from rich.text import Text
+
+    # Track agent activities
+    agent_activities: list[str] = []
+    current_status = ["[cyan]Initializing agent team...[/cyan]"]
+
+    def on_agent_progress(progress: AgentProgress) -> None:
+        """Callback to update display with agent progress."""
+        # Format the message based on event type
+        if progress.event_type == "agent_start":
+            icon = "[bold blue]►[/bold blue]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "agent_end":
+            icon = "[bold green]✓[/bold green]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "tool_start":
+            icon = "[bold yellow]→[/bold yellow]"
+            msg = f"{icon} {progress.message}"
+            if progress.detail:
+                msg += f"\n    [dim]{progress.detail}[/dim]"
+        elif progress.event_type == "tool_end":
+            icon = "[bold green]←[/bold green]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "thinking":
+            icon = "[bold magenta]⋯[/bold magenta]"
+            msg = f"{icon} {progress.message}"
+        else:
+            msg = f"  {progress.message}"
+
+        agent_activities.append(msg)
+        # Keep only last 8 activities
+        if len(agent_activities) > 8:
+            agent_activities.pop(0)
+        current_status[0] = msg
+
+    def build_progress_display() -> Panel:
+        """Build the progress display panel."""
+        lines = []
+        for activity in agent_activities:
+            lines.append(activity)
+        if not lines:
+            lines.append("[dim]Starting...[/dim]")
+        content = "\n".join(lines)
+        return Panel(
+            content,
+            title="[bold]Agent Team Activity[/bold]",
+            border_style="cyan",
+            padding=(0, 1),
+        )
+
+    try:
+        with Live(build_progress_display(), console=console, refresh_per_second=4) as live:
+            async def run_with_updates():
+                # Run the script development with progress callback
+                return await develop_script(
+                    idea,
+                    num_scenes,
+                    progress_callback=on_agent_progress,
+                )
+
+            # Create a task that updates the display
+            import asyncio
+
+            async def update_display():
+                while True:
+                    live.update(build_progress_display())
+                    await asyncio.sleep(0.25)
+
+            # Run both concurrently
+            update_task = asyncio.create_task(update_display())
+            try:
+                script = await run_with_updates()
+            finally:
+                update_task.cancel()
+                try:
+                    await update_task
+                except asyncio.CancelledError:
+                    pass
+
+            # Final update
+            agent_activities.append("[bold green]✓ Script development complete![/bold green]")
+            live.update(build_progress_display())
+
+        package = ProductionPackage(script=script)
+        console.print("[green]✓ Script developed successfully[/green]")
+
+    except Exception as e:
+        console.print(f"[red]✗ Script development failed: {e}[/red]")
+        raise
 
     # Display script summary
     _display_script_summary(script)
@@ -751,6 +842,134 @@ def setup() -> None:
     )
 
     # TODO: Could add interactive prompts here in the future
+
+
+def _show_menu() -> str:
+    """Display the main menu and get user choice."""
+    console.print(BANNER)
+    console.print()
+
+    menu_options = [
+        ("1", "Generate Video", "Create a new video from your idea"),
+        ("2", "Script Only (Dry Run)", "Generate script without creating video"),
+        ("3", "Check Status", "View configuration status"),
+        ("4", "Help", "Show usage information"),
+        ("5", "Exit", "Quit the application"),
+    ]
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="bold yellow", width=4)
+    table.add_column("Option", style="bold white", width=25)
+    table.add_column("Description", style="dim")
+
+    for key, option, desc in menu_options:
+        table.add_row(f"[{key}]", option, desc)
+
+    console.print(Panel(table, title="[bold]Main Menu[/bold]", border_style="cyan"))
+    console.print()
+
+    return Prompt.ask(
+        "[bold yellow]Select an option[/bold yellow]",
+        choices=["1", "2", "3", "4", "5"],
+        default="1"
+    )
+
+
+def _get_video_idea() -> tuple[str, int]:
+    """Prompt user for video idea and number of scenes."""
+    console.print()
+    console.print("[bold cyan]Let's create your video![/bold cyan]")
+    console.print()
+
+    idea = Prompt.ask("[bold]Enter your video idea[/bold]")
+    while not idea.strip() or len(idea.strip()) < 5:
+        console.print("[red]Please enter a valid idea (at least 5 characters)[/red]")
+        idea = Prompt.ask("[bold]Enter your video idea[/bold]")
+
+    scenes = IntPrompt.ask(
+        "[bold]Number of scenes[/bold]",
+        default=3,
+    )
+    scenes = max(1, min(scenes, 10))  # Clamp between 1-10
+
+    return idea.strip(), scenes
+
+
+def _show_help() -> None:
+    """Show help information."""
+    console.print()
+    help_text = """
+[bold cyan]SIP VideoGen[/bold cyan] transforms your video ideas into complete videos using AI agents.
+
+[bold]How it works:[/bold]
+  1. You provide a video idea (e.g., "A cat astronaut explores Mars")
+  2. AI agents collaborate to write a script with scenes
+  3. Reference images are generated for visual consistency
+  4. Video clips are generated for each scene
+  5. Clips are assembled into a final video
+
+[bold]Commands:[/bold]
+  [yellow]./start.sh[/yellow]              Launch interactive menu
+  [yellow]./start.sh generate "idea"[/yellow]  Generate video directly
+  [yellow]./start.sh status[/yellow]       Check configuration
+
+[bold]Requirements:[/bold]
+  - OpenAI API key (for AI agents)
+  - Google Gemini API key (for image generation)
+  - Google Cloud project with Vertex AI enabled (for video generation)
+  - FFmpeg installed (for video assembly)
+
+[bold]More info:[/bold]
+  See TASKS.md for implementation details
+  See IMPLEMENTATION_PLAN.md for architecture overview
+"""
+    console.print(Panel(help_text, title="[bold]Help[/bold]", border_style="cyan"))
+    console.print()
+
+
+@app.command()
+def menu() -> None:
+    """Launch interactive menu."""
+    while True:
+        try:
+            choice = _show_menu()
+
+            if choice == "1":
+                idea, scenes = _get_video_idea()
+                # Call the actual generate function
+                generate(idea=idea, scenes=scenes, dry_run=False, yes=False)
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "2":
+                idea, scenes = _get_video_idea()
+                generate(idea=idea, scenes=scenes, dry_run=True, yes=False)
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "3":
+                status()
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "4":
+                _show_help()
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "5":
+                console.print("\n[bold cyan]Goodbye![/bold cyan]\n")
+                sys.exit(0)
+
+        except typer.Exit:
+            # Allow typer exits to propagate in menu context
+            Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+        except KeyboardInterrupt:
+            console.print("\n\n[bold cyan]Goodbye![/bold cyan]\n")
+            sys.exit(0)
+
+
+@app.callback(invoke_without_command=True)
+def _default_command(ctx: typer.Context) -> None:
+    """Default to interactive menu when no command is specified."""
+    if ctx.invoked_subcommand is None:
+        menu()
 
 
 def main() -> None:

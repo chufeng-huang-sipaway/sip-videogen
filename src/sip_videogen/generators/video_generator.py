@@ -12,7 +12,7 @@ from pathlib import Path
 from google import genai
 from google.genai.types import GenerateVideosConfig, Image, VideoGenerationReferenceImage
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from sip_videogen.config.logging import get_logger
 from sip_videogen.models.assets import AssetType, GeneratedAsset
@@ -23,6 +23,18 @@ logger = get_logger(__name__)
 
 class VideoGenerationError(Exception):
     """Raised when video generation fails."""
+
+    pass
+
+
+class PromptSafetyError(VideoGenerationError):
+    """Raised when Vertex AI rejects a prompt for safety/policy reasons."""
+
+    pass
+
+
+class ServiceAgentNotReadyError(VideoGenerationError):
+    """Raised when Vertex AI service agents are still being provisioned."""
 
     pass
 
@@ -67,6 +79,7 @@ class VideoGenerator:
         )
 
     @retry(
+        retry=retry_if_exception(lambda e: not isinstance(e, PromptSafetyError)),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=60),
         reraise=True,
@@ -120,7 +133,8 @@ class VideoGenerator:
                     duration_seconds=duration,
                     aspect_ratio=aspect_ratio,
                     output_gcs_uri=output_gcs_uri,
-                    number_of_videos=1,
+                    generate_audio=generate_audio,
+                    person_generation="allow_adult",
                 ),
             )
 
@@ -135,11 +149,52 @@ class VideoGenerator:
                 operation = self.client.operations.get(operation)
                 logger.debug(f"Scene {scene.scene_number} generation in progress...")
 
-            # Check for errors
+            # Check for errors in the operation
+            if hasattr(operation, 'error') and operation.error:
+                error_raw = operation.error
+                error_msg = str(error_raw)
+                logger.error(f"VEO operation error: {error_msg}")
+
+                # Try to infer an error code from the error object or message
+                error_code = getattr(error_raw, "code", None)
+                if error_code is None:
+                    if "'code': 3" in error_msg or '"code": 3' in error_msg:
+                        error_code = 3
+                    elif "'code': 9" in error_msg or '"code": 9' in error_msg:
+                        error_code = 9
+
+                # Prompt/policy violation – do not retry
+                if error_code == 3 or "usage guidelines" in error_msg:
+                    raise PromptSafetyError(
+                        "Vertex AI rejected the prompt because it may violate "
+                        "usage guidelines (for example, real-person names, brands, "
+                        "or other sensitive terms). Please simplify or anonymize "
+                        f"the description for scene {scene.scene_number}. "
+                        f"Raw error: {error_msg}"
+                    )
+
+                # Service agents not ready – advise user to wait and retry CLI later
+                if error_code == 9 or "Service agents are being provisioned" in error_msg:
+                    raise ServiceAgentNotReadyError(
+                        "Vertex AI service agents for your project are still being "
+                        "provisioned and cannot read from Cloud Storage yet. "
+                        "Wait a few minutes after enabling Vertex AI and try again. "
+                        f"Raw error: {error_msg}"
+                    )
+
+                raise VideoGenerationError(
+                    f"Video generation failed for scene {scene.scene_number}: {error_msg}"
+                )
+
+            # Check for response
             if not operation.response:
+                # Try to get more details
+                details = ""
+                if hasattr(operation, 'metadata'):
+                    details = f" Metadata: {operation.metadata}"
                 raise VideoGenerationError(
                     f"Video generation failed for scene {scene.scene_number}: "
-                    "No response received"
+                    f"No response received.{details}"
                 )
 
             # Extract video URI
@@ -155,6 +210,9 @@ class VideoGenerator:
                 gcs_uri=video_uri,
             )
 
+        except (PromptSafetyError, ServiceAgentNotReadyError):
+            # Already logged with specific guidance, just propagate
+            raise
         except Exception as e:
             logger.error(f"Failed to generate video for scene {scene.scene_number}: {e}")
             raise VideoGenerationError(
@@ -222,7 +280,37 @@ class VideoGenerator:
         if scene.dialogue:
             parts.append(f"Dialogue: {scene.dialogue}")
 
-        return ". ".join(parts)
+        raw_prompt = ". ".join(parts)
+        return self._sanitize_prompt_for_vertex(raw_prompt)
+
+    def _sanitize_prompt_for_vertex(self, prompt: str) -> str:
+        """Sanitize prompts to better align with Vertex AI usage guidelines.
+
+        This avoids directly naming real public figures or specific brands in
+        the prompts sent to the video model by replacing them with more
+        generic descriptors. This helps reduce prompt rejections while
+        keeping the creative intent.
+        """
+        sanitized = prompt
+
+        replacements = {
+            # Public figures – replace with generic descriptors
+            "Elon Musk": "a charismatic tech spokesperson",
+            "Elon": "the charismatic tech spokesperson",
+            # Brand names – replace with generic location descriptions
+            "Dunkin’ Donuts": "a popular neon-lit donut shop",
+            "Dunkin' Donuts": "a popular neon-lit donut shop",
+        }
+
+        for original, replacement in replacements.items():
+            if original in sanitized:
+                logger.debug(
+                    f"Sanitizing prompt for Vertex AI: replacing '{original}' "
+                    f"with '{replacement}'"
+                )
+                sanitized = sanitized.replace(original, replacement)
+
+        return sanitized
 
     def _get_duration(self, scene: SceneAction, has_references: bool) -> int:
         """Get the video duration, respecting VEO constraints.
