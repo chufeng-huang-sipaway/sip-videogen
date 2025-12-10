@@ -23,6 +23,7 @@ from tenacity import (
 )
 
 from sip_videogen.agents.continuity_supervisor import continuity_supervisor_agent
+from sip_videogen.agents.music_director import music_director_agent
 from sip_videogen.agents.production_designer import production_designer_agent
 from sip_videogen.agents.screenwriter import screenwriter_agent
 from sip_videogen.config.logging import get_logger
@@ -54,6 +55,7 @@ class ProgressTrackingHooks(RunHooks):
             "screenwriter": "Writing scene breakdown and dialogue",
             "production_designer": "Identifying visual elements for consistency",
             "continuity_supervisor": "Validating continuity and optimizing prompts",
+            "music_director": "Designing background music style for the video",
         }
 
     def _report(self, progress: AgentProgress) -> None:
@@ -149,6 +151,10 @@ showrunner_agent = Agent(
         continuity_supervisor_agent.as_tool(
             tool_name="continuity_supervisor",
             tool_description="Validates consistency across scenes and shared elements, optimizes prompts for AI generation. Pass it the scenes, shared elements, title, logline, and tone.",
+        ),
+        music_director_agent.as_tool(
+            tool_name="music_director",
+            tool_description="Analyzes the finalized script and designs background music style. Call AFTER continuity_supervisor, passing the complete script with title, logline, tone, and scenes.",
         ),
     ],
     output_type=ShowrunnerOutput,
