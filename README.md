@@ -64,25 +64,27 @@ pip install -e ".[dev]"
 
 ### Interactive Menu
 ```bash
-./start.sh
+sipvid
 ```
+
+This launches an interactive menu with arrow-key navigation. Use ↑/↓ to navigate and Enter to select.
 
 ### Direct Commands
 ```bash
 # Generate a video
-./start.sh generate "A cat astronaut explores Mars"
+sipvid generate "A cat astronaut explores Mars"
 
 # Generate with specific number of scenes
-./start.sh generate "Epic space battle" --scenes 5
+sipvid generate "Epic space battle" --scenes 5
 
 # Dry run (script only, no video generation)
-./start.sh generate "Underwater adventure" --dry-run
+sipvid generate "Underwater adventure" --dry-run
 
 # Skip cost confirmation
-./start.sh generate "Robot dance party" --yes
+sipvid generate "Robot dance party" --yes
 
 # Check configuration status
-./start.sh status
+sipvid status
 ```
 
 ## Architecture

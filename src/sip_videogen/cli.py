@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import questionary
 import typer
 from pydantic import ValidationError
 from rich.console import Console
@@ -16,14 +17,12 @@ from rich.prompt import IntPrompt, Prompt
 from rich.table import Table
 
 from .agents import AgentProgress, ScriptDevelopmentError, develop_script
+from .agents.tools import ImageProductionManager
 from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
-from .agents.tools import ImageProductionManager
 from .generators import (
-    ImageGenerationError,
-    ImageGenerator,
     MusicGenerationError,
     MusicGenerator,
     VideoGenerationError,
@@ -1109,34 +1108,46 @@ def setup() -> None:
 
 
 def _show_menu() -> str:
-    """Display the main menu and get user choice."""
+    """Display the main menu and get user choice with arrow-key navigation."""
     console.print(BANNER)
     console.print()
 
-    menu_options = [
-        ("1", "Generate Video", "Create a new video from your idea"),
-        ("2", "Script Only (Dry Run)", "Generate script without creating video"),
-        ("3", "Check Status", "View configuration status"),
-        ("4", "Help", "Show usage information"),
-        ("5", "Exit", "Quit the application"),
+    choices = [
+        questionary.Choice(
+            title="Generate Video          Create a new video from your idea",
+            value="1",
+        ),
+        questionary.Choice(
+            title="Script Only (Dry Run)   Generate script without creating video",
+            value="2",
+        ),
+        questionary.Choice(
+            title="Check Status            View configuration status",
+            value="3",
+        ),
+        questionary.Choice(
+            title="Help                    Show usage information",
+            value="4",
+        ),
+        questionary.Choice(
+            title="Exit                    Quit the application",
+            value="5",
+        ),
     ]
 
-    table = Table(show_header=False, box=None, padding=(0, 2))
-    table.add_column("Key", style="bold yellow", width=4)
-    table.add_column("Option", style="bold white", width=25)
-    table.add_column("Description", style="dim")
+    result = questionary.select(
+        "Use arrow keys to navigate, Enter to select:",
+        choices=choices,
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
 
-    for key, option, desc in menu_options:
-        table.add_row(f"[{key}]", option, desc)
-
-    console.print(Panel(table, title="[bold]Main Menu[/bold]", border_style="cyan"))
-    console.print()
-
-    return Prompt.ask(
-        "[bold yellow]Select an option[/bold yellow]",
-        choices=["1", "2", "3", "4", "5"],
-        default="1",
-    )
+    return result or "5"  # Default to exit if None (Ctrl+C)
 
 
 def _get_video_idea() -> tuple[str, int]:
