@@ -42,6 +42,8 @@ class MusicBrief(BaseModel):
     This represents the creative direction for background music,
     including the prompt for AI music generation and metadata
     about the desired style.
+
+    Note: All fields are required (no Optional types) for OpenAI structured output compatibility.
     """
 
     prompt: str = Field(description="Detailed music generation prompt for Lyria 2 (50-100 words)")
@@ -51,10 +53,12 @@ class MusicBrief(BaseModel):
     )
     mood: MusicMood = Field(description="Overall emotional quality of the music")
     genre: MusicGenre = Field(description="Music genre/style")
-    tempo: str | None = Field(
-        default=None, description="Tempo description (e.g., 'moderate 100 BPM')"
+    tempo: str = Field(
+        default="moderate", description="Tempo description (e.g., 'moderate 100 BPM')"
     )
-    instruments: list[str] | None = Field(default=None, description="Key instruments to feature")
+    instruments: list[str] = Field(
+        default_factory=list, description="Key instruments to feature (empty list if unspecified)"
+    )
     rationale: str = Field(description="Why this music fits the video content")
 
 

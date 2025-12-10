@@ -82,8 +82,9 @@ class TestMusicBrief:
             rationale="Meditation video needs peaceful music",
         )
         assert brief.negative_prompt == "vocals, singing, lyrics"
-        assert brief.tempo is None
-        assert brief.instruments is None
+        # Empty/default values for OpenAI structured output compatibility
+        assert brief.tempo == "moderate"
+        assert brief.instruments == []
 
     def test_music_brief_missing_required_fields(self) -> None:
         """Test that missing required fields raises ValidationError."""

@@ -7,9 +7,10 @@ including shared visual elements and scene actions.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
 
 from pydantic import BaseModel, Field
+
+from .music import MusicBrief
 
 
 class ElementType(str, Enum):
@@ -25,6 +26,8 @@ class SharedElement(BaseModel):
 
     Shared elements are recurring visual components (characters, props, environments)
     that appear in multiple scenes and need reference images for consistency.
+
+    Note: All fields use empty strings instead of None for OpenAI structured output compatibility.
     """
 
     id: str = Field(description="Unique identifier, e.g., 'char_protagonist'")
@@ -34,11 +37,11 @@ class SharedElement(BaseModel):
     appears_in_scenes: list[int] = Field(
         description="List of scene numbers where this element appears"
     )
-    reference_image_path: str | None = Field(
-        default=None, description="Local path to generated reference image"
+    reference_image_path: str = Field(
+        default="", description="Local path to generated reference image (empty if not yet generated)"
     )
-    reference_image_gcs_uri: str | None = Field(
-        default=None, description="GCS URI of uploaded reference image"
+    reference_image_gcs_uri: str = Field(
+        default="", description="GCS URI of uploaded reference image (empty if not yet uploaded)"
     )
 
 
@@ -47,6 +50,8 @@ class SceneAction(BaseModel):
 
     Each scene represents a segment of the final video with its own
     action, setting, and optional dialogue.
+
+    Note: All fields use empty strings instead of None for OpenAI structured output compatibility.
     """
 
     scene_number: int = Field(ge=1, description="Sequential scene number starting at 1")
@@ -57,9 +62,9 @@ class SceneAction(BaseModel):
     action_description: str = Field(
         description="What happens in the scene, suitable for AI video generation"
     )
-    dialogue: str | None = Field(default=None, description="Spoken dialogue, if any")
-    camera_direction: str | None = Field(
-        default=None, description="Camera movement or framing instructions"
+    dialogue: str = Field(default="", description="Spoken dialogue (empty string if none)")
+    camera_direction: str = Field(
+        default="", description="Camera movement or framing instructions (empty string if none)"
     )
     shared_element_ids: list[str] = Field(
         default_factory=list,
@@ -81,9 +86,8 @@ class VideoScript(BaseModel):
         default_factory=list, description="Visual elements needing consistency"
     )
     scenes: list[SceneAction] = Field(description="Ordered list of scenes")
-    music_brief: Any | None = Field(
-        default=None,
-        description="Background music style from Music Director agent (MusicBrief)",
+    music_brief: MusicBrief = Field(
+        description="Background music style from Music Director agent"
     )
 
     @property

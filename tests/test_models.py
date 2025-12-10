@@ -11,6 +11,7 @@ from sip_videogen.models.agent_outputs import (
     ShowrunnerOutput,
 )
 from sip_videogen.models.assets import AssetType, GeneratedAsset, ProductionPackage
+from sip_videogen.models.music import MusicBrief
 from sip_videogen.models.script import (
     ElementType,
     SceneAction,
@@ -47,8 +48,9 @@ class TestSharedElement:
         assert sample_shared_element.name == "Space Cat"
         assert "spacesuit" in sample_shared_element.visual_description
         assert sample_shared_element.appears_in_scenes == [1, 2, 3]
-        assert sample_shared_element.reference_image_path is None
-        assert sample_shared_element.reference_image_gcs_uri is None
+        # Empty strings are the default (not None) for OpenAI structured output compatibility
+        assert sample_shared_element.reference_image_path == ""
+        assert sample_shared_element.reference_image_gcs_uri == ""
 
     def test_shared_element_with_paths(self) -> None:
         """Test SharedElement with reference image paths."""
@@ -105,8 +107,9 @@ class TestSceneAction:
             action_description="Test action",
         )
         assert scene.duration_seconds == 5  # Default
-        assert scene.dialogue is None
-        assert scene.camera_direction is None
+        # Empty strings are the default (not None) for OpenAI structured output compatibility
+        assert scene.dialogue == ""
+        assert scene.camera_direction == ""
         assert scene.shared_element_ids == []
 
     def test_scene_action_duration_validation(self) -> None:
@@ -166,13 +169,14 @@ class TestVideoScript:
         # Scene durations: 6 + 8 + 6 = 20
         assert sample_video_script.total_duration == 20
 
-    def test_total_duration_empty_scenes(self) -> None:
+    def test_total_duration_empty_scenes(self, sample_music_brief) -> None:
         """Test total_duration with empty scenes list."""
         script = VideoScript(
             title="Empty",
             logline="Empty",
             tone="neutral",
             scenes=[],
+            music_brief=sample_music_brief,
         )
         assert script.total_duration == 0
 

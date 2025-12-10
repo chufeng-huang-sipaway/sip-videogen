@@ -27,7 +27,7 @@ from .generators import (
     VideoGenerationError,
     VideoGenerator,
 )
-from .models import GeneratedMusic, ProductionPackage, VideoScript
+from .models import GeneratedMusic, MusicBrief, MusicGenre, MusicMood, ProductionPackage, VideoScript
 from .storage import (
     GCSAuthenticationError,
     GCSBucketNotFoundError,
@@ -350,7 +350,14 @@ async def _run_pipeline(
     project_dir = output_dir / project_id
     project_dir.mkdir(parents=True, exist_ok=True)
 
-    # Initialize production package
+    # Initialize production package with placeholder script
+    # (will be replaced by develop_script output)
+    placeholder_music_brief = MusicBrief(
+        prompt="placeholder",
+        mood=MusicMood.CALM,
+        genre=MusicGenre.AMBIENT,
+        rationale="placeholder",
+    )
     package = ProductionPackage(
         script=VideoScript(
             title="",
@@ -358,6 +365,7 @@ async def _run_pipeline(
             tone="",
             shared_elements=[],
             scenes=[],
+            music_brief=placeholder_music_brief,
         )
     )
 

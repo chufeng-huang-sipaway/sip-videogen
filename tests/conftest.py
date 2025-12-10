@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from sip_videogen.models.assets import AssetType, GeneratedAsset, ProductionPackage
+from sip_videogen.models.music import MusicBrief, MusicGenre, MusicMood
 from sip_videogen.models.script import (
     ElementType,
     SceneAction,
@@ -108,10 +109,25 @@ def sample_scene_action() -> SceneAction:
 
 
 @pytest.fixture
+def sample_music_brief() -> MusicBrief:
+    """Create a sample MusicBrief for testing."""
+    return MusicBrief(
+        prompt="Epic orchestral music with sweeping strings and brass, adventurous and inspiring mood, moderate tempo around 100 BPM, suitable for space exploration scenes",
+        negative_prompt="vocals, singing, lyrics, heavy metal",
+        mood=MusicMood.DRAMATIC,
+        genre=MusicGenre.CINEMATIC,
+        tempo="moderate 100 BPM",
+        instruments=["strings", "brass", "percussion"],
+        rationale="Cinematic orchestral music enhances the epic space adventure feel",
+    )
+
+
+@pytest.fixture
 def sample_video_script(
     sample_shared_element: SharedElement,
     sample_environment_element: SharedElement,
     sample_scene_action: SceneAction,
+    sample_music_brief: MusicBrief,
 ) -> VideoScript:
     """Create a sample VideoScript for testing."""
     scene2 = SceneAction(
@@ -136,11 +152,12 @@ def sample_video_script(
         tone="adventurous and awe-inspiring",
         shared_elements=[sample_shared_element, sample_environment_element],
         scenes=[sample_scene_action, scene2, scene3],
+        music_brief=sample_music_brief,
     )
 
 
 @pytest.fixture
-def minimal_video_script() -> VideoScript:
+def minimal_video_script(sample_music_brief: MusicBrief) -> VideoScript:
     """Create a minimal VideoScript for basic testing."""
     return VideoScript(
         title="Test Video",
@@ -155,6 +172,7 @@ def minimal_video_script() -> VideoScript:
                 action_description="Test action",
             )
         ],
+        music_brief=sample_music_brief,
     )
 
 
