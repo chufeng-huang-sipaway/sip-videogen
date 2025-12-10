@@ -77,6 +77,18 @@ class Settings(BaseSettings):
         description="Logging level",
     )
 
+    # Background music settings
+    sip_enable_background_music: bool = Field(
+        default=True,
+        description="Enable background music generation using Lyria 2",
+    )
+    sip_music_volume: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=1.0,
+        description="Background music volume (0.0-1.0)",
+    )
+
     @field_validator("sip_output_dir", mode="before")
     @classmethod
     def validate_output_dir(cls, v: str | Path) -> Path:
