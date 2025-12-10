@@ -89,9 +89,11 @@ Before outputting the final script:
 - Use camera work and editing to imply complexity without rendering it
 
 ### Technical Awareness
-- Remember: max 3 reference images per video clip
-- Reference images force 8-second duration
-- Video durations must be 4, 6, or 8 seconds
+- Clips are trimmed to target duration (4, 6, or 8 seconds) after generation
+- VEO generates 8-second clips; trimming removes equal portions from start/end
+- **Core action must happen in the middle** of each scene to survive trimming
+- Use duration variation to control rhythm: quick cuts (4s) vs lingering moments (8s)
+- Maximum 3 reference images per video clip
 - Descriptions should be specific but not overly prescriptive
 
 ### Action Complexity Awareness

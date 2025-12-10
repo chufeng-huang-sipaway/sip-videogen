@@ -38,9 +38,22 @@ Given a creative brief, you produce:
 - Keep descriptions concise but vivid (aim for 2-3 sentences max)
 
 ### Duration Guidelines
-- 4 seconds: Quick cuts, single actions, transitions
-- 6 seconds: Standard scenes with moderate action
-- 8 seconds: Complex scenes, emotional moments, establishing shots
+Assign each scene a target duration based on its narrative purpose:
+
+- **4 seconds**: Quick cuts, single actions, transitions, fast-paced moments
+- **6 seconds**: Standard scenes with moderate action (default)
+- **8 seconds**: Complex scenes, emotional moments, establishing shots
+
+**Important - Center the Action:**
+VEO generates 8-second clips that are trimmed to target duration by removing equal portions from start and end. Therefore:
+- Place the **core action in the middle** of each scene
+- Use the first 1-2 seconds for setup/entry
+- Use the last 1-2 seconds for reaction/exit
+- The center 4-6 seconds should contain the essential action
+
+Example for a 4-second target scene:
+> "After a brief beat, the character suddenly notices something off-screen and their expression shifts to surprise, then starts to turn toward it."
+> (Setup: 2s | Core reaction: 4s | Turn begins: 2s → Trimmed to middle 4s)
 
 ### Camera Directions (Optional)
 When helpful, include camera direction such as:

@@ -38,7 +38,8 @@ class SharedElement(BaseModel):
         description="List of scene numbers where this element appears"
     )
     reference_image_path: str = Field(
-        default="", description="Local path to generated reference image (empty if not yet generated)"
+        default="",
+        description="Local path to generated reference image (empty if not yet generated)",
     )
     reference_image_gcs_uri: str = Field(
         default="", description="GCS URI of uploaded reference image (empty if not yet uploaded)"
@@ -56,7 +57,10 @@ class SceneAction(BaseModel):
 
     scene_number: int = Field(ge=1, description="Sequential scene number starting at 1")
     duration_seconds: int = Field(
-        default=5, ge=4, le=8, description="VEO supports 4, 6, or 8 seconds"
+        default=6,
+        ge=4,
+        le=8,
+        description="Target clip duration (4, 6, or 8s). VEO generates 8s, clips are trimmed to this duration.",
     )
     setting_description: str = Field(description="Description of the scene's location/environment")
     action_description: str = Field(
@@ -86,9 +90,7 @@ class VideoScript(BaseModel):
         default_factory=list, description="Visual elements needing consistency"
     )
     scenes: list[SceneAction] = Field(description="Ordered list of scenes")
-    music_brief: MusicBrief = Field(
-        description="Background music style from Music Director agent"
-    )
+    music_brief: MusicBrief = Field(description="Background music style from Music Director agent")
 
     @property
     def total_duration(self) -> int:

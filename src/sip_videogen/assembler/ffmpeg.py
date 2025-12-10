@@ -278,6 +278,100 @@ class FFmpegAssembler:
         except (ValueError, KeyError) as e:
             raise FFmpegError(f"Failed to parse video info: {e}") from e
 
+    def trim_clip_to_duration(
+        self,
+        input_path: Path,
+        output_path: Path,
+        target_duration: int,
+    ) -> Path:
+        """Trim a video clip to target duration by removing equal portions from start and end.
+
+        VEO generates 8-second clips when using reference images. This method trims
+        the clip to the target duration by removing equal amounts from the beginning
+        and end, preserving the core action in the middle.
+
+        Args:
+            input_path: Path to the input video clip (typically 8 seconds).
+            output_path: Path for the trimmed output clip.
+            target_duration: Target duration in seconds (4, 6, or 8).
+
+        Returns:
+            Path to the trimmed clip.
+
+        Raises:
+            FFmpegError: If trimming fails or input file not found.
+        """
+        if not input_path.exists():
+            raise FFmpegError(f"Input video not found: {input_path}")
+
+        # Validate target duration
+        if target_duration not in (4, 6, 8):
+            logger.warning(
+                "Unusual target duration %d, expected 4, 6, or 8",
+                target_duration,
+            )
+
+        # Get actual duration of input clip
+        actual_duration = self.get_video_duration(input_path)
+
+        # If target is >= actual, just copy the file
+        if target_duration >= actual_duration:
+            logger.debug(
+                "Target duration %ds >= actual %.1fs, copying without trim",
+                target_duration,
+                actual_duration,
+            )
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(input_path, output_path)
+            return output_path
+
+        # Calculate trim amounts
+        trim_total = actual_duration - target_duration
+        start_trim = trim_total / 2
+
+        logger.info(
+            "Trimming clip from %.1fs to %ds (removing %.1fs from each end)",
+            actual_duration,
+            target_duration,
+            start_trim,
+        )
+
+        # Create output directory if needed
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Build FFmpeg command using stream copy for speed
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output
+            "-ss",
+            str(start_trim),  # Seek to start position
+            "-i",
+            str(input_path),
+            "-t",
+            str(target_duration),  # Duration to keep
+            "-c",
+            "copy",  # Stream copy (fast, lossless)
+            str(output_path),
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            logger.debug("FFmpeg stdout: %s", result.stdout)
+            if result.stderr:
+                logger.debug("FFmpeg stderr: %s", result.stderr)
+
+            logger.debug("Trimmed clip saved to: %s", output_path)
+            return output_path
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr if e.stderr else str(e)
+            raise FFmpegError(f"FFmpeg trimming failed: {error_msg}") from e
+
     def assemble_with_music(
         self,
         clip_paths: list[Path],

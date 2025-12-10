@@ -12,6 +12,12 @@ from sip_videogen.models.assets import (
     GeneratedAsset,
     ProductionPackage,
 )
+from sip_videogen.models.image_review import (
+    ImageGenerationAttempt,
+    ImageGenerationResult,
+    ImageReviewResult,
+    ReviewDecision,
+)
 from sip_videogen.models.music import (
     GeneratedMusic,
     MusicBrief,
@@ -35,6 +41,11 @@ __all__ = [
     "AssetType",
     "GeneratedAsset",
     "ProductionPackage",
+    # Image review models
+    "ImageGenerationAttempt",
+    "ImageGenerationResult",
+    "ImageReviewResult",
+    "ReviewDecision",
     # Music models
     "GeneratedMusic",
     "MusicBrief",

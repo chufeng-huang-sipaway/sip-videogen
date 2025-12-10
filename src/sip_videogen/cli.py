@@ -1,6 +1,7 @@
 """CLI interface for sip-videogen."""
 
 import asyncio
+import shutil
 import sys
 import uuid
 from datetime import datetime
@@ -19,6 +20,7 @@ from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
+from .agents.tools import ImageProductionManager
 from .generators import (
     ImageGenerationError,
     ImageGenerator,
@@ -27,7 +29,16 @@ from .generators import (
     VideoGenerationError,
     VideoGenerator,
 )
-from .models import GeneratedMusic, MusicBrief, MusicGenre, MusicMood, ProductionPackage, VideoScript
+from .models import (
+    AssetType,
+    GeneratedAsset,
+    GeneratedMusic,
+    MusicBrief,
+    MusicGenre,
+    MusicMood,
+    ProductionPackage,
+    VideoScript,
+)
 from .storage import (
     GCSAuthenticationError,
     GCSBucketNotFoundError,
@@ -491,8 +502,11 @@ async def _run_pipeline(
         )
         return
 
-    # ========== STAGE 2: Generate Reference Images ==========
-    console.print("\n[bold cyan]Stage 2/{total_stages}:[/bold cyan] Generating reference images...")
+    # ========== STAGE 2: Generate Reference Images with Quality Review ==========
+    console.print(
+        "\n[bold cyan]Stage 2/{total_stages}:[/bold cyan] "
+        "Generating reference images with quality review..."
+    )
 
     if not script.shared_elements:
         console.print("[yellow]No shared elements found - skipping reference images.[/yellow]")
@@ -500,7 +514,12 @@ async def _run_pipeline(
         images_dir = project_dir / "reference_images"
         images_dir.mkdir(exist_ok=True)
 
-        image_generator = ImageGenerator(api_key=settings.gemini_api_key)
+        # Use ImageProductionManager for generation with AI quality review
+        image_production = ImageProductionManager(
+            gemini_api_key=settings.gemini_api_key,
+            output_dir=images_dir,
+            max_retries=2,  # 3 total attempts per image
+        )
 
         with Progress(
             SpinnerColumn(),
@@ -511,33 +530,52 @@ async def _run_pipeline(
             console=console,
         ) as progress:
             task = progress.add_task(
-                "[cyan]Generating images...",
+                "[cyan]Generating and reviewing images...",
                 total=len(script.shared_elements),
             )
 
             for element in script.shared_elements:
                 try:
-                    asset = await image_generator.generate_reference_image(
-                        element=element,
-                        output_dir=images_dir,
-                    )
-                    package.reference_images.append(asset)
+                    # Generate with review loop
+                    result = await image_production.generate_with_review(element)
+
+                    if result.status == "success":
+                        # Create GeneratedAsset from successful result
+                        asset = GeneratedAsset(
+                            asset_type=AssetType.REFERENCE_IMAGE,
+                            element_id=element.id,
+                            local_path=result.local_path,
+                        )
+                        package.reference_images.append(asset)
+
+                        attempts_info = f"({result.total_attempts} attempt{'s' if result.total_attempts > 1 else ''})"
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"[green]Generated: {element.name} {attempts_info}",
+                        )
+                    else:
+                        # Failed after all retries
+                        logger.warning(
+                            f"Failed to generate acceptable image for {element.name} "
+                            f"after {result.total_attempts} attempts"
+                        )
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"[red]Failed: {element.name} (rejected after retries)",
+                        )
+                except Exception as e:
+                    logger.warning(f"Error generating image for {element.name}: {e}")
                     progress.update(
                         task,
                         advance=1,
-                        description=f"[green]Generated: {element.name}",
-                    )
-                except ImageGenerationError as e:
-                    logger.warning(f"Failed to generate image for {element.name}: {e}")
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=f"[red]Failed: {element.name}",
+                        description=f"[red]Error: {element.name}",
                     )
 
         console.print(
             f"[green]Generated {len(package.reference_images)}/{len(script.shared_elements)} "
-            "reference images.[/green]"
+            "reference images with quality review.[/green]"
         )
 
     # ========== STAGE 3: Upload Reference Images to GCS ==========
@@ -672,6 +710,93 @@ async def _run_pipeline(
         console.print("[red]No clips available for concatenation.[/red]")
         raise typer.Exit(1)
 
+    # ========== STAGE 5.5: Trim Clips to Target Duration ==========
+    console.print("\n[bold cyan]Trimming clips to target duration...[/bold cyan]")
+
+    try:
+        assembler = FFmpegAssembler()
+    except FFmpegError as e:
+        console.print(f"[red]FFmpeg error:[/red] {e}")
+        raise typer.Exit(1)
+
+    trimmed_clips_dir = project_dir / "clips_trimmed"
+    trimmed_clips_dir.mkdir(exist_ok=True)
+
+    clips_trimmed = 0
+    clips_copied = 0
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            "[cyan]Trimming clips...",
+            total=len(downloaded_clips),
+        )
+
+        for clip in downloaded_clips:
+            if not clip.local_path:
+                progress.update(task, advance=1)
+                continue
+
+            # Get target duration from the script's scene
+            scene = next(
+                (s for s in script.scenes if s.scene_number == clip.scene_number),
+                None,
+            )
+            if not scene:
+                logger.warning(f"Scene {clip.scene_number} not found in script")
+                progress.update(task, advance=1)
+                continue
+
+            target_duration = scene.duration_seconds
+            input_path = Path(clip.local_path)
+            output_path = trimmed_clips_dir / f"scene_{clip.scene_number:03d}.mp4"
+
+            try:
+                # Check if trimming is needed (VEO generates 8s clips)
+                actual_duration = assembler.get_video_duration(input_path)
+                if target_duration < actual_duration:
+                    assembler.trim_clip_to_duration(
+                        input_path=input_path,
+                        output_path=output_path,
+                        target_duration=target_duration,
+                    )
+                    clips_trimmed += 1
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[green]Trimmed scene {clip.scene_number}: {actual_duration:.1f}s → {target_duration}s",
+                    )
+                else:
+                    # No trimming needed, just copy
+                    shutil.copy(input_path, output_path)
+                    clips_copied += 1
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[dim]Copied scene {clip.scene_number} (no trim needed)[/dim]",
+                    )
+
+                # Update clip path to point to trimmed version
+                clip.local_path = str(output_path)
+
+            except FFmpegError as e:
+                logger.warning(f"Failed to trim scene {clip.scene_number}: {e}")
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"[red]Failed to trim scene {clip.scene_number}",
+                )
+
+    console.print(
+        f"[green]Trimmed {clips_trimmed} clips, copied {clips_copied} clips (no trim needed).[/green]"
+    )
+
     # ========== STAGE 6: Generate Background Music (if enabled) ==========
     if enable_music and script.music_brief:
         console.print(
@@ -728,11 +853,7 @@ async def _run_pipeline(
         f"\n[bold cyan]Stage {assembly_stage}/{total_stages}:[/bold cyan] Assembling final video..."
     )
 
-    try:
-        assembler = FFmpegAssembler()
-    except FFmpegError as e:
-        console.print(f"[red]FFmpeg error:[/red] {e}")
-        raise typer.Exit(1)
+    # Note: assembler was already created in the trimming step above
 
     # Sort clips by scene number
     clip_paths = sorted(
