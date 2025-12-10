@@ -157,10 +157,7 @@ class ImageGenerator:
                     logger.warning(f"Skipping element {element.id} due to error: {e}")
 
         # Create and run all tasks in parallel
-        tasks = [
-            generate_with_semaphore(idx, element)
-            for idx, element in enumerate(elements)
-        ]
+        tasks = [generate_with_semaphore(idx, element) for idx, element in enumerate(elements)]
         await asyncio.gather(*tasks)
 
         # Filter successful results

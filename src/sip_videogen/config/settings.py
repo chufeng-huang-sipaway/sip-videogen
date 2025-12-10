@@ -51,6 +51,16 @@ class Settings(BaseSettings):
         description="Enable Vertex AI for VEO video generation",
     )
 
+    # Kling API credentials (optional, for Kling video generation)
+    kling_access_key: str | None = Field(
+        default=None,
+        description="Kling API access key (optional)",
+    )
+    kling_secret_key: str | None = Field(
+        default=None,
+        description="Kling API secret key (optional)",
+    )
+
     # Local output directory for generated assets
     sip_output_dir: Path = Field(
         default=Path("./output"),
@@ -124,6 +134,7 @@ class Settings(BaseSettings):
             "sip_gcs_bucket_name": bool(
                 self.sip_gcs_bucket_name and self.sip_gcs_bucket_name != "your-bucket-name"
             ),
+            "kling_api": bool(self.kling_access_key and self.kling_secret_key),
         }
 
 

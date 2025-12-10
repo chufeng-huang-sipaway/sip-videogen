@@ -9,7 +9,7 @@ from sip_videogen.generators.image_generator import (
     ImageGenerationError,
     ImageGenerator,
 )
-from sip_videogen.generators.video_generator import VideoGenerator
+from sip_videogen.generators import VideoGenerator
 from sip_videogen.models.assets import AssetType
 from sip_videogen.models.script import ElementType, SceneAction, SharedElement
 

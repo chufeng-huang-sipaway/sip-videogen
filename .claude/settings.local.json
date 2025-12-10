@@ -21,7 +21,31 @@
       "Bash(source .env)",
       "Bash(echo:*)",
       "WebFetch(domain:medium.com)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:skywork.ai)",
+      "Bash(python:*)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen log --oneline --all -20)",
+      "Bash(ruff check:*)",
+      "Bash(git add:*)",
+      "Bash(src/sip_videogen/models/script.py )",
+      "Bash(src/sip_videogen/models/agent_outputs.py )",
+      "Bash(src/sip_videogen/agents/prompts/production_designer.md )",
+      "Bash(src/sip_videogen/agents/prompts/continuity_supervisor.md )",
+      "Bash(src/sip_videogen/agents/prompt_repair.py )",
+      "Bash(src/sip_videogen/agents/prompts/prompt_repair.md )",
+      "Bash(src/sip_videogen/generators/video_generator.py)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen log --oneline -5)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Add interactive arrow-key menu and sipvid command\n\n- Add questionary library for interactive terminal menu\n- Replace number-input menu with arrow-key navigation (↑/↓)\n- Add sipvid as alias entry point for easier access\n- Update README with new usage instructions\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen push)",
+      "WebFetch(domain:app.klingai.com)",
+      "WebFetch(domain:piapi.ai)",
+      "WebFetch(domain:apidog.com)",
+      "WebFetch(domain:docs.aimlapi.com)",
+      "WebFetch(domain:klingai.com)",
+      "WebFetch(domain:www.segmind.com)",
+      "WebFetch(domain:useapi.net)",
+      "WebFetch(domain:docs.qingque.cn)",
+      "WebFetch(domain:doc.dmxapi.cn)"
     ]
   }
 }

@@ -74,6 +74,9 @@ This launches an interactive menu with arrow-key navigation. Use ↑/↓ to navi
 # Generate a video
 sipvid generate "A cat astronaut explores Mars"
 
+# Regenerate videos from an existing run (reuse saved script + images)
+sipvid resume output/sip_20251210_123855_e9a845e4
+
 # Generate with specific number of scenes
 sipvid generate "Epic space battle" --scenes 5
 

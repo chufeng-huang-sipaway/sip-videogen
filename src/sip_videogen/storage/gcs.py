@@ -219,3 +219,58 @@ class GCSStorage:
             Full remote path.
         """
         return f"{prefix}/{filename}"
+
+    def generate_signed_url(
+        self,
+        gcs_uri: str,
+        expiration_minutes: int = 60,
+    ) -> str:
+        """Generate a signed HTTPS URL for a GCS object.
+
+        This allows external services (like Kling AI) to access GCS objects
+        without authentication, using a time-limited signed URL.
+
+        Args:
+            gcs_uri: GCS URI of the file (gs://bucket/path/file.ext).
+            expiration_minutes: URL expiration time in minutes (default: 60).
+
+        Returns:
+            Signed HTTPS URL that can be accessed without authentication.
+
+        Raises:
+            GCSStorageError: If the URI format is invalid.
+            GCSPermissionError: If signing fails due to permissions.
+        """
+        from datetime import timedelta
+
+        if not gcs_uri.startswith("gs://"):
+            raise GCSStorageError(f"Invalid GCS URI format: {gcs_uri}")
+
+        try:
+            parts = gcs_uri.replace("gs://", "").split("/", 1)
+            if len(parts) != 2:
+                raise GCSStorageError(f"Invalid GCS URI format: {gcs_uri}")
+
+            bucket_name, blob_path = parts[0], parts[1]
+
+            # Get the bucket and blob
+            bucket = self.client.bucket(bucket_name)
+            blob = bucket.blob(blob_path)
+
+            # Generate signed URL
+            url = blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(minutes=expiration_minutes),
+                method="GET",
+            )
+
+            logger.debug("Generated signed URL for %s (expires in %d min)", gcs_uri, expiration_minutes)
+            return url
+
+        except Forbidden as e:
+            raise GCSPermissionError(
+                f"Permission denied generating signed URL for {gcs_uri}.\n"
+                "Ensure your service account has 'Service Account Token Creator' role."
+            ) from e
+        except GoogleCloudError as e:
+            raise GCSStorageError(f"Failed to generate signed URL for {gcs_uri}: {e}") from e

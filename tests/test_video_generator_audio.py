@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sip_videogen.generators.video_generator import VideoGenerator
+from sip_videogen.generators import VideoGenerator
 from sip_videogen.models.script import SceneAction
 
 

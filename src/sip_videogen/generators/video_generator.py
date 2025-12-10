@@ -15,36 +15,27 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from sip_videogen.config.logging import get_logger
+from sip_videogen.generators.base import (
+    BaseVideoGenerator,
+    PromptSafetyError,
+    ServiceAgentNotReadyError,
+    VideoGenerationError,
+)
 from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.script import SceneAction, VideoScript
 
 logger = get_logger(__name__)
 
 
-class VideoGenerationError(Exception):
-    """Raised when video generation fails."""
-
-    pass
-
-
-class PromptSafetyError(VideoGenerationError):
-    """Raised when Vertex AI rejects a prompt for safety/policy reasons."""
-
-    pass
-
-
-class ServiceAgentNotReadyError(VideoGenerationError):
-    """Raised when Vertex AI service agents are still being provisioned."""
-
-    pass
-
-
-class VideoGenerator:
+class VEOVideoGenerator(BaseVideoGenerator):
     """Generates video clips using Google VEO 3.1 via Vertex AI.
 
     This class handles the generation of video clips for each scene,
     optionally using reference images for visual consistency.
     """
+
+    # Provider identification
+    PROVIDER_NAME = "veo"
 
     # VEO 3.1 constraints
     MAX_REFERENCE_IMAGES = 3

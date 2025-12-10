@@ -29,13 +29,9 @@ class GeneratedAsset(BaseModel):
     element_id: str | None = Field(
         default=None, description="SharedElement ID (for reference images)"
     )
-    scene_number: int | None = Field(
-        default=None, description="Scene number (for video clips)"
-    )
+    scene_number: int | None = Field(default=None, description="Scene number (for video clips)")
     local_path: str = Field(description="Local filesystem path to the asset")
-    gcs_uri: str | None = Field(
-        default=None, description="GCS URI after upload (gs://bucket/path)"
-    )
+    gcs_uri: str | None = Field(default=None, description="GCS URI after upload (gs://bucket/path)")
 
 
 class ProductionPackage(BaseModel):
@@ -94,9 +90,7 @@ class ProductionPackage(BaseModel):
         """
         # Check reference images for all shared elements
         element_ids = {elem.id for elem in self.script.shared_elements}
-        ref_image_ids = {
-            asset.element_id for asset in self.reference_images if asset.element_id
-        }
+        ref_image_ids = {asset.element_id for asset in self.reference_images if asset.element_id}
         if element_ids != ref_image_ids:
             return False
 

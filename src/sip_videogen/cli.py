@@ -1,5 +1,12 @@
 """CLI interface for sip-videogen."""
 
+# ruff: noqa: E402
+# Load .env into actual environment variables BEFORE importing agents
+# The openai-agents SDK requires OPENAI_API_KEY to be in os.environ
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import asyncio
 import shutil
 import sys
@@ -22,11 +29,13 @@ from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
+from .config.user_preferences import UserPreferences
 from .generators import (
     MusicGenerationError,
     MusicGenerator,
     VideoGenerationError,
-    VideoGenerator,
+    VideoGeneratorFactory,
+    VideoProvider,
 )
 from .models import (
     AssetType,
@@ -628,82 +637,117 @@ async def _run_pipeline(
     # ========== STAGE 4: Generate Video Clips ==========
     console.print("\n[bold cyan]Stage 4/{total_stages}:[/bold cyan] Generating video clips...")
 
-    video_generator = VideoGenerator(
-        project=settings.google_cloud_project,
-        location=settings.google_cloud_location,
-    )
+    # Get user's preferred video provider
+    prefs = UserPreferences.load()
+    provider = prefs.default_video_provider
 
-    output_gcs_prefix = f"gs://{settings.sip_gcs_bucket_name}/{gcs_prefix}/videos"
+    console.print(f"[dim]Using {provider.value.upper()} video generator[/dim]")
 
     try:
-        video_clips = await video_generator.generate_all_video_clips(
-            script=script,
-            output_gcs_prefix=output_gcs_prefix,
-            reference_images=package.reference_images,
-            show_progress=True,
-        )
-        package.video_clips = video_clips
-
-        if not video_clips:
-            console.print("[red]No video clips were generated.[/red]")
-            raise typer.Exit(1)
-
-        console.print(
-            f"[green]Generated {len(video_clips)}/{len(script.scenes)} video clips.[/green]"
-        )
-    except VideoGenerationError as e:
-        logger.error(f"Video generation failed: {e}")
-        console.print(f"[red]Video generation failed:[/red] {e}")
-        raise
-
-    # ========== STAGE 5: Download Video Clips ==========
-    console.print("\n[bold cyan]Stage 5/{total_stages}:[/bold cyan] Downloading video clips...")
+        video_generator = VideoGeneratorFactory.create(provider)
+    except ValueError as e:
+        console.print(f"[red]Failed to create video generator:[/red] {e}")
+        raise typer.Exit(1)
 
     videos_dir = project_dir / "clips"
     videos_dir.mkdir(exist_ok=True)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task(
-            "[cyan]Downloading from GCS...",
-            total=len(package.video_clips),
-        )
+    try:
+        if provider == VideoProvider.VEO:
+            # VEO: Generate to GCS, then download
+            output_gcs_prefix = f"gs://{settings.sip_gcs_bucket_name}/{gcs_prefix}/videos"
 
-        for clip in package.video_clips:
-            if not clip.gcs_uri:
-                progress.update(task, advance=1)
-                continue
+            video_clips = await video_generator.generate_all_video_clips(
+                script=script,
+                output_gcs_prefix=output_gcs_prefix,
+                reference_images=package.reference_images,
+                show_progress=True,
+            )
+            package.video_clips = video_clips
 
-            try:
-                # Determine local filename from GCS URI
-                filename = f"scene_{clip.scene_number:03d}.mp4"
-                local_path = videos_dir / filename
+            if not video_clips:
+                console.print("[red]No video clips were generated.[/red]")
+                raise typer.Exit(1)
 
-                gcs_storage.download_file(clip.gcs_uri, local_path)
-                clip.local_path = str(local_path)
-                progress.update(
-                    task,
-                    advance=1,
-                    description=f"[green]Downloaded: {filename}",
+            console.print(
+                f"[green]Generated {len(video_clips)}/{len(script.scenes)} video clips.[/green]"
+            )
+
+            # Download VEO clips from GCS
+            console.print("\n[bold cyan]Stage 5/{total_stages}:[/bold cyan] Downloading video clips...")
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task(
+                    "[cyan]Downloading from GCS...",
+                    total=len(package.video_clips),
                 )
-            except GCSStorageError as e:
-                logger.warning(f"Failed to download {clip.gcs_uri}: {e}")
-                progress.update(
-                    task,
-                    advance=1,
-                    description=f"[red]Failed: scene {clip.scene_number}",
-                )
 
-    downloaded_clips = [c for c in package.video_clips if c.local_path]
-    console.print(
-        f"[green]Downloaded {len(downloaded_clips)}/{len(package.video_clips)} clips.[/green]"
-    )
+                for clip in package.video_clips:
+                    if not clip.gcs_uri:
+                        progress.update(task, advance=1)
+                        continue
+
+                    try:
+                        filename = f"scene_{clip.scene_number:03d}.mp4"
+                        local_path = videos_dir / filename
+
+                        gcs_storage.download_file(clip.gcs_uri, local_path)
+                        clip.local_path = str(local_path)
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"[green]Downloaded: {filename}",
+                        )
+                    except GCSStorageError as e:
+                        logger.warning(f"Failed to download {clip.gcs_uri}: {e}")
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"[red]Failed: scene {clip.scene_number}",
+                        )
+
+            downloaded_clips = [c for c in package.video_clips if c.local_path]
+            console.print(
+                f"[green]Downloaded {len(downloaded_clips)}/{len(package.video_clips)} clips.[/green]"
+            )
+
+        else:
+            # Kling: Generate directly to local directory
+            # Create signed URL generator for reference images
+            def signed_url_generator(gcs_uri: str) -> str:
+                return gcs_storage.generate_signed_url(gcs_uri, expiration_minutes=120)
+
+            video_clips = await video_generator.generate_all_video_clips(
+                script=script,
+                output_path=str(videos_dir),
+                reference_images=package.reference_images,
+                show_progress=True,
+                signed_url_generator=signed_url_generator,
+            )
+            package.video_clips = video_clips
+
+            if not video_clips:
+                console.print("[red]No video clips were generated.[/red]")
+                raise typer.Exit(1)
+
+            console.print(
+                f"[green]Generated {len(video_clips)}/{len(script.scenes)} video clips.[/green]"
+            )
+
+            # Kling clips are already local, no download needed
+            downloaded_clips = [c for c in package.video_clips if c.local_path]
+
+    except VideoGenerationError as e:
+        logger.error(f"Video generation failed: {e}")
+        console.print(f"[red]Video generation failed:[/red] {e}")
+        raise
 
     if not downloaded_clips:
         console.print("[red]No clips available for concatenation.[/red]")
@@ -970,6 +1014,51 @@ def _display_final_summary(
 
 
 @app.command()
+def resume(
+    run_path: Path | None = typer.Argument(
+        None,
+        help="Path to an existing run directory containing script.json and reference_images",
+    ),
+    provider: VideoProvider | None = typer.Option(
+        None,
+        "--provider",
+        help="Override the default video provider (veo or kling)",
+        case_sensitive=False,
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip the confirmation prompt",
+    ),
+) -> None:
+    """Regenerate videos from a previous run's script and reference images."""
+    run_dir = run_path
+
+    if run_dir is None:
+        run_dir = _select_previous_run()
+        if run_dir is None:
+            raise typer.Exit(1)
+    else:
+        run_dir = run_dir.expanduser()
+
+    try:
+        asyncio.run(
+            _resume_video_generation(
+                run_dir,
+                provider_override=provider,
+                skip_confirmation=yes,
+            )
+        )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Resume cancelled by user.[/yellow]")
+        raise typer.Exit(130)
+    except Exception as e:
+        console.print(f"[red]Resume failed:[/red] {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
 def status() -> None:
     """Show configuration status.
 
@@ -1118,20 +1207,28 @@ def _show_menu() -> str:
             value="1",
         ),
         questionary.Choice(
-            title="Script Only (Dry Run)   Generate script without creating video",
+            title="Resume Video            Regenerate videos from a previous run",
             value="2",
         ),
         questionary.Choice(
-            title="Check Status            View configuration status",
+            title="Script Only (Dry Run)   Generate script without creating video",
             value="3",
         ),
         questionary.Choice(
-            title="Help                    Show usage information",
+            title="Check Status            View configuration status",
             value="4",
         ),
         questionary.Choice(
-            title="Exit                    Quit the application",
+            title="Settings                Configure video generation preferences",
             value="5",
+        ),
+        questionary.Choice(
+            title="Help                    Show usage information",
+            value="6",
+        ),
+        questionary.Choice(
+            title="Exit                    Quit the application",
+            value="7",
         ),
     ]
 
@@ -1147,7 +1244,7 @@ def _show_menu() -> str:
         ]),
     ).ask()
 
-    return result or "5"  # Default to exit if None (Ctrl+C)
+    return result or "7"  # Default to exit if None (Ctrl+C)
 
 
 def _get_video_idea() -> tuple[str, int]:
@@ -1170,6 +1267,691 @@ def _get_video_idea() -> tuple[str, int]:
     return idea.strip(), scenes
 
 
+def _show_settings_menu() -> None:
+    """Display and handle settings menu."""
+    prefs = UserPreferences.load()
+    settings = get_settings()
+
+    while True:
+        console.print("\n[bold cyan]Settings[/bold cyan]\n")
+
+        # Show current settings in a table
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Setting", style="cyan")
+        table.add_column("Current Value", style="green")
+
+        # Default video provider
+        table.add_row(
+            "Default Video Provider",
+            prefs.default_video_provider.value.upper(),
+        )
+
+        # Kling settings
+        table.add_row("Kling Model Version", prefs.kling.model_version)
+        table.add_row("Kling Mode", prefs.kling.mode.upper())
+
+        # API status
+        config_status = settings.is_configured()
+        veo_status = "[green]Configured[/green]" if (
+            config_status.get("google_cloud_project") and
+            config_status.get("sip_gcs_bucket_name")
+        ) else "[red]Not configured[/red]"
+        kling_status = "[green]Configured[/green]" if config_status.get("kling_api") else "[red]Not configured[/red]"
+
+        table.add_row("VEO (Google) Status", veo_status)
+        table.add_row("Kling API Status", kling_status)
+
+        console.print(table)
+        console.print()
+
+        # Settings menu options
+        choices = [
+            questionary.Choice(
+                title="Change default video provider",
+                value="provider",
+            ),
+            questionary.Choice(
+                title="Configure Kling settings",
+                value="kling",
+            ),
+            questionary.Choice(
+                title="Back to main menu",
+                value="back",
+            ),
+        ]
+
+        choice = questionary.select(
+            "Select option:",
+            choices=choices,
+            style=questionary.Style([
+                ("pointer", "fg:cyan bold"),
+                ("highlighted", "fg:cyan bold"),
+            ]),
+        ).ask()
+
+        if choice == "provider":
+            _change_video_provider(prefs, settings)
+        elif choice == "kling":
+            _configure_kling_settings(prefs)
+        elif choice == "back" or choice is None:
+            break
+
+
+def _change_video_provider(prefs: UserPreferences, settings) -> None:
+    """Change default video provider."""
+    console.print("\n[bold]Select Default Video Provider[/bold]\n")
+
+    config_status = settings.is_configured()
+    choices = []
+
+    # VEO option (always show, but indicate if not configured)
+    veo_available = config_status.get("google_cloud_project") and config_status.get("sip_gcs_bucket_name")
+    veo_title = "VEO (Google Vertex AI)"
+    if not veo_available:
+        veo_title += " [dim][Not configured][/dim]"
+    choices.append(questionary.Choice(title=veo_title, value=VideoProvider.VEO.value))
+
+    # Kling option
+    kling_available = config_status.get("kling_api")
+    kling_title = "Kling AI"
+    if not kling_available:
+        kling_title += " [dim][Not configured - set KLING_ACCESS_KEY and KLING_SECRET_KEY][/dim]"
+    choices.append(questionary.Choice(title=kling_title, value=VideoProvider.KLING.value))
+
+    result = questionary.select(
+        "Choose provider:",
+        choices=choices,
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if result:
+        new_provider = VideoProvider(result)
+
+        # Warn if provider is not configured
+        if new_provider == VideoProvider.VEO and not veo_available:
+            console.print("[yellow]Warning: VEO is not fully configured. Video generation may fail.[/yellow]")
+        elif new_provider == VideoProvider.KLING and not kling_available:
+            console.print("[yellow]Warning: Kling is not configured. Set KLING_ACCESS_KEY and KLING_SECRET_KEY in .env[/yellow]")
+
+        prefs.default_video_provider = new_provider
+        prefs.save()
+        console.print(f"\n[green]Default provider set to {new_provider.value.upper()}[/green]")
+
+
+def _configure_kling_settings(prefs: UserPreferences) -> None:
+    """Configure Kling-specific settings."""
+    console.print("\n[bold]Configure Kling Settings[/bold]\n")
+
+    # Model version selection
+    # Note: versions are stored without "v" prefix (e.g., "1.6" not "v1.6")
+    model_choices = [
+        questionary.Choice(title="v2.5 Turbo (Latest)", value="2.5-turbo"),
+        questionary.Choice(title="v1.6 (Stable)", value="1.6"),
+        questionary.Choice(title="v1.5", value="1.5"),
+        questionary.Choice(title="v2.0", value="2.0"),
+        questionary.Choice(title="v2.1", value="2.1"),
+    ]
+
+    # Find current selection index
+    current_version = prefs.kling.model_version
+    default_idx = next(
+        (
+            i
+            for i, c in enumerate(model_choices)
+            if c.value == current_version
+            or (current_version in {"2.5", "v2.5"} and c.value == "2.5-turbo")
+        ),
+        0
+    )
+
+    model = questionary.select(
+        "Select Kling model version:",
+        choices=model_choices,
+        default=model_choices[default_idx],
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if model:
+        prefs.kling.model_version = model
+
+    # Mode selection
+    mode_choices = [
+        questionary.Choice(
+            title="Standard (Faster, default)",
+            value="std",
+        ),
+        questionary.Choice(
+            title="Pro (Higher quality, slower)",
+            value="pro",
+        ),
+    ]
+
+    current_mode_idx = 0 if prefs.kling.mode == "std" else 1
+
+    mode = questionary.select(
+        "Select Kling mode:",
+        choices=mode_choices,
+        default=mode_choices[current_mode_idx],
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if mode:
+        prefs.kling.mode = mode
+
+    prefs.save()
+    console.print("\n[green]Kling settings saved![/green]")
+
+
+def _list_previous_runs() -> list[Path]:
+    """List all previous runs from the output directory.
+
+    Returns:
+        List of run directories sorted by modification time (newest first).
+    """
+    settings = get_settings()
+    output_dir = Path(settings.sip_output_dir)
+
+    if not output_dir.exists():
+        return []
+
+    runs = []
+    for item in output_dir.iterdir():
+        if item.is_dir() and item.name.startswith("sip_"):
+            # Check if it has a script.json file
+            script_file = item / "script.json"
+            if script_file.exists():
+                runs.append(item)
+
+    # Sort by modification time (newest first)
+    runs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    return runs
+
+
+def _load_script_from_run(run_dir: Path) -> VideoScript:
+    """Load a VideoScript from a previous run's script.json.
+
+    Args:
+        run_dir: Path to the run directory.
+
+    Returns:
+        Loaded VideoScript.
+
+    Raises:
+        FileNotFoundError: If script.json doesn't exist.
+        ValidationError: If the JSON is invalid.
+    """
+    import json
+
+    script_file = run_dir / "script.json"
+    if not script_file.exists():
+        raise FileNotFoundError(f"No script.json found in {run_dir}")
+
+    with open(script_file) as f:
+        data = json.load(f)
+
+    return VideoScript.model_validate(data)
+
+
+def _load_reference_images_from_run(run_dir: Path) -> list[GeneratedAsset]:
+    """Load reference images from a previous run.
+
+    Args:
+        run_dir: Path to the run directory.
+
+    Returns:
+        List of GeneratedAsset objects for each reference image.
+    """
+    images_dir = run_dir / "reference_images"
+    if not images_dir.exists():
+        return []
+
+    assets = []
+    for img_file in images_dir.iterdir():
+        if img_file.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+            # Extract element_id from filename (e.g., "char_knight.png" -> "char_knight")
+            element_id = img_file.stem
+
+            asset = GeneratedAsset(
+                asset_type=AssetType.REFERENCE_IMAGE,
+                local_path=str(img_file),
+                element_id=element_id,
+            )
+            assets.append(asset)
+
+    return assets
+
+
+def _trim_clips_to_duration(
+    script: VideoScript,
+    video_clips: list[GeneratedAsset],
+    output_dir: Path,
+) -> tuple[list[GeneratedAsset], dict[str, int]]:
+    """Trim or copy clips to match their scene durations."""
+    logger = get_logger(__name__)
+
+    try:
+        assembler = FFmpegAssembler()
+    except FFmpegError as e:
+        console.print(f"[red]FFmpeg error:[/red] {e}")
+        return [], {"trimmed": 0, "copied": 0}
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    trimmed_clips: list[GeneratedAsset] = []
+    stats = {"trimmed": 0, "copied": 0}
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            "[cyan]Trimming clips...",
+            total=len(video_clips),
+        )
+
+        for clip in video_clips:
+            if not clip.local_path:
+                progress.update(task, advance=1)
+                continue
+
+            scene = next(
+                (s for s in script.scenes if s.scene_number == clip.scene_number),
+                None,
+            )
+            if not scene:
+                logger.warning("Scene %s not found in script", clip.scene_number)
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"[red]Unknown scene {clip.scene_number}",
+                )
+                continue
+
+            input_path = Path(clip.local_path)
+            output_path = output_dir / f"scene_{clip.scene_number:03d}.mp4"
+
+            try:
+                actual_duration = assembler.get_video_duration(input_path)
+
+                if scene.duration_seconds < actual_duration:
+                    assembler.trim_clip_to_duration(
+                        input_path=input_path,
+                        output_path=output_path,
+                        target_duration=scene.duration_seconds,
+                    )
+                    stats["trimmed"] += 1
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=(
+                            f"[green]Trimmed scene {clip.scene_number}: "
+                            f"{actual_duration:.1f}s → {scene.duration_seconds}s"
+                        ),
+                    )
+                else:
+                    shutil.copy(input_path, output_path)
+                    stats["copied"] += 1
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=(
+                            f"[dim]Copied scene {clip.scene_number} "
+                            "(no trim needed)[/dim]"
+                        ),
+                    )
+
+                clip.local_path = str(output_path)
+                trimmed_clips.append(clip)
+            except FFmpegError as e:
+                logger.warning("Failed to trim scene %s: %s", clip.scene_number, e)
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"[red]Failed: scene {clip.scene_number}",
+                )
+
+    return trimmed_clips, stats
+
+
+def _select_previous_run() -> Path | None:
+    """Show a menu to select a previous run.
+
+    Returns:
+        Selected run directory, or None if cancelled.
+    """
+    runs = _list_previous_runs()
+
+    if not runs:
+        console.print("[yellow]No previous runs found in output directory.[/yellow]")
+        return None
+
+    # Build choices with run info
+    choices = []
+    for run_dir in runs[:15]:  # Limit to 15 most recent
+        # Parse timestamp from directory name (sip_YYYYMMDD_HHMMSS_uuid)
+        parts = run_dir.name.split("_")
+        if len(parts) >= 3:
+            date_str = parts[1]  # YYYYMMDD
+            time_str = parts[2]  # HHMMSS
+            try:
+                formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+                formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:]}"
+                display_date = f"{formatted_date} {formatted_time}"
+            except (IndexError, ValueError):
+                display_date = run_dir.name
+        else:
+            display_date = run_dir.name
+
+        # Try to get script title
+        try:
+            script = _load_script_from_run(run_dir)
+            title = script.title[:40] + "..." if len(script.title) > 40 else script.title
+            label = f"{display_date} | {title}"
+        except Exception:
+            label = f"{display_date} | (script unavailable)"
+
+        choices.append(questionary.Choice(title=label, value=str(run_dir)))
+
+    choices.append(questionary.Choice(title="← Back to main menu", value="back"))
+
+    result = questionary.select(
+        "Select a previous run:",
+        choices=choices,
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if result == "back" or result is None:
+        return None
+
+    return Path(result)
+
+
+async def _resume_video_generation(
+    run_dir: Path,
+    provider_override: VideoProvider | None = None,
+    skip_confirmation: bool = False,
+) -> None:
+    """Resume video generation from an existing run folder."""
+    logger = get_logger(__name__)
+
+    if not run_dir.exists():
+        console.print(f"[red]Run directory not found:[/red] {run_dir}")
+        return
+
+    console.print(f"\n[bold cyan]Resuming from:[/bold cyan] {run_dir}\n")
+
+    # Load script
+    try:
+        script = _load_script_from_run(run_dir)
+        console.print(f"[green]✓[/green] Loaded script: {script.title}")
+        console.print(f"  Scenes: {len(script.scenes)}")
+    except Exception as e:
+        console.print(f"[red]Failed to load script:[/red] {e}")
+        return
+
+    # Load reference images
+    reference_images = _load_reference_images_from_run(run_dir)
+    console.print(f"[green]✓[/green] Loaded {len(reference_images)} reference images")
+
+    # Choose provider
+    prefs = UserPreferences.load()
+    provider = provider_override or prefs.default_video_provider
+    console.print(f"[green]✓[/green] Using video provider: {provider.value.upper()}")
+
+    if not skip_confirmation:
+        console.print()
+        try:
+            proceed = await questionary.confirm(
+                "Proceed with video generation?",
+                default=True,
+            ).ask_async()
+        except AttributeError:
+            # Fallback for older questionary versions
+            proceed = questionary.confirm(
+                "Proceed with video generation?",
+                default=True,
+            ).ask()
+
+        if not proceed:
+            console.print("[yellow]Cancelled.[/yellow]")
+            return
+
+    try:
+        settings = get_settings()
+    except Exception as e:
+        console.print(f"[red]Configuration error:[/red] {e}")
+        return
+
+    # Set up output directories
+    videos_dir = run_dir / "clips"
+    videos_dir.mkdir(parents=True, exist_ok=True)
+
+    trimmed_dir = run_dir / "clips_trimmed"
+    trimmed_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        video_generator = VideoGeneratorFactory.create(provider)
+    except ValueError as e:
+        console.print(f"[red]Failed to create video generator:[/red] {e}")
+        return
+
+    console.print(f"\n[bold cyan]Generating video clips...[/bold cyan]")
+    console.print(f"Using {provider.value.upper()} video generator")
+
+    video_clips: list[GeneratedAsset] = []
+
+    try:
+        if provider == VideoProvider.VEO:
+            gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
+            gcs_prefix = f"sip-videogen/{run_dir.name}"
+
+            # Upload reference images to GCS if needed
+            if reference_images:
+                console.print("\n[bold cyan]Uploading reference images to GCS...[/bold cyan]")
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    TimeElapsedColumn(),
+                    console=console,
+                ) as progress:
+                    task = progress.add_task(
+                        "[cyan]Uploading images...",
+                        total=len(reference_images),
+                    )
+
+                    for asset in reference_images:
+                        local_path = Path(asset.local_path)
+                        if asset.gcs_uri:
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[dim]Using existing upload: {local_path.name}[/dim]",
+                            )
+                            continue
+
+                        remote_path = gcs_storage.generate_remote_path(
+                            f"{gcs_prefix}/reference_images",
+                            local_path.name,
+                        )
+                        try:
+                            asset.gcs_uri = gcs_storage.upload_file(local_path, remote_path)
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[green]Uploaded: {local_path.name}",
+                            )
+                        except GCSStorageError as e:
+                            logger.warning("Failed to upload %s: %s", local_path, e)
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[red]Failed: {local_path.name}",
+                            )
+
+            output_gcs_prefix = (
+                f"gs://{settings.sip_gcs_bucket_name}/{gcs_prefix}/videos"
+            )
+
+            video_clips = await video_generator.generate_all_video_clips(
+                script=script,
+                output_gcs_prefix=output_gcs_prefix,
+                reference_images=reference_images,
+                show_progress=True,
+            )
+
+            if not video_clips:
+                console.print("[red]No video clips were generated.[/red]")
+                return
+
+            console.print(
+                f"[green]✓[/green] Generated {len(video_clips)}/{len(script.scenes)} video clips"
+            )
+
+            # Download clips from GCS
+            console.print("\n[bold cyan]Downloading video clips from GCS...[/bold cyan]")
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task(
+                    "[cyan]Downloading clips...",
+                    total=len(video_clips),
+                )
+
+                for clip in video_clips:
+                    if not clip.gcs_uri:
+                        progress.update(task, advance=1)
+                        continue
+
+                    try:
+                        local_path = videos_dir / f"scene_{clip.scene_number:03d}.mp4"
+                        gcs_storage.download_file(clip.gcs_uri, local_path)
+                        clip.local_path = str(local_path)
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"[green]Downloaded: {local_path.name}",
+                        )
+                    except GCSStorageError as e:
+                        logger.warning("Failed to download %s: %s", clip.gcs_uri, e)
+                        progress.update(
+                            task,
+                            advance=1,
+                            description=f"[red]Failed: scene {clip.scene_number}",
+                        )
+
+        else:
+            # Kling generates directly to local path
+            signed_url_generator = None
+            try:
+                gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
+                signed_url_generator = lambda uri: gcs_storage.generate_signed_url(
+                    uri,
+                    expiration_minutes=120,
+                )
+            except Exception:
+                logger.debug("Signed URL generation unavailable; continuing without it")
+
+            video_clips = await video_generator.generate_all_video_clips(
+                script=script,
+                output_path=str(videos_dir),
+                reference_images=reference_images,
+                max_concurrent=3,
+                show_progress=True,
+                signed_url_generator=signed_url_generator,
+            )
+
+            if not video_clips:
+                console.print("[red]No video clips were generated.[/red]")
+                return
+
+            console.print(
+                f"[green]✓[/green] Generated {len(video_clips)}/{len(script.scenes)} video clips"
+            )
+
+    except (VideoGenerationError, GCSStorageError) as e:
+        console.print(f"[red]Video generation failed:[/red] {e}")
+        return
+
+    # Trim clips
+    console.print("\n[bold cyan]Trimming clips to target duration...[/bold cyan]")
+    trimmed_clips, trim_stats = _trim_clips_to_duration(script, video_clips, trimmed_dir)
+
+    if not trimmed_clips:
+        console.print("[red]No clips available after trimming.[/red]")
+        return
+
+    console.print(
+        f"[green]Trimmed {trim_stats['trimmed']} clips, copied {trim_stats['copied']} (no trim needed).[/green]"
+    )
+
+    # Assemble final video
+    console.print("\n[bold cyan]Assembling final video...[/bold cyan]")
+    slug = script.title.replace(" ", "_").lower() if script.title else "video"
+    final_output = run_dir / f"{slug[:50]}_final.mp4"
+
+    clip_paths = sorted(
+        (Path(c.local_path) for c in trimmed_clips if c.local_path),
+        key=lambda p: int(p.stem.split("_")[-1]),
+    )
+
+    if not clip_paths:
+        console.print("[red]No clips available for assembly.[/red]")
+        return
+
+    try:
+        assembler = FFmpegAssembler()
+        assembler.concatenate_clips(
+            clip_paths=clip_paths,
+            output_path=final_output,
+        )
+
+        package = ProductionPackage(
+            script=script,
+            reference_images=reference_images,
+            video_clips=trimmed_clips,
+            final_video_path=str(final_output),
+        )
+        _display_final_summary(package, run_dir)
+    except FFmpegError as e:
+        console.print(f"[red]Failed to assemble video:[/red] {e}")
+
+
+def _show_resume_menu() -> None:
+    """Show the resume from previous run menu."""
+    console.print("\n[bold]Resume Video Generation[/bold]")
+    console.print("[dim]Regenerate videos from a previous run's script and images[/dim]\n")
+
+    run_dir = _select_previous_run()
+    if run_dir is None:
+        return
+
+    # Run the async function
+    asyncio.run(_resume_video_generation(run_dir))
+
+
 def _show_help() -> None:
     """Show help information."""
     console.print()
@@ -1186,6 +1968,7 @@ def _show_help() -> None:
 [bold]Commands:[/bold]
   [yellow]./start.sh[/yellow]              Launch interactive menu
   [yellow]./start.sh generate "idea"[/yellow]  Generate video directly
+  [yellow]./start.sh resume [run_dir][/yellow] Resume video generation from a saved script/images folder
   [yellow]./start.sh status[/yellow]       Check configuration
 
 [bold]Requirements:[/bold]
@@ -1223,6 +2006,10 @@ def menu() -> None:
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
             elif choice == "2":
+                _show_resume_menu()
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "3":
                 idea, scenes = _get_video_idea()
                 generate(
                     idea=idea,
@@ -1234,15 +2021,19 @@ def menu() -> None:
                 )
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "3":
+            elif choice == "4":
                 status()
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "4":
+            elif choice == "5":
+                _show_settings_menu()
+                # No prompt needed - settings menu handles its own flow
+
+            elif choice == "6":
                 _show_help()
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "5":
+            elif choice == "7":
                 console.print("\n[bold cyan]Goodbye![/bold cyan]\n")
                 sys.exit(0)
 
