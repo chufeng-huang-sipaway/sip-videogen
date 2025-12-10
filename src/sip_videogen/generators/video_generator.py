@@ -4,6 +4,8 @@ This module provides video generation functionality using Google's VEO 3.1 API
 via Vertex AI to create video clips for each scene in the script.
 """
 
+from __future__ import annotations
+
 import asyncio
 from dataclasses import dataclass
 
@@ -90,6 +92,7 @@ class VideoGenerator:
         aspect_ratio: str = "16:9",
         generate_audio: bool = True,
         total_scenes: int | None = None,
+        script: VideoScript | None = None,
     ) -> GeneratedAsset:
         """Generate a video clip for a scene.
 
@@ -103,6 +106,9 @@ class VideoGenerator:
             total_scenes: Total number of scenes in the video sequence. When provided,
                          adds flow context to prompts to eliminate awkward pauses
                          between clips when assembled.
+            script: Optional VideoScript for element lookups when building reference
+                   linking context. When provided with reference_images, adds explicit
+                   phrases linking characters to their reference images.
 
         Returns:
             GeneratedAsset with the GCS URI to the generated video.
@@ -121,8 +127,13 @@ class VideoGenerator:
         # Determine duration (forced to 8s when using reference images)
         duration = self._get_duration(scene, has_references=bool(ref_configs))
 
-        # Build the prompt with flow context for seamless clip assembly
-        prompt = self._build_prompt(scene, total_scenes=total_scenes)
+        # Build the prompt with flow context and reference image linking
+        prompt = self._build_prompt(
+            scene,
+            total_scenes=total_scenes,
+            reference_images=reference_images,
+            script=script,
+        )
         logger.debug(f"Video prompt: {prompt}")
 
         try:
@@ -152,7 +163,7 @@ class VideoGenerator:
                 logger.debug(f"Scene {scene.scene_number} generation in progress...")
 
             # Check for errors in the operation
-            if hasattr(operation, 'error') and operation.error:
+            if hasattr(operation, "error") and operation.error:
                 error_raw = operation.error
                 error_msg = str(error_raw)
                 logger.error(f"VEO operation error: {error_msg}")
@@ -192,7 +203,7 @@ class VideoGenerator:
             if not operation.response:
                 # Try to get more details
                 details = ""
-                if hasattr(operation, 'metadata'):
+                if hasattr(operation, "metadata"):
                     details = f" Metadata: {operation.metadata}"
                 raise VideoGenerationError(
                     f"Video generation failed for scene {scene.scene_number}: "
@@ -201,9 +212,7 @@ class VideoGenerator:
 
             # Extract video URI
             video_uri = operation.result.generated_videos[0].video.uri
-            logger.info(
-                f"Video clip for scene {scene.scene_number} generated: {video_uri}"
-            )
+            logger.info(f"Video clip for scene {scene.scene_number} generated: {video_uri}")
 
             return GeneratedAsset(
                 asset_type=AssetType.VIDEO_CLIP,
@@ -236,9 +245,7 @@ class VideoGenerator:
         configs = []
         for asset in reference_images[: self.MAX_REFERENCE_IMAGES]:
             if not asset.gcs_uri:
-                logger.warning(
-                    f"Skipping reference image {asset.element_id}: no GCS URI"
-                )
+                logger.warning(f"Skipping reference image {asset.element_id}: no GCS URI")
                 continue
 
             # Determine mime type from path
@@ -303,11 +310,65 @@ class VideoGenerator:
 
         return ". ".join(parts)
 
+    def _build_reference_linking_context(
+        self,
+        reference_images: list[GeneratedAsset] | None,
+        script: VideoScript | None,
+    ) -> str | None:
+        """Build explicit reference image linking phrases for VEO.
+
+        This tells VEO which character/element in the prompt corresponds to which
+        reference image, improving visual consistency without needing detailed
+        appearance descriptions in the prompt text.
+
+        Args:
+            reference_images: List of reference images for this scene.
+            script: The VideoScript containing SharedElement definitions.
+
+        Returns:
+            Reference linking context string, or None if no linking needed.
+        """
+        if not reference_images or not script:
+            return None
+
+        linking_phrases = []
+        for idx, ref in enumerate(reference_images):
+            if not ref.element_id:
+                continue
+
+            element = script.get_element_by_id(ref.element_id)
+            if not element:
+                continue
+
+            # Use role_descriptor if available, otherwise fall back to name
+            descriptor = element.role_descriptor or element.name
+
+            # Create linking phrase based on element type
+            if element.element_type.value == "character":
+                linking_phrases.append(
+                    f"{descriptor.capitalize()}'s appearance should match "
+                    f"reference image {idx + 1}"
+                )
+            elif element.element_type.value == "environment":
+                linking_phrases.append(
+                    f"The environment should match reference image {idx + 1}"
+                )
+            elif element.element_type.value == "prop":
+                linking_phrases.append(
+                    f"The {element.name} should match reference image {idx + 1}"
+                )
+
+        if linking_phrases:
+            return "Reference image guidance: " + ". ".join(linking_phrases)
+        return None
+
     def _build_prompt(
         self,
         scene: SceneAction,
         total_scenes: int | None = None,
         exclude_background_music: bool = True,
+        reference_images: list[GeneratedAsset] | None = None,
+        script: VideoScript | None = None,
     ) -> str:
         """Build a generation prompt from scene details.
 
@@ -318,13 +379,22 @@ class VideoGenerator:
                 background music. When True, instructs VEO to generate ambient sounds
                 and dialogue but no background music/soundtrack, allowing external
                 music to be added later. Defaults to True.
+            reference_images: Optional list of reference images for this scene.
+                Used to build reference linking context.
+            script: Optional VideoScript for element lookups when building
+                reference linking context.
 
         Returns:
             A detailed prompt string for video generation.
         """
         parts = []
 
-        # Add scene flow context first (crucial for eliminating inter-clip pauses)
+        # Add reference image linking context first (tells VEO which element matches which image)
+        linking_context = self._build_reference_linking_context(reference_images, script)
+        if linking_context:
+            parts.append(linking_context)
+
+        # Add scene flow context (crucial for eliminating inter-clip pauses)
         flow_context = self._build_flow_context(scene, total_scenes)
         if flow_context:
             parts.append(flow_context)
@@ -387,10 +457,7 @@ class VideoGenerator:
             # Deduplicate while preserving order
             unique_sounds = list(dict.fromkeys(sounds))
             sound_list = ", ".join(unique_sounds)
-            return (
-                f"Audio: {sound_list}. "
-                "No background music, no soundtrack, no musical score"
-            )
+            return f"Audio: {sound_list}. No background music, no soundtrack, no musical score"
         else:
             return (
                 "Audio: ambient environmental sounds only. "
@@ -544,8 +611,7 @@ class VideoGenerator:
         for original, replacement in replacements.items():
             if original in sanitized:
                 logger.debug(
-                    f"Sanitizing prompt for Vertex AI: replacing '{original}' "
-                    f"with '{replacement}'"
+                    f"Sanitizing prompt for Vertex AI: replacing '{original}' with '{replacement}'"
                 )
                 sanitized = sanitized.replace(original, replacement)
 
@@ -573,8 +639,7 @@ class VideoGenerator:
         # Find nearest valid duration
         nearest = min(self.VALID_DURATIONS, key=lambda x: abs(x - requested))
         logger.debug(
-            f"Adjusted duration from {requested}s to {nearest}s "
-            f"(valid: {self.VALID_DURATIONS})"
+            f"Adjusted duration from {requested}s to {nearest}s (valid: {self.VALID_DURATIONS})"
         )
         return nearest
 
@@ -606,11 +671,14 @@ class VideoGenerator:
         max_concurrent: int = 3,
         inter_request_delay: float = 2.0,
         show_progress: bool = True,
+        max_repair_attempts: int = 2,
     ) -> list[GeneratedAsset]:
         """Generate video clips for all scenes in parallel with progress tracking.
 
         This method generates video clips for all scenes in the script,
         managing concurrency and rate limits while displaying progress.
+        When a scene fails due to safety policy violations, it automatically
+        uses an AI agent to repair the prompt and retry.
 
         Args:
             script: The VideoScript containing scenes to generate videos for.
@@ -619,6 +687,8 @@ class VideoGenerator:
             max_concurrent: Maximum number of concurrent video generations. Defaults to 3.
             inter_request_delay: Delay in seconds between starting new requests. Defaults to 2.0.
             show_progress: Whether to display a Rich progress bar. Defaults to True.
+            max_repair_attempts: Maximum number of prompt repair attempts per scene
+                when safety policy violations occur. Defaults to 2.
 
         Returns:
             List of GeneratedAssets for all successfully generated video clips,
@@ -653,38 +723,104 @@ class VideoGenerator:
             progress: Progress | None,
             task_id: TaskID | None,
         ) -> None:
-            """Generate a single video clip with semaphore control."""
+            """Generate a single video clip with semaphore control and prompt repair."""
             async with semaphore:
                 # Add delay between requests to respect rate limits
                 if idx > 0:
                     await asyncio.sleep(inter_request_delay)
 
-                try:
-                    # Get reference images for this scene
-                    scene_refs = scene_references.get(scene.scene_number, [])
+                # Get reference images for this scene
+                scene_refs = scene_references.get(scene.scene_number, [])
 
-                    # Generate GCS output URI for this scene
-                    scene_output_uri = f"{output_gcs_prefix}/scene_{scene.scene_number:03d}"
+                # Generate GCS output URI for this scene
+                scene_output_uri = f"{output_gcs_prefix}/scene_{scene.scene_number:03d}"
 
-                    result = await self.generate_video_clip(
-                        scene=scene,
-                        output_gcs_uri=scene_output_uri,
-                        reference_images=scene_refs,
-                        total_scenes=total_scene_count,
-                    )
-                    results[idx] = result
+                # Track current scene (may be modified by repair agent)
+                current_scene = scene
+                last_error: Exception | None = None
 
-                    if progress and task_id is not None:
-                        progress.update(
-                            task_id,
-                            advance=1,
-                            description=f"[green]Scene {scene.scene_number} ✓",
+                # Try generation with up to max_repair_attempts retries for safety errors
+                for attempt in range(max_repair_attempts + 1):
+                    try:
+                        result = await self.generate_video_clip(
+                            scene=current_scene,
+                            output_gcs_uri=scene_output_uri,
+                            reference_images=scene_refs,
+                            total_scenes=total_scene_count,
+                            script=script,
                         )
+                        results[idx] = result
 
-                except Exception as e:
-                    errors.append((scene.scene_number, e))
-                    logger.error(f"Failed to generate video for scene {scene.scene_number}: {e}")
+                        if progress and task_id is not None:
+                            status = "[green]Scene"
+                            if attempt > 0:
+                                status = "[yellow]Scene"  # Repaired
+                            progress.update(
+                                task_id,
+                                advance=1,
+                                description=f"{status} {scene.scene_number} ✓",
+                            )
+                        return  # Success, exit the retry loop
 
+                    except PromptSafetyError as e:
+                        last_error = e
+                        # Check if we have retries left
+                        if attempt < max_repair_attempts:
+                            logger.warning(
+                                f"Scene {scene.scene_number} blocked by safety policy "
+                                f"(attempt {attempt + 1}/{max_repair_attempts + 1}), "
+                                "attempting prompt repair..."
+                            )
+                            try:
+                                # Import here to avoid circular imports
+                                from sip_videogen.agents.prompt_repair import (
+                                    repair_scene_prompt,
+                                )
+
+                                repair_output = await repair_scene_prompt(
+                                    scene=current_scene,
+                                    error_message=str(e),
+                                    attempt_number=attempt + 1,
+                                )
+                                # Create modified scene with repaired prompts
+                                current_scene = SceneAction(
+                                    scene_number=scene.scene_number,
+                                    duration_seconds=scene.duration_seconds,
+                                    setting_description=repair_output.revised_setting_description,
+                                    action_description=repair_output.revised_action_description,
+                                    dialogue=scene.dialogue,
+                                    camera_direction=scene.camera_direction,
+                                    shared_element_ids=scene.shared_element_ids,
+                                )
+                                logger.info(
+                                    f"Scene {scene.scene_number} prompt repaired: "
+                                    f"{repair_output.changes_made}"
+                                )
+                            except Exception as repair_error:
+                                logger.error(
+                                    f"Failed to repair prompt for scene {scene.scene_number}: "
+                                    f"{repair_error}"
+                                )
+                                break  # Exit retry loop on repair failure
+                        else:
+                            # No more retries
+                            logger.error(
+                                f"Scene {scene.scene_number} failed after "
+                                f"{max_repair_attempts} repair attempts"
+                            )
+                            break
+
+                    except Exception as e:
+                        # Non-safety errors don't get retried with repair
+                        last_error = e
+                        logger.error(
+                            f"Failed to generate video for scene {scene.scene_number}: {e}"
+                        )
+                        break
+
+                # If we get here, all attempts failed
+                if last_error:
+                    errors.append((scene.scene_number, last_error))
                     if progress and task_id is not None:
                         progress.update(
                             task_id,
@@ -718,8 +854,7 @@ class VideoGenerator:
         else:
             # No progress bar
             tasks = [
-                generate_with_semaphore(idx, scene, None, None)
-                for idx, scene in enumerate(scenes)
+                generate_with_semaphore(idx, scene, None, None) for idx, scene in enumerate(scenes)
             ]
             await asyncio.gather(*tasks)
 

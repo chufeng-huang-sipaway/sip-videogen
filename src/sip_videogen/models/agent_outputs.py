@@ -94,3 +94,21 @@ class ShowrunnerOutput(BaseModel):
         default=True,
         description="Whether the script is ready for production",
     )
+
+
+class PromptRepairOutput(BaseModel):
+    """Output from the Prompt Repair agent.
+
+    Contains the revised scene description that avoids policy violations
+    while maintaining the narrative intent.
+    """
+
+    revised_action_description: str = Field(
+        description="The revised action description that avoids policy violations"
+    )
+    revised_setting_description: str = Field(
+        description="The revised setting description if changes were needed"
+    )
+    changes_made: str = Field(
+        description="Brief explanation of what was changed and why"
+    )

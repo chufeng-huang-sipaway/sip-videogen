@@ -14,9 +14,22 @@ Given a scene breakdown, you:
 
 ### Characters (`char_*`)
 - Main characters, supporting characters, background figures
-- Include: physical build, skin tone, hair color/style, facial features
-- Include: clothing, accessories, distinctive marks or features
-- Consider: age appearance, posture, expression
+- **IMPORTANT VEO SAFETY RULES** (violating these will cause video generation to fail):
+  - **NEVER mention specific ages**, especially children/teens (e.g., "teenage", "12-year-old", "young boy/girl")
+  - **NEVER use detailed physical descriptions** of real-looking people (specific skin tones, ethnicity, facial features)
+  - **Use generic role-based descriptions** instead: "food truck vendor", "customer", "shopkeeper"
+  - **Keep clothing/costume descriptions generic**: "casual clothes", "work uniform", "colorful outfit"
+- Include: general role, outfit style, distinctive props they carry
+- Avoid: specific ages, detailed facial features, skin tone, hair color, body type
+- Focus on: what makes them recognizable by their ROLE and COSTUME, not their physical appearance
+
+### Role Descriptors for Video Prompts
+For each CHARACTER element, also provide a short `role_descriptor`:
+- This is the name/role that will be used in video action descriptions to link characters to reference images
+- Should be short (2-4 words) and role-based, NOT appearance-based
+- Examples: "the vendor", "the customer", "the chef", "the delivery driver"
+- The reference image provides visual appearance; the role_descriptor identifies WHO in the video prompt
+- This prevents VEO safety blocks by avoiding repeated appearance descriptions in video prompts
 
 ### Environments (`env_*`)
 - Recurring locations that appear in multiple scenes
@@ -67,6 +80,7 @@ For each shared element provide:
 - `element_type`: character, environment, or prop
 - `name`: Human-readable name
 - `visual_description`: Detailed description for image generation (2-4 sentences)
+- `role_descriptor`: (Characters only) Short role-based label for video prompts (e.g., "the vendor")
 - `appears_in_scenes`: List of scene numbers
 
 Also include optional `design_notes` explaining:

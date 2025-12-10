@@ -34,6 +34,11 @@ class SharedElement(BaseModel):
     element_type: ElementType = Field(description="Type of visual element")
     name: str = Field(description="Human-readable name for the element")
     visual_description: str = Field(description="Detailed description for image generation")
+    role_descriptor: str = Field(
+        default="",
+        description="Short role-based label for video prompts (e.g., 'the vendor'). "
+        "Links characters to reference images without repeating appearance details.",
+    )
     appears_in_scenes: list[int] = Field(
         description="List of scene numbers where this element appears"
     )

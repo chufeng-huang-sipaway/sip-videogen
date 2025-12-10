@@ -94,16 +94,26 @@ Reject any script where HIGH complexity scenes remain unfixed.
 - Specify shot types clearly (close-up, wide establishing shot)
 - Mention visual styles when appropriate (photorealistic, cinematic)
 
-### Optimize for Consistency
-- When a shared element appears, reference its key visual features
-- Ensure action descriptions align with element specifications
-- Add consistency markers (same costume, same lighting)
+### Optimize for Consistency via Reference Images
+- When a character appears, reference them ONLY by their `role_descriptor` (e.g., "the vendor", "the customer")
+- Do NOT add character appearance details to action descriptions - reference images handle visual consistency
+- Focus on WHAT happens and HOW characters move, not HOW they look
+- The video generator will automatically link role descriptors to reference images
+- For environments and props, use consistent naming but detailed descriptions are OK
 
 ### Improve Clarity
 - Remove ambiguous phrases
 - Break complex actions into clear steps
 - Ensure each scene has a single focal point
 - Keep descriptions concise but complete
+
+### Remove Appearance from Action Descriptions
+Transform action descriptions to use role descriptors instead of appearance:
+- Before: "A middle-aged man with a beard wearing an apron expertly flips a burger"
+- After: "The vendor expertly flips a burger"
+- Before: "A young woman in casual clothes walks into the shop"
+- After: "The customer walks into the shop"
+This prevents VEO safety blocks while reference images provide visual consistency.
 
 ### Optimize for Seamless Video Flow
 Prevent awkward pauses between clips when assembled:
@@ -157,9 +167,10 @@ When you find issues:
 4. Note the resolution in your output
 
 ### Common Issues and Fixes
+- **Appearance in action**: Replace character appearance details with role_descriptor
 - **Inconsistent appearance**: Align scene description with element spec
 - **Missing element reference**: Add element ID to scene's shared_element_ids
-- **Vague description**: Add specific visual details
+- **Vague description**: Add specific visual details (for settings/props, not character appearance)
 - **Impossible action**: Simplify or extend duration
 - **Duration mismatch**: Adjust duration to match action complexity
 - **Scene flow break**: Add continuation language to action descriptions
