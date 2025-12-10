@@ -14,51 +14,43 @@ User Idea → AI Agent Script Team → Reference Images → Video Clips → Fina
 4. Video clips are generated for each scene using Google VEO 3.1
 5. Clips are assembled into a final video with FFmpeg
 
-## Prerequisites
-
-- Python 3.11+
-- FFmpeg installed (`brew install ffmpeg` on macOS)
-- OpenAI API key
-- Google Gemini API key
-- Google Cloud project with Vertex AI enabled
-- GCS bucket for video storage
-
-## Installation
+## Quick Start
 
 ```bash
-# Clone and install
-pip install -e .
+# 1. Copy and fill in your API keys
+cp .env.example .env
 
-# Or with dev dependencies
-pip install -e ".[dev]"
+# 2. Run (installs everything automatically on first run)
+./start.sh
 ```
 
-## Setup
+That's it! The script handles Python environment setup and dependency installation.
 
-1. **Set up Google Cloud**:
-   ```bash
-   gcloud auth login
-   gcloud auth application-default login
-   gcloud config set project YOUR_PROJECT
-   gcloud services enable aiplatform.googleapis.com storage.googleapis.com
-   gsutil mb -l us-central1 gs://YOUR_BUCKET_NAME
-   ```
+## Prerequisites
 
-2. **Create `.env` file** (copy from `.env.example`):
-   ```bash
-   OPENAI_API_KEY=sk-...
-   GEMINI_API_KEY=...
-   GOOGLE_CLOUD_PROJECT=your-project-id
-   GOOGLE_CLOUD_LOCATION=us-central1
-   SIP_GCS_BUCKET_NAME=your-bucket-name
-   GOOGLE_GENAI_USE_VERTEXAI=True
-   SIP_OUTPUT_DIR=./output
-   ```
+- Python 3.11+ (`brew install python@3.11` on macOS)
+- FFmpeg (`brew install ffmpeg` on macOS)
 
-3. **Verify setup**:
-   ```bash
-   ./start.sh status
-   ```
+### API Keys Required
+
+Get these and add them to your `.env` file:
+
+| Key | Where to get it |
+|-----|-----------------|
+| `OPENAI_API_KEY` | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GOOGLE_CLOUD_PROJECT` | [Google Cloud Console](https://console.cloud.google.com) |
+| `SIP_GCS_BUCKET_NAME` | Create via `gsutil mb -l us-central1 gs://your-bucket` |
+
+### Google Cloud Setup (one-time)
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project YOUR_PROJECT
+gcloud services enable aiplatform.googleapis.com storage.googleapis.com
+gsutil mb -l us-central1 gs://YOUR_BUCKET_NAME
+```
 
 ## Usage
 
