@@ -5,9 +5,7 @@ via Vertex AI to create video clips for each scene in the script.
 """
 
 import asyncio
-import time
 from dataclasses import dataclass
-from pathlib import Path
 
 from google import genai
 from google.genai.types import GenerateVideosConfig, Image, VideoGenerationReferenceImage
@@ -147,9 +145,9 @@ class VideoGenerator:
                 f"polling for completion..."
             )
 
-            # Poll for completion
+            # Poll for completion (async sleep to allow other clips to generate in parallel)
             while not operation.done:
-                time.sleep(self.POLL_INTERVAL_SECONDS)
+                await asyncio.sleep(self.POLL_INTERVAL_SECONDS)
                 operation = self.client.operations.get(operation)
                 logger.debug(f"Scene {scene.scene_number} generation in progress...")
 

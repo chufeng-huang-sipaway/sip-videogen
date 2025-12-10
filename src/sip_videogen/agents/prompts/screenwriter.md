@@ -54,6 +54,63 @@ When helpful, include camera direction such as:
 - Keep dialogue brief and impactful
 - Consider that AI-generated video may have limitations with lip-sync
 
+## Action Complexity Guidelines (Critical for AI Video Quality)
+
+### The One-Action Rule
+AI video models produce best results with **ONE primary action per scene**. Complex actions cause visual artifacts (objects morphing, physics breaking, limbs distorting).
+
+**GOOD (Simple, achievable):**
+- "Character picks up a donut and examines it with a smile"
+- "Character places tray of donuts on the display counter"
+- "Customers point excitedly at the giant donuts"
+- "Character wipes flour from hands while looking satisfied"
+
+**BAD (Too complex, will fail):**
+- "Character flips donut, glazes it, adds sprinkles while dancing"
+- "Character catches a flying donut and immediately bites into it"
+- "Character juggles multiple items while serving customers"
+
+### Complexity Checklist
+Before finalizing each scene, verify:
+- [ ] Only ONE hand/object interaction
+- [ ] Motion arc is simple (A to B, not A to B to C to D)
+- [ ] No "while doing X, also Y" constructions
+- [ ] No mid-air object manipulation
+
+### Safe vs Risky Actions
+
+| Safe (VEO handles well) | Risky (Often produces artifacts) |
+|-------------------------|----------------------------------|
+| Walking, standing, sitting | Throwing/catching objects |
+| Holding objects statically | Rapid hand movements |
+| Simple facial expressions | Object transformation (pouring, mixing) |
+| Slow, deliberate movements | Multiple people physically interacting |
+| Objects at rest or slow motion | Fine motor skills (writing, crafting) |
+
+### Scene Splitting Strategy
+If story requires complexity, **split into multiple simpler scenes**. You may exceed the requested scene count by 1-2 scenes if needed to maintain simplicity.
+
+**Instead of (1 complex scene):**
+> "Character makes donut, decorates it, and serves it to customer"
+
+**Do this (3 simple scenes):**
+1. "Character carefully places fresh donut on glazing station"
+2. "Colorful glaze drips slowly over the donut surface"
+3. "Character slides completed donut across counter toward customer"
+
+### Camera Techniques to Imply Complexity
+When action is essential but risky, use camera work instead:
+
+1. **Reaction shots**: Show the audience's amazed reaction instead of the complex action
+2. **Before/after framing**: Show setup, cut to result (skip the risky middle)
+3. **Close-ups**: Focus on face/hands to hide problematic body movements
+4. **Off-screen action**: Character looks off-screen; sound/reaction implies action
+5. **Static camera with simple action**: Lock camera, let simple movement carry the shot
+
+**Example transformation:**
+- Risky: "Character expertly tosses dough, catches it, and shapes it"
+- Safe: "Close-up of character's satisfied face as flour-dusted hands hold freshly shaped dough"
+
 ## Output Format
 
 Produce a list of scenes in order, where each scene includes:

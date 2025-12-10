@@ -202,23 +202,27 @@ async def develop_script(
     idea = idea.strip()
     logger.info(f"Starting script development: '{idea[:50]}...' with {num_scenes} scenes")
 
-    prompt = f"""Create a {num_scenes}-scene video from this idea:
+    prompt = f"""Create a video from this idea, targeting approximately {num_scenes} scenes:
 
 {idea}
 
 Follow this process:
-1. First, call the screenwriter to develop {num_scenes} scenes with a clear narrative arc
+1. First, call the screenwriter to develop scenes with a clear narrative arc
 2. Then, call the production designer to identify all shared visual elements from those scenes
 3. Finally, call the continuity supervisor to validate everything and optimize for AI generation
 
 Requirements:
-- The final video should be {num_scenes} scenes, each 4-8 seconds
+- Target {num_scenes} scenes, but you may add 1-2 more if needed to keep actions simple
+- Each scene should focus on ONE simple action (no complex multi-step actions)
+- Scene durations: 4-8 seconds each
 - Create a compelling narrative with beginning, middle, and end
 - Ensure visual consistency by identifying recurring elements
 - Optimize all descriptions for AI video generation
 - The final output must include a title, logline, and tone
+- ALL scenes must pass complexity validation (no HIGH complexity allowed)
 
-Be creative and make bold artistic choices that will result in an engaging video.
+Remember: Simple scenes with one clear action produce much better AI video than complex
+scenes with multiple actions. When in doubt, split a complex scene into two simpler ones.
 """
 
     # Create progress tracking hooks

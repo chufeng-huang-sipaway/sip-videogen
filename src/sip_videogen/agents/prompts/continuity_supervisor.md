@@ -36,6 +36,51 @@ Given a script with scenes and shared elements, you:
 - Flag scenes where characters might "look at camera" or "pause" at boundaries
 - Check that action descriptions use continuation verbs, not finalization verbs
 
+## Action Complexity Validation (STRICT)
+
+### Complexity Scoring - MUST ENFORCE
+For each scene, count:
+- Distinct character movements (walking=1, reaching=1, turning=1)
+- Object manipulations (picking up=1, putting down=1)
+- Simultaneous actions ("while doing X"=2)
+
+**Scoring thresholds:**
+- 1-2 elements: LOW (ideal)
+- 3 elements: MEDIUM (simplify if possible)
+- 4+ elements: HIGH (MUST rewrite before proceeding)
+
+### Automatic Red Flags - MUST FIX
+Immediately flag and rewrite scenes containing:
+- "while" + action verb (simultaneity)
+- "flipping", "tossing", "catching", "juggling", "throwing"
+- "mid-air", "flying", "floating" + object
+- 3+ "-ing" verbs in same sentence
+- "rapidly", "quickly", "suddenly" + complex action
+
+### Simplification Strategies (Apply in Order)
+
+1. **Focus on result, not process:**
+   - Before: "Character expertly tosses dough, catches it, and shapes it"
+   - After: "Character holds freshly shaped dough, examining it proudly"
+
+2. **Use camera/reaction instead of action:**
+   - Before: "Character juggles three donuts impressively"
+   - After: "Customer watches in amazement, eyes tracking movement off-screen"
+
+3. **Recommend scene split if cannot simplify:**
+   - Add `[RECOMMEND SPLIT]` note in issues_found
+   - Suggest how to divide the scene
+
+### Required Output
+In `optimization_notes`, MUST include for each scene:
+```
+Scene N: [LOW/MEDIUM/HIGH] - [brief justification]
+- Actions: [list identified actions]
+- Fixes applied: [if any]
+```
+
+Reject any script where HIGH complexity scenes remain unfixed.
+
 ## Prompt Optimization for AI Video
 
 ### Add Specific Visual Details

@@ -4,6 +4,7 @@ This module provides image generation functionality using Google's Gemini API
 to create reference images for shared visual elements.
 """
 
+import asyncio
 from pathlib import Path
 
 from google import genai
@@ -119,41 +120,58 @@ class ImageGenerator:
         self,
         elements: list[SharedElement],
         output_dir: Path,
+        max_concurrent: int = 3,
     ) -> list[GeneratedAsset]:
-        """Generate reference images for all shared elements.
+        """Generate reference images for all shared elements in parallel.
 
         Args:
             elements: List of SharedElements to generate images for.
             output_dir: Directory to save the generated images.
+            max_concurrent: Maximum number of concurrent image generations. Defaults to 3.
 
         Returns:
             List of GeneratedAssets for all successfully generated images.
         """
         output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Generating {len(elements)} reference images to: {output_dir}")
+        logger.info(
+            f"Generating {len(elements)} reference images in parallel "
+            f"(max concurrent: {max_concurrent})"
+        )
 
-        assets: list[GeneratedAsset] = []
+        # Results container
+        results: list[GeneratedAsset | None] = [None] * len(elements)
+        semaphore = asyncio.Semaphore(max_concurrent)
 
-        for element in elements:
-            # Determine aspect ratio based on element type
-            aspect_ratio = self._get_aspect_ratio_for_element(element)
+        async def generate_with_semaphore(idx: int, element: SharedElement) -> None:
+            """Generate a single image with semaphore control."""
+            async with semaphore:
+                aspect_ratio = self._get_aspect_ratio_for_element(element)
+                try:
+                    asset = await self.generate_reference_image(
+                        element=element,
+                        output_dir=output_dir,
+                        aspect_ratio=aspect_ratio,
+                    )
+                    results[idx] = asset
+                except ImageGenerationError as e:
+                    logger.warning(f"Skipping element {element.id} due to error: {e}")
 
-            try:
-                asset = await self.generate_reference_image(
-                    element=element,
-                    output_dir=output_dir,
-                    aspect_ratio=aspect_ratio,
-                )
-                assets.append(asset)
-            except ImageGenerationError as e:
-                # Log error but continue with other elements
-                logger.warning(f"Skipping element {element.id} due to error: {e}")
+        # Create and run all tasks in parallel
+        tasks = [
+            generate_with_semaphore(idx, element)
+            for idx, element in enumerate(elements)
+        ]
+        await asyncio.gather(*tasks)
 
+        # Filter successful results
+        assets = [r for r in results if r is not None]
         logger.info(f"Successfully generated {len(assets)}/{len(elements)} reference images")
         return assets
 
     def _build_prompt(self, element: SharedElement) -> str:
         """Build a generation prompt for a shared element.
+
+        Always generates photorealistic style images for consistency with VEO video output.
 
         Args:
             element: The SharedElement to build a prompt for.
@@ -165,48 +183,32 @@ class ImageGenerator:
         prompt_parts = [description]
 
         element_type = element.element_type.value
-        lower_desc = description.lower()
 
         if element_type == "character":
-            # If the character is described as cartoon/mascot, lean into a clean,
-            # professional illustration style rather than conflicting with it.
-            is_cartoon_like = any(
-                keyword in lower_desc
-                for keyword in ["cartoon", "mascot", "illustration", "animated", "2d"]
+            prompt_parts.append(
+                "Photorealistic studio portrait of a single person, "
+                "centered in frame, upper-body or head-and-shoulders, "
+                "plain neutral background, soft studio lighting, sharp focus, "
+                "no extra people or objects."
             )
-
-            if is_cartoon_like:
-                prompt_parts.append(
-                    "Professional 2D character illustration of a single character, "
-                    "centered in frame, upper-body or head-and-shoulders portrait, "
-                    "neutral pose facing the viewer, clean plain background, "
-                    "no humans, no cameras, no studio equipment, no computer screens."
-                )
-            else:
-                prompt_parts.append(
-                    "Photorealistic studio portrait of a single person, "
-                    "centered in frame, upper-body or head-and-shoulders, "
-                    "plain neutral background, soft studio lighting, sharp focus, "
-                    "no extra people or objects."
-                )
 
         elif element_type == "environment":
             prompt_parts.append(
-                "High-quality wide establishing shot of this location, "
+                "Photorealistic wide establishing shot of this location, "
                 "showing the overall space clearly, with no characters in the foreground, "
                 "balanced composition, sharp focus, clean and uncluttered."
             )
 
         elif element_type == "prop":
             prompt_parts.append(
-                "Single-object product-style shot on a neutral seamless background, "
+                "Photorealistic product-style shot on a neutral seamless background, "
                 "centered in frame, no people, no other props, "
                 "soft studio lighting, sharp focus, clear silhouette."
             )
 
         # Global quality modifiers for all element types
         prompt_parts.append(
-            "High-resolution, professional-quality image with clean finish, "
+            "High-resolution, photorealistic, professional-quality image with clean finish, "
             "studio-style lighting, no text, no watermark, no split-screen."
         )
 
