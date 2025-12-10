@@ -226,10 +226,19 @@ async def develop_script(
 
 {idea}
 
-Follow this process:
-1. First, call the screenwriter to develop scenes with a clear narrative arc
-2. Then, call the production designer to identify all shared visual elements from those scenes
-3. Finally, call the continuity supervisor to validate everything and optimize for AI generation
+FIRST: Define a cohesive visual_style for the entire video. This is REQUIRED and must include:
+- Color palette (warm golden, cool blue, muted pastels, high contrast, etc.)
+- Lighting style (natural soft light, dramatic shadows, golden hour, neon-lit, etc.)
+- Camera aesthetic (cinematic shallow DoF, documentary handheld, smooth tracking, etc.)
+- Visual treatment (photorealistic, dreamlike, stylized, vintage film, clean modern, etc.)
+
+This visual_style will be included in every video prompt to ensure cohesive clips.
+
+Then follow this process:
+1. Call the screenwriter to develop scenes with a clear narrative arc
+2. Call the production designer to identify all shared visual elements from those scenes
+3. Call the continuity supervisor to validate everything and optimize for AI generation
+4. Call the music director to design background music style
 
 Requirements:
 - Target {num_scenes} scenes, but you may add 1-2 more if needed to keep actions simple
@@ -238,8 +247,9 @@ Requirements:
 - Create a compelling narrative with beginning, middle, and end
 - Ensure visual consistency by identifying recurring elements
 - Optimize all descriptions for AI video generation
-- The final output must include a title, logline, and tone
+- The final output must include title, logline, tone, AND visual_style
 - ALL scenes must pass complexity validation (no HIGH complexity allowed)
+- Use optional visual_notes on specific scenes only when they need adjustments from the global style
 
 Remember: Simple scenes with one clear action produce much better AI video than complex
 scenes with multiple actions. When in doubt, split a complex scene into two simpler ones.

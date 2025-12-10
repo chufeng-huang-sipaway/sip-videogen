@@ -380,7 +380,15 @@ class VEOVideoGenerator(BaseVideoGenerator):
         """
         parts = []
 
-        # Add reference image linking context first (tells VEO which element matches which image)
+        # Add global visual style first (ensures all clips share cohesive look)
+        if script and script.visual_style:
+            parts.append(f"Visual Style: {script.visual_style}")
+
+        # Add per-scene visual notes if present (optional adjustments)
+        if scene.visual_notes:
+            parts.append(f"Scene Visual: {scene.visual_notes}")
+
+        # Add reference image linking context (tells VEO which element matches which image)
         linking_context = self._build_reference_linking_context(reference_images, script)
         if linking_context:
             parts.append(linking_context)

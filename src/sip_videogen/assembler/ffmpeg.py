@@ -278,6 +278,43 @@ class FFmpegAssembler:
         except (ValueError, KeyError) as e:
             raise FFmpegError(f"Failed to parse video info: {e}") from e
 
+    def has_audio_stream(self, video_path: Path) -> bool:
+        """Check if a video file has an audio stream.
+
+        Args:
+            video_path: Path to the video file.
+
+        Returns:
+            True if the video has at least one audio stream, False otherwise.
+        """
+        if not video_path.exists():
+            return False
+
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a",  # Select audio streams only
+            "-show_entries",
+            "stream=index",
+            "-of",
+            "csv=p=0",
+            str(video_path),
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            # If there's any output, there's at least one audio stream
+            return bool(result.stdout.strip())
+        except subprocess.CalledProcessError:
+            return False
+
     def trim_clip_to_duration(
         self,
         input_path: Path,
@@ -425,10 +462,14 @@ class FFmpegAssembler:
             duration = self.get_video_duration(concat_temp)
             fade_out_start = max(0, duration - fade_duration)
 
+            # Step 2.5: Check if video has audio stream
+            has_audio = self.has_audio_stream(concat_temp)
+
             logger.info(
-                "Mixing music into video (duration: %.1fs, volume: %.0f%%)",
+                "Mixing music into video (duration: %.1fs, volume: %.0f%%, has_audio: %s)",
                 duration,
                 music_volume * 100,
+                has_audio,
             )
 
             # Step 3: Build and run FFmpeg command for audio mixing
@@ -439,6 +480,7 @@ class FFmpegAssembler:
                 music_volume=music_volume,
                 fade_duration=fade_duration,
                 fade_out_start=fade_out_start,
+                has_video_audio=has_audio,
             )
 
             result = subprocess.run(
@@ -471,15 +513,16 @@ class FFmpegAssembler:
         music_volume: float,
         fade_duration: float,
         fade_out_start: float,
+        has_video_audio: bool = True,
     ) -> list[str]:
         """Build FFmpeg command for mixing music with video.
 
         The command:
-        1. Takes video input with its audio
+        1. Takes video input with its audio (if present)
         2. Loops the music track to match video duration
         3. Applies fade in/out to the music
         4. Adjusts music volume
-        5. Mixes video audio and music together
+        5. Mixes video audio and music together (if video has audio)
         6. Uses shortest stream to determine output length
 
         Args:
@@ -489,26 +532,36 @@ class FFmpegAssembler:
             music_volume: Volume level for music (0.0-1.0).
             fade_duration: Duration of fade effects in seconds.
             fade_out_start: When to start fade out (in seconds).
+            has_video_audio: Whether the video has an audio stream.
 
         Returns:
             List of command arguments for FFmpeg.
         """
-        # Build the filter complex for audio mixing
-        # [1:a] = music input (looped)
-        # - afade: fade in at start, fade out before end
-        # - volume: reduce music volume
-        # [0:a] = video audio
-        # - volume: slightly reduce to make room for music
-        # amix: combine both audio streams
-        video_audio_volume = 1.0 - (music_volume * 0.3)  # Slight reduction
+        if has_video_audio:
+            # Build the filter complex for audio mixing
+            # [1:a] = music input (looped)
+            # - afade: fade in at start, fade out before end
+            # - volume: reduce music volume
+            # [0:a] = video audio
+            # - volume: slightly reduce to make room for music
+            # amix: combine both audio streams
+            video_audio_volume = 1.0 - (music_volume * 0.3)  # Slight reduction
 
-        filter_complex = (
-            f"[1:a]afade=t=in:st=0:d={fade_duration},"
-            f"afade=t=out:st={fade_out_start}:d={fade_duration},"
-            f"volume={music_volume}[music];"
-            f"[0:a]volume={video_audio_volume}[video_audio];"
-            f"[video_audio][music]amix=inputs=2:duration=first:dropout_transition=2[audio_out]"
-        )
+            filter_complex = (
+                f"[1:a]afade=t=in:st=0:d={fade_duration},"
+                f"afade=t=out:st={fade_out_start}:d={fade_duration},"
+                f"volume={music_volume}[music];"
+                f"[0:a]volume={video_audio_volume}[video_audio];"
+                f"[video_audio][music]amix=inputs=2:duration=first:dropout_transition=2[audio_out]"
+            )
+        else:
+            # Video has no audio - just use the music track
+            logger.info("Video has no audio stream, using music only")
+            filter_complex = (
+                f"[1:a]afade=t=in:st=0:d={fade_duration},"
+                f"afade=t=out:st={fade_out_start}:d={fade_duration},"
+                f"volume={music_volume}[audio_out]"
+            )
 
         return [
             "ffmpeg",
@@ -524,7 +577,7 @@ class FFmpegAssembler:
             "-map",
             "0:v",  # Use video from input 0
             "-map",
-            "[audio_out]",  # Use mixed audio
+            "[audio_out]",  # Use mixed/music-only audio
             "-shortest",  # Stop when shortest input ends
             "-c:v",
             "copy",  # Copy video stream (no re-encode)

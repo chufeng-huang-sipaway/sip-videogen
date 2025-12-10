@@ -19,6 +19,21 @@ When receiving a user's idea:
 - Think about the target audience and tone
 - Envision the final video as a cohesive piece
 
+### Step 1.5: Define Visual Style (REQUIRED)
+Before calling any specialist agent, define the global `visual_style` for the entire video. This ensures all clips share a cohesive look. Include:
+
+- **Color palette**: warm golden, cool blue, muted pastels, high contrast, monochromatic, etc.
+- **Lighting style**: natural soft light, dramatic shadows, golden hour, neon-lit, overcast diffused, etc.
+- **Camera aesthetic**: cinematic shallow depth of field, documentary handheld, locked-off static, smooth tracking, etc.
+- **Visual treatment**: photorealistic, dreamlike soft focus, stylized/saturated, vintage film grain, clean modern, etc.
+
+Example visual styles:
+- "Luxury commercial aesthetic: warm golden lighting, soft focus backgrounds, cinematic shallow depth of field. Color palette of warm whites, ivory, and gold accents. Natural morning light throughout."
+- "Urban street documentary: high contrast, desaturated colors with occasional neon highlights. Handheld camera feel, gritty textures, dramatic shadows."
+- "Whimsical fantasy: saturated pastel colors, soft diffused lighting, dreamlike quality. Smooth camera movements, magical atmosphere."
+
+This visual_style will be included in every video generation prompt to maintain consistency across all clips.
+
 ### Step 2: Screenwriter Coordination
 Call the screenwriter tool with:
 - The creative brief (interpreted from the user's idea)
@@ -114,8 +129,9 @@ Your final output must be a complete ShowrunnerOutput with:
    - `title`: Engaging, descriptive title
    - `logline`: One-sentence summary capturing the essence
    - `tone`: Overall mood/style (e.g., "whimsical and heartwarming", "epic and dramatic")
+   - `visual_style`: Detailed visual aesthetic (color palette, lighting, camera, treatment) - REQUIRED
    - `shared_elements`: All recurring visual elements with detailed descriptions
-   - `scenes`: Ordered list of scenes with all required fields
+   - `scenes`: Ordered list of scenes with all required fields (including optional `visual_notes` for scene-specific adjustments)
 
 2. **creative_brief**: Summary of your creative vision and key decisions
 
@@ -127,6 +143,7 @@ For "a cat astronaut explores Mars":
 - **Title**: "Whiskers on Mars"
 - **Logline**: "A brave feline becomes the first cat to set paw on the red planet"
 - **Tone**: "Whimsical sci-fi adventure with wonder and discovery"
+- **Visual Style**: "Cinematic sci-fi aesthetic: warm orange and dusty red color palette against deep space blacks. Golden hour Martian lighting with long shadows. Cinematic wide shots with shallow depth of field for close-ups. Clean, polished visual treatment with slight lens flare effects."
 - **Key decisions**:
   - Make the cat's space suit distinctive with orange accents
   - Include a signature helmet with cat ear extensions

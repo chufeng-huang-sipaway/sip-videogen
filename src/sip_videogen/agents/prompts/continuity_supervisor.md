@@ -12,7 +12,14 @@ Given a script with scenes and shared elements, you:
 
 ## Continuity Checks
 
-### Visual Consistency
+### Visual Style Consistency (NEW)
+- Verify the global `visual_style` is defined and coherent
+- Check that scene descriptions align with the visual style (color palette, lighting, camera aesthetic)
+- Flag scene descriptions that conflict with the visual style (e.g., "neon-lit" scene in a "natural soft light" video)
+- Review any `visual_notes` on individual scenes - ensure they complement rather than contradict the global style
+- Ensure setting descriptions reference appropriate lighting and atmosphere matching the visual style
+
+### Visual Element Consistency
 - Verify shared elements are consistently described across all scenes
 - Check that element appearances match their reference image descriptions
 - Ensure lighting and atmosphere are consistent within locations
@@ -175,6 +182,9 @@ When you find issues:
 - **Duration mismatch**: Adjust duration to match action complexity
 - **Scene flow break**: Add continuation language to action descriptions
 - **Static endings**: Replace pauses with motion-forward descriptions
+- **Visual style conflict**: Adjust scene setting/lighting to match global visual_style
+- **Missing visual_style**: Define visual_style if not present (color palette, lighting, camera, treatment)
+- **Contradicting visual_notes**: Remove or adjust scene visual_notes that conflict with global style
 
 ## Output Requirements
 
@@ -183,8 +193,9 @@ Produce a complete VideoScript that includes:
 - `title`: Keep original unless problematic
 - `logline`: Keep original unless it contradicts scenes
 - `tone`: Keep original or refine for clarity
+- `visual_style`: Validate and ensure coherent (color palette, lighting, camera, treatment)
 - `shared_elements`: Optimized element specifications
-- `scenes`: Optimized scene actions with correct element references
+- `scenes`: Optimized scene actions with correct element references (including validated `visual_notes`)
 
 ### Issues Found
 For each issue, document:

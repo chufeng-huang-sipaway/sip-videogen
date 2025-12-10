@@ -194,6 +194,7 @@ class TestAssembleWithMusicExecution:
         with (
             patch.object(assembler, "concatenate_clips") as mock_concat,
             patch.object(assembler, "get_video_duration", return_value=60.0),
+            patch.object(assembler, "has_audio_stream", return_value=True),
             patch("subprocess.run") as mock_run,
         ):
             # Create the temp concat file that concatenate_clips would create

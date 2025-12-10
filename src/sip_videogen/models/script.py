@@ -75,6 +75,10 @@ class SceneAction(BaseModel):
     camera_direction: str = Field(
         default="", description="Camera movement or framing instructions (empty string if none)"
     )
+    visual_notes: str = Field(
+        default="",
+        description="Scene-specific visual notes that adjust the global visual style",
+    )
     shared_element_ids: list[str] = Field(
         default_factory=list,
         description="IDs of shared elements appearing in this scene",
@@ -91,6 +95,10 @@ class VideoScript(BaseModel):
     title: str = Field(description="Title of the video")
     logline: str = Field(description="One-sentence summary of the video")
     tone: str = Field(description="Overall mood/style of the video")
+    visual_style: str = Field(
+        default="",
+        description="Global visual aesthetic: color palette, lighting, camera, treatment.",
+    )
     shared_elements: list[SharedElement] = Field(
         default_factory=list, description="Visual elements needing consistency"
     )

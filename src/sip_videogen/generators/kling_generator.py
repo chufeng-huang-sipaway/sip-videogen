@@ -32,10 +32,10 @@ class KlingConfig(BaseModel):
     """Configuration for Kling AI video generation."""
 
     model_version: str = Field(
-        default="2.5-turbo",
+        default="1.6",
         description=(
-            "Kling model version: 1.5, 1.6, 2.0, 2.1, 2.5-turbo "
-            "(aliases: 2.5, v2.5-turbo, v2.5)"
+            "Kling model version: 1.0, 1.5, 1.6, 2.0, 2.1, 2.1-master, 2.5 "
+            "(Note: 2.0 and 2.1-master require pro mode)"
         ),
     )
     mode: str = Field(
@@ -77,6 +77,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
     PROVIDER_NAME = "kling"
     VALID_DURATIONS = [5, 10]
     MAX_REFERENCE_IMAGES = 1  # Kling supports 1 image for image-to-video
+    # Official Kling API v1 base URL (supports all models including 2.6 with audio)
     API_BASE_URL = "https://api.klingai.com/v1"
     POLL_INTERVAL_SECONDS = 10
     MAX_POLL_TIME_SECONDS = 600  # 10 minutes max wait per video
@@ -195,8 +196,8 @@ class KlingVideoGenerator(BaseVideoGenerator):
             self.config.mode,
         )
 
-        # Build request payload
-        payload = self._build_request_payload(
+        # Build request payload and endpoint
+        endpoint, payload, _ = self._build_request_payload(
             prompt=prompt,
             duration=duration,
             aspect_ratio=aspect_ratio,
@@ -204,10 +205,10 @@ class KlingVideoGenerator(BaseVideoGenerator):
             signed_url_generator=signed_url_generator,
         )
 
-        # Submit generation request
+        # Submit generation request to v1 API
         client = await self._get_client()
         response = await client.post(
-            f"{self.API_BASE_URL}/videos/text2video",
+            endpoint,
             headers=self._get_headers(),
             json=payload,
         )
@@ -216,7 +217,13 @@ class KlingVideoGenerator(BaseVideoGenerator):
             self._handle_error_response(response, scene.scene_number)
 
         task_data = response.json()
-        task_id = task_data.get("data", {}).get("task_id")
+        task_id = (
+            task_data.get("data", {}).get("task_id")
+            if isinstance(task_data, dict)
+            else None
+        )
+        if not task_id:
+            task_id = task_data.get("task_id") if isinstance(task_data, dict) else None
 
         if not task_id:
             raise VideoGenerationError(
@@ -247,23 +254,20 @@ class KlingVideoGenerator(BaseVideoGenerator):
         aspect_ratio: str,
         reference_images: list[GeneratedAsset] | None = None,
         signed_url_generator: Callable[[str], str] | None = None,
-    ) -> dict:
-        """Build the request payload for Kling API.
+    ) -> tuple[str, dict, list[str]]:
+        """Build the request payload and endpoint for Kling API.
 
-        Args:
-            prompt: Video generation prompt.
-            duration: Video duration in seconds (5 or 10).
-            aspect_ratio: Video aspect ratio.
-            reference_images: Optional reference images.
-            signed_url_generator: Function to generate signed URLs.
+        All models use the v1 API endpoint.
 
         Returns:
-            Request payload dictionary.
+            (endpoint, payload, candidate_paths) tuple. candidate_paths is empty
+            as we only use the v1 endpoint.
         """
         model_name = self._resolve_model_name(self.config.model_version)
         logger.info("Kling model_name resolved to: %s", model_name)
 
-        payload = {
+        # Build payload - all models use the same v1 structure
+        payload: dict = {
             "model_name": model_name,
             "prompt": prompt,
             "mode": self.config.mode,  # std or pro
@@ -272,20 +276,27 @@ class KlingVideoGenerator(BaseVideoGenerator):
             "cfg_scale": 0.5,  # Default creativity vs prompt adherence
         }
 
-        # Add reference image if available (switches to image-to-video)
         image_url = self._get_image_url(reference_images, signed_url_generator)
         if image_url:
             payload["image"] = image_url
             logger.debug("Using image-to-video mode with reference image")
 
-        # Add camera control if configured
         if self.config.camera_control:
             payload["camera_control"] = self.config.camera_control
 
-        return payload
+        endpoint = f"{self.API_BASE_URL}/videos/text2video"
+        return endpoint, payload, []
 
     def _resolve_model_name(self, version: str) -> str:
-        """Map friendly version strings to Kling API model names."""
+        """Map friendly version strings to Kling API model names.
+
+        Supported models (official API at api.klingai.com):
+        - kling-v1, kling-v1-5, kling-v1-6
+        - kling-v2-master (pro mode only)
+        - kling-v2-1, kling-v2-1-master (pro mode only)
+        - kling-v2-5-turbo (2.5 turbo, use mode="pro" for pro quality)
+        - kling-v2.6 (2.6 with native audio)
+        """
         if not version:
             return "kling-v1-6"
 
@@ -295,18 +306,27 @@ class KlingVideoGenerator(BaseVideoGenerator):
         if normalized.startswith("v"):
             normalized = normalized[1:]
 
-        # Handle turbo first (API expects lowercase, hyphenated)
+        # Version 2.6 (latest with native audio)
+        if normalized in {"2.6", "2-6", "v2.6", "v2-6"}:
+            return "kling-v2.6"
+
+        # Version 2.5 (turbo) - use mode="pro" in request body for pro quality
         if normalized in {"2.5-turbo", "2-5-turbo", "v2.5-turbo", "v2-5-turbo", "2.5", "2-5"}:
             return "kling-v2-5-turbo"
 
+        # Version 2.1
         if normalized in {"2.1-master", "2-1-master"}:
             return "kling-v2-1-master"
         if normalized in {"2.1", "2-1"}:
             return "kling-v2-1"
+
+        # Version 2.0
         if normalized in {"2.0-master", "2-0-master", "2-master"}:
             return "kling-v2-master"
         if normalized in {"2.0", "2", "2-0"}:
             return "kling-v2"
+
+        # Version 1.x
         if normalized in {"1.6", "1-6"}:
             return "kling-v1-6"
         if normalized in {"1.5", "1-5"}:
@@ -314,9 +334,9 @@ class KlingVideoGenerator(BaseVideoGenerator):
         if normalized in {"1.0", "1", "1-0"}:
             return "kling-v1"
 
-        # Fallback to lowercase kling-v<version> pattern
-        safe_version = normalized.replace("-", "-")
-        return f"kling-v{safe_version}"
+        # Fallback to v1.6 (most stable)
+        logger.warning("Unknown Kling version '%s', falling back to kling-v1-6", version)
+        return "kling-v1-6"
 
     def _get_image_url(
         self,
@@ -359,11 +379,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
 
         return None
 
-    async def _poll_for_completion(
-        self,
-        task_id: str,
-        scene_number: int,
-    ) -> str:
+    async def _poll_for_completion(self, task_id: str, scene_number: int) -> str:
         """Poll Kling API until video generation completes.
 
         Args:
@@ -405,7 +421,6 @@ class KlingVideoGenerator(BaseVideoGenerator):
             task_status = data.get("data", {}).get("task_status", "")
 
             if task_status == "succeed":
-                # Extract video URL from response
                 videos = data.get("data", {}).get("task_result", {}).get("videos", [])
                 if videos and "url" in videos[0]:
                     return videos[0]["url"]
@@ -479,9 +494,23 @@ class KlingVideoGenerator(BaseVideoGenerator):
             VideoGenerationError: For other errors.
         """
         try:
-            error_data = response.json()
-            error_code = error_data.get("code")
-            error_msg = error_data.get("message", "Unknown error")
+            error_text = response.text
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = {}
+
+            error_code = (
+                error_data.get("code")
+                or error_data.get("error_code")
+                or error_data.get("statusCode")
+            )
+            error_msg = (
+                error_data.get("message")
+                or error_data.get("error_message")
+                or error_data.get("msg")
+                or "Unknown error"
+            )
 
             # Check for content policy violations
             # Kling error codes for content violations (approximate - adjust based on actual API)
@@ -493,7 +522,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
 
             raise VideoGenerationError(
                 f"Kling API error for scene {scene_number} "
-                f"(code {error_code}): {error_msg}"
+                f"(code {error_code}): {error_msg}. Raw response: {error_text}"
             )
 
         except (KeyError, ValueError):
