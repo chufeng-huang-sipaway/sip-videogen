@@ -307,12 +307,17 @@ class VideoGenerator:
         self,
         scene: SceneAction,
         total_scenes: int | None = None,
+        exclude_background_music: bool = True,
     ) -> str:
         """Build a generation prompt from scene details.
 
         Args:
             scene: The SceneAction to build a prompt for.
             total_scenes: Total number of scenes in the video (for flow context).
+            exclude_background_music: Whether to add audio instructions that exclude
+                background music. When True, instructs VEO to generate ambient sounds
+                and dialogue but no background music/soundtrack, allowing external
+                music to be added later. Defaults to True.
 
         Returns:
             A detailed prompt string for video generation.
@@ -339,8 +344,183 @@ class VideoGenerator:
         if scene.dialogue:
             parts.append(f"Dialogue: {scene.dialogue}")
 
+        # Add audio instruction to keep SFX/dialogue but exclude background music
+        if exclude_background_music:
+            audio_instruction = self._build_audio_instruction(scene)
+            parts.append(audio_instruction)
+
         raw_prompt = ". ".join(parts)
         return self._sanitize_prompt_for_vertex(raw_prompt)
+
+    def _build_audio_instruction(self, scene: SceneAction) -> str:
+        """Build audio instruction to keep ambient sounds but exclude background music.
+
+        This analyzes the scene content to infer relevant sound effects and ambient
+        sounds, then instructs VEO to generate those sounds while explicitly
+        excluding background music. This allows consistent background music to be
+        added later via FFmpeg.
+
+        Args:
+            scene: The SceneAction to analyze for audio cues.
+
+        Returns:
+            Audio instruction string for the VEO prompt.
+        """
+        sounds = []
+
+        # Add dialogue indicator if present
+        if scene.dialogue:
+            sounds.append("character dialogue")
+
+        # Infer ambient sounds from setting
+        if scene.setting_description:
+            ambient_sounds = self._infer_ambient_sounds(scene.setting_description)
+            sounds.extend(ambient_sounds)
+
+        # Infer action sounds from action description
+        if scene.action_description:
+            action_sounds = self._infer_action_sounds(scene.action_description)
+            sounds.extend(action_sounds)
+
+        # Build the audio instruction
+        if sounds:
+            # Deduplicate while preserving order
+            unique_sounds = list(dict.fromkeys(sounds))
+            sound_list = ", ".join(unique_sounds)
+            return (
+                f"Audio: {sound_list}. "
+                "No background music, no soundtrack, no musical score"
+            )
+        else:
+            return (
+                "Audio: ambient environmental sounds only. "
+                "No background music, no soundtrack, no musical score"
+            )
+
+    def _infer_ambient_sounds(self, setting: str) -> list[str]:
+        """Infer ambient sounds from scene setting description.
+
+        Args:
+            setting: The setting description to analyze.
+
+        Returns:
+            List of ambient sound descriptions.
+        """
+        setting_lower = setting.lower()
+        sounds = []
+
+        # Beach/ocean environments
+        if any(word in setting_lower for word in ["beach", "ocean", "sea", "coast", "shore"]):
+            sounds.extend(["waves crashing", "seagulls"])
+
+        # Forest/nature environments
+        if any(word in setting_lower for word in ["forest", "woods", "jungle", "trees", "nature"]):
+            sounds.extend(["birds chirping", "rustling leaves", "wind through trees"])
+
+        # City/urban environments
+        city_keywords = ["city", "street", "urban", "downtown", "sidewalk"]
+        if any(word in setting_lower for word in city_keywords):
+            sounds.extend(["city traffic", "distant sirens", "urban ambience"])
+
+        # Indoor environments
+        indoor_keywords = ["office", "room", "indoor", "building", "house", "home"]
+        if any(word in setting_lower for word in indoor_keywords):
+            sounds.append("room tone")
+
+        # Sports/gym environments
+        sports_keywords = ["gym", "basketball", "court", "field", "stadium", "arena"]
+        if any(word in setting_lower for word in sports_keywords):
+            sounds.extend(["sneakers squeaking", "crowd noise"])
+
+        # Restaurant/cafe environments
+        if any(word in setting_lower for word in ["restaurant", "cafe", "coffee", "diner", "bar"]):
+            sounds.extend(["clinking dishes", "ambient chatter"])
+
+        # Park/outdoor environments
+        if any(word in setting_lower for word in ["park", "garden", "lawn", "yard", "backyard"]):
+            sounds.extend(["birds", "wind"])
+
+        # Mountain/hiking environments
+        if any(word in setting_lower for word in ["mountain", "hill", "hike", "trail", "cliff"]):
+            sounds.extend(["wind", "distant birds"])
+
+        # Water environments (non-ocean)
+        if any(word in setting_lower for word in ["river", "stream", "waterfall", "lake", "pond"]):
+            sounds.append("flowing water")
+
+        # Rain/weather
+        if any(word in setting_lower for word in ["rain", "storm", "thunder"]):
+            sounds.append("rain sounds")
+
+        # Night environments
+        if any(word in setting_lower for word in ["night", "evening", "dark"]):
+            sounds.append("crickets")
+
+        return sounds
+
+    def _infer_action_sounds(self, action: str) -> list[str]:
+        """Infer sound effects from action description.
+
+        Args:
+            action: The action description to analyze.
+
+        Returns:
+            List of action sound effect descriptions.
+        """
+        action_lower = action.lower()
+        sounds = []
+
+        # Movement sounds
+        if any(word in action_lower for word in ["walk", "walking", "steps"]):
+            sounds.append("footsteps")
+        if any(word in action_lower for word in ["run", "running", "sprint", "jog"]):
+            sounds.append("running footsteps")
+
+        # Door sounds
+        if any(word in action_lower for word in ["door", "enter", "exit", "open", "close"]):
+            sounds.append("door sounds")
+
+        # Vehicle sounds
+        if any(word in action_lower for word in ["car", "drive", "driving", "vehicle"]):
+            sounds.append("car engine")
+        if any(word in action_lower for word in ["bike", "bicycle", "cycling"]):
+            sounds.append("bicycle sounds")
+
+        # Typing/computer sounds
+        if any(word in action_lower for word in ["type", "typing", "computer", "keyboard"]):
+            sounds.append("keyboard typing")
+        if any(word in action_lower for word in ["phone", "call", "ring"]):
+            sounds.append("phone sounds")
+
+        # Eating/drinking sounds
+        if any(word in action_lower for word in ["eat", "eating", "drink", "drinking", "sip"]):
+            sounds.append("eating and drinking sounds")
+
+        # Writing sounds
+        if any(word in action_lower for word in ["write", "writing", "pen", "pencil"]):
+            sounds.append("writing sounds")
+
+        # Sports sounds
+        if any(word in action_lower for word in ["throw", "catch", "ball", "kick"]):
+            sounds.append("ball sounds")
+
+        # Clapping/applause
+        if any(word in action_lower for word in ["clap", "applause", "cheer"]):
+            sounds.append("applause")
+
+        # Conversation
+        if any(word in action_lower for word in ["talk", "speak", "convers", "chat", "discuss"]):
+            sounds.append("conversation")
+
+        # Cooking
+        if any(word in action_lower for word in ["cook", "fry", "boil", "sizzle", "kitchen"]):
+            sounds.append("cooking sounds")
+
+        # Water/splash
+        if any(word in action_lower for word in ["swim", "splash", "dive", "water"]):
+            sounds.append("water splashing")
+
+        return sounds
 
     def _sanitize_prompt_for_vertex(self, prompt: str) -> str:
         """Sanitize prompts to better align with Vertex AI usage guidelines.
