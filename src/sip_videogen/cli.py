@@ -636,10 +636,30 @@ async def _run_pipeline(
     # ========== STAGE 3: Upload Reference Images to GCS ==========
     console.print("\n[bold cyan]Stage 3/{total_stages}:[/bold cyan] Uploading images to GCS...")
 
-    gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
+    # Try to initialize GCS storage - needed for both VEO (direct URIs) and KLING (signed URLs)
+    gcs_storage: GCSStorage | None = None
     gcs_prefix = f"sip-videogen/{project_id}"
 
-    if package.reference_images:
+    try:
+        if settings.sip_gcs_bucket_name:
+            gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
+        else:
+            raise GCSStorageError("GCS bucket not configured")
+    except (GCSStorageError, GCSAuthenticationError, GCSBucketNotFoundError) as e:
+        if package.reference_images:
+            console.print(
+                f"[yellow]Warning: GCS not available ({e})[/yellow]\n"
+                "[yellow]Reference images will not be used for video generation.[/yellow]\n"
+                "[dim]To enable reference images, configure SIP_GCS_BUCKET_NAME and run:[/dim]\n"
+                "[dim]  gcloud auth application-default login[/dim]"
+            )
+            # Clear GCS URIs since we can't upload
+            for asset in package.reference_images:
+                asset.gcs_uri = None
+        else:
+            console.print("[dim]GCS not configured (not needed without reference images)[/dim]")
+
+    if package.reference_images and gcs_storage:
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -701,6 +721,15 @@ async def _run_pipeline(
 
     try:
         if provider == VideoProvider.VEO:
+            # VEO requires GCS for video storage
+            if not gcs_storage:
+                console.print(
+                    "[red]Error: VEO requires Google Cloud Storage.[/red]\n"
+                    "[dim]Configure SIP_GCS_BUCKET_NAME in your .env file and run:[/dim]\n"
+                    "[dim]  gcloud auth application-default login[/dim]"
+                )
+                raise typer.Exit(1)
+
             # VEO: Generate to GCS, then download
             output_gcs_prefix = f"gs://{settings.sip_gcs_bucket_name}/{gcs_prefix}/videos"
 
@@ -767,14 +796,16 @@ async def _run_pipeline(
 
         else:
             # Kling: Generate directly to local directory
-            # Create signed URL generator for reference images
-            def signed_url_generator(gcs_uri: str) -> str:
-                return gcs_storage.generate_signed_url(gcs_uri, expiration_minutes=120)
+            # Create signed URL generator for reference images (requires GCS)
+            signed_url_generator = None
+            if gcs_storage:
+                def signed_url_generator(gcs_uri: str) -> str:
+                    return gcs_storage.generate_signed_url(gcs_uri, expiration_minutes=120)
 
             video_clips = await video_generator.generate_all_video_clips(
                 script=script,
                 output_path=str(videos_dir),
-                reference_images=package.reference_images,
+                reference_images=package.reference_images if gcs_storage else None,
                 show_progress=True,
                 signed_url_generator=signed_url_generator,
             )
@@ -2309,19 +2340,28 @@ async def _resume_video_generation(
         else:
             # Kling generates directly to local path
             signed_url_generator = None
+            kling_gcs_storage = None
             try:
-                gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
-                signed_url_generator = lambda uri: gcs_storage.generate_signed_url(
-                    uri,
-                    expiration_minutes=120,
-                )
+                if settings.sip_gcs_bucket_name:
+                    kling_gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
+                    signed_url_generator = lambda uri: kling_gcs_storage.generate_signed_url(
+                        uri,
+                        expiration_minutes=120,
+                    )
             except Exception:
                 logger.debug("Signed URL generation unavailable; continuing without it")
+
+            # Only pass reference images if GCS is available (needed for signed URLs)
+            kling_refs = reference_images if kling_gcs_storage else None
+            if reference_images and not kling_gcs_storage:
+                console.print(
+                    "[yellow]Note: Reference images will not be used (GCS not configured)[/yellow]"
+                )
 
             video_clips = await video_generator.generate_all_video_clips(
                 script=script,
                 output_path=str(videos_dir),
-                reference_images=reference_images,
+                reference_images=kling_refs,
                 max_concurrent=3,
                 show_progress=True,
                 signed_url_generator=signed_url_generator,
