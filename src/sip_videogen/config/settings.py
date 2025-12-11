@@ -67,6 +67,13 @@ class Settings(BaseSettings):
         description="GCS bucket name for VEO video generation",
     )
 
+    # Google Cloud credentials JSON (base64 encoded service account key)
+    # Alternative to running 'gcloud auth application-default login'
+    google_cloud_credentials_json: str | None = Field(
+        default=None,
+        description="Base64-encoded service account JSON key for GCS authentication",
+    )
+
     # Enable Vertex AI for VEO
     google_genai_use_vertexai: bool = Field(
         default=True,
@@ -146,7 +153,11 @@ class Settings(BaseSettings):
         return self.sip_output_dir
 
     def is_configured(self) -> dict[str, bool]:
-        """Check which settings are properly configured."""
+        """Check which settings are properly configured.
+
+        Note: google_cloud_credentials_json is NOT included here because
+        it's optional - users can authenticate via ADC (gcloud login) instead.
+        """
         return {
             "openai_api_key": bool(self.openai_api_key and self.openai_api_key != "sk-..."),
             "gemini_api_key": bool(self.gemini_api_key and self.gemini_api_key != "..."),
@@ -158,6 +169,10 @@ class Settings(BaseSettings):
             ),
             "kling_api": bool(self.kling_access_key and self.kling_secret_key),
         }
+
+    def has_gcs_credentials(self) -> bool:
+        """Check if GCS credentials are available (inline or via ADC)."""
+        return bool(self.google_cloud_credentials_json)
 
 
 @lru_cache

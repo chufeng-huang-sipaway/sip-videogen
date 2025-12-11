@@ -4,16 +4,46 @@ This module provides GCS upload and download functionality for
 reference images and video clips.
 """
 
+import base64
+import json
 import logging
+import os
 from pathlib import Path
 
 from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import storage
 from google.cloud.exceptions import Forbidden, GoogleCloudError, NotFound
-
+from google.oauth2 import service_account
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
+
+
+def _get_credentials_from_env():
+    """Get GCS credentials from environment variable if available.
+
+    Checks for GOOGLE_CLOUD_CREDENTIALS_JSON which should contain
+    a base64-encoded service account JSON key.
+
+    Returns:
+        google.oauth2.service_account.Credentials or None
+    """
+    creds_b64 = os.environ.get("GOOGLE_CLOUD_CREDENTIALS_JSON")
+    if not creds_b64:
+        return None
+
+    try:
+        # Decode base64 to JSON string
+        creds_json = base64.b64decode(creds_b64).decode("utf-8")
+        # Parse JSON to dict
+        creds_info = json.loads(creds_json)
+        # Create credentials from service account info
+        credentials = service_account.Credentials.from_service_account_info(creds_info)
+        logger.debug("Using credentials from GOOGLE_CLOUD_CREDENTIALS_JSON")
+        return credentials
+    except (base64.binascii.Error, json.JSONDecodeError, ValueError) as e:
+        logger.warning(f"Failed to parse GOOGLE_CLOUD_CREDENTIALS_JSON: {e}")
+        return None
 
 
 class GCSStorageError(Exception):
@@ -35,8 +65,10 @@ class GCSPermissionError(GCSStorageError):
 class GCSStorage:
     """Google Cloud Storage client for uploading and downloading assets.
 
-    Handles authentication via Application Default Credentials (ADC).
-    Run `gcloud auth application-default login` to set up credentials.
+    Supports multiple authentication methods (in order of priority):
+    1. GOOGLE_CLOUD_CREDENTIALS_JSON env var (base64-encoded service account JSON)
+    2. GOOGLE_APPLICATION_CREDENTIALS env var (path to service account JSON file)
+    3. Application Default Credentials (ADC) from 'gcloud auth application-default login'
     """
 
     def __init__(self, bucket_name: str, verify_bucket: bool = True):
@@ -52,11 +84,27 @@ class GCSStorage:
             GCSPermissionError: If access to the bucket is denied.
         """
         try:
-            self.client = storage.Client()
+            # First, try to get credentials from inline env var
+            credentials = _get_credentials_from_env()
+
+            if credentials:
+                # Use inline credentials
+                self.client = storage.Client(credentials=credentials)
+                logger.debug("Using inline credentials from GOOGLE_CLOUD_CREDENTIALS_JSON")
+            else:
+                # Fall back to default credentials (ADC or GOOGLE_APPLICATION_CREDENTIALS)
+                self.client = storage.Client()
+                logger.debug("Using default credentials (ADC)")
+
         except DefaultCredentialsError as e:
             raise GCSAuthenticationError(
-                "Google Cloud credentials not configured.\n"
-                "Run: gcloud auth application-default login"
+                "Google Cloud credentials not configured.\n\n"
+                "Choose one of these options:\n"
+                "  1. Add GOOGLE_CLOUD_CREDENTIALS_JSON to your .env file (recommended)\n"
+                "     - Get this from: Google Cloud Console > IAM > Service Accounts\n"
+                "     - Create a key, then run: base64 -i your-key.json\n"
+                "     - Paste the result as GOOGLE_CLOUD_CREDENTIALS_JSON=...\n\n"
+                "  2. Run: gcloud auth application-default login"
             ) from e
 
         self.bucket = self.client.bucket(bucket_name)
