@@ -831,60 +831,18 @@ async def _run_pipeline(
         console.print("[red]No clips available for concatenation.[/red]")
         raise typer.Exit(1)
 
-    # ========== STAGE 5.5: Trim Clips to Target Duration ==========
-    console.print("\n[bold cyan]Trimming clips to target duration...[/bold cyan]")
-
+    # ========== Prepare Clips for Assembly ==========
+    # Note: Clips are used as-is from the model (no trimming)
     try:
         assembler = FFmpegAssembler()
     except FFmpegError as e:
         console.print(f"[red]FFmpeg error:[/red] {e}")
         raise typer.Exit(1)
 
-    # Copy clips to standardized directory (trimming disabled - cuts dialogue)
-    clips_output_dir = project_dir / "clips_processed"
-    clips_output_dir.mkdir(exist_ok=True)
-
-    clips_copied = 0
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task(
-            "[cyan]Preparing clips...",
-            total=len(downloaded_clips),
-        )
-
-        for clip in downloaded_clips:
-            if not clip.local_path:
-                progress.update(task, advance=1)
-                continue
-
-            input_path = Path(clip.local_path)
-            output_path = clips_output_dir / f"scene_{clip.scene_number:03d}.mp4"
-
-            try:
-                shutil.copy(input_path, output_path)
-                clips_copied += 1
-                clip.local_path = str(output_path)
-                progress.update(
-                    task,
-                    advance=1,
-                    description=f"[green]Copied scene {clip.scene_number}",
-                )
-            except (OSError, shutil.Error) as e:
-                logger.warning(f"Failed to copy scene {clip.scene_number}: {e}")
-                progress.update(
-                    task,
-                    advance=1,
-                    description=f"[red]Failed to copy scene {clip.scene_number}",
-                )
-
-    console.print(f"[green]Prepared {clips_copied} clips for assembly.[/green]")
+    # Use clips directly - they're already in the right format
+    # Just update local_path references if needed for consistency
+    clips_ready = [c for c in downloaded_clips if c.local_path]
+    console.print(f"[green]{len(clips_ready)} clips ready for assembly.[/green]")
 
     # ========== STAGE 6: Generate Background Music (if enabled) ==========
     if enable_music and script.music_brief:
@@ -936,17 +894,15 @@ async def _run_pipeline(
             "[dim]The Music Director agent may not have been called.[/dim]"
         )
 
-    # ========== STAGE 7 (or 6): Assemble Final Video ==========
-    assembly_stage = 7 if enable_music else 6
+    # ========== STAGE 6 (or 5): Assemble Final Video ==========
+    assembly_stage = 6 if enable_music else 5
     console.print(
         f"\n[bold cyan]Stage {assembly_stage}/{total_stages}:[/bold cyan] Assembling final video..."
     )
 
-    # Note: assembler was already created in the trimming step above
-
     # Sort clips by scene number
     clip_paths = sorted(
-        [Path(c.local_path) for c in downloaded_clips if c.local_path],
+        [Path(c.local_path) for c in clips_ready],
         key=lambda p: int(p.stem.split("_")[-1]),
     )
 
@@ -1027,7 +983,7 @@ def _display_final_summary(
     project_dir: Path,
     generated_music: GeneratedMusic | None = None,
 ) -> None:
-    """Display the final generation summary."""
+    """Display the final generation summary and offer to open folder."""
     # Get video info if available
     duration_info = ""
     if package.final_video_path:
@@ -1057,6 +1013,31 @@ def _display_final_summary(
             border_style="green",
         )
     )
+
+    # Offer to open the project folder
+    console.print()
+    choice = questionary.select(
+        "What would you like to do?",
+        choices=[
+            questionary.Choice(title="Open project folder", value="open"),
+            questionary.Choice(title="Return to menu", value="menu"),
+        ],
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if choice == "open":
+        system = platform.system()
+        if system == "Darwin":
+            subprocess.run(["open", str(project_dir)])
+            console.print(f"[green]Opened folder:[/green] {project_dir}")
+        elif system == "Linux":
+            subprocess.run(["xdg-open", str(project_dir)])
+            console.print(f"[green]Opened folder:[/green] {project_dir}")
+        else:
+            console.print(f"[cyan]Project folder:[/cyan] {project_dir}")
 
 
 @app.command()
@@ -2049,10 +2030,7 @@ def _prepare_clips_for_assembly(
     video_clips: list[GeneratedAsset],
     output_dir: Path,
 ) -> tuple[list[GeneratedAsset], int]:
-    """Copy clips to output directory for assembly.
-
-    Note: Trimming is disabled because symmetric trimming cuts dialogue.
-    """
+    """Copy clips to output directory for assembly."""
     logger = get_logger(__name__)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2217,8 +2195,8 @@ async def _resume_video_generation(
     videos_dir = run_dir / "clips"
     videos_dir.mkdir(parents=True, exist_ok=True)
 
-    trimmed_dir = run_dir / "clips_trimmed"
-    trimmed_dir.mkdir(parents=True, exist_ok=True)
+    processed_dir = run_dir / "clips_processed"
+    processed_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         video_generator = VideoGeneratorFactory.create(provider)
@@ -2381,7 +2359,7 @@ async def _resume_video_generation(
 
     # Prepare clips for assembly
     console.print("\n[bold cyan]Preparing clips for assembly...[/bold cyan]")
-    prepared_clips, copied_count = _prepare_clips_for_assembly(video_clips, trimmed_dir)
+    prepared_clips, copied_count = _prepare_clips_for_assembly(video_clips, processed_dir)
 
     if not prepared_clips:
         console.print("[red]No clips available for assembly.[/red]")
