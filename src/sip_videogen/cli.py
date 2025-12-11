@@ -1609,7 +1609,7 @@ def _display_directors_pitch(pitch: DirectorsPitch) -> None:
     console.print()
 
 
-async def _interactive_pitch_flow(
+def _interactive_pitch_flow(
     idea: str,
     target_duration: int,
     progress_callback=None,
@@ -1618,6 +1618,9 @@ async def _interactive_pitch_flow(
 
     This function generates a pitch, shows it to the user, and allows them
     to provide feedback for revision or accept the pitch to proceed.
+
+    Note: This is a synchronous function that calls asyncio.run() internally
+    for async operations. This avoids event loop conflicts with questionary.
 
     Args:
         idea: The user's video idea.
@@ -1637,12 +1640,15 @@ async def _interactive_pitch_flow(
         console.print("[dim]Generating pitch...[/dim]")
 
         try:
-            pitch = await generate_directors_pitch(
-                idea=idea,
-                target_duration=target_duration,
-                num_scenes=num_scenes,
-                previous_feedback=feedback_history if feedback_history else None,
-                progress_callback=progress_callback,
+            # Run async pitch generation in its own event loop
+            pitch = asyncio.run(
+                generate_directors_pitch(
+                    idea=idea,
+                    target_duration=target_duration,
+                    num_scenes=num_scenes,
+                    previous_feedback=feedback_history if feedback_history else None,
+                    progress_callback=progress_callback,
+                )
             )
         except ScriptDevelopmentError as e:
             console.print(f"[red]Failed to generate pitch: {e}[/red]")
@@ -1651,7 +1657,7 @@ async def _interactive_pitch_flow(
         # Display the pitch
         _display_directors_pitch(pitch)
 
-        # Get user decision
+        # Get user decision (sync - runs outside event loop)
         choice = questionary.select(
             "What would you like to do?",
             choices=[
@@ -1681,10 +1687,13 @@ async def _interactive_pitch_flow(
             console.print()
 
             try:
-                script = await develop_script_from_pitch(
-                    idea=idea,
-                    pitch=pitch,
-                    progress_callback=progress_callback,
+                # Run async script development in its own event loop
+                script = asyncio.run(
+                    develop_script_from_pitch(
+                        idea=idea,
+                        pitch=pitch,
+                        progress_callback=progress_callback,
+                    )
                 )
                 return script, True
             except ScriptDevelopmentError as e:
@@ -1698,7 +1707,7 @@ async def _interactive_pitch_flow(
             if feedback and feedback.strip():
                 feedback_history.append(feedback.strip())
                 console.print(
-                    f"[green]Feedback recorded. Generating revised pitch...[/green]"
+                    "[green]Feedback recorded. Generating revised pitch...[/green]"
                 )
             # Loop continues with new pitch
 
@@ -2469,9 +2478,9 @@ def menu() -> None:
                 idea, target_duration, scenes = _get_video_idea()
                 # Run interactive pitch flow for user approval
                 try:
-                    script, accepted = asyncio.run(
-                        _interactive_pitch_flow(idea, target_duration)
-                    )
+                    # Note: _interactive_pitch_flow is now synchronous
+                    # (handles asyncio.run internally for async operations)
+                    script, accepted = _interactive_pitch_flow(idea, target_duration)
 
                     if accepted and script:
                         # User approved the pitch - run full generation
