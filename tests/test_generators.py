@@ -21,7 +21,7 @@ class TestImageGenerator:
         """Test ImageGenerator initializes with default model."""
         with patch("sip_videogen.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
-            assert generator.model == "gemini-2.5-flash-image"
+            assert generator.model == "gemini-3-pro-image-preview"
 
     def test_init_custom_model(self) -> None:
         """Test ImageGenerator with custom model."""
@@ -38,8 +38,8 @@ class TestImageGenerator:
             prompt = generator._build_prompt(sample_shared_element)
 
             assert sample_shared_element.visual_description in prompt
-            assert "character reference" in prompt.lower()
-            assert "High quality" in prompt
+            assert "portrait" in prompt.lower()
+            assert "photorealistic" in prompt.lower()
 
     def test_build_prompt_environment(
         self, sample_environment_element: SharedElement
@@ -59,7 +59,7 @@ class TestImageGenerator:
             prompt = generator._build_prompt(sample_prop_element)
 
             assert sample_prop_element.visual_description in prompt
-            assert "object reference" in prompt.lower()
+            assert "product photograph" in prompt.lower()
 
     def test_get_aspect_ratio_character(
         self, sample_shared_element: SharedElement

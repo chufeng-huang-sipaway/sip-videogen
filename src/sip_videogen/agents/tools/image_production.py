@@ -65,7 +65,8 @@ class ImageProductionManager:
         1. Generates an image using the ImageGenerator
         2. Sends it to the ImageReviewer for quality assessment
         3. If rejected, improves the prompt and retries (up to max_retries)
-        4. Returns the final result with all attempt history
+        4. If all attempts fail, keeps the last generated image as fallback
+        5. Returns the final result with all attempt history
 
         Args:
             element: The SharedElement to generate an image for.
@@ -75,11 +76,13 @@ class ImageProductionManager:
         """
         attempts: list[ImageGenerationAttempt] = []
         current_prompt = element.visual_description
-        final_path = ""
+        last_generated_path: str = ""  # Track last successfully generated image
+        last_prompt_used: str = current_prompt
 
         for attempt_num in range(self.max_retries + 1):
             attempt_number = attempt_num + 1
             max_attempts = self.max_retries + 1
+            is_last_attempt = attempt_num == self.max_retries
             logger.info(
                 f"Generating image for {element.id} "
                 f"(attempt {attempt_number}/{max_attempts})"
@@ -98,8 +101,12 @@ class ImageProductionManager:
                     aspect_ratio=aspect_ratio,
                 )
 
-                # Read image for review
+                # Track this as our latest generated image
                 image_path = Path(asset.local_path)
+                last_generated_path = asset.local_path
+                last_prompt_used = current_prompt
+
+                # Read image for review
                 with open(image_path, "rb") as f:
                     image_data = base64.b64encode(f.read()).decode("utf-8")
 
@@ -123,11 +130,10 @@ class ImageProductionManager:
                             outcome="success",
                         )
                     )
-                    final_path = asset.local_path
                     return ImageGenerationResult(
                         element_id=element.id,
                         status="success",
-                        local_path=final_path,
+                        local_path=asset.local_path,
                         attempts=attempts,
                         final_prompt=current_prompt,
                     )
@@ -143,18 +149,24 @@ class ImageProductionManager:
                         )
                     )
 
-                    # Delete rejected image
-                    if image_path.exists():
-                        image_path.unlink()
-                        logger.debug(f"Deleted rejected image: {image_path}")
+                    # Only delete rejected image if NOT the last attempt
+                    # Keep the last one as fallback
+                    if not is_last_attempt:
+                        if image_path.exists():
+                            image_path.unlink()
+                            logger.debug(f"Deleted rejected image: {image_path}")
 
-                    # Improve prompt for next attempt
-                    if attempt_num < self.max_retries:
+                        # Improve prompt for next attempt
                         current_prompt = self._improve_prompt(
                             original_prompt=current_prompt,
                             suggestions=review_result.improvement_suggestions,
                         )
                         logger.info(f"Improved prompt for retry: {current_prompt[:100]}...")
+                    else:
+                        logger.info(
+                            f"Keeping last generated image for {element.id} as fallback "
+                            f"(better than nothing)"
+                        )
 
             except ImageGenerationError as e:
                 logger.warning(f"Generation error for {element.id}: {e}")
@@ -167,9 +179,23 @@ class ImageProductionManager:
                     )
                 )
 
-        # All attempts exhausted
+        # All attempts exhausted - check if we have a fallback image
+        if last_generated_path and Path(last_generated_path).exists():
+            logger.warning(
+                f"Using fallback image for {element.id} after "
+                f"{self.max_retries + 1} attempts (image not ideal but usable)"
+            )
+            return ImageGenerationResult(
+                element_id=element.id,
+                status="fallback",
+                local_path=last_generated_path,
+                attempts=attempts,
+                final_prompt=last_prompt_used,
+            )
+
+        # Complete failure - no image generated at all
         logger.warning(
-            f"Failed to generate acceptable image for {element.id} after "
+            f"Failed to generate any image for {element.id} after "
             f"{self.max_retries + 1} attempts"
         )
         return ImageGenerationResult(
@@ -250,7 +276,13 @@ class ImageProductionManager:
 
         # Log summary
         successful = sum(1 for r in results if r.status == "success")
-        logger.info(f"Image production complete: {successful}/{len(elements)} images generated")
+        fallback = sum(1 for r in results if r.status == "fallback")
+        failed = sum(1 for r in results if r.status == "failed")
+
+        logger.info(
+            f"Image production complete: {successful} accepted, "
+            f"{fallback} fallback, {failed} failed (total: {len(elements)})"
+        )
 
         return results
 

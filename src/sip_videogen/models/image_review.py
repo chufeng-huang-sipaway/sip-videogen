@@ -58,8 +58,12 @@ class ImageGenerationResult(BaseModel):
     """
 
     element_id: str = Field(description="ID of the shared element")
-    status: Literal["success", "failed"] = Field(description="Final status of image generation")
-    local_path: str = Field(default="", description="Path to the generated image (if success)")
+    status: Literal["success", "fallback", "failed"] = Field(
+        description="Final status: success, fallback (kept despite rejection), or failed"
+    )
+    local_path: str = Field(
+        default="", description="Path to the generated image (if success or fallback)"
+    )
     attempts: list[ImageGenerationAttempt] = Field(
         default_factory=list, description="Record of all generation attempts"
     )

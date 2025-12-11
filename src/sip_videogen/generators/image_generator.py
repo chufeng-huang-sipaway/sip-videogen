@@ -169,6 +169,8 @@ class ImageGenerator:
         """Build a generation prompt for a shared element.
 
         Always generates photorealistic style images for consistency with VEO video output.
+        Constructs highly detailed prompts to maximize generation quality and reduce
+        rejection rates during quality review.
 
         Args:
             element: The SharedElement to build a prompt for.
@@ -177,39 +179,90 @@ class ImageGenerator:
             A detailed prompt string for image generation.
         """
         description = element.visual_description
-        prompt_parts = [description]
-
         element_type = element.element_type.value
+        name = element.name
+
+        # Start with a clear subject declaration
+        prompt_parts = []
 
         if element_type == "character":
-            prompt_parts.append(
-                "Photorealistic studio portrait of a single person, "
-                "centered in frame, upper-body or head-and-shoulders, "
-                "plain neutral background, soft studio lighting, sharp focus, "
-                "no extra people or objects."
-            )
+            # Include role descriptor if available for additional context
+            role_context = f" ({element.role_descriptor})" if element.role_descriptor else ""
+            prompt_parts.extend([
+                f"A photorealistic studio portrait photograph of {name}{role_context}.",
+                f"Subject description: {description}",
+                "",
+                "CRITICAL REQUIREMENTS:",
+                "- Single person only, no other people or figures in the image",
+                "- Face must be clearly visible, sharp, and well-defined",
+                "- Front-facing or slight three-quarter angle for clear facial features",
+                "- Upper body or head-and-shoulders framing, centered in frame",
+                "- Plain neutral background (solid gray, white, or soft gradient)",
+                "- Professional studio lighting: soft key light, subtle fill, clean shadows",
+                "- Sharp focus on the subject, no motion blur",
+                "- Natural skin tones, realistic proportions",
+                "- Clothing and accessories as described, no extra items",
+                "",
+                "STYLE: Professional headshot photography, magazine quality, "
+                "high-end commercial portrait. 8K resolution, extremely detailed, "
+                "natural lighting simulation, subtle catchlights in eyes.",
+            ])
 
         elif element_type == "environment":
-            prompt_parts.append(
-                "Photorealistic wide establishing shot of this location, "
-                "showing the overall space clearly, with no characters in the foreground, "
-                "balanced composition, sharp focus, clean and uncluttered."
-            )
+            prompt_parts.extend([
+                f"A photorealistic establishing shot photograph of {name}.",
+                f"Location description: {description}",
+                "",
+                "CRITICAL REQUIREMENTS:",
+                "- Wide angle establishing shot showing the full environment",
+                "- NO people, characters, or human figures in the frame",
+                "- Clear visibility of key architectural and environmental features",
+                "- Balanced composition with clear focal point",
+                "- Natural ambient lighting appropriate to the setting",
+                "- Sharp focus throughout, deep depth of field",
+                "- Clean and uncluttered scene, no distracting elements",
+                "- Weather and time of day as appropriate to the description",
+                "",
+                "STYLE: Professional location photography, cinematic framing, "
+                "high-end real estate or film location scout quality. "
+                "8K resolution, HDR dynamic range, vivid but natural colors.",
+            ])
 
         elif element_type == "prop":
-            prompt_parts.append(
-                "Photorealistic product-style shot on a neutral seamless background, "
-                "centered in frame, no people, no other props, "
-                "soft studio lighting, sharp focus, clear silhouette."
-            )
+            prompt_parts.extend([
+                f"A photorealistic product photograph of {name}.",
+                f"Object description: {description}",
+                "",
+                "CRITICAL REQUIREMENTS:",
+                "- Single object only, isolated on neutral seamless background",
+                "- Object perfectly centered in frame with adequate padding",
+                "- NO people, hands, or other objects in the image",
+                "- Full visibility of the object's key features and details",
+                "- Three-quarter angle or straight-on view for clear identification",
+                "- Professional product lighting: soft diffused light, minimal shadows",
+                "- Sharp focus on the entire object, no blur",
+                "- Accurate colors and materials as described",
+                "- Correct scale and proportions",
+                "",
+                "STYLE: Professional product photography, e-commerce or catalog quality. "
+                "8K resolution, studio lighting, pristine presentation, "
+                "white or light gray seamless backdrop.",
+            ])
 
-        # Global quality modifiers for all element types
-        prompt_parts.append(
-            "High-resolution, photorealistic, professional-quality image with clean finish, "
-            "studio-style lighting, no text, no watermark, no split-screen."
-        )
+        # Universal quality and technical requirements
+        prompt_parts.extend([
+            "",
+            "TECHNICAL SPECIFICATIONS:",
+            "- Photorealistic rendering, indistinguishable from a real photograph",
+            "- High resolution with fine detail throughout",
+            "- No text, watermarks, signatures, or logos",
+            "- No split-screen, collage, or multiple panels",
+            "- No artistic filters, no illustration style, no cartoon elements",
+            "- Clean image without artifacts, distortions, or anomalies",
+            "- Professional color grading with natural tones",
+        ])
 
-        return " ".join(prompt_parts)
+        return "\n".join(prompt_parts)
 
     def _get_aspect_ratio_for_element(self, element: SharedElement) -> str:
         """Determine the best aspect ratio for an element type.

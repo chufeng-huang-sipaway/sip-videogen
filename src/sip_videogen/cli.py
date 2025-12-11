@@ -594,8 +594,8 @@ async def _run_pipeline(
                     # Generate with review loop
                     result = await image_production.generate_with_review(element)
 
-                    if result.status == "success":
-                        # Create GeneratedAsset from successful result
+                    if result.status in ("success", "fallback"):
+                        # Create GeneratedAsset from successful or fallback result
                         asset = GeneratedAsset(
                             asset_type=AssetType.REFERENCE_IMAGE,
                             element_id=element.id,
@@ -604,21 +604,29 @@ async def _run_pipeline(
                         package.reference_images.append(asset)
 
                         attempts_info = f"({result.total_attempts} attempt{'s' if result.total_attempts > 1 else ''})"
-                        progress.update(
-                            task,
-                            advance=1,
-                            description=f"[green]Generated: {element.name} {attempts_info}",
-                        )
+                        if result.status == "success":
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[green]Generated: {element.name} {attempts_info}",
+                            )
+                        else:
+                            # Fallback - image kept despite not being ideal
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[yellow]Fallback: {element.name} {attempts_info}",
+                            )
                     else:
-                        # Failed after all retries
+                        # Complete failure - no image generated at all
                         logger.warning(
-                            f"Failed to generate acceptable image for {element.name} "
+                            f"Failed to generate any image for {element.name} "
                             f"after {result.total_attempts} attempts"
                         )
                         progress.update(
                             task,
                             advance=1,
-                            description=f"[red]Failed: {element.name} (rejected after retries)",
+                            description=f"[red]Failed: {element.name} (no image generated)",
                         )
                 except Exception as e:
                     logger.warning(f"Error generating image for {element.name}: {e}")
