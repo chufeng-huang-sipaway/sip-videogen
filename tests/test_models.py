@@ -13,9 +13,11 @@ from sip_videogen.models.agent_outputs import (
 from sip_videogen.models.assets import AssetType, GeneratedAsset, ProductionPackage
 from sip_videogen.models.music import MusicBrief
 from sip_videogen.models.script import (
+    VALID_CLIP_PATTERNS,
     ElementType,
     SceneAction,
     SharedElement,
+    SubShot,
     VideoScript,
 )
 
@@ -150,6 +152,227 @@ class TestSceneAction:
                 setting_description="Test",
                 action_description="Test",
             )
+
+
+class TestClipPatterns:
+    """Tests for clip pattern validation."""
+
+    def test_valid_single_shot_pattern(self) -> None:
+        """Test valid [8] pattern with no sub_shots."""
+        scene = SceneAction(
+            scene_number=1,
+            clip_pattern=[8],
+            setting_description="Test setting",
+            action_description="Test action",
+        )
+        assert scene.clip_pattern == [8]
+        assert scene.sub_shots == []
+
+    def test_valid_multi_shot_pattern_with_sub_shots(self) -> None:
+        """Test valid [4, 4] pattern with matching sub_shots."""
+        scene = SceneAction(
+            scene_number=1,
+            clip_pattern=[4, 4],
+            setting_description="Test setting",
+            action_description="Test action",
+            sub_shots=[
+                SubShot(
+                    start_second=0,
+                    end_second=4,
+                    camera_direction="Wide shot",
+                    action_description="First action",
+                ),
+                SubShot(
+                    start_second=4,
+                    end_second=8,
+                    camera_direction="Close-up",
+                    action_description="Second action",
+                ),
+            ],
+        )
+        assert scene.clip_pattern == [4, 4]
+        assert len(scene.sub_shots) == 2
+
+    def test_valid_four_quick_pattern(self) -> None:
+        """Test valid [2, 2, 2, 2] pattern with matching sub_shots."""
+        scene = SceneAction(
+            scene_number=1,
+            clip_pattern=[2, 2, 2, 2],
+            setting_description="Test setting",
+            action_description="Test action",
+            sub_shots=[
+                SubShot(
+                    start_second=0,
+                    end_second=2,
+                    camera_direction="Wide",
+                    action_description="Shot 1",
+                ),
+                SubShot(
+                    start_second=2,
+                    end_second=4,
+                    camera_direction="Medium",
+                    action_description="Shot 2",
+                ),
+                SubShot(
+                    start_second=4,
+                    end_second=6,
+                    camera_direction="Close-up",
+                    action_description="Shot 3",
+                ),
+                SubShot(
+                    start_second=6,
+                    end_second=8,
+                    camera_direction="Wide",
+                    action_description="Shot 4",
+                ),
+            ],
+        )
+        assert scene.clip_pattern == [2, 2, 2, 2]
+        assert len(scene.sub_shots) == 4
+
+    def test_invalid_pattern_rejected(self) -> None:
+        """Test invalid pattern [3, 5] raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            SceneAction(
+                scene_number=1,
+                clip_pattern=[3, 5],  # Invalid - not in VALID_CLIP_PATTERNS
+                setting_description="Test",
+                action_description="Test",
+            )
+        assert "Invalid clip pattern" in str(exc_info.value)
+
+    def test_pattern_not_summing_to_eight_rejected(self) -> None:
+        """Test pattern [4, 2] (sums to 6) raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            SceneAction(
+                scene_number=1,
+                clip_pattern=[4, 2],  # Invalid - sums to 6, not 8
+                setting_description="Test",
+                action_description="Test",
+            )
+        assert "Invalid clip pattern" in str(exc_info.value)
+
+    def test_sub_shot_count_mismatch_rejected(self) -> None:
+        """Test sub_shot count mismatch raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            SceneAction(
+                scene_number=1,
+                clip_pattern=[4, 4],  # Expects 2 sub_shots
+                setting_description="Test",
+                action_description="Test",
+                sub_shots=[
+                    SubShot(
+                        start_second=0,
+                        end_second=8,
+                        camera_direction="Wide",
+                        action_description="Only one shot",
+                    ),
+                ],
+            )
+        assert "Number of sub_shots" in str(exc_info.value)
+
+    def test_sub_shot_duration_mismatch_rejected(self) -> None:
+        """Test sub_shot duration mismatch raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            SceneAction(
+                scene_number=1,
+                clip_pattern=[4, 4],
+                setting_description="Test",
+                action_description="Test",
+                sub_shots=[
+                    SubShot(
+                        start_second=0,
+                        end_second=2,  # 2s instead of 4s
+                        camera_direction="Wide",
+                        action_description="Too short",
+                    ),
+                    SubShot(
+                        start_second=2,
+                        end_second=8,  # 6s instead of 4s
+                        camera_direction="Close",
+                        action_description="Too long",
+                    ),
+                ],
+            )
+        assert "duration" in str(exc_info.value).lower()
+
+    def test_sub_shot_gap_rejected(self) -> None:
+        """Test non-contiguous sub_shots raises ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            SceneAction(
+                scene_number=1,
+                clip_pattern=[4, 4],
+                setting_description="Test",
+                action_description="Test",
+                sub_shots=[
+                    SubShot(
+                        start_second=0,
+                        end_second=4,
+                        camera_direction="Wide",
+                        action_description="First shot",
+                    ),
+                    SubShot(
+                        start_second=5,  # Gap - should be 4
+                        end_second=8,  # Duration is only 3s
+                        camera_direction="Close",
+                        action_description="Second shot",
+                    ),
+                ],
+            )
+        # Should fail on either start mismatch or duration mismatch
+        error_str = str(exc_info.value).lower()
+        assert "start" in error_str or "duration" in error_str
+
+    def test_all_valid_patterns_accepted(self) -> None:
+        """Test all valid patterns from VALID_CLIP_PATTERNS are accepted."""
+        for pattern in VALID_CLIP_PATTERNS:
+            # Build matching sub_shots for multi-shot patterns
+            sub_shots = []
+            if len(pattern) > 1:
+                current = 0
+                for duration in pattern:
+                    sub_shots.append(
+                        SubShot(
+                            start_second=current,
+                            end_second=current + duration,
+                            camera_direction="Test camera",
+                            action_description="Test action",
+                        )
+                    )
+                    current += duration
+
+            scene = SceneAction(
+                scene_number=1,
+                clip_pattern=list(pattern),
+                setting_description="Test",
+                action_description="Test",
+                sub_shots=sub_shots,
+            )
+            assert tuple(scene.clip_pattern) == pattern
+
+    def test_default_clip_pattern(self) -> None:
+        """Test default clip_pattern is [8]."""
+        scene = SceneAction(
+            scene_number=1,
+            setting_description="Test",
+            action_description="Test",
+        )
+        assert scene.clip_pattern == [8]
+
+    def test_multi_shot_pattern_without_sub_shots_is_valid(self) -> None:
+        """Test that multi-shot pattern without sub_shots is valid (validation passes, generator warns)."""
+        # The model validation allows empty sub_shots even for multi-shot patterns
+        # because the screenwriter might set pattern first, then add sub_shots
+        # The video generator has a safety check that falls back to standard prompt
+        scene = SceneAction(
+            scene_number=1,
+            clip_pattern=[4, 4],
+            setting_description="Test",
+            action_description="Test",
+            sub_shots=[],  # Empty is allowed - generator will warn and fallback
+        )
+        assert scene.clip_pattern == [4, 4]
+        assert scene.sub_shots == []
 
 
 class TestVideoScript:

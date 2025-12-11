@@ -472,6 +472,17 @@ class VEOVideoGenerator(BaseVideoGenerator):
         Returns:
             Complete timestamp-formatted prompt string.
         """
+        # Safety check: if pattern is not [8] but sub_shots is empty, warn and fall back
+        if hasattr(scene, "clip_pattern") and scene.clip_pattern != [8] and not scene.sub_shots:
+            logger.warning(
+                f"Scene {scene.scene_number} has multi-shot pattern {scene.clip_pattern} "
+                "but no sub_shots. Falling back to standard prompt."
+            )
+            # Fall back to standard prompt building
+            return self._build_prompt_full(
+                scene, reference_images, script, exclude_background_music
+            )
+
         parts = []
 
         # 1. Reference image context (applies to all sub-shots)

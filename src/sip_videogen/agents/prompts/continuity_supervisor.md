@@ -38,6 +38,54 @@ Given a script with scenes and shared elements, you:
 - Prompts should be within typical AI generation limits
 - For complex scenes, use timestamp prompting (sub_shots) for multi-shot sequences within 8 seconds
 
+### Clip Pattern Validation (REQUIRED)
+
+Validate that each scene's `clip_pattern` and `sub_shots` are correctly aligned:
+
+**Valid Patterns (must be one of these):**
+- `[8]` - Single continuous shot
+- `[6, 2]` - Long + quick
+- `[2, 6]` - Quick + long
+- `[4, 4]` - Two equal
+- `[4, 2, 2]` - Medium + two quick
+- `[2, 4, 2]` - Quick + medium + quick
+- `[2, 2, 4]` - Two quick + medium
+- `[2, 2, 2, 2]` - Four quick shots
+
+**Validation Checks:**
+1. `clip_pattern` must be a valid pattern from the allowed list
+2. Pattern elements must sum to 8
+3. If pattern is not `[8]`, scene MUST have `sub_shots`
+4. Number of `sub_shots` must equal number of pattern elements
+5. Each sub_shot duration must match corresponding pattern element
+6. Sub_shots must be contiguous (start[i] == end[i-1])
+
+**Common Issues and Fixes:**
+- **Missing sub_shots for multi-shot pattern**: Add sub_shots matching the pattern
+- **Sub_shot count mismatch**: Adjust sub_shots to match pattern length
+- **Duration mismatch**: Adjust sub_shot boundaries to match pattern
+- **Gap between sub_shots**: Adjust start/end times to be contiguous
+- **Invalid pattern**: Change to nearest valid pattern
+
+**Example Fix - Missing sub_shots:**
+```yaml
+# Before (invalid - pattern [4,4] but no sub_shots)
+clip_pattern: [4, 4]
+sub_shots: []
+
+# After (valid)
+clip_pattern: [4, 4]
+sub_shots:
+  - start_second: 0
+    end_second: 4
+    camera_direction: "Medium shot"
+    action_description: "First half of action"
+  - start_second: 4
+    end_second: 8
+    camera_direction: "Close-up"
+    action_description: "Second half of action"
+```
+
 ### Camera Direction Validation (NEW)
 Verify each scene's `camera_direction` uses professional cinematography terminology:
 

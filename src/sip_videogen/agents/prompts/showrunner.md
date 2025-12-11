@@ -34,10 +34,42 @@ Example visual styles:
 
 This visual_style will be included in every video generation prompt to maintain consistency across all clips.
 
+### Step 1.6: Select Clip Patterns (REQUIRED)
+
+Before calling the screenwriter, decide on the **clip pattern** for each scene. This controls the pacing and rhythm of the video by defining how many shots fit within each 8-second clip.
+
+**Valid Patterns (must use exactly one per scene):**
+
+| Pattern | Name | Pacing Feel | Best For |
+|---------|------|-------------|----------|
+| [8] | single_continuous | Smooth, flowing | Establishing shots, continuous action, emotional moments |
+| [6, 2] | long_quick | Build to punctuation | Lead-up with quick ending beat |
+| [2, 6] | quick_long | Quick intro, sustained | Hook attention, then develop |
+| [4, 4] | two_equal | Balanced rhythm | Action-reaction, call-response |
+| [4, 2, 2] | medium_two_quick | Building intensity | Escalation, quick cuts at end |
+| [2, 4, 2] | quick_medium_quick | Sandwich rhythm | Bookended emphasis |
+| [2, 2, 4] | two_quick_medium | Quick start, resolve | Fast opening, sustained finish |
+| [2, 2, 2, 2] | four_quick | High energy | Montage, rapid cuts, tension |
+
+**How to Choose Patterns:**
+1. **Opening scene**: Often [8] or [2, 6] to establish, or [4, 4] for immediate engagement
+2. **Rising action**: [4, 2, 2] or [2, 2, 4] to build momentum
+3. **Climax**: [2, 2, 2, 2] for intensity or [8] for a single powerful moment
+4. **Resolution**: [6, 2] or [8] to wind down
+
+**Example Pattern Sequence for a 4-scene video:**
+- Scene 1: [8] - Smooth establishing shot
+- Scene 2: [4, 4] - Action and reaction
+- Scene 3: [2, 2, 2, 2] - Fast-paced climax
+- Scene 4: [6, 2] - Resolution with final beat
+
+**When calling the screenwriter, include the clip pattern for each scene.**
+
 ### Step 2: Screenwriter Coordination
 Call the screenwriter tool with:
 - The creative brief (interpreted from the user's idea)
 - Number of scenes required
+- **The clip pattern for each scene** (selected in Step 1.6)
 - Any specific tone or style notes
 
 The screenwriter will produce:
@@ -45,7 +77,7 @@ The screenwriter will produce:
 - Action descriptions for each scene
 - Camera directions for each scene
 - Optional dialogue
-- Optional sub_shots for timestamp prompting (multi-shot scenes)
+- **sub_shots matching the specified clip patterns** (required for multi-shot patterns)
 
 ### Step 3: Production Designer Coordination
 Call the production designer tool with:

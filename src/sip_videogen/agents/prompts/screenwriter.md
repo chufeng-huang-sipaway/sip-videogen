@@ -74,6 +74,59 @@ This creates dynamic multi-shot sequences within a single clip, similar to profe
 - Continuous motion that shouldn't be interrupted
 - Most scenes work well as single 8-second shots with good camera direction
 
+### Clip Patterns (REQUIRED when provided by Showrunner)
+
+When the Showrunner specifies a **clip pattern** for a scene, you MUST create `sub_shots` that exactly match that pattern.
+
+**Pattern Format**: A list of shot durations in seconds that sum to 8.
+
+**Valid Patterns:**
+- `[8]` - Single 8-second continuous shot (no sub_shots needed)
+- `[6, 2]` - 6-second shot + 2-second shot
+- `[2, 6]` - 2-second shot + 6-second shot
+- `[4, 4]` - Two 4-second shots
+- `[4, 2, 2]` - 4-second + 2-second + 2-second
+- `[2, 4, 2]` - 2-second + 4-second + 2-second
+- `[2, 2, 4]` - 2-second + 2-second + 4-second
+- `[2, 2, 2, 2]` - Four 2-second shots
+
+**Example - Pattern [4, 2, 2] for Scene 2:**
+```yaml
+scene_number: 2
+clip_pattern: [4, 2, 2]
+sub_shots:
+  - start_second: 0
+    end_second: 4
+    camera_direction: "Medium shot, tracking"
+    action_description: "The vendor prepares the special order"
+  - start_second: 4
+    end_second: 6
+    camera_direction: "Close-up, static"
+    action_description: "Steam rises from the grill"
+  - start_second: 6
+    end_second: 8
+    camera_direction: "Medium close-up"
+    action_description: "The customer's eyes widen"
+```
+
+**Rules:**
+1. When pattern is `[8]`, you may omit `sub_shots` (single continuous shot)
+2. For all other patterns, `sub_shots` is REQUIRED
+3. Number of sub_shots MUST equal number of elements in the pattern
+4. Each sub_shot duration MUST match the corresponding pattern element
+5. Sub_shots MUST be contiguous (no gaps, no overlaps)
+6. First sub_shot MUST start at 0, last MUST end at 8
+
+**Pacing Guidance by Pattern:**
+- `[8]`: Use when action flows naturally without cuts
+- `[6, 2]`: Build tension then punctuate (long setup, quick beat)
+- `[2, 6]`: Quick hook then develop (grab attention, then sustain)
+- `[4, 4]`: Balanced rhythm (action-reaction, call-response)
+- `[4, 2, 2]`: Medium moment builds to quick cuts
+- `[2, 4, 2]`: Quick-medium-quick sandwich (bookended)
+- `[2, 2, 4]`: Two quick shots resolve into sustained moment
+- `[2, 2, 2, 2]`: High energy, rapid fire (montage, tension)
+
 ### Camera Directions (Required)
 Every scene MUST include a `camera_direction` using professional cinematography terminology. This gives VEO maximum control over shot composition.
 
@@ -185,11 +238,12 @@ When action is essential but risky, use camera work instead:
 Produce a list of scenes in order, where each scene includes:
 - `scene_number`: Sequential number starting at 1
 - `duration_seconds`: Always **8** (VEO forces 8s when using reference images)
+- `clip_pattern`: The shot pattern for this scene (e.g., [8], [4, 4], [2, 2, 2, 2])
 - `setting_description`: Where the scene takes place
 - `action_description`: What happens (subject-first, visual, concrete)
 - `dialogue`: Optional spoken words
 - `camera_direction`: **Required** - Professional cinematography instructions
-- `sub_shots`: Optional - List of timestamped shots for multi-angle scenes (see Timestamp Prompting above)
+- `sub_shots`: **Required when clip_pattern is not [8]** - List of timestamped shots matching the pattern
 
 **Camera direction is mandatory.** Use the cinematography vocabulary from this guide. Example:
 - "Medium close-up, slow dolly in, shallow depth of field"

@@ -198,9 +198,22 @@ Prompts are structured following [Google's VEO 3.1 best practices](https://cloud
 - **Dialogue integration**: Quotes and speaker attribution for natural delivery
 - **Audio design**: `Ambient:` and `SFX:` prefixes for precise sound control
 
-### Clip Duration & Timestamp Prompting
+### Clip Duration & Clip Patterns
 
-When using reference images for visual consistency (standard workflow), VEO generates **8-second clips**. To create rhythm and shot variety within this fixed duration, scenes can use **timestamp prompting**:
+When using reference images for visual consistency (standard workflow), VEO generates **fixed 8-second clips**. To create rhythm and shot variety within this duration, the system uses **clip patterns** - pre-defined shot duration combinations that guarantee the math always works:
+
+| Pattern | Name | Best For |
+|---------|------|----------|
+| `[8]` | Single continuous | Establishing shots, emotional moments |
+| `[6, 2]` | Long + quick | Build-up with quick ending beat |
+| `[2, 6]` | Quick + long | Hook attention, then develop |
+| `[4, 4]` | Two equal | Action-reaction, call-response |
+| `[4, 2, 2]` | Medium + two quick | Building intensity |
+| `[2, 4, 2]` | Sandwich | Bookended emphasis |
+| `[2, 2, 4]` | Two quick + medium | Quick start, sustained finish |
+| `[2, 2, 2, 2]` | Four quick | Montage, high energy, rapid cuts |
+
+The **Showrunner** selects patterns for each scene based on pacing needs, and the **Screenwriter** creates matching `sub_shots` using timestamp prompting:
 
 ```
 [00:00-00:02] Wide establishing shot of the food truck
@@ -209,7 +222,7 @@ When using reference images for visual consistency (standard workflow), VEO gene
 [00:06-00:08] Medium shot, vendor plates the food
 ```
 
-This creates dynamic multi-shot sequences within a single clip, similar to professional editing.
+This creates dynamic multi-shot sequences within a single clip, similar to professional editing - while ensuring shots never split across clips.
 
 ### Seamless Scene Flow
 

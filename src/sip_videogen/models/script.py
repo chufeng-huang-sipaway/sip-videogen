@@ -7,10 +7,42 @@ including shared visual elements and scene actions.
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .music import MusicBrief
+
+# Valid shot durations in seconds (2-second increments only)
+ShotDuration = Literal[2, 4, 6, 8]
+
+# Type alias for clip patterns (tuple of shot durations summing to 8)
+ClipPattern = tuple[ShotDuration, ...]
+
+# Exhaustive list of valid 8-second clip patterns
+# These are the only patterns agents can use - guarantees math always works
+VALID_CLIP_PATTERNS: list[ClipPattern] = [
+    (8,),  # Single continuous shot
+    (6, 2),  # Long + quick
+    (2, 6),  # Quick + long
+    (4, 4),  # Two equal
+    (4, 2, 2),  # Medium + two quick
+    (2, 4, 2),  # Quick + medium + quick
+    (2, 2, 4),  # Two quick + medium
+    (2, 2, 2, 2),  # Four quick shots
+]
+
+# Pattern name mapping for agent communication
+PATTERN_NAMES: dict[ClipPattern, str] = {
+    (8,): "single_continuous",
+    (6, 2): "long_quick",
+    (2, 6): "quick_long",
+    (4, 4): "two_equal",
+    (4, 2, 2): "medium_two_quick",
+    (2, 4, 2): "quick_medium_quick",
+    (2, 2, 4): "two_quick_medium",
+    (2, 2, 2, 2): "four_quick",
+}
 
 
 class ElementType(str, Enum):
@@ -88,6 +120,12 @@ class SceneAction(BaseModel):
         le=8,
         description="Clip duration in seconds. VEO forces 8s with reference images.",
     )
+    clip_pattern: list[int] = Field(
+        default_factory=lambda: [8],
+        description="Shot duration pattern for this clip. Must be a valid pattern "
+        "from VALID_CLIP_PATTERNS (e.g., [8], [4, 4], [2, 2, 2, 2]). "
+        "Durations must sum to 8 and use only 2, 4, 6, or 8 second increments.",
+    )
     setting_description: str = Field(description="Description of the scene's location/environment")
     action_description: str = Field(
         description="What happens in the scene, suitable for AI video generation"
@@ -109,6 +147,52 @@ class SceneAction(BaseModel):
         description="Optional list of sub-shots for timestamp prompting. "
         "Creates multi-shot sequences within the 8-second clip for rhythm/variety.",
     )
+
+    @model_validator(mode="after")
+    def validate_clip_pattern_and_sub_shots(self) -> "SceneAction":
+        """Validate that clip_pattern is valid and sub_shots match the pattern."""
+        pattern = tuple(self.clip_pattern)
+
+        # Validate pattern is in allowed list
+        if pattern not in VALID_CLIP_PATTERNS:
+            raise ValueError(
+                f"Invalid clip pattern {self.clip_pattern}. "
+                f"Must be one of: {[list(p) for p in VALID_CLIP_PATTERNS]}"
+            )
+
+        # Validate pattern sums to 8 (should always be true for valid patterns)
+        if sum(self.clip_pattern) != 8:
+            raise ValueError(
+                f"Clip pattern durations must sum to 8, got {sum(self.clip_pattern)}"
+            )
+
+        # If sub_shots are provided, validate they match the pattern
+        if self.sub_shots:
+            if len(self.sub_shots) != len(self.clip_pattern):
+                raise ValueError(
+                    f"Number of sub_shots ({len(self.sub_shots)}) must match "
+                    f"clip_pattern length ({len(self.clip_pattern)})"
+                )
+
+            # Validate each sub_shot duration matches pattern
+            expected_start = 0
+            for i, (sub_shot, expected_duration) in enumerate(
+                zip(self.sub_shots, self.clip_pattern)
+            ):
+                actual_duration = sub_shot.end_second - sub_shot.start_second
+                if actual_duration != expected_duration:
+                    raise ValueError(
+                        f"Sub-shot {i + 1} duration ({actual_duration}s) doesn't match "
+                        f"pattern ({expected_duration}s)"
+                    )
+                if sub_shot.start_second != expected_start:
+                    raise ValueError(
+                        f"Sub-shot {i + 1} start ({sub_shot.start_second}s) should be "
+                        f"{expected_start}s based on pattern"
+                    )
+                expected_start += expected_duration
+
+        return self
 
 
 class VideoScript(BaseModel):

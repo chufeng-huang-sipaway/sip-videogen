@@ -234,16 +234,37 @@ FIRST: Define a cohesive visual_style for the entire video. This is REQUIRED and
 
 This visual_style will be included in every video prompt to ensure cohesive clips.
 
+SECOND: Select a clip_pattern for each scene to control pacing. VEO generates fixed 8-second clips.
+Patterns allow multiple shots within each clip without splitting shots across clips.
+
+Valid patterns (durations in seconds):
+- [8] = single continuous shot (smooth, flowing)
+- [6, 2] = long + quick (build to punctuation)
+- [2, 6] = quick + long (hook then develop)
+- [4, 4] = two equal (balanced rhythm)
+- [4, 2, 2] = medium + two quick (building intensity)
+- [2, 4, 2] = quick + medium + quick (sandwich rhythm)
+- [2, 2, 4] = two quick + medium (quick start, resolve)
+- [2, 2, 2, 2] = four quick (high energy, montage)
+
+Example pattern sequence for a 4-scene video:
+- Scene 1: [8] - smooth establishing
+- Scene 2: [4, 4] - action-reaction
+- Scene 3: [2, 2, 2, 2] - fast-paced climax
+- Scene 4: [6, 2] - resolution with final beat
+
 Then follow this process:
-1. Call the screenwriter to develop scenes with a clear narrative arc
+1. Call the screenwriter with the creative brief, scene count, AND clip patterns for each scene
 2. Call the production designer to identify all shared visual elements from those scenes
 3. Call the continuity supervisor to validate everything and optimize for AI generation
 4. Call the music director to design background music style
 
 Requirements:
 - Target {num_scenes} scenes, but you may add 1-2 more if needed to keep actions simple
+- Each scene MUST have a valid clip_pattern from the list above
+- When pattern is not [8], screenwriter must create matching sub_shots
 - Each scene should focus on ONE simple action (no complex multi-step actions)
-- Scene durations: 4-8 seconds each
+- Scene durations: always 8 seconds (VEO constraint with reference images)
 - Create a compelling narrative with beginning, middle, and end
 - Ensure visual consistency by identifying recurring elements
 - Optimize all descriptions for AI video generation
@@ -457,14 +478,27 @@ The pitch has been APPROVED by the user. You MUST:
 
 Now develop the full script:
 1. Define a cohesive visual_style that matches the tone
-2. Call the screenwriter to develop scenes following the pitch's description
-3. Call the production designer to identify shared visual elements
-4. Call the continuity supervisor to validate and optimize
-5. Call the music director to design background music
+2. Select clip_pattern for each scene (see valid patterns below)
+3. Call the screenwriter with scenes AND clip patterns
+4. Call the production designer to identify shared visual elements
+5. Call the continuity supervisor to validate and optimize
+6. Call the music director to design background music
+
+## Valid Clip Patterns (select one per scene)
+- [8] = single continuous shot (smooth, flowing)
+- [6, 2] = long + quick (build to punctuation)
+- [2, 6] = quick + long (hook then develop)
+- [4, 4] = two equal (balanced rhythm)
+- [4, 2, 2] = medium + two quick (building intensity)
+- [2, 4, 2] = quick + medium + quick (sandwich rhythm)
+- [2, 2, 4] = two quick + medium (quick start, resolve)
+- [2, 2, 2, 2] = four quick (high energy, montage)
 
 Requirements:
+- Each scene MUST have a valid clip_pattern
+- When pattern is not [8], screenwriter must create matching sub_shots
 - Each scene should focus on ONE simple action
-- Scene durations: 4-8 seconds each
+- Scene durations: always 8 seconds (VEO constraint with reference images)
 - Ensure visual consistency with identified shared elements
 - ALL scenes must pass complexity validation
 """
