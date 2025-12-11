@@ -1558,7 +1558,7 @@ def _show_history() -> None:
 
     if action == "resume":
         # Trigger resume flow for this run
-        _resume_video_generation(selected_dir)
+        asyncio.run(_resume_video_generation(selected_dir))
     elif action == "open":
         system = platform.system()
         if system == "Darwin":
