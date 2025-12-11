@@ -4,11 +4,13 @@ This module provides GCS upload and download functionality for
 reference images and video clips.
 """
 
+import asyncio
 import base64
 import json
 import logging
 import os
 from pathlib import Path
+from typing import Callable
 
 from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import storage
@@ -322,3 +324,73 @@ class GCSStorage:
             ) from e
         except GoogleCloudError as e:
             raise GCSStorageError(f"Failed to generate signed URL for {gcs_uri}: {e}") from e
+
+    async def upload_file_async(self, local_path: Path, remote_path: str) -> str:
+        """Upload a local file to GCS asynchronously.
+
+        This is an async wrapper around upload_file() that runs the
+        synchronous upload in a thread pool for non-blocking execution.
+
+        Args:
+            local_path: Path to the local file to upload.
+            remote_path: Destination path in the bucket.
+
+        Returns:
+            GCS URI of the uploaded file (gs://bucket/path).
+
+        Raises:
+            Same exceptions as upload_file().
+        """
+        return await asyncio.to_thread(self.upload_file, local_path, remote_path)
+
+    async def upload_files_parallel(
+        self,
+        files: list[tuple[Path, str]],
+        max_concurrent: int = 5,
+        on_complete: Callable[[Path, str], None] | None = None,
+    ) -> list[str]:
+        """Upload multiple files to GCS in parallel.
+
+        Args:
+            files: List of (local_path, remote_path) tuples to upload.
+            max_concurrent: Maximum number of concurrent uploads (default 5).
+            on_complete: Optional callback called when each upload completes.
+                         Receives (local_path, gcs_uri).
+
+        Returns:
+            List of GCS URIs in the same order as input files.
+            Failed uploads will have empty string in their position.
+        """
+        if not files:
+            return []
+
+        semaphore = asyncio.Semaphore(max_concurrent)
+        results: dict[int, str] = {}
+
+        async def upload_single(idx: int, local_path: Path, remote_path: str) -> None:
+            """Upload a single file with semaphore control."""
+            async with semaphore:
+                try:
+                    gcs_uri = await self.upload_file_async(local_path, remote_path)
+                    results[idx] = gcs_uri
+
+                    if on_complete:
+                        try:
+                            on_complete(local_path, gcs_uri)
+                        except Exception as e:
+                            logger.warning(f"on_complete callback error: {e}")
+                except GCSStorageError as e:
+                    logger.warning(f"Failed to upload {local_path}: {e}")
+                    results[idx] = ""
+
+        # Create tasks for all files
+        tasks = [
+            upload_single(idx, local_path, remote_path)
+            for idx, (local_path, remote_path) in enumerate(files)
+        ]
+
+        # Run all tasks concurrently
+        await asyncio.gather(*tasks)
+
+        # Return results in original order
+        return [results.get(idx, "") for idx in range(len(files))]

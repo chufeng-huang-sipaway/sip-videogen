@@ -7,9 +7,10 @@ ImageGenerator with the ImageReviewer agent to ensure quality control.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from sip_videogen.agents.image_reviewer import review_image
 from sip_videogen.config.logging import get_logger
@@ -285,6 +286,68 @@ class ImageProductionManager:
         )
 
         return results
+
+    async def generate_all_with_review_parallel(
+        self,
+        elements: list[SharedElement],
+        max_concurrent: int = 4,
+        on_complete: Callable[[str, ImageGenerationResult], None] | None = None,
+    ) -> list[ImageGenerationResult]:
+        """Generate reference images for all elements in parallel with review.
+
+        Each element's full generate→review→retry cycle runs independently
+        and concurrently, controlled by a semaphore.
+
+        Args:
+            elements: List of SharedElements to generate images for.
+            max_concurrent: Maximum number of concurrent generations (default 4).
+            on_complete: Optional callback called when each element completes.
+                         Receives (element_id, result).
+
+        Returns:
+            List of ImageGenerationResult for all elements, in the same order
+            as the input elements list.
+        """
+        if not elements:
+            return []
+
+        semaphore = asyncio.Semaphore(max_concurrent)
+        results: dict[str, ImageGenerationResult] = {}
+
+        async def generate_single(element: SharedElement) -> None:
+            """Generate a single element with semaphore control."""
+            async with semaphore:
+                logger.info(f"Starting parallel generation for {element.id}")
+                result = await self.generate_with_review(element)
+                results[element.id] = result
+
+                if on_complete:
+                    try:
+                        on_complete(element.id, result)
+                    except Exception as e:
+                        logger.warning(f"on_complete callback error: {e}")
+
+        # Create tasks for all elements
+        tasks = [generate_single(element) for element in elements]
+
+        # Run all tasks concurrently
+        await asyncio.gather(*tasks)
+
+        # Return results in original element order
+        ordered_results = [results[element.id] for element in elements]
+
+        # Log summary
+        successful = sum(1 for r in ordered_results if r.status == "success")
+        fallback = sum(1 for r in ordered_results if r.status == "fallback")
+        failed = sum(1 for r in ordered_results if r.status == "failed")
+
+        logger.info(
+            f"Parallel image production complete: {successful} accepted, "
+            f"{fallback} fallback, {failed} failed (total: {len(elements)}, "
+            f"max_concurrent: {max_concurrent})"
+        )
+
+        return ordered_results
 
 
 async def generate_reference_images_with_review(

@@ -576,6 +576,9 @@ async def _run_pipeline(
             max_retries=2,  # 3 total attempts per image
         )
 
+        # Build element ID to name mapping for progress display
+        element_names = {e.id: e.name for e in script.shared_elements}
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -585,56 +588,51 @@ async def _run_pipeline(
             console=console,
         ) as progress:
             task = progress.add_task(
-                "[cyan]Generating and reviewing images...",
+                "[cyan]Generating images in parallel...",
                 total=len(script.shared_elements),
             )
 
-            for element in script.shared_elements:
-                try:
-                    # Generate with review loop
-                    result = await image_production.generate_with_review(element)
+            def on_image_complete(element_id: str, result) -> None:
+                """Callback to update progress when each image completes."""
+                element_name = element_names.get(element_id, element_id)
+                plural = "s" if result.total_attempts > 1 else ""
+                attempts_info = f"({result.total_attempts} attempt{plural})"
 
-                    if result.status in ("success", "fallback"):
-                        # Create GeneratedAsset from successful or fallback result
-                        asset = GeneratedAsset(
-                            asset_type=AssetType.REFERENCE_IMAGE,
-                            element_id=element.id,
-                            local_path=result.local_path,
-                        )
-                        package.reference_images.append(asset)
-
-                        attempts_info = f"({result.total_attempts} attempt{'s' if result.total_attempts > 1 else ''})"
-                        if result.status == "success":
-                            progress.update(
-                                task,
-                                advance=1,
-                                description=f"[green]Generated: {element.name} {attempts_info}",
-                            )
-                        else:
-                            # Fallback - image kept despite not being ideal
-                            progress.update(
-                                task,
-                                advance=1,
-                                description=f"[yellow]Fallback: {element.name} {attempts_info}",
-                            )
-                    else:
-                        # Complete failure - no image generated at all
-                        logger.warning(
-                            f"Failed to generate any image for {element.name} "
-                            f"after {result.total_attempts} attempts"
-                        )
-                        progress.update(
-                            task,
-                            advance=1,
-                            description=f"[red]Failed: {element.name} (no image generated)",
-                        )
-                except Exception as e:
-                    logger.warning(f"Error generating image for {element.name}: {e}")
+                if result.status == "success":
                     progress.update(
                         task,
                         advance=1,
-                        description=f"[red]Error: {element.name}",
+                        description=f"[green]Generated: {element_name} {attempts_info}",
                     )
+                elif result.status == "fallback":
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[yellow]Fallback: {element_name} {attempts_info}",
+                    )
+                else:
+                    progress.update(
+                        task,
+                        advance=1,
+                        description=f"[red]Failed: {element_name}",
+                    )
+
+            # Generate all images in parallel (4 concurrent by default)
+            results = await image_production.generate_all_with_review_parallel(
+                elements=script.shared_elements,
+                max_concurrent=4,
+                on_complete=on_image_complete,
+            )
+
+            # Convert successful results to GeneratedAssets
+            for result in results:
+                if result.status in ("success", "fallback"):
+                    asset = GeneratedAsset(
+                        asset_type=AssetType.REFERENCE_IMAGE,
+                        element_id=result.element_id,
+                        local_path=result.local_path,
+                    )
+                    package.reference_images.append(asset)
 
         console.print(
             f"[green]Generated {len(package.reference_images)}/{len(script.shared_elements)} "
@@ -668,6 +666,19 @@ async def _run_pipeline(
             console.print("[dim]GCS not configured (not needed without reference images)[/dim]")
 
     if package.reference_images and gcs_storage:
+        # Prepare upload list: (local_path, remote_path) tuples
+        upload_files: list[tuple[Path, str]] = []
+        asset_by_path: dict[str, GeneratedAsset] = {}
+
+        for asset in package.reference_images:
+            local_path = Path(asset.local_path)
+            remote_path = gcs_storage.generate_remote_path(
+                f"{gcs_prefix}/reference_images",
+                local_path.name,
+            )
+            upload_files.append((local_path, remote_path))
+            asset_by_path[str(local_path)] = asset
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -677,31 +688,33 @@ async def _run_pipeline(
             console=console,
         ) as progress:
             task = progress.add_task(
-                "[cyan]Uploading to GCS...",
-                total=len(package.reference_images),
+                "[cyan]Uploading to GCS in parallel...",
+                total=len(upload_files),
             )
 
-            for asset in package.reference_images:
-                try:
-                    local_path = Path(asset.local_path)
-                    remote_path = gcs_storage.generate_remote_path(
-                        f"{gcs_prefix}/reference_images",
-                        local_path.name,
-                    )
-                    gcs_uri = gcs_storage.upload_file(local_path, remote_path)
+            def on_upload_complete(local_path: Path, gcs_uri: str) -> None:
+                """Callback to update progress and asset when each upload completes."""
+                asset = asset_by_path.get(str(local_path))
+                if asset and gcs_uri:
                     asset.gcs_uri = gcs_uri
                     progress.update(
                         task,
                         advance=1,
                         description=f"[green]Uploaded: {local_path.name}",
                     )
-                except GCSStorageError as e:
-                    logger.warning(f"Failed to upload {asset.local_path}: {e}")
+                else:
                     progress.update(
                         task,
                         advance=1,
                         description=f"[red]Failed: {local_path.name}",
                     )
+
+            # Upload all files in parallel (5 concurrent by default)
+            await gcs_storage.upload_files_parallel(
+                files=upload_files,
+                max_concurrent=5,
+                on_complete=on_upload_complete,
+            )
 
         console.print(
             f"[green]Uploaded {sum(1 for a in package.reference_images if a.gcs_uri)} images to GCS.[/green]"
