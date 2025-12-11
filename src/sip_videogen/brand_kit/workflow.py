@@ -278,12 +278,37 @@ def build_brand_asset_prompts(
     return prompts
 
 
+def _enhance_logo_prompt_with_feedback(
+    original_prompt: str,
+    feedback: str,
+    attempt: int,
+) -> str:
+    """Enhance logo prompt based on user feedback.
+
+    Args:
+        original_prompt: The original logo generation prompt.
+        feedback: User's feedback on what to improve.
+        attempt: Current attempt number (1-indexed).
+
+    Returns:
+        Enhanced prompt incorporating the feedback.
+    """
+    return (
+        f"{original_prompt}\n\n"
+        f"REVISION #{attempt + 1} - User feedback to address:\n"
+        f"{feedback}\n\n"
+        "Please create a new logo that addresses this feedback while "
+        "maintaining the brand identity. Focus on the specific improvements requested."
+    )
+
+
 def generate_brand_assets(
     prompts: List[BrandAssetPrompt],
     generator: NanoBananaImageGenerator,
     output_dir: Path,
     on_progress: Callable[[BrandAssetPrompt, List[str]], None] | None = None,
-    on_logo_ready: Callable[[str], bool] | None = None,
+    on_logo_ready: Callable[[str], bool | tuple[str, str]] | None = None,
+    max_logo_attempts: int = 3,
 ) -> List[BrandAssetResult]:
     """Generate all assets for the provided prompts.
 
@@ -293,7 +318,9 @@ def generate_brand_assets(
         output_dir: Base directory for outputs.
         on_progress: Optional callback for progress updates.
         on_logo_ready: Optional callback when logo is generated. Receives logo path,
-            returns True to continue or False to abort.
+            returns True to continue, False to abort, or ("retry", feedback) to
+            regenerate with feedback.
+        max_logo_attempts: Maximum number of logo generation attempts (default 3).
 
     Returns:
         List of BrandAssetResult capturing image paths and metadata.
@@ -306,7 +333,80 @@ def generate_brand_assets(
         category_dir = output_dir / prompt.category.value
         logger.info("Generating %s (%s)", prompt.label, prompt.category.value)
 
-        # Determine if this asset should use logo as reference
+        # Special handling for logo with feedback loop
+        if prompt.category == BrandAssetCategory.LOGO:
+            attempt = 1
+            current_prompt = prompt.prompt
+            final_image_paths: list[str] = []
+
+            while attempt <= max_logo_attempts:
+                logger.info("Logo attempt %d/%d", attempt, max_logo_attempts)
+                image_paths = generator.generate_images(
+                    prompt=current_prompt,
+                    output_dir=category_dir,
+                    n=prompt.variants,
+                    aspect_ratio=prompt.aspect_ratio,
+                    filename_prefix=f"{prompt.id}_v{attempt}",
+                )
+
+                if not image_paths:
+                    logger.warning("No logo image generated on attempt %d", attempt)
+                    attempt += 1
+                    continue
+
+                logo_path = image_paths[0]
+                logger.info("Logo generated: %s", logo_path)
+
+                if on_logo_ready:
+                    result = on_logo_ready(logo_path)
+
+                    if result is True:
+                        # Approved - continue with other assets
+                        final_image_paths = image_paths
+                        break
+                    elif isinstance(result, tuple) and result[0] == "retry":
+                        # User provided feedback - regenerate
+                        feedback = result[1]
+                        logger.info("User feedback: %s", feedback)
+                        current_prompt = _enhance_logo_prompt_with_feedback(
+                            original_prompt=prompt.prompt,
+                            feedback=feedback,
+                            attempt=attempt,
+                        )
+                        attempt += 1
+                        continue
+                    else:
+                        # Aborted
+                        raise ValueError("Logo generation cancelled by user")
+                else:
+                    # No callback - just use the first result
+                    final_image_paths = image_paths
+                    break
+            else:
+                # Exhausted all attempts
+                raise ValueError(
+                    f"Max logo attempts ({max_logo_attempts}) reached without approval"
+                )
+
+            # Record logo result
+            result = BrandAssetResult(
+                prompt_id=prompt.id,
+                category=prompt.category,
+                label=prompt.label,
+                prompt_used=current_prompt,
+                image_paths=final_image_paths,
+            )
+            results.append(result)
+
+            if on_progress:
+                try:
+                    on_progress(prompt, final_image_paths)
+                except Exception as callback_error:
+                    logger.debug("Progress callback failed: %s", callback_error)
+
+            continue  # Move to next prompt
+
+        # Standard handling for non-logo assets
         use_logo_ref = (
             logo_path is not None
             and prompt.category in [BrandAssetCategory.PACKAGING, BrandAssetCategory.MARKETING]
@@ -320,14 +420,6 @@ def generate_brand_assets(
             filename_prefix=prompt.id,
             reference_image_path=logo_path if use_logo_ref else None,
         )
-
-        # Capture logo path and get user approval before continuing
-        if prompt.category == BrandAssetCategory.LOGO and image_paths:
-            logo_path = image_paths[0]
-            logger.info("Logo generated: %s", logo_path)
-            if on_logo_ready:
-                if not on_logo_ready(logo_path):
-                    raise ValueError("Logo not approved - generation aborted")
 
         result = BrandAssetResult(
             prompt_id=prompt.id,

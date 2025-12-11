@@ -175,6 +175,14 @@ sipvid brandkit "A skincare product brand with a tropical, organic feel"
 4. **Approve the logo** - Review and approve the generated logo before continuing
 5. **Generate assets** - All other assets use your approved logo for visual consistency
 
+**Logo approval with feedback loop:**
+
+When the logo is generated, you can:
+- **Click the file link** to open it directly from the terminal
+- **Auto-open for preview** - Option to launch in your system's image viewer
+- **Provide feedback** - If you don't like the logo, describe what to improve (colors, style, layout)
+- **Iterate** - The AI regenerates the logo based on your feedback (up to 3 attempts)
+
 **Generated assets include:**
 
 | Category | Assets |

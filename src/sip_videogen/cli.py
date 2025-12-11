@@ -97,6 +97,15 @@ app = typer.Typer(
 
 console = Console()
 
+
+def _open_file(file_path: str) -> None:
+    """Open file in system's default application."""
+    system = platform.system()
+    if system == "Darwin":
+        subprocess.run(["open", file_path])
+    elif system == "Linux":
+        subprocess.run(["xdg-open", file_path])
+
 BANNER = """
 [bold cyan]╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -272,13 +281,25 @@ def _generate_brand_assets_with_progress(
             description = f"[green]{prompt.category.value.title()}:[/green] {prompt.label}"
             progress.update(task, advance=1, description=description)
 
-        def _on_logo_ready(logo_path: str) -> bool:
-            """Pause progress and ask user to approve the logo."""
+        def _on_logo_ready(logo_path: str) -> bool | tuple[str, str]:
+            """Pause progress, show logo, and get approval or feedback."""
             nonlocal selected_logo
             progress.stop()
-            console.print(f"\n[bold green]Logo generated:[/bold green] {logo_path}")
+
+            # Display with clickable file link (Rich OSC 8 hyperlinks)
+            console.print(f"\n[bold green]Logo generated:[/bold green]")
+            console.print(f"  [link=file://{logo_path}]{logo_path}[/link]")
             console.print("[dim]Review the logo before continuing with other assets.[/dim]")
 
+            # Offer to open the image
+            open_it = questionary.confirm(
+                "Open logo image for preview?",
+                default=True,
+            ).ask()
+            if open_it:
+                _open_file(logo_path)
+
+            # Ask for approval
             approved = questionary.confirm(
                 "Approve this logo? All other assets will be based on it.",
                 default=True,
@@ -288,9 +309,19 @@ def _generate_brand_assets_with_progress(
                 selected_logo = logo_path
                 progress.start()
                 return True
-            else:
-                console.print("[yellow]Logo not approved. Generation aborted.[/yellow]")
-                return False
+
+            # Collect feedback instead of aborting
+            feedback = questionary.text(
+                "What would you improve? (colors, style, layout, etc.)",
+            ).ask()
+
+            if feedback and feedback.strip():
+                console.print("[cyan]Regenerating logo with your feedback...[/cyan]")
+                progress.start()
+                return ("retry", feedback)
+
+            console.print("[yellow]No feedback provided. Generation cancelled.[/yellow]")
+            return False
 
         results = generate_brand_assets(
             prompts=prompts,
