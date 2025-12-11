@@ -1223,6 +1223,137 @@ def config(
     run_setup_wizard(reset=reset)
 
 
+@app.command(name="setup-credentials")
+def setup_credentials() -> None:
+    """Set up Google Cloud credentials for GCS access.
+
+    This command helps you configure Google Cloud credentials by pasting
+    a service account JSON key. The credentials are saved securely and
+    the .env file is updated automatically.
+
+    Examples:
+        sipvid setup-credentials
+    """
+    import json
+
+    console.print(
+        Panel(
+            "[bold]Google Cloud Credentials Setup[/bold]\n\n"
+            "This will configure GCS credentials for uploading reference images.\n"
+            "You'll need a service account JSON key from Google Cloud Console.",
+            border_style="cyan",
+        )
+    )
+
+    console.print("\n[bold]Instructions:[/bold]")
+    console.print("1. Go to Google Cloud Console → IAM & Admin → Service Accounts")
+    console.print("2. Create or select a service account")
+    console.print("3. Go to Keys → Add Key → Create new key → JSON")
+    console.print("4. Open the downloaded JSON file and copy its contents")
+    console.print()
+
+    console.print("[bold cyan]Paste your service account JSON below.[/bold cyan]")
+    console.print("[dim]Paste the entire JSON content, then press Enter twice to finish:[/dim]")
+    console.print()
+
+    # Collect multi-line input
+    lines = []
+    empty_line_count = 0
+    while True:
+        try:
+            line = input()
+            if line == "":
+                empty_line_count += 1
+                if empty_line_count >= 1 and lines:
+                    # Check if we have complete JSON
+                    try:
+                        json.loads("\n".join(lines))
+                        break  # Valid JSON, we're done
+                    except json.JSONDecodeError:
+                        lines.append(line)  # Keep collecting
+                        empty_line_count = 0
+                else:
+                    lines.append(line)
+            else:
+                empty_line_count = 0
+                lines.append(line)
+        except EOFError:
+            break
+
+    json_content = "\n".join(lines).strip()
+
+    if not json_content:
+        console.print("[red]No input provided. Aborting.[/red]")
+        raise typer.Exit(1)
+
+    # Validate JSON
+    try:
+        creds_data = json.loads(json_content)
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Invalid JSON: {e}[/red]")
+        raise typer.Exit(1)
+
+    # Check for required fields
+    required_fields = ["type", "project_id", "private_key", "client_email"]
+    missing_fields = [f for f in required_fields if f not in creds_data]
+    if missing_fields:
+        console.print(f"[red]Missing required fields: {', '.join(missing_fields)}[/red]")
+        console.print("[dim]Make sure you're pasting a service account JSON key.[/dim]")
+        raise typer.Exit(1)
+
+    if creds_data.get("type") != "service_account":
+        console.print("[red]Invalid credential type. Expected 'service_account'.[/red]")
+        raise typer.Exit(1)
+
+    # Save to file
+    config_dir = Path.home() / ".sip-videogen"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    creds_file = config_dir / "service-account.json"
+
+    try:
+        creds_file.write_text(json_content)
+        console.print(f"\n[green]✓[/green] Saved credentials to: {creds_file}")
+    except Exception as e:
+        console.print(f"[red]Failed to save credentials: {e}[/red]")
+        raise typer.Exit(1)
+
+    # Update .env file
+    env_file = config_dir / ".env"
+    env_line = f"GOOGLE_APPLICATION_CREDENTIALS={creds_file}"
+
+    if env_file.exists():
+        env_content = env_file.read_text()
+        if "GOOGLE_APPLICATION_CREDENTIALS" in env_content:
+            # Replace existing line
+            import re
+            env_content = re.sub(
+                r"GOOGLE_APPLICATION_CREDENTIALS=.*",
+                env_line,
+                env_content,
+            )
+        else:
+            # Append new line
+            if not env_content.endswith("\n"):
+                env_content += "\n"
+            env_content += f"\n# Google Cloud credentials\n{env_line}\n"
+        env_file.write_text(env_content)
+    else:
+        # Create new .env with this line
+        env_file.write_text(f"# Google Cloud credentials\n{env_line}\n")
+
+    console.print(f"[green]✓[/green] Updated config: {env_file}")
+
+    console.print(
+        Panel(
+            "[bold green]Setup complete![/bold green]\n\n"
+            f"Service account: [cyan]{creds_data.get('client_email', 'unknown')}[/cyan]\n"
+            f"Project: [cyan]{creds_data.get('project_id', 'unknown')}[/cyan]\n\n"
+            "You can now run [bold]sipvid[/bold] to generate videos.",
+            border_style="green",
+        )
+    )
+
+
 @app.command()
 def update(
     check_only: bool = typer.Option(
