@@ -122,7 +122,7 @@ class Settings(BaseSettings):
         description="Enable background music generation using Lyria 2",
     )
     sip_music_volume: float = Field(
-        default=0.2,
+        default=0.4,
         ge=0.0,
         le=1.0,
         description="Background music volume (0.0-1.0)",

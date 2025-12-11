@@ -320,7 +320,7 @@ class FFmpegAssembler:
         clip_paths: list[Path],
         music: GeneratedMusic,
         output_path: Path,
-        music_volume: float = 0.2,
+        music_volume: float = 0.4,
         fade_duration: float = 2.0,
     ) -> Path:
         """Assemble video clips and overlay background music.
@@ -334,7 +334,7 @@ class FFmpegAssembler:
             music: Generated music track to overlay.
             output_path: Path for the final video with music.
             music_volume: Volume level for background music (0.0-1.0).
-                         Default is 0.2 (20%) to not overpower dialogue.
+                         Default is 0.4 (40%) to sit clearly under dialogue.
             fade_duration: Duration of fade in/out effects in seconds.
                           Default is 2.0 seconds.
 

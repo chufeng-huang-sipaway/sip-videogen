@@ -73,7 +73,7 @@
 
 **Settings Added**:
 - `sip_enable_background_music` (bool, default: True) - Enable/disable music generation
-- `sip_music_volume` (float, default: 0.2) - Background music volume (0.0-1.0)
+- `sip_music_volume` (float, default: 0.4) - Background music volume (0.0-1.0)
 
 ### Stage 4: VEO Prompt Engineering ✅
 **Commit**: `3f09c03`

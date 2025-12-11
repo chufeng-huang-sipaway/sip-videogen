@@ -236,7 +236,7 @@ class MusicGenerator:
 
 **Modify**: `src/sip_videogen/config/settings.py`
 - Add `enable_background_music: bool = True` setting
-- Add `music_volume: float = 0.2` setting (0.0 to 1.0)
+- Add `music_volume: float = 0.4` setting (0.0 to 1.0)
 
 **Tests**: `tests/test_music_generator.py`
 

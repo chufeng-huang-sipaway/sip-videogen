@@ -406,7 +406,7 @@ async def _run_pipeline(
     settings,
     logger,
     enable_music: bool = True,
-    music_volume: float = 0.2,
+    music_volume: float = 0.4,
     existing_script: VideoScript | None = None,
 ) -> None:
     """Run the full video generation pipeline.
