@@ -37,7 +37,9 @@ from .agents import (
     develop_script,
     develop_script_from_pitch,
     generate_directors_pitch,
+    plan_brand_kit,
 )
+from .brand_kit import build_brand_asset_prompts, generate_brand_assets
 from .agents.tools import ImageProductionManager
 from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_pre_generation_costs
@@ -68,6 +70,10 @@ from .models import (
     MusicMood,
     ProductionPackage,
     VideoScript,
+    BrandAssetResult,
+    BrandDirection,
+    BrandKitPackage,
+    BrandKitPlan,
 )
 from .storage import (
     GCSAuthenticationError,
@@ -76,6 +82,7 @@ from .storage import (
     GCSStorage,
     GCSStorageError,
 )
+from .generators.nano_banana_generator import NanoBananaImageGenerator
 from .utils.updater import (
     check_for_update,
     get_current_version,
@@ -156,6 +163,227 @@ def _validate_idea(idea: str) -> str:
         raise typer.BadParameter("Idea is too long (maximum 2000 characters)")
 
     return idea
+
+
+def _display_brand_plan(plan: BrandKitPlan) -> None:
+    """Pretty-print the brand kit plan (brief + directions)."""
+    palette_lines = []
+    for direction in plan.directions:
+        palette = ", ".join(direction.color_palette) if direction.color_palette else "n/a"
+        styles = ", ".join(direction.style_keywords) if direction.style_keywords else "n/a"
+        palette_lines.append(
+            f"[bold]{direction.label}[/bold] — {direction.summary}\n"
+            f"[dim]Palette:[/dim] {palette} | [dim]Style:[/dim] {styles}"
+        )
+
+    brief_table = Table.grid(padding=1)
+    brief_table.add_row("[cyan]Brand[/cyan]", plan.brief.brand_name)
+    brief_table.add_row("[cyan]Product[/cyan]", f"{plan.brief.product_category} · {plan.brief.core_product}")
+    brief_table.add_row("[cyan]Audience[/cyan]", plan.brief.target_audience)
+    brief_table.add_row("[cyan]Tone[/cyan]", plan.brief.tone)
+    if plan.brief.style_keywords:
+        brief_table.add_row("[cyan]Style[/cyan]", ", ".join(plan.brief.style_keywords))
+    if plan.brief.constraints:
+        brief_table.add_row("[cyan]Must-haves[/cyan]", ", ".join(plan.brief.constraints))
+    if plan.brief.avoid:
+        brief_table.add_row("[cyan]Avoid[/cyan]", ", ".join(plan.brief.avoid))
+
+    console.print(
+        Panel(
+            brief_table,
+            title="[bold magenta]Brand Brief[/bold magenta]",
+            border_style="magenta",
+        )
+    )
+    console.print(
+        Panel(
+            "\n\n".join(palette_lines),
+            title="[bold magenta]Directions[/bold magenta]",
+            border_style="magenta",
+        )
+    )
+
+
+def _select_brand_direction(plan: BrandKitPlan) -> BrandDirection | None:
+    """Ask the user to pick a direction."""
+    choices = [
+        questionary.Choice(
+            title=f"{direction.label}: {direction.summary}",
+            value=direction.id,
+        )
+        for direction in plan.directions
+    ]
+    choices.append(questionary.Choice(title="Cancel", value="cancel"))
+
+    selection = questionary.select(
+        "Pick a direction to continue with:",
+        choices=choices,
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if selection == "cancel" or selection is None:
+        return None
+
+    for direction in plan.directions:
+        if direction.id == selection:
+            return direction
+
+    return None
+
+
+def _save_brand_kit_package(package: BrandKitPackage, run_dir: Path) -> Path:
+    """Persist brand kit metadata to disk."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = run_dir / "brand_kit.json"
+    manifest_path.write_text(package.model_dump_json(indent=2))
+    return manifest_path
+
+
+def _generate_brand_assets_with_progress(
+    prompts,
+    generator: NanoBananaImageGenerator,
+    assets_dir: Path,
+) -> list[BrandAssetResult]:
+    """Generate brand assets while displaying progress."""
+    results: list[BrandAssetResult] = []
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            "[cyan]Generating brand kit assets...",
+            total=len(prompts),
+        )
+
+        def _on_progress(prompt, paths):
+            description = f"[green]{prompt.category.value.title()}:[/green] {prompt.label}"
+            progress.update(task, advance=1, description=description)
+
+        results = generate_brand_assets(
+            prompts=prompts,
+            generator=generator,
+            output_dir=assets_dir,
+            on_progress=_on_progress,
+        )
+
+    return results
+
+
+def _run_brand_kit_generation(concept: str, auto_confirm: bool = False) -> BrandKitPackage | None:
+    """End-to-end flow for brand kit generation."""
+    # Validate concept
+    try:
+        concept = _validate_idea(concept)
+    except typer.BadParameter as e:
+        console.print(f"[red]Invalid concept:[/red] {e}")
+        return None
+
+    # Load settings
+    try:
+        settings = get_settings()
+    except ValidationError as e:
+        console.print(f"[red]Configuration error:[/red] {e}")
+        return None
+
+    # Build plan via agent
+    console.print("[dim]Planning brand kit...[/dim]")
+    try:
+        plan = _run_sync(plan_brand_kit(concept))
+    except Exception as e:
+        console.print(f"[red]Failed to plan brand kit:[/red] {e}")
+        return None
+
+    _display_brand_plan(plan)
+    direction = _select_brand_direction(plan)
+    if not direction:
+        console.print("[yellow]Brand kit generation cancelled.[/yellow]")
+        return None
+
+    prompts = build_brand_asset_prompts(plan.brief, direction)
+    console.print(f"[cyan]Prepared {len(prompts)} prompts across logo, packaging, lifestyle, mascot, and marketing.[/cyan]")
+
+    if not auto_confirm:
+        proceed = questionary.confirm(
+            "Generate all assets with Nano Banana Pro now?",
+            default=True,
+        ).ask()
+        if not proceed:
+            console.print("[yellow]Cancelled before generation.[/yellow]")
+            return None
+
+    # Prepare output directories
+    base_output = settings.ensure_output_dir()
+    run_id = f"brandkit_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    run_dir = base_output / run_id
+    assets_dir = run_dir / "assets"
+
+    generator = NanoBananaImageGenerator(api_key=settings.gemini_api_key)
+
+    console.print("\n[bold cyan]Generating brand kit assets...[/bold cyan]")
+    results = _generate_brand_assets_with_progress(prompts, generator, assets_dir)
+
+    # Let the user pick a logo (or auto-pick the first)
+    logo_results = [r for r in results if r.category.value == "logo"]
+    selected_logo: str | None = None
+    if logo_results:
+        logo_paths = [p for r in logo_results for p in r.image_paths]
+        if logo_paths:
+            choices = [
+                questionary.Choice(title=Path(p).name, value=p) for p in logo_paths
+            ]
+            choices.append(questionary.Choice(title="Let the agent pick for me", value="auto"))
+            logo_choice = questionary.select(
+                "Select the logo to use as the anchor (one logo per image):",
+                choices=choices,
+                style=questionary.Style([
+                    ("pointer", "fg:cyan bold"),
+                    ("highlighted", "fg:cyan bold"),
+                ]),
+            ).ask()
+            if logo_choice and logo_choice != "auto":
+                selected_logo = logo_choice
+            elif logo_paths:
+                selected_logo = logo_paths[0]
+
+            # Save a stable copy for downstream use
+            if selected_logo:
+                stable_logo = assets_dir / "logo" / "selected_logo.png"
+                stable_logo.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    import shutil
+                    shutil.copyfile(selected_logo, stable_logo)
+                    selected_logo = str(stable_logo)
+                except Exception as e:
+                    console.print(f"[yellow]Could not copy selected logo: {e}[/yellow]")
+
+    package = BrandKitPackage(
+        brief=plan.brief,
+        selected_direction=direction,
+        asset_results=results,
+        output_dir=str(run_dir),
+        selected_logo_path=selected_logo,
+    )
+    manifest_path = _save_brand_kit_package(package, run_dir)
+
+    console.print(
+        Panel(
+            f"[green]Brand kit generated![/green]\n\n"
+            f"[bold]Run folder:[/bold] {run_dir}\n"
+            f"[bold]Assets:[/bold] {len(results)} prompt sets\n"
+            f"[bold]Manifest:[/bold] {manifest_path.name}",
+            title="Brand Kit Complete",
+            border_style="green",
+        )
+    )
+
+    return package
 
 
 @app.command()
@@ -1094,6 +1322,32 @@ def _display_final_summary(
 
 
 @app.command()
+def brandkit(
+    concept: str | None = typer.Argument(
+        None,
+        help="Brand concept or product description (leave blank for interactive prompt)",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip the confirmation prompt before image generation",
+    ),
+) -> None:
+    """Generate a Brand Design Library using Nano Banana Pro."""
+    if not concept:
+        concept = Prompt.ask("[bold]Describe the brand you have in mind[/bold]")
+
+    if not concept or not concept.strip():
+        console.print("[red]Concept cannot be empty.[/red]")
+        raise typer.Exit(1)
+
+    package = _run_brand_kit_generation(concept, auto_confirm=yes)
+    if not package:
+        raise typer.Exit(1)
+
+
+@app.command()
 def resume(
     run_path: Path | None = typer.Argument(
         None,
@@ -1634,6 +1888,10 @@ def _show_menu() -> str:
         questionary.Choice(
             title="Generate Video     Create a new video from your idea",
             value="generate",
+        ),
+        questionary.Choice(
+            title="Brand Kit          Generate a brand design library",
+            value="brandkit",
         ),
         questionary.Choice(
             title="View History       See previous generations",
@@ -2666,6 +2924,7 @@ def _show_help() -> None:
 [bold]Commands:[/bold]
   [yellow]./start.sh[/yellow]              Launch interactive menu
   [yellow]./start.sh generate "idea"[/yellow]  Generate video directly
+  [yellow]./start.sh brandkit "concept"[/yellow] Generate a brand design library
   [yellow]./start.sh resume [run_dir][/yellow] Resume video generation from a saved script/images folder
   [yellow]./start.sh status[/yellow]       Check configuration
 
@@ -2718,6 +2977,15 @@ def menu() -> None:
                         console.print("[yellow]Generation cancelled.[/yellow]")
                 except KeyboardInterrupt:
                     console.print("\n[yellow]Generation cancelled.[/yellow]")
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/red]")
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "brandkit":
+                try:
+                    concept = Prompt.ask("[bold]Describe the brand you have in mind[/bold]")
+                    if concept and concept.strip():
+                        _run_brand_kit_generation(concept)
                 except Exception as e:
                     console.print(f"[red]Error: {e}[/red]")
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")

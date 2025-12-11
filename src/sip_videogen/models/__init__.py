@@ -25,6 +25,15 @@ from sip_videogen.models.music import (
     MusicGenre,
     MusicMood,
 )
+from sip_videogen.models.brand_kit import (
+    BrandAssetCategory,
+    BrandAssetPrompt,
+    BrandAssetResult,
+    BrandDirection,
+    BrandKitBrief,
+    BrandKitPackage,
+    BrandKitPlan,
+)
 from sip_videogen.models.script import (
     ElementType,
     SceneAction,
@@ -52,6 +61,14 @@ __all__ = [
     "MusicBrief",
     "MusicGenre",
     "MusicMood",
+    # Brand kit models
+    "BrandAssetCategory",
+    "BrandAssetPrompt",
+    "BrandAssetResult",
+    "BrandDirection",
+    "BrandKitBrief",
+    "BrandKitPackage",
+    "BrandKitPlan",
     # Agent output models
     "ContinuityIssue",
     "ContinuitySupervisorOutput",
