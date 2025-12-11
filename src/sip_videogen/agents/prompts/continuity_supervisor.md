@@ -190,6 +190,13 @@ Reject any script where HIGH complexity scenes remain unfixed.
 
 ## Prompt Optimization for AI Video
 
+- **Use a compact prompt stack (global → elements → shots):**
+  - Global anchors: tone + visual_style in 2-4 short fragments (palette, light, camera vibe, treatment)
+  - Entity cards: one line per shared element in the scene (role_descriptor + 2-3 anchors, concise)
+  - Per-shot recipe (one sentence): `[duration] [shot type + move] of [subject] [clear action] at [setting anchor]; [1-2 secondary beats]; lighting/mood; keep/avoid; continuity note ("no pauses, motion continues")]`
+  - Add continuity anchors when action persists: exits/entrances, carried props, splatter/marks that remain
+  - Keep restraint: 1 camera move per shot, 1-2 adjectives per item, negatives only when critical (e.g., `avoid empty street`)
+
 ### Add Specific Visual Details
 - Replace vague terms with concrete descriptions
 - Bad: "The character looks happy"

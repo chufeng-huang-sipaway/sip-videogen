@@ -335,21 +335,18 @@ class TestBuildPromptWithAudio:
         )
         prompt = generator._build_prompt(scene)
 
-        # Camera should be first (cinematography)
-        camera_position = prompt.find("Close-up shot")
-        # Action with dialogue follows camera
-        action_position = prompt.find("Manager types")
-        # Setting comes after action
-        setting_position = prompt.find("Setting:")
-        # Audio instruction should be at the end
-        audio_position = prompt.find("Ambient:")
-        if audio_position == -1:
-            audio_position = prompt.find("SFX:")
+        # New structured format should include a Shots section that carries camera,
+        # action, and dialogue, with audio instructions at the end.
+        assert "Shots:" in prompt
+        assert "Close-up shot" in prompt
+        assert "Manager types on computer" in prompt
+        assert '"Let me check"' in prompt
 
-        # Verify order: Camera < Action < Setting < Audio
-        assert camera_position < action_position, "Camera should come before action"
-        assert action_position < setting_position, "Action should come before setting"
-        assert setting_position < audio_position, "Setting should come before audio"
+        shots_index = prompt.find("Shots:")
+        audio_index = max(prompt.find("Ambient:"), prompt.find("SFX:"))
+        assert shots_index != -1
+        assert audio_index != -1
+        assert shots_index < audio_index, "Shots block should precede audio instructions"
 
 
 class TestAudioInstructionEdgeCases:

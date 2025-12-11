@@ -193,10 +193,16 @@ The tool uses a hub-and-spoke agent pattern:
 
 Prompts are structured following [Google's VEO 3.1 best practices](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1):
 
-- **Prompt order**: `[Cinematography] → [Subject+Action] → [Setting] → [Style] → [Audio]`
+- **Prompt stack (global → elements → shots)** keeps critical anchors short:
+  - Global: tone + visual_style fragments (palette, light, camera vibe, treatment)
+  - Entity cards: one line per shared element (role descriptor + 2–3 anchors)
+  - Shots: timestamped micro-prompts `[00:00-00:04] 4s medium static on reporter asking question at snowy city curb; crowd 6-8 crosses behind; bright overcast; flow: no pauses`
 - **Professional camera terminology**: dolly, tracking, crane shots with depth of field control
 - **Dialogue integration**: Quotes and speaker attribution for natural delivery
 - **Audio design**: `Ambient:` and `SFX:` prefixes for precise sound control
+- **Continuity anchors**: per-shot “flow: keep motion continuous, no pauses” with explicit exits/entrances and persistent props/splatter when needed
+
+This same structured stack is used for Kling prompts (trimmed to the 2.5k character limit) to preserve detail without overloading the model.
 
 ### Clip Duration & Clip Patterns
 

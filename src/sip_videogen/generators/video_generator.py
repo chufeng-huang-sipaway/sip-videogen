@@ -21,6 +21,7 @@ from sip_videogen.generators.base import (
     ServiceAgentNotReadyError,
     VideoGenerationError,
 )
+from sip_videogen.generators.prompt_builder import build_structured_scene_prompt
 from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.script import SceneAction, VideoScript
 
@@ -401,54 +402,21 @@ class VEOVideoGenerator(BaseVideoGenerator):
         Returns:
             A detailed prompt string for video generation.
         """
-        parts = []
-
-        # Check if this scene uses timestamp prompting (experimental)
-        if scene.sub_shots:
-            return self._build_timestamp_prompt_full(
-                scene, reference_images, script, exclude_background_music
-            )
-
-        # Standard prompt structure follows Google's VEO 3.1 formula:
-        # [Cinematography] + [Subject+Action] + [Context] + [Style] + [Audio]
-
-        # 1. CINEMATOGRAPHY - Camera direction first (most control over shot)
-        if scene.camera_direction:
-            parts.append(scene.camera_direction)
-
-        # 2. REFERENCE IMAGES - Tell VEO which elements match which images
-        # Use Google's recommended phrasing: "Using the provided images for X, Y..."
+        # Build supporting context
         linking_context = self._build_reference_linking_context(reference_images, script)
-        if linking_context:
-            parts.append(linking_context)
-
-        # 3. SUBJECT + ACTION - Main action with integrated dialogue
-        action_with_dialogue = self._build_action_with_dialogue(scene)
-        parts.append(action_with_dialogue)
-
-        # 4. CONTEXT - Setting/environment description
-        if scene.setting_description:
-            parts.append(f"Setting: {scene.setting_description}")
-
-        # 5. STYLE & AMBIANCE - Visual style for cohesive look
-        if script and script.visual_style:
-            parts.append(f"Visual style: {script.visual_style}")
-
-        # Add per-scene visual notes if present (optional adjustments to global style)
-        if scene.visual_notes:
-            parts.append(f"Scene atmosphere: {scene.visual_notes}")
-
-        # 6. FLOW CONTEXT - Eliminates awkward pauses between clips
         flow_context = self._build_flow_context(scene, total_scenes)
-        if flow_context:
-            parts.append(flow_context)
-
-        # 7. AUDIO - Ambient sounds and SFX (no background music)
+        audio_instruction = None
         if exclude_background_music:
             audio_instruction = self._build_audio_instruction(scene)
-            parts.append(audio_instruction)
 
-        raw_prompt = ". ".join(parts)
+        raw_prompt = build_structured_scene_prompt(
+            scene=scene,
+            script=script,
+            flow_context=flow_context,
+            reference_context=linking_context,
+            audio_instruction=audio_instruction,
+        )
+
         return self._sanitize_prompt_for_vertex(raw_prompt)
 
     def _build_timestamp_prompt_full(

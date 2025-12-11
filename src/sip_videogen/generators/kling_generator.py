@@ -22,6 +22,10 @@ from sip_videogen.generators.base import (
     PromptSafetyError,
     VideoGenerationError,
 )
+from sip_videogen.generators.prompt_builder import (
+    DEFAULT_MAX_PROMPT_CHARS,
+    build_structured_scene_prompt,
+)
 from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.script import SceneAction, VideoScript
 
@@ -549,32 +553,16 @@ class KlingVideoGenerator(BaseVideoGenerator):
         Returns:
             A detailed prompt string for video generation.
         """
-        parts = []
-
-        # Add scene flow context for continuity
         flow_context = self._build_flow_context(scene, total_scenes)
-        if flow_context:
-            parts.append(flow_context)
 
-        # Add setting context
-        if scene.setting_description:
-            parts.append(f"Setting: {scene.setting_description}")
-
-        # Add the main action (most important)
-        parts.append(scene.action_description)
-
-        # Add camera direction if specified
-        if scene.camera_direction:
-            parts.append(f"Camera: {scene.camera_direction}")
-
-        # Add dialogue context if present
-        if scene.dialogue:
-            parts.append(f"Dialogue: \"{scene.dialogue}\"")
-
-        # Kling has a 2500 character limit
-        prompt = ". ".join(parts)
-        if len(prompt) > 2500:
-            prompt = prompt[:2497] + "..."
+        prompt = build_structured_scene_prompt(
+            scene=scene,
+            script=script,
+            flow_context=flow_context,
+            reference_context=None,  # Kling API does not use reference phrases
+            audio_instruction=None,  # Kling always returns audio
+            max_length=DEFAULT_MAX_PROMPT_CHARS,
+        )
 
         return prompt
 
