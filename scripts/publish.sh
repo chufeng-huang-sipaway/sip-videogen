@@ -22,13 +22,21 @@ if [ ! -f "pyproject.toml" ]; then
     exit 1
 fi
 
+# Python binary (default to python3 if python is missing)
+PYTHON_BIN="${PYTHON_BIN:-python}"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    if command -v python3 >/dev/null 2>&1; then
+        PYTHON_BIN="python3"
+    fi
+fi
+
 # Clean previous builds
 echo -e "${YELLOW}Cleaning previous builds...${NC}"
 rm -rf dist/ build/ *.egg-info src/*.egg-info
 
 # Build the package
 echo -e "${YELLOW}Building package...${NC}"
-python -m build
+"$PYTHON_BIN" -m build
 
 # Show what was built
 echo
@@ -38,7 +46,7 @@ ls -la dist/
 # Check the package
 echo
 echo -e "${YELLOW}Checking package...${NC}"
-python -m twine check dist/*
+"$PYTHON_BIN" -m twine check dist/*
 
 echo
 
@@ -46,7 +54,7 @@ if [ "$1" = "test" ]; then
     # Upload to Test PyPI
     echo -e "${YELLOW}Uploading to Test PyPI...${NC}"
     echo -e "${YELLOW}You'll need your Test PyPI API token.${NC}"
-    python -m twine upload --repository testpypi dist/*
+    "$PYTHON_BIN" -m twine upload --repository testpypi dist/*
     echo
     echo -e "${GREEN}Done! Test install with:${NC}"
     echo "  pip install --index-url https://test.pypi.org/simple/ sip-videogen"
@@ -54,7 +62,7 @@ else
     # Upload to PyPI
     echo -e "${YELLOW}Uploading to PyPI...${NC}"
     echo -e "${YELLOW}You'll need your PyPI API token.${NC}"
-    python -m twine upload dist/*
+    "$PYTHON_BIN" -m twine upload dist/*
     echo
     echo -e "${GREEN}Done! Install with:${NC}"
     echo "  pipx install sip-videogen"
