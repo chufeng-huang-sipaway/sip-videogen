@@ -106,14 +106,72 @@ class TestStatusCommand:
 class TestSetupCommand:
     """Tests for 'sip-videogen setup' command."""
 
-    def test_setup_shows_instructions(self) -> None:
-        """Test setup command displays setup instructions."""
+    @patch("sip_videogen.cli.run_setup_wizard")
+    def test_setup_runs_wizard(self, mock_wizard: MagicMock) -> None:
+        """Test setup command runs the interactive wizard."""
+        mock_wizard.return_value = True
         result = runner.invoke(app, ["setup"])
         assert result.exit_code == 0
-        assert "OpenAI API Key" in result.output
-        assert "Gemini API Key" in result.output
-        assert "Google Cloud Project" in result.output
-        assert "GCS Bucket" in result.output
+        mock_wizard.assert_called_once()
+
+
+class TestConfigCommand:
+    """Tests for 'sip-videogen config' command."""
+
+    @patch("sip_videogen.cli.show_current_config")
+    @patch("sip_videogen.cli.get_config_path")
+    def test_config_show(
+        self, mock_path: MagicMock, mock_show: MagicMock
+    ) -> None:
+        """Test config --show displays current configuration."""
+        mock_path.return_value = "/home/user/.sip-videogen/.env"
+        result = runner.invoke(app, ["config", "--show"])
+        assert result.exit_code == 0
+        mock_show.assert_called_once()
+
+    @patch("sip_videogen.cli.run_setup_wizard")
+    def test_config_interactive(self, mock_wizard: MagicMock) -> None:
+        """Test config command runs interactive wizard."""
+        mock_wizard.return_value = True
+        result = runner.invoke(app, ["config"])
+        assert result.exit_code == 0
+        mock_wizard.assert_called_once_with(reset=False)
+
+    @patch("sip_videogen.cli.run_setup_wizard")
+    def test_config_reset(self, mock_wizard: MagicMock) -> None:
+        """Test config --reset runs wizard in reset mode."""
+        mock_wizard.return_value = True
+        result = runner.invoke(app, ["config", "--reset"])
+        assert result.exit_code == 0
+        mock_wizard.assert_called_once_with(reset=True)
+
+
+class TestUpdateCommand:
+    """Tests for 'sip-videogen update' command."""
+
+    @patch("sip_videogen.cli.check_for_update")
+    @patch("sip_videogen.cli.get_current_version")
+    def test_update_check_only_no_update(
+        self, mock_version: MagicMock, mock_check: MagicMock
+    ) -> None:
+        """Test update --check when no update is available."""
+        mock_version.return_value = "1.0.0"
+        mock_check.return_value = (False, "1.0.0", "1.0.0")
+        result = runner.invoke(app, ["update", "--check"])
+        assert result.exit_code == 0
+        assert "latest version" in result.output.lower()
+
+    @patch("sip_videogen.cli.check_for_update")
+    @patch("sip_videogen.cli.get_current_version")
+    def test_update_check_only_with_update(
+        self, mock_version: MagicMock, mock_check: MagicMock
+    ) -> None:
+        """Test update --check when update is available."""
+        mock_version.return_value = "1.0.0"
+        mock_check.return_value = (True, "1.1.0", "1.0.0")
+        result = runner.invoke(app, ["update", "--check"])
+        assert result.exit_code == 0
+        assert "1.1.0" in result.output
 
 
 class TestGenerateCommand:
@@ -306,3 +364,5 @@ class TestAppMetadata:
         assert "generate" in result.output
         assert "status" in result.output
         assert "setup" in result.output
+        assert "config" in result.output
+        assert "update" in result.output

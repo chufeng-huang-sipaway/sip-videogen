@@ -14,17 +14,36 @@ User Idea → AI Agent Script Team → Reference Images → Video Clips → Fina
 4. Video clips are generated for each scene using Google VEO 3.1
 5. Clips are assembled into a final video with FFmpeg
 
-## Quick Start
+## Installation
+
+### Option 1: Install from PyPI (Recommended)
 
 ```bash
-# 1. Copy and fill in your API keys
-cp .env.example .env
+# Install pipx if you don't have it
+pip install pipx
 
-# 2. Run (installs everything automatically on first run)
-./start.sh
+# Install sip-videogen
+pipx install sip-videogen
+
+# Run - first time will prompt for configuration
+sipvid
 ```
 
-That's it! The script handles Python environment setup and dependency installation.
+On first run, you'll be prompted to paste your configuration. Just paste the entire config block and press Enter twice.
+
+### Option 2: Run from Source
+
+```bash
+# Clone the repo
+git clone https://github.com/chufeng-huang-sipaway/sip-videogen.git
+cd sip-videogen
+
+# Copy and fill in your API keys
+cp .env.example .env
+
+# Run (installs everything automatically on first run)
+./start.sh
+```
 
 ## Prerequisites
 
@@ -33,7 +52,7 @@ That's it! The script handles Python environment setup and dependency installati
 
 ### API Keys Required
 
-Get these and add them to your `.env` file:
+Get these API keys:
 
 | Key | Where to get it |
 |-----|-----------------|
@@ -52,9 +71,36 @@ gcloud services enable aiplatform.googleapis.com storage.googleapis.com
 gsutil mb -l us-central1 gs://YOUR_BUCKET_NAME
 ```
 
+## Configuration
+
+### First-Time Setup
+
+On first run, `sipvid` will prompt you to configure your environment. You can either:
+
+1. **Paste a config block** (recommended) - Paste all your keys at once:
+   ```
+   OPENAI_API_KEY=sk-...
+   GEMINI_API_KEY=AIza...
+   GOOGLE_CLOUD_PROJECT=my-project
+   SIP_GCS_BUCKET_NAME=my-bucket
+   ```
+
+2. **Enter keys individually** - Follow the interactive prompts
+
+Configuration is stored in `~/.sip-videogen/.env` and works from any directory.
+
+### Managing Configuration
+
+```bash
+sipvid config          # Interactive config editor
+sipvid config --show   # Show current configuration status
+sipvid config --reset  # Replace config with a new config block
+```
+
 ## Usage
 
 ### Interactive Menu
+
 ```bash
 sipvid
 ```
@@ -62,6 +108,7 @@ sipvid
 This launches an interactive menu with arrow-key navigation. Use ↑/↓ to navigate and Enter to select.
 
 ### Direct Commands
+
 ```bash
 # Generate a video
 sipvid generate "A cat astronaut explores Mars"
@@ -80,6 +127,26 @@ sipvid generate "Robot dance party" --yes
 
 # Check configuration status
 sipvid status
+```
+
+## Automatic Updates
+
+The tool automatically checks for updates on each run. When a new version is available, you'll see a notification:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Update available!                              │
+│  Current version: 0.1.0                         │
+│  Latest version:  0.2.0                         │
+│  Run: sipvid update                             │
+└─────────────────────────────────────────────────┘
+```
+
+Update commands:
+
+```bash
+sipvid update         # Check and install updates
+sipvid update --check # Only check, don't install
 ```
 
 ## Architecture
@@ -106,6 +173,9 @@ This prevents the "breathing space" effect where assembled clips have noticeable
 ## Development
 
 ```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
 # Run tests
 python -m pytest
 
@@ -118,6 +188,14 @@ ruff format .
 
 # Type check
 mypy src/
+```
+
+### Publishing New Versions
+
+```bash
+# 1. Bump version in pyproject.toml
+# 2. Run publish script
+./scripts/publish.sh
 ```
 
 ## Cost Estimation

@@ -1,11 +1,15 @@
 """CLI interface for sip-videogen."""
 
 # ruff: noqa: E402
-# Load .env into actual environment variables BEFORE importing agents
-# The openai-agents SDK requires OPENAI_API_KEY to be in os.environ
+# Load config from ~/.sip-videogen/.env first, then local .env
+# This must happen BEFORE importing agents (openai-agents needs OPENAI_API_KEY in os.environ)
+from .config.setup import load_env_to_os
+
+load_env_to_os()
+
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()  # Also load local .env for backwards compatibility
 
 import asyncio
 import shutil
@@ -29,6 +33,13 @@ from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
+from .config.setup import (
+    ensure_configured,
+    get_config_path,
+    is_first_run,
+    run_setup_wizard,
+    show_current_config,
+)
 from .config.user_preferences import UserPreferences
 from .generators import (
     MusicGenerationError,
@@ -53,6 +64,11 @@ from .storage import (
     GCSPermissionError,
     GCSStorage,
     GCSStorageError,
+)
+from .utils.updater import (
+    check_for_update,
+    get_current_version,
+    prompt_for_update,
 )
 
 app = typer.Typer(
@@ -762,10 +778,10 @@ async def _run_pipeline(
         console.print(f"[red]FFmpeg error:[/red] {e}")
         raise typer.Exit(1)
 
-    trimmed_clips_dir = project_dir / "clips_trimmed"
-    trimmed_clips_dir.mkdir(exist_ok=True)
+    # Copy clips to standardized directory (trimming disabled - cuts dialogue)
+    clips_output_dir = project_dir / "clips_processed"
+    clips_output_dir.mkdir(exist_ok=True)
 
-    clips_trimmed = 0
     clips_copied = 0
 
     with Progress(
@@ -777,7 +793,7 @@ async def _run_pipeline(
         console=console,
     ) as progress:
         task = progress.add_task(
-            "[cyan]Trimming clips...",
+            "[cyan]Preparing clips...",
             total=len(downloaded_clips),
         )
 
@@ -786,59 +802,27 @@ async def _run_pipeline(
                 progress.update(task, advance=1)
                 continue
 
-            # Get target duration from the script's scene
-            scene = next(
-                (s for s in script.scenes if s.scene_number == clip.scene_number),
-                None,
-            )
-            if not scene:
-                logger.warning(f"Scene {clip.scene_number} not found in script")
-                progress.update(task, advance=1)
-                continue
-
-            target_duration = scene.duration_seconds
             input_path = Path(clip.local_path)
-            output_path = trimmed_clips_dir / f"scene_{clip.scene_number:03d}.mp4"
+            output_path = clips_output_dir / f"scene_{clip.scene_number:03d}.mp4"
 
             try:
-                # Check if trimming is needed (VEO generates 8s clips)
-                actual_duration = assembler.get_video_duration(input_path)
-                if target_duration < actual_duration:
-                    assembler.trim_clip_to_duration(
-                        input_path=input_path,
-                        output_path=output_path,
-                        target_duration=target_duration,
-                    )
-                    clips_trimmed += 1
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=f"[green]Trimmed scene {clip.scene_number}: {actual_duration:.1f}s → {target_duration}s",
-                    )
-                else:
-                    # No trimming needed, just copy
-                    shutil.copy(input_path, output_path)
-                    clips_copied += 1
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=f"[dim]Copied scene {clip.scene_number} (no trim needed)[/dim]",
-                    )
-
-                # Update clip path to point to trimmed version
+                shutil.copy(input_path, output_path)
+                clips_copied += 1
                 clip.local_path = str(output_path)
-
-            except FFmpegError as e:
-                logger.warning(f"Failed to trim scene {clip.scene_number}: {e}")
                 progress.update(
                     task,
                     advance=1,
-                    description=f"[red]Failed to trim scene {clip.scene_number}",
+                    description=f"[green]Copied scene {clip.scene_number}",
+                )
+            except (OSError, shutil.Error) as e:
+                logger.warning(f"Failed to copy scene {clip.scene_number}: {e}")
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"[red]Failed to copy scene {clip.scene_number}",
                 )
 
-    console.print(
-        f"[green]Trimmed {clips_trimmed} clips, copied {clips_copied} clips (no trim needed).[/green]"
-    )
+    console.print(f"[green]Prepared {clips_copied} clips for assembly.[/green]")
 
     # ========== STAGE 6: Generate Background Music (if enabled) ==========
     if enable_music and script.music_brief:
@@ -1146,59 +1130,93 @@ def status() -> None:
 
 @app.command()
 def setup() -> None:
-    """Interactive setup helper.
+    """Interactive setup wizard.
 
     Guides you through setting up the required configuration for sip-videogen.
+    Supports pasting an entire config block or entering keys individually.
     """
-    console.print(
-        Panel(
-            "[bold]sip-videogen Setup[/bold]\n\nThis command will help you configure sip-videogen.",
-            border_style="blue",
-        )
-    )
+    run_setup_wizard()
 
-    console.print("\n[bold]Required Setup Steps:[/bold]\n")
 
-    steps = [
-        (
-            "1. OpenAI API Key",
-            "Get from https://platform.openai.com/api-keys",
-        ),
-        (
-            "2. Gemini API Key",
-            "Get from https://aistudio.google.com/apikey",
-        ),
-        (
-            "3. Google Cloud Project",
-            "Create at https://console.cloud.google.com",
-        ),
-        (
-            "4. GCS Bucket",
-            "Create with: gsutil mb -l us-central1 gs://your-bucket-name",
-        ),
-        (
-            "5. Application Default Credentials",
-            "Run: gcloud auth application-default login",
-        ),
-    ]
+@app.command()
+def config(
+    reset: bool = typer.Option(
+        False,
+        "--reset",
+        "-r",
+        help="Reset configuration by pasting a new config block",
+    ),
+    show: bool = typer.Option(
+        False,
+        "--show",
+        "-s",
+        help="Show current configuration",
+    ),
+) -> None:
+    """Manage configuration.
 
-    for step, details in steps:
-        console.print(f"[cyan]{step}[/cyan]")
-        console.print(f"   {details}\n")
+    Run without options to interactively edit configuration.
+    Use --reset to replace all configuration with a new config block.
+    Use --show to display current configuration status.
 
-    console.print(
-        "[yellow]After completing these steps:[/yellow]\n"
-        "1. Copy .env.example to .env\n"
-        "2. Fill in your API keys and project details\n"
-        "3. Run [bold]sip-videogen status[/bold] to verify configuration"
-    )
+    Examples:
+        sipvid config          # Interactive config editor
+        sipvid config --reset  # Paste new config block
+        sipvid config --show   # Show current config
+    """
+    if show:
+        show_current_config()
+        console.print(f"\n[dim]Config file: {get_config_path()}[/dim]")
+        return
 
-    # TODO: Could add interactive prompts here in the future
+    run_setup_wizard(reset=reset)
+
+
+@app.command()
+def update(
+    check_only: bool = typer.Option(
+        False,
+        "--check",
+        "-c",
+        help="Only check for updates, don't install",
+    ),
+) -> None:
+    """Check for and install updates.
+
+    Checks PyPI for the latest version and offers to update if available.
+
+    Examples:
+        sipvid update         # Update to latest version
+        sipvid update --check # Only check, don't install
+    """
+    console.print(f"[dim]Current version: {get_current_version()}[/dim]")
+    console.print("[dim]Checking for updates...[/dim]")
+
+    update_available, latest, current = check_for_update()
+
+    if not update_available:
+        if latest:
+            console.print(f"\n[green]You're on the latest version ({current})[/green]")
+        else:
+            console.print("\n[yellow]Could not check for updates (PyPI unreachable)[/yellow]")
+        return
+
+    if check_only:
+        console.print(f"\n[yellow]Update available:[/yellow] {current} → {latest}")
+        console.print("Run [bold]sipvid update[/bold] to install")
+        return
+
+    # Prompt and run update
+    prompt_for_update(latest, current)
 
 
 def _show_menu() -> str:
     """Display the main menu and get user choice with arrow-key navigation."""
     console.print(BANNER)
+
+    # Show version
+    version = get_current_version()
+    console.print(f"[dim]v{version}[/dim]")
     console.print()
 
     choices = [
@@ -1223,12 +1241,20 @@ def _show_menu() -> str:
             value="5",
         ),
         questionary.Choice(
-            title="Help                    Show usage information",
+            title="Configuration           Manage API keys and credentials",
             value="6",
         ),
         questionary.Choice(
-            title="Exit                    Quit the application",
+            title="Check for Updates       Update to the latest version",
             value="7",
+        ),
+        questionary.Choice(
+            title="Help                    Show usage information",
+            value="8",
+        ),
+        questionary.Choice(
+            title="Exit                    Quit the application",
+            value="9",
         ),
     ]
 
@@ -1244,7 +1270,7 @@ def _show_menu() -> str:
         ]),
     ).ask()
 
-    return result or "7"  # Default to exit if None (Ctrl+C)
+    return result or "9"  # Default to exit if None (Ctrl+C)
 
 
 def _get_video_idea() -> tuple[str, int]:
@@ -1388,7 +1414,8 @@ def _configure_kling_settings(prefs: UserPreferences) -> None:
     # Model version selection
     # Note: versions are stored without "v" prefix (e.g., "1.6" not "v1.6")
     model_choices = [
-        questionary.Choice(title="v2.5 Turbo (Latest)", value="2.5-turbo"),
+        questionary.Choice(title="v2.6 (Audio-capable)", value="2.6"),
+        questionary.Choice(title="v2.5 Turbo", value="2.5-turbo"),
         questionary.Choice(title="v1.6 (Stable)", value="1.6"),
         questionary.Choice(title="v1.5", value="1.5"),
         questionary.Choice(title="v2.0", value="2.0"),
@@ -1530,24 +1557,52 @@ def _load_reference_images_from_run(run_dir: Path) -> list[GeneratedAsset]:
     return assets
 
 
-def _trim_clips_to_duration(
-    script: VideoScript,
-    video_clips: list[GeneratedAsset],
-    output_dir: Path,
-) -> tuple[list[GeneratedAsset], dict[str, int]]:
-    """Trim or copy clips to match their scene durations."""
-    logger = get_logger(__name__)
+def _load_music_from_run(run_dir: Path, brief: MusicBrief | None) -> GeneratedMusic | None:
+    """Load previously generated background music if present."""
+    music_dir = run_dir / "music"
+    if not music_dir.exists() or not brief:
+        return None
+
+    candidates = list(music_dir.glob("background_music.*"))
+    if not candidates:
+        # Fallback: any audio file in the directory
+        candidates = [
+            p
+            for p in music_dir.iterdir()
+            if p.suffix.lower() in (".wav", ".mp3", ".m4a", ".aac")
+        ]
+    if not candidates:
+        return None
+
+    audio_path = candidates[0]
 
     try:
         assembler = FFmpegAssembler()
-    except FFmpegError as e:
-        console.print(f"[red]FFmpeg error:[/red] {e}")
-        return [], {"trimmed": 0, "copied": 0}
+        duration = assembler.get_video_duration(audio_path)
+    except Exception:
+        duration = 0.0
 
+    return GeneratedMusic(
+        file_path=str(audio_path),
+        duration_seconds=duration or 0.0,
+        prompt_used=brief.prompt if brief else "",
+        brief=brief,
+    )
+
+
+def _prepare_clips_for_assembly(
+    video_clips: list[GeneratedAsset],
+    output_dir: Path,
+) -> tuple[list[GeneratedAsset], int]:
+    """Copy clips to output directory for assembly.
+
+    Note: Trimming is disabled because symmetric trimming cuts dialogue.
+    """
+    logger = get_logger(__name__)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    trimmed_clips: list[GeneratedAsset] = []
-    stats = {"trimmed": 0, "copied": 0}
+    prepared_clips: list[GeneratedAsset] = []
+    copied = 0
 
     with Progress(
         SpinnerColumn(),
@@ -1558,7 +1613,7 @@ def _trim_clips_to_duration(
         console=console,
     ) as progress:
         task = progress.add_task(
-            "[cyan]Trimming clips...",
+            "[cyan]Preparing clips...",
             total=len(video_clips),
         )
 
@@ -1567,63 +1622,28 @@ def _trim_clips_to_duration(
                 progress.update(task, advance=1)
                 continue
 
-            scene = next(
-                (s for s in script.scenes if s.scene_number == clip.scene_number),
-                None,
-            )
-            if not scene:
-                logger.warning("Scene %s not found in script", clip.scene_number)
-                progress.update(
-                    task,
-                    advance=1,
-                    description=f"[red]Unknown scene {clip.scene_number}",
-                )
-                continue
-
             input_path = Path(clip.local_path)
             output_path = output_dir / f"scene_{clip.scene_number:03d}.mp4"
 
             try:
-                actual_duration = assembler.get_video_duration(input_path)
-
-                if scene.duration_seconds < actual_duration:
-                    assembler.trim_clip_to_duration(
-                        input_path=input_path,
-                        output_path=output_path,
-                        target_duration=scene.duration_seconds,
-                    )
-                    stats["trimmed"] += 1
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=(
-                            f"[green]Trimmed scene {clip.scene_number}: "
-                            f"{actual_duration:.1f}s → {scene.duration_seconds}s"
-                        ),
-                    )
-                else:
-                    shutil.copy(input_path, output_path)
-                    stats["copied"] += 1
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=(
-                            f"[dim]Copied scene {clip.scene_number} "
-                            "(no trim needed)[/dim]"
-                        ),
-                    )
-
+                shutil.copy(input_path, output_path)
+                copied += 1
                 clip.local_path = str(output_path)
-                trimmed_clips.append(clip)
-            except FFmpegError as e:
-                logger.warning("Failed to trim scene %s: %s", clip.scene_number, e)
+                prepared_clips.append(clip)
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"[green]Copied scene {clip.scene_number}",
+                )
+            except (OSError, shutil.Error) as e:
+                logger.warning("Failed to copy scene %s: %s", clip.scene_number, e)
                 progress.update(
                     task,
                     advance=1,
                     description=f"[red]Failed: scene {clip.scene_number}",
                 )
 
-    return trimmed_clips, stats
+    return prepared_clips, copied
 
 
 def _select_previous_run() -> Path | None:
@@ -1751,7 +1771,7 @@ async def _resume_video_generation(
         console.print(f"[red]Failed to create video generator:[/red] {e}")
         return
 
-    console.print(f"\n[bold cyan]Generating video clips...[/bold cyan]")
+    console.print("\n[bold cyan]Generating video clips...[/bold cyan]")
     console.print(f"Using {provider.value.upper()} video generator")
 
     video_clips: list[GeneratedAsset] = []
@@ -1895,17 +1915,47 @@ async def _resume_video_generation(
         console.print(f"[red]Video generation failed:[/red] {e}")
         return
 
-    # Trim clips
-    console.print("\n[bold cyan]Trimming clips to target duration...[/bold cyan]")
-    trimmed_clips, trim_stats = _trim_clips_to_duration(script, video_clips, trimmed_dir)
+    # Prepare clips for assembly
+    console.print("\n[bold cyan]Preparing clips for assembly...[/bold cyan]")
+    prepared_clips, copied_count = _prepare_clips_for_assembly(video_clips, trimmed_dir)
 
-    if not trimmed_clips:
-        console.print("[red]No clips available after trimming.[/red]")
+    if not prepared_clips:
+        console.print("[red]No clips available for assembly.[/red]")
         return
 
-    console.print(
-        f"[green]Trimmed {trim_stats['trimmed']} clips, copied {trim_stats['copied']} (no trim needed).[/green]"
-    )
+    console.print(f"[green]Prepared {copied_count} clips for assembly.[/green]")
+
+    # Background music handling
+    generated_music: GeneratedMusic | None = None
+    enable_music = settings.sip_enable_background_music and script.music_brief is not None
+
+    if enable_music:
+        console.print("\n[bold cyan]Loading or generating background music...[/bold cyan]")
+        generated_music = _load_music_from_run(run_dir, script.music_brief)
+
+        if generated_music:
+            console.print(f"[green]✓[/green] Found existing music: {Path(generated_music.file_path).name}")
+        else:
+            music_dir = run_dir / "music"
+            music_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                music_generator = MusicGenerator(
+                    project_id=settings.google_cloud_project,
+                    location=settings.google_cloud_location,
+                )
+                generated_music = await music_generator.generate(
+                    brief=script.music_brief,
+                    output_dir=music_dir,
+                )
+                console.print(f"[green]✓[/green] Generated new background music ({generated_music.duration_seconds:.0f}s)")
+            except MusicGenerationError as e:
+                console.print(
+                    f"[yellow]Music generation failed:[/yellow] {e}\n"
+                    "[dim]Continuing without background music...[/dim]"
+                )
+                generated_music = None
+    else:
+        console.print("[yellow]Background music disabled or not available in script.[/yellow]")
 
     # Assemble final video
     console.print("\n[bold cyan]Assembling final video...[/bold cyan]")
@@ -1913,7 +1963,7 @@ async def _resume_video_generation(
     final_output = run_dir / f"{slug[:50]}_final.mp4"
 
     clip_paths = sorted(
-        (Path(c.local_path) for c in trimmed_clips if c.local_path),
+        (Path(c.local_path) for c in prepared_clips if c.local_path),
         key=lambda p: int(p.stem.split("_")[-1]),
     )
 
@@ -1923,18 +1973,26 @@ async def _resume_video_generation(
 
     try:
         assembler = FFmpegAssembler()
-        assembler.concatenate_clips(
-            clip_paths=clip_paths,
-            output_path=final_output,
-        )
+        if generated_music:
+            assembler.assemble_with_music(
+                clip_paths=clip_paths,
+                music=generated_music,
+                output_path=final_output,
+                music_volume=settings.sip_music_volume,
+            )
+        else:
+            assembler.concatenate_clips(
+                clip_paths=clip_paths,
+                output_path=final_output,
+            )
 
         package = ProductionPackage(
             script=script,
             reference_images=reference_images,
-            video_clips=trimmed_clips,
+            video_clips=prepared_clips,
             final_video_path=str(final_output),
         )
-        _display_final_summary(package, run_dir)
+        _display_final_summary(package, run_dir, generated_music)
     except FFmpegError as e:
         console.print(f"[red]Failed to assemble video:[/red] {e}")
 
@@ -2030,10 +2088,20 @@ def menu() -> None:
                 # No prompt needed - settings menu handles its own flow
 
             elif choice == "6":
-                _show_help()
+                # Configuration - manage API keys
+                run_setup_wizard()
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
             elif choice == "7":
+                # Check for updates
+                update(check_only=False)
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "8":
+                _show_help()
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "9":
                 console.print("\n[bold cyan]Goodbye![/bold cyan]\n")
                 sys.exit(0)
 
@@ -2049,6 +2117,21 @@ def menu() -> None:
 def _default_command(ctx: typer.Context) -> None:
     """Default to interactive menu when no command is specified."""
     if ctx.invoked_subcommand is None:
+        # First-run setup check
+        if is_first_run():
+            if not ensure_configured():
+                console.print(
+                    "[yellow]Setup cancelled. "
+                    "Run 'sipvid config' to configure later.[/yellow]"
+                )
+                raise typer.Exit(0)
+
+        # Check for updates (non-blocking, fast timeout)
+        update_available, latest, current = check_for_update()
+        if update_available and latest:
+            from .utils.updater import show_update_banner
+            show_update_banner(latest, current)
+
         menu()
 
 

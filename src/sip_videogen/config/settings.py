@@ -7,12 +7,34 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# User config directory
+USER_CONFIG_DIR = Path.home() / ".sip-videogen"
+USER_CONFIG_FILE = USER_CONFIG_DIR / ".env"
+
+
+def _get_env_files() -> tuple[Path, ...]:
+    """Get list of env files to load, in priority order.
+
+    Priority (highest first):
+    1. ~/.sip-videogen/.env (user config)
+    2. ./.env (local project config)
+    """
+    files = []
+    # Local .env first (lower priority, will be overridden)
+    local_env = Path(".env")
+    if local_env.exists():
+        files.append(local_env)
+    # User config second (higher priority)
+    if USER_CONFIG_FILE.exists():
+        files.append(USER_CONFIG_FILE)
+    return tuple(files) if files else (".env",)
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_get_env_files(),
         env_file_encoding="utf-8",
         extra="ignore",
     )
