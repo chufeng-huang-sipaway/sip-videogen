@@ -20,6 +20,7 @@ import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
+import threading
 
 import questionary
 import typer
@@ -97,6 +98,38 @@ BANNER = """
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝[/bold cyan]
 """
+
+
+def _run_sync(coro):
+    """Safely run an async coroutine from sync code, even if a loop is running.
+
+    If a loop is already running (e.g., when invoked from a notebook),
+    the coroutine is executed in a new event loop on a background thread.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    result: dict[str, object] = {}
+
+    def _runner() -> None:
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            result["value"] = new_loop.run_until_complete(coro)
+        except Exception as exc:  # pragma: no cover - exercised in runtime
+            result["error"] = exc
+        finally:
+            new_loop.close()
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+    thread.join()
+
+    if "error" in result:
+        raise result["error"]  # type: ignore[misc]
+    return result.get("value")
 
 
 def _validate_idea(idea: str) -> str:
@@ -274,7 +307,7 @@ def generate(
 
     # Run the async pipeline
     try:
-        asyncio.run(
+        _run_sync(
             _run_pipeline(
                 idea,
                 num_scenes,
@@ -1090,7 +1123,7 @@ def resume(
         run_dir = run_dir.expanduser()
 
     try:
-        result = asyncio.run(
+        result = _run_sync(
             _resume_video_generation(
                 run_dir,
                 provider_override=provider,
@@ -1574,7 +1607,7 @@ def _show_history() -> None:
 
     if action == "resume":
         # Trigger resume flow for this run
-        result = asyncio.run(_resume_video_generation(selected_dir))
+        result = _run_sync(_resume_video_generation(selected_dir))
         if result:
             package, run_dir, generated_music = result
             _display_final_summary(package, run_dir, generated_music)
@@ -1792,8 +1825,8 @@ def _interactive_pitch_flow(
     This function generates a pitch, shows it to the user, and allows them
     to provide feedback for revision or accept the pitch to proceed.
 
-    Note: This is a synchronous function that calls asyncio.run() internally
-    for async operations. This avoids event loop conflicts with questionary.
+    Note: This is a synchronous function that runs async calls via _run_sync
+    to avoid event loop conflicts with questionary.
 
     Args:
         idea: The user's video idea.
@@ -1814,7 +1847,7 @@ def _interactive_pitch_flow(
 
         try:
             # Run async pitch generation in its own event loop
-            pitch = asyncio.run(
+            pitch = _run_sync(
                 generate_directors_pitch(
                     idea=idea,
                     target_duration=target_duration,
@@ -1861,7 +1894,7 @@ def _interactive_pitch_flow(
 
             try:
                 # Run async script development in its own event loop
-                script = asyncio.run(
+                script = _run_sync(
                     develop_script_from_pitch(
                         idea=idea,
                         pitch=pitch,
@@ -2611,7 +2644,7 @@ def _show_resume_menu() -> None:
         return
 
     # Run the async function
-    result = asyncio.run(_resume_video_generation(run_dir))
+    result = _run_sync(_resume_video_generation(run_dir))
     if result:
         package, run_dir, generated_music = result
         _display_final_summary(package, run_dir, generated_music)
@@ -2662,14 +2695,14 @@ def menu() -> None:
                 # Run interactive pitch flow for user approval
                 try:
                     # Note: _interactive_pitch_flow is now synchronous
-                    # (handles asyncio.run internally for async operations)
+                    # (handles async internally)
                     script, accepted = _interactive_pitch_flow(idea, target_duration)
 
                     if accepted and script:
                         # User approved the pitch - run full generation
                         settings = get_settings()
                         logger = get_logger(__name__)
-                        asyncio.run(
+                        _run_sync(
                             _run_pipeline(
                                 idea=idea,
                                 num_scenes=scenes,

@@ -199,7 +199,7 @@ class TestGenerateCommand:
         assert result.exit_code != 0
         # Should fail validation (max 10)
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_dry_run(self, mock_asyncio_run: MagicMock) -> None:
         """Test generate with --dry-run flag."""
         # Mock the async pipeline
@@ -225,7 +225,7 @@ class TestGenerateCommand:
         result = runner.invoke(app, ["generate", "Cat"])
         assert result.exit_code != 0
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_shows_cost_estimate(self, mock_asyncio_run: MagicMock) -> None:
         """Test generate shows cost estimate before proceeding."""
         mock_asyncio_run.return_value = None
@@ -239,7 +239,7 @@ class TestGenerateCommand:
         assert "Estimated Cost" in result.output or "Cost Estimate" in result.output
         assert "cancelled" in result.output.lower()
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_yes_flag_skips_confirmation(
         self, mock_asyncio_run: MagicMock
     ) -> None:
@@ -258,7 +258,7 @@ class TestGenerateCommand:
 class TestGenerateCommandErrors:
     """Tests for error handling in generate command."""
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_script_development_error(
         self, mock_asyncio_run: MagicMock
     ) -> None:
@@ -275,7 +275,7 @@ class TestGenerateCommandErrors:
         assert result.exit_code == 1
         assert "Script" in result.output or "failed" in result.output.lower()
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_gcs_authentication_error(
         self, mock_asyncio_run: MagicMock
     ) -> None:
@@ -294,7 +294,7 @@ class TestGenerateCommandErrors:
         assert result.exit_code == 1
         assert "authentication" in result.output.lower()
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_gcs_bucket_not_found_error(
         self, mock_asyncio_run: MagicMock
     ) -> None:
@@ -313,7 +313,7 @@ class TestGenerateCommandErrors:
         assert result.exit_code == 1
         assert "bucket" in result.output.lower()
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_ffmpeg_error(self, mock_asyncio_run: MagicMock) -> None:
         """Test handling of FFmpeg errors."""
         from sip_videogen.assembler import FFmpegError
@@ -328,7 +328,7 @@ class TestGenerateCommandErrors:
         assert result.exit_code == 1
         assert "FFmpeg" in result.output
 
-    @patch("sip_videogen.cli.asyncio.run")
+    @patch("sip_videogen.cli._run_sync")
     def test_generate_keyboard_interrupt(
         self, mock_asyncio_run: MagicMock
     ) -> None:
