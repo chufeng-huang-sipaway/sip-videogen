@@ -610,13 +610,18 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
         # Note about dialogue (VEO handles this from the action text with quotes)
         if scene.dialogue:
-            audio_parts.append("clear character dialogue")
+            audio_parts.append("clear character dialogue forward in the mix")
 
         # Combine and add no-music instruction
+        no_music_clause = (
+            "No background music, no soundtrack, no score or instrumental bed; keep only production "
+            "sound, ambience, SFX, and dialogue"
+        )
+
         if audio_parts:
-            return ". ".join(audio_parts) + ". No background music, no soundtrack"
+            return ". ".join(audio_parts) + ". " + no_music_clause
         else:
-            return "Ambient: natural environmental sounds. No background music, no soundtrack"
+            return f"Ambient: natural environmental sounds. {no_music_clause}"
 
     def _infer_ambient_sounds(self, setting: str) -> list[str]:
         """Infer ambient sounds from scene setting description.
