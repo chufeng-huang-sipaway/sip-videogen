@@ -105,12 +105,42 @@ sipvid config --reset  # Replace config with a new config block
 sipvid
 ```
 
-This launches an interactive menu with arrow-key navigation. Use ↑/↓ to navigate and Enter to select.
+This launches a simplified interactive menu:
+
+```
+? Use arrow keys to navigate, Enter to select:
+❯ Generate Video     Create a new video from your idea
+  View History       See previous generations
+  More Options...    Settings, resume, and other tools
+  Exit
+```
+
+### Director's Pitch Workflow
+
+When you select "Generate Video", you'll experience a streamlined creative workflow:
+
+1. **Enter your idea** - Describe your video concept
+2. **Select duration** - Choose from 15s, 30s, 45s, or 60s (the AI calculates scenes automatically)
+3. **Review the pitch** - The AI presents a "Director's Pitch" with:
+   - Title and logline
+   - Tone and visual style
+   - Key elements and scene count
+4. **Approve or refine** - Accept the pitch, provide feedback for revision, or cancel
+5. **Generate** - Once approved, full video generation begins
+
+This ensures you're happy with the creative direction before committing to generation.
+
+### View History
+
+Access all your previous video generations from the main menu:
+- See title, date, duration, and completion status
+- Resume or regenerate from any previous script
+- Open output folders directly
 
 ### Direct Commands
 
 ```bash
-# Generate a video
+# Generate a video (uses interactive pitch flow)
 sipvid generate "A cat astronaut explores Mars"
 
 # Regenerate videos from an existing run (reuse saved script + images)

@@ -3,6 +3,7 @@
 from sip_videogen.models.agent_outputs import (
     ContinuityIssue,
     ContinuitySupervisorOutput,
+    DirectorsPitch,
     ProductionDesignerOutput,
     ScreenwriterOutput,
     ShowrunnerOutput,
@@ -54,6 +55,7 @@ __all__ = [
     # Agent output models
     "ContinuityIssue",
     "ContinuitySupervisorOutput",
+    "DirectorsPitch",
     "ProductionDesignerOutput",
     "ScreenwriterOutput",
     "ShowrunnerOutput",

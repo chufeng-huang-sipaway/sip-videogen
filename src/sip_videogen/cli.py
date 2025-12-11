@@ -12,7 +12,10 @@ from dotenv import load_dotenv
 load_dotenv()  # Also load local .env for backwards compatibility
 
 import asyncio
+import math
+import platform
 import shutil
+import subprocess
 import sys
 import uuid
 from datetime import datetime
@@ -27,7 +30,13 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeEl
 from rich.prompt import IntPrompt, Prompt
 from rich.table import Table
 
-from .agents import AgentProgress, ScriptDevelopmentError, develop_script
+from .agents import (
+    AgentProgress,
+    ScriptDevelopmentError,
+    develop_script,
+    develop_script_from_pitch,
+    generate_directors_pitch,
+)
 from .agents.tools import ImageProductionManager
 from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_pre_generation_costs
@@ -50,6 +59,7 @@ from .generators import (
 )
 from .models import (
     AssetType,
+    DirectorsPitch,
     GeneratedAsset,
     GeneratedMusic,
     MusicBrief,
@@ -364,11 +374,12 @@ async def _run_pipeline(
     logger,
     enable_music: bool = True,
     music_volume: float = 0.2,
+    existing_script: VideoScript | None = None,
 ) -> None:
     """Run the full video generation pipeline.
 
     Flow:
-    1. Run Showrunner to develop script
+    1. Run Showrunner to develop script (skipped if existing_script provided)
     2. Generate reference images for shared elements (dry-run stops here)
     3. Upload reference images to GCS
     4. Generate video clips (parallel)
@@ -376,6 +387,16 @@ async def _run_pipeline(
     6. Generate background music (if enabled)
     7. Assemble clips with FFmpeg (with music overlay if enabled)
     8. Display final video path
+
+    Args:
+        idea: The user's video idea.
+        num_scenes: Target number of scenes.
+        dry_run: If True, only generate script without video.
+        settings: Application settings.
+        logger: Logger instance.
+        enable_music: Whether to generate background music.
+        music_volume: Music volume level (0.0-1.0).
+        existing_script: Pre-existing script to use (skips step 1 if provided).
     """
     # Create unique project ID for this run
     project_id = f"sip_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
@@ -407,104 +428,114 @@ async def _run_pipeline(
     # Track generated music (if enabled)
     generated_music: GeneratedMusic | None = None
 
-    # Determine total stages based on music setting
-    total_stages = 7 if enable_music else 6
+    # Determine total stages based on music setting and whether script exists
+    if existing_script:
+        # Skip stage 1 if script is pre-existing
+        total_stages = 6 if enable_music else 5
+    else:
+        total_stages = 7 if enable_music else 6
 
-    # ========== STAGE 1: Develop Script ==========
-    console.print(f"\n[bold cyan]Stage 1/{total_stages}:[/bold cyan] Developing script...")
-    console.print("[dim]Agent team is collaborating on your video script...[/dim]\n")
-
-    # Create a live display for agent progress
-    from rich.live import Live
-
-    # Track agent activities
-    agent_activities: list[str] = []
-    current_status = ["[cyan]Initializing agent team...[/cyan]"]
-
-    def on_agent_progress(progress: AgentProgress) -> None:
-        """Callback to update display with agent progress."""
-        # Format the message based on event type
-        if progress.event_type == "agent_start":
-            icon = "[bold blue]►[/bold blue]"
-            msg = f"{icon} {progress.message}"
-        elif progress.event_type == "agent_end":
-            icon = "[bold green]✓[/bold green]"
-            msg = f"{icon} {progress.message}"
-        elif progress.event_type == "tool_start":
-            icon = "[bold yellow]→[/bold yellow]"
-            msg = f"{icon} {progress.message}"
-            if progress.detail:
-                msg += f"\n    [dim]{progress.detail}[/dim]"
-        elif progress.event_type == "tool_end":
-            icon = "[bold green]←[/bold green]"
-            msg = f"{icon} {progress.message}"
-        elif progress.event_type == "thinking":
-            icon = "[bold magenta]⋯[/bold magenta]"
-            msg = f"{icon} {progress.message}"
-        else:
-            msg = f"  {progress.message}"
-
-        agent_activities.append(msg)
-        # Keep only last 8 activities
-        if len(agent_activities) > 8:
-            agent_activities.pop(0)
-        current_status[0] = msg
-
-    def build_progress_display() -> Panel:
-        """Build the progress display panel."""
-        lines = []
-        for activity in agent_activities:
-            lines.append(activity)
-        if not lines:
-            lines.append("[dim]Starting...[/dim]")
-        content = "\n".join(lines)
-        return Panel(
-            content,
-            title="[bold]Agent Team Activity[/bold]",
-            border_style="cyan",
-            padding=(0, 1),
-        )
-
-    try:
-        with Live(build_progress_display(), console=console, refresh_per_second=4) as live:
-
-            async def run_with_updates():
-                # Run the script development with progress callback
-                return await develop_script(
-                    idea,
-                    num_scenes,
-                    progress_callback=on_agent_progress,
-                )
-
-            # Create a task that updates the display
-            import asyncio
-
-            async def update_display():
-                while True:
-                    live.update(build_progress_display())
-                    await asyncio.sleep(0.25)
-
-            # Run both concurrently
-            update_task = asyncio.create_task(update_display())
-            try:
-                script = await run_with_updates()
-            finally:
-                update_task.cancel()
-                try:
-                    await update_task
-                except asyncio.CancelledError:
-                    pass
-
-            # Final update
-            agent_activities.append("[bold green]✓ Script development complete![/bold green]")
-            live.update(build_progress_display())
-
+    # ========== STAGE 1: Develop Script (skipped if existing_script provided) ==========
+    if existing_script:
+        # Use pre-existing script
+        script = existing_script
         package = ProductionPackage(script=script)
-        console.print("[green]✓ Script developed successfully[/green]")
+        console.print(f"\n[green]✓ Using pre-approved script: {script.title}[/green]")
+    else:
+        console.print(f"\n[bold cyan]Stage 1/{total_stages}:[/bold cyan] Developing script...")
+        console.print("[dim]Agent team is collaborating on your video script...[/dim]\n")
 
-    except Exception as e:
-        console.print(f"[red]✗ Script development failed: {e}[/red]")
-        raise
+        # Create a live display for agent progress
+        from rich.live import Live
+
+        # Track agent activities
+        agent_activities: list[str] = []
+        current_status = ["[cyan]Initializing agent team...[/cyan]"]
+
+        def on_agent_progress(progress: AgentProgress) -> None:
+            """Callback to update display with agent progress."""
+            # Format the message based on event type
+            if progress.event_type == "agent_start":
+                icon = "[bold blue]►[/bold blue]"
+                msg = f"{icon} {progress.message}"
+            elif progress.event_type == "agent_end":
+                icon = "[bold green]✓[/bold green]"
+                msg = f"{icon} {progress.message}"
+            elif progress.event_type == "tool_start":
+                icon = "[bold yellow]→[/bold yellow]"
+                msg = f"{icon} {progress.message}"
+                if progress.detail:
+                    msg += f"\n    [dim]{progress.detail}[/dim]"
+            elif progress.event_type == "tool_end":
+                icon = "[bold green]←[/bold green]"
+                msg = f"{icon} {progress.message}"
+            elif progress.event_type == "thinking":
+                icon = "[bold magenta]⋯[/bold magenta]"
+                msg = f"{icon} {progress.message}"
+            else:
+                msg = f"  {progress.message}"
+
+            agent_activities.append(msg)
+            # Keep only last 8 activities
+            if len(agent_activities) > 8:
+                agent_activities.pop(0)
+            current_status[0] = msg
+
+        def build_progress_display() -> Panel:
+            """Build the progress display panel."""
+            lines = []
+            for activity in agent_activities:
+                lines.append(activity)
+            if not lines:
+                lines.append("[dim]Starting...[/dim]")
+            content = "\n".join(lines)
+            return Panel(
+                content,
+                title="[bold]Agent Team Activity[/bold]",
+                border_style="cyan",
+                padding=(0, 1),
+            )
+
+        try:
+            with Live(build_progress_display(), console=console, refresh_per_second=4) as live:
+
+                async def run_with_updates():
+                    # Run the script development with progress callback
+                    return await develop_script(
+                        idea,
+                        num_scenes,
+                        progress_callback=on_agent_progress,
+                    )
+
+                # Create a task that updates the display
+                import asyncio
+
+                async def update_display():
+                    while True:
+                        live.update(build_progress_display())
+                        await asyncio.sleep(0.25)
+
+                # Run both concurrently
+                update_task = asyncio.create_task(update_display())
+                try:
+                    script = await run_with_updates()
+                finally:
+                    update_task.cancel()
+                    try:
+                        await update_task
+                    except asyncio.CancelledError:
+                        pass
+
+                # Final update
+                agent_activities.append("[bold green]✓ Script development complete![/bold green]")
+                live.update(build_progress_display())
+
+            package = ProductionPackage(script=script)
+            console.print("[green]✓ Script developed successfully[/green]")
+
+        except Exception as e:
+            console.print(f"[red]✗ Script development failed: {e}[/red]")
+            raise
 
     # Display script summary
     _display_script_summary(script)
@@ -1210,8 +1241,182 @@ def update(
     prompt_for_update(latest, current)
 
 
+def _open_output_folder() -> None:
+    """Open the output directory in the system file browser."""
+    settings = get_settings()
+    output_dir = settings.ensure_output_dir()
+
+    system = platform.system()
+    if system == "Darwin":
+        subprocess.run(["open", str(output_dir)])
+        console.print(f"[green]Opened output folder:[/green] {output_dir}")
+    elif system == "Linux":
+        subprocess.run(["xdg-open", str(output_dir)])
+        console.print(f"[green]Opened output folder:[/green] {output_dir}")
+    else:
+        # Fallback: just print the path
+        console.print(f"[cyan]Output folder:[/cyan] {output_dir}")
+
+
+def _get_run_info(run_dir: Path) -> dict | None:
+    """Extract run information for history display.
+
+    Args:
+        run_dir: Path to a previous run directory.
+
+    Returns:
+        Dictionary with run info or None if invalid.
+    """
+    script_path = run_dir / "script.json"
+    if not script_path.exists():
+        return None
+
+    try:
+        script = _load_script_from_run(run_dir)
+    except Exception:
+        return None
+
+    # Check for final video
+    final_videos = list(run_dir.glob("*_final.mp4"))
+    has_final = len(final_videos) > 0
+
+    # Calculate estimated duration from scenes
+    estimated_duration = sum(scene.duration_seconds for scene in script.scenes)
+
+    return {
+        "title": script.title,
+        "clip_count": len(script.scenes),
+        "estimated_duration": estimated_duration,
+        "is_complete": has_final,
+        "run_dir": run_dir,
+    }
+
+
+def _show_history() -> None:
+    """Display history of previous video generations with resume option."""
+    runs = _list_previous_runs()
+
+    if not runs:
+        console.print("[yellow]No previous generations found.[/yellow]")
+        console.print(f"[dim]Output directory: {get_settings().sip_output_dir}[/dim]")
+        return
+
+    # Build table with run info
+    table = Table(
+        title="Video Generation History",
+        show_header=True,
+        header_style="bold cyan",
+    )
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Date", style="dim")
+    table.add_column("Title", style="white")
+    table.add_column("Duration", justify="right")
+    table.add_column("Clips", justify="center")
+    table.add_column("Status", justify="center")
+
+    # Collect run info for display (limit to 15)
+    run_infos = []
+    for run_dir in runs[:15]:
+        info = _get_run_info(run_dir)
+        if info:
+            run_infos.append(info)
+
+    for idx, info in enumerate(run_infos, 1):
+        # Parse date from folder name (sip_YYYYMMDD_HHMMSS_uuid)
+        parts = info["run_dir"].name.split("_")
+        if len(parts) >= 3:
+            date_str = f"{parts[1][:4]}-{parts[1][4:6]}-{parts[1][6:]}"
+            time_str = f"{parts[2][:2]}:{parts[2][2:4]}"
+            datetime_str = f"{date_str} {time_str}"
+        else:
+            datetime_str = "Unknown"
+
+        duration = f"~{info['estimated_duration']}s"
+        status = "[green]Complete[/green]" if info["is_complete"] else "[yellow]Partial[/yellow]"
+
+        # Truncate title if too long
+        title = info["title"][:35] + "..." if len(info["title"]) > 38 else info["title"]
+
+        table.add_row(
+            str(idx),
+            datetime_str,
+            title,
+            duration,
+            str(info["clip_count"]),
+            status,
+        )
+
+    console.print()
+    console.print(table)
+    console.print()
+
+    if not run_infos:
+        console.print("[yellow]No valid runs found.[/yellow]")
+        return
+
+    # Build selection choices
+    choices = [
+        questionary.Choice(
+            title=f"{idx}. {info['title'][:40]}",
+            value=str(idx),
+        )
+        for idx, info in enumerate(run_infos, 1)
+    ]
+    choices.append(questionary.Choice(title="Back to menu", value="back"))
+
+    selection = questionary.select(
+        "Select a run to view options:",
+        choices=choices,
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if selection == "back" or selection is None:
+        return
+
+    # Get selected run
+    selected_idx = int(selection) - 1
+    selected_info = run_infos[selected_idx]
+    selected_dir = selected_info["run_dir"]
+
+    # Show action options for selected run
+    console.print()
+    console.print(f"[bold cyan]Selected:[/bold cyan] {selected_info['title']}")
+    console.print(f"[dim]Path: {selected_dir}[/dim]")
+    console.print()
+
+    action_choices = [
+        questionary.Choice(title="Resume/regenerate videos from this script", value="resume"),
+        questionary.Choice(title="Open this run's folder", value="open"),
+        questionary.Choice(title="Back to history", value="back"),
+    ]
+
+    action = questionary.select(
+        "What would you like to do?",
+        choices=action_choices,
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if action == "resume":
+        # Trigger resume flow for this run
+        _resume_video_generation(selected_dir)
+    elif action == "open":
+        system = platform.system()
+        if system == "Darwin":
+            subprocess.run(["open", str(selected_dir)])
+        elif system == "Linux":
+            subprocess.run(["xdg-open", str(selected_dir)])
+        console.print(f"[green]Opened folder:[/green] {selected_dir}")
+    # If "back", just return to history (but we're in a function so it returns to menu)
+
+
 def _show_menu() -> str:
-    """Display the main menu and get user choice with arrow-key navigation."""
+    """Display the simplified main menu with primary actions."""
     console.print(BANNER)
 
     # Show version
@@ -1221,40 +1426,20 @@ def _show_menu() -> str:
 
     choices = [
         questionary.Choice(
-            title="Generate Video          Create a new video from your idea",
-            value="1",
+            title="Generate Video     Create a new video from your idea",
+            value="generate",
         ),
         questionary.Choice(
-            title="Resume Video            Regenerate videos from a previous run",
-            value="2",
+            title="View History       See previous generations",
+            value="history",
         ),
         questionary.Choice(
-            title="Script Only (Dry Run)   Generate script without creating video",
-            value="3",
+            title="More Options...    Settings, resume, and other tools",
+            value="more",
         ),
         questionary.Choice(
-            title="Check Status            View configuration status",
-            value="4",
-        ),
-        questionary.Choice(
-            title="Settings                Configure video generation preferences",
-            value="5",
-        ),
-        questionary.Choice(
-            title="Configuration           Manage API keys and credentials",
-            value="6",
-        ),
-        questionary.Choice(
-            title="Check for Updates       Update to the latest version",
-            value="7",
-        ),
-        questionary.Choice(
-            title="Help                    Show usage information",
-            value="8",
-        ),
-        questionary.Choice(
-            title="Exit                    Quit the application",
-            value="9",
+            title="Exit",
+            value="exit",
         ),
     ]
 
@@ -1270,11 +1455,95 @@ def _show_menu() -> str:
         ]),
     ).ask()
 
-    return result or "9"  # Default to exit if None (Ctrl+C)
+    return result or "exit"  # Default to exit if None (Ctrl+C)
 
 
-def _get_video_idea() -> tuple[str, int]:
-    """Prompt user for video idea and number of scenes."""
+def _show_more_options_menu() -> str:
+    """Display the 'More Options' submenu."""
+    console.print("\n[bold cyan]More Options[/bold cyan]\n")
+
+    choices = [
+        questionary.Choice(
+            title="Resume Video            Regenerate from a previous run",
+            value="resume",
+        ),
+        questionary.Choice(
+            title="Script Only (Dry Run)   Generate script without video",
+            value="dry_run",
+        ),
+        questionary.Choice(
+            title="Open Output Folder      Open output directory",
+            value="open_folder",
+        ),
+        questionary.Choice(
+            title="Settings                Video generation preferences",
+            value="settings",
+        ),
+        questionary.Choice(
+            title="Configuration           API keys and credentials",
+            value="config",
+        ),
+        questionary.Choice(
+            title="Check Status            View current configuration",
+            value="status",
+        ),
+        questionary.Choice(
+            title="Check for Updates       Update to latest version",
+            value="update",
+        ),
+        questionary.Choice(
+            title="Help                    Usage information",
+            value="help",
+        ),
+        questionary.Choice(
+            title="Back to Main Menu",
+            value="back",
+        ),
+    ]
+
+    result = questionary.select(
+        "Select an option:",
+        choices=choices,
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    return result or "back"
+
+
+# Duration options for video generation (seconds, display label)
+DURATION_OPTIONS = [
+    (15, "15 seconds (~2 scenes)"),
+    (30, "30 seconds (~4 scenes)"),
+    (45, "45 seconds (~6 scenes)"),
+    (60, "60 seconds (~8 scenes)"),
+]
+
+
+def _calculate_scenes_from_duration(duration_seconds: int) -> int:
+    """Calculate optimal scene count from target duration.
+
+    VEO generates 8-second clips by default, so:
+    ceil(duration / 8) gives the scene count.
+    Minimum of 2 scenes to ensure a narrative arc.
+
+    Args:
+        duration_seconds: Target video duration in seconds.
+
+    Returns:
+        Number of scenes to generate.
+    """
+    return max(2, math.ceil(duration_seconds / 8))
+
+
+def _get_video_idea() -> tuple[str, int, int]:
+    """Prompt user for video idea and target duration.
+
+    Returns:
+        Tuple of (idea, target_duration_seconds, calculated_scenes)
+    """
     console.print()
     console.print("[bold cyan]Let's create your video![/bold cyan]")
     console.print()
@@ -1284,13 +1553,159 @@ def _get_video_idea() -> tuple[str, int]:
         console.print("[red]Please enter a valid idea (at least 5 characters)[/red]")
         idea = Prompt.ask("[bold]Enter your video idea[/bold]")
 
-    scenes = IntPrompt.ask(
-        "[bold]Number of scenes[/bold]",
-        default=3,
-    )
-    scenes = max(1, min(scenes, 10))  # Clamp between 1-10
+    # Build duration choices
+    duration_choices = [
+        questionary.Choice(title=label, value=duration)
+        for duration, label in DURATION_OPTIONS
+    ]
 
-    return idea.strip(), scenes
+    console.print()
+    target_duration = questionary.select(
+        "Select target video duration:",
+        choices=duration_choices,
+        default=duration_choices[1],  # 30 seconds default
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    # Handle None (Ctrl+C)
+    if target_duration is None:
+        target_duration = 30
+
+    num_scenes = _calculate_scenes_from_duration(target_duration)
+
+    return idea.strip(), target_duration, num_scenes
+
+
+def _display_directors_pitch(pitch: DirectorsPitch) -> None:
+    """Display the Director's Pitch proposal to the user.
+
+    Args:
+        pitch: The DirectorsPitch to display.
+    """
+    # Format key elements as a bullet list
+    elements_str = "\n".join(f"  - {elem}" for elem in pitch.key_elements)
+
+    content = (
+        f"[bold cyan]Title:[/bold cyan] {pitch.title}\n\n"
+        f"[bold cyan]Logline:[/bold cyan] {pitch.logline}\n\n"
+        f"[bold cyan]Tone:[/bold cyan] {pitch.tone}\n\n"
+        f"[bold cyan]Description:[/bold cyan]\n{pitch.brief_description}\n\n"
+        f"[bold cyan]Key Elements:[/bold cyan]\n{elements_str}\n\n"
+        f"[dim]Planned: {pitch.scene_count} scenes, ~{pitch.estimated_duration}s total[/dim]"
+    )
+
+    console.print()
+    console.print(
+        Panel(
+            content,
+            title="[bold magenta]Director's Pitch[/bold magenta]",
+            border_style="magenta",
+            padding=(1, 2),
+        )
+    )
+    console.print()
+
+
+async def _interactive_pitch_flow(
+    idea: str,
+    target_duration: int,
+    progress_callback=None,
+) -> tuple[VideoScript | None, bool]:
+    """Run the interactive Director's Pitch flow with feedback loop.
+
+    This function generates a pitch, shows it to the user, and allows them
+    to provide feedback for revision or accept the pitch to proceed.
+
+    Args:
+        idea: The user's video idea.
+        target_duration: Target duration in seconds.
+        progress_callback: Optional callback for agent progress updates.
+
+    Returns:
+        Tuple of (VideoScript or None, accepted boolean).
+        If accepted is True, VideoScript is the full script.
+        If accepted is False, VideoScript is None (user cancelled).
+    """
+    num_scenes = _calculate_scenes_from_duration(target_duration)
+    feedback_history: list[str] = []
+
+    while True:
+        # Show progress indicator for pitch generation
+        console.print("[dim]Generating pitch...[/dim]")
+
+        try:
+            pitch = await generate_directors_pitch(
+                idea=idea,
+                target_duration=target_duration,
+                num_scenes=num_scenes,
+                previous_feedback=feedback_history if feedback_history else None,
+                progress_callback=progress_callback,
+            )
+        except ScriptDevelopmentError as e:
+            console.print(f"[red]Failed to generate pitch: {e}[/red]")
+            return None, False
+
+        # Display the pitch
+        _display_directors_pitch(pitch)
+
+        # Get user decision
+        choice = questionary.select(
+            "What would you like to do?",
+            choices=[
+                questionary.Choice(
+                    title="Accept and generate video",
+                    value="accept",
+                ),
+                questionary.Choice(
+                    title="Provide feedback for revision",
+                    value="feedback",
+                ),
+                questionary.Choice(
+                    title="Cancel and return to menu",
+                    value="cancel",
+                ),
+            ],
+            style=questionary.Style([
+                ("pointer", "fg:cyan bold"),
+                ("highlighted", "fg:cyan bold"),
+            ]),
+        ).ask()
+
+        if choice == "accept":
+            # User accepted - develop full script from pitch
+            console.print()
+            console.print("[bold cyan]Developing full script from approved pitch...[/bold cyan]")
+            console.print()
+
+            try:
+                script = await develop_script_from_pitch(
+                    idea=idea,
+                    pitch=pitch,
+                    progress_callback=progress_callback,
+                )
+                return script, True
+            except ScriptDevelopmentError as e:
+                console.print(f"[red]Failed to develop script: {e}[/red]")
+                return None, False
+
+        elif choice == "feedback":
+            # User wants to provide feedback
+            console.print()
+            feedback = Prompt.ask("[bold]Enter your feedback[/bold]")
+            if feedback and feedback.strip():
+                feedback_history.append(feedback.strip())
+                console.print(
+                    f"[green]Feedback recorded. Generating revised pitch...[/green]"
+                )
+            # Loop continues with new pitch
+
+        else:
+            # User cancelled or Ctrl+C
+            console.print("[yellow]Cancelled.[/yellow]")
+            return None, False
 
 
 def _show_settings_menu() -> None:
@@ -2050,58 +2465,88 @@ def menu() -> None:
         try:
             choice = _show_menu()
 
-            if choice == "1":
-                idea, scenes = _get_video_idea()
-                # Call the actual generate function
-                generate(
-                    idea=idea,
-                    scenes=scenes,
-                    dry_run=False,
-                    yes=False,
-                    no_music=False,
-                    music_volume=None,
-                )
+            if choice == "generate":
+                idea, target_duration, scenes = _get_video_idea()
+                # Run interactive pitch flow for user approval
+                try:
+                    script, accepted = asyncio.run(
+                        _interactive_pitch_flow(idea, target_duration)
+                    )
+
+                    if accepted and script:
+                        # User approved the pitch - run full generation
+                        settings = get_settings()
+                        logger = get_logger(__name__)
+                        asyncio.run(
+                            _run_pipeline(
+                                idea=idea,
+                                num_scenes=scenes,
+                                dry_run=False,
+                                settings=settings,
+                                logger=logger,
+                                enable_music=settings.sip_enable_background_music,
+                                music_volume=settings.sip_music_volume,
+                                existing_script=script,
+                            )
+                        )
+                    else:
+                        console.print("[yellow]Generation cancelled.[/yellow]")
+                except KeyboardInterrupt:
+                    console.print("\n[yellow]Generation cancelled.[/yellow]")
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/red]")
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "2":
-                _show_resume_menu()
+            elif choice == "history":
+                _show_history()
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "3":
-                idea, scenes = _get_video_idea()
-                generate(
-                    idea=idea,
-                    scenes=scenes,
-                    dry_run=True,
-                    yes=False,
-                    no_music=False,
-                    music_volume=None,
-                )
-                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+            elif choice == "more":
+                # Show submenu and handle selection
+                sub_choice = _show_more_options_menu()
 
-            elif choice == "4":
-                status()
-                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+                if sub_choice == "resume":
+                    _show_resume_menu()
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "5":
-                _show_settings_menu()
-                # No prompt needed - settings menu handles its own flow
+                elif sub_choice == "dry_run":
+                    idea, target_duration, scenes = _get_video_idea()
+                    generate(
+                        idea=idea,
+                        scenes=scenes,
+                        dry_run=True,
+                        yes=False,
+                        no_music=False,
+                        music_volume=None,
+                    )
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "6":
-                # Configuration - manage API keys
-                run_setup_wizard()
-                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+                elif sub_choice == "open_folder":
+                    _open_output_folder()
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "7":
-                # Check for updates
-                update(check_only=False)
-                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+                elif sub_choice == "settings":
+                    _show_settings_menu()
 
-            elif choice == "8":
-                _show_help()
-                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+                elif sub_choice == "config":
+                    run_setup_wizard()
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
-            elif choice == "9":
+                elif sub_choice == "status":
+                    status()
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+                elif sub_choice == "update":
+                    update(check_only=False)
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+                elif sub_choice == "help":
+                    _show_help()
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+                # "back" just returns to main menu
+
+            elif choice == "exit":
                 console.print("\n[bold cyan]Goodbye![/bold cyan]\n")
                 sys.exit(0)
 

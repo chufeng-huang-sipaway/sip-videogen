@@ -23,6 +23,9 @@ from sip_videogen.agents.showrunner import (
     ProgressTrackingHooks,
     ScriptDevelopmentError,
     develop_script,
+    develop_script_from_pitch,
+    generate_directors_pitch,
+    pitch_agent,
     showrunner_agent,
 )
 from sip_videogen.agents.tools import (
@@ -45,7 +48,10 @@ __all__ = [
     "review_image",
     # Showrunner
     "showrunner_agent",
+    "pitch_agent",
     "develop_script",
+    "generate_directors_pitch",
+    "develop_script_from_pitch",
     "ScriptDevelopmentError",
     "AgentProgress",
     "ProgressCallback",

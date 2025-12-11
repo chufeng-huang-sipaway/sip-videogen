@@ -27,7 +27,7 @@ from sip_videogen.agents.music_director import music_director_agent
 from sip_videogen.agents.production_designer import production_designer_agent
 from sip_videogen.agents.screenwriter import screenwriter_agent
 from sip_videogen.config.logging import get_logger
-from sip_videogen.models.agent_outputs import ShowrunnerOutput
+from sip_videogen.models.agent_outputs import DirectorsPitch, ShowrunnerOutput
 from sip_videogen.models.script import VideoScript
 
 logger = get_logger(__name__)
@@ -288,3 +288,211 @@ scenes with multiple actions. When in doubt, split a complex scene into two simp
             raise
         logger.error(f"Unexpected error during script development: {e}")
         raise ScriptDevelopmentError(f"Script development failed unexpectedly: {e}") from e
+
+
+# Prompt for quick pitch generation
+_PITCH_PROMPT = """You are a creative director who crafts compelling video pitches quickly.
+
+Your job is to create a concise but captivating pitch that:
+1. Captures the essence of the video idea
+2. Sets clear creative direction
+3. Gets the user excited about the concept
+
+## Output Requirements
+
+Provide:
+- **title**: Memorable, descriptive, 2-5 words
+- **logline**: One compelling sentence that sells the concept
+- **tone**: 2-3 adjectives describing mood and style
+- **brief_description**: 2-3 sentences outlining the narrative arc
+- **key_elements**: 3-5 main visual components (characters, settings, props)
+- **scene_count**: Based on target duration (duration / 8 seconds per scene)
+- **estimated_duration**: The target duration provided
+
+## Guidelines
+
+- Be bold and creative - this is your chance to excite the user
+- Think visually - what will look amazing on screen?
+- Keep it concise - this is a pitch, not a script
+- Consider the target duration when planning complexity
+
+## When Revising Based on Feedback
+
+- Incorporate specific requests directly
+- Maintain coherent creative vision
+- You may adjust the approach significantly if feedback warrants it
+"""
+
+# Create a lightweight pitch agent for quick proposals
+pitch_agent = Agent(
+    name="PitchAgent",
+    instructions=_PITCH_PROMPT,
+    output_type=DirectorsPitch,
+)
+
+
+@retry(
+    stop=stop_after_attempt(2),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((AgentsException, TimeoutError, ConnectionError)),
+    reraise=True,
+)
+async def generate_directors_pitch(
+    idea: str,
+    target_duration: int,
+    num_scenes: int,
+    previous_feedback: list[str] | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> DirectorsPitch:
+    """Generate a quick Director's Pitch for user approval.
+
+    This is a lightweight call that produces only the creative overview
+    (title, logline, tone, description) without full scene development.
+
+    Args:
+        idea: The user's creative idea.
+        target_duration: Target video duration in seconds.
+        num_scenes: Calculated number of scenes.
+        previous_feedback: List of previous user feedback for revision.
+        progress_callback: Optional callback for progress updates.
+
+    Returns:
+        DirectorsPitch with title, logline, tone, and brief description.
+
+    Raises:
+        ScriptDevelopmentError: If pitch generation fails.
+    """
+    # Validate inputs
+    if not idea or not idea.strip():
+        raise ValueError("Idea cannot be empty")
+
+    idea = idea.strip()
+    logger.info(f"Generating Director's Pitch for: '{idea[:50]}...'")
+
+    # Build feedback section if there's previous feedback
+    feedback_section = ""
+    if previous_feedback:
+        feedback_section = "\n\n## Previous Feedback to Incorporate\n"
+        for i, fb in enumerate(previous_feedback, 1):
+            feedback_section += f"{i}. {fb}\n"
+        feedback_section += "\nPlease revise the pitch based on this feedback."
+
+    prompt = f"""Create a Director's Pitch for this video idea:
+
+{idea}
+
+Target duration: {target_duration} seconds (~{num_scenes} scenes at 8 seconds each)
+{feedback_section}
+
+Remember: This is a pitch for user approval, not a full script. Keep it compelling and concise.
+"""
+
+    hooks = ProgressTrackingHooks(callback=progress_callback)
+
+    try:
+        result = await Runner.run(pitch_agent, prompt, hooks=hooks)
+        output = result.final_output
+
+        if isinstance(output, DirectorsPitch):
+            logger.info(f"Pitch generated: '{output.title}'")
+            return output
+
+        raise ScriptDevelopmentError(
+            f"Unexpected output type from pitch agent: {type(output).__name__}"
+        )
+    except AgentsException as e:
+        logger.error(f"Pitch generation failed: {e}")
+        raise ScriptDevelopmentError(f"Pitch generation failed: {e}") from e
+    except Exception as e:
+        if isinstance(e, (ValueError, ScriptDevelopmentError)):
+            raise
+        logger.error(f"Unexpected error during pitch generation: {e}")
+        raise ScriptDevelopmentError(f"Pitch generation failed: {e}") from e
+
+
+async def develop_script_from_pitch(
+    idea: str,
+    pitch: DirectorsPitch,
+    progress_callback: ProgressCallback | None = None,
+) -> VideoScript:
+    """Develop a full script based on an approved Director's Pitch.
+
+    This function takes an approved pitch and develops it into a complete
+    VideoScript, maintaining the creative direction from the pitch.
+
+    Args:
+        idea: The original user idea.
+        pitch: The approved DirectorsPitch.
+        progress_callback: Optional callback for progress updates.
+
+    Returns:
+        A complete VideoScript ready for production.
+
+    Raises:
+        ScriptDevelopmentError: If script development fails.
+    """
+    logger.info(f"Developing script from approved pitch: '{pitch.title}'")
+
+    prompt = f"""Develop a complete video script based on this APPROVED Director's Pitch:
+
+## Approved Creative Direction (MUST be maintained)
+- **Title**: {pitch.title}
+- **Logline**: {pitch.logline}
+- **Tone**: {pitch.tone}
+- **Description**: {pitch.brief_description}
+- **Key Elements**: {', '.join(pitch.key_elements)}
+- **Target**: {pitch.scene_count} scenes, ~{pitch.estimated_duration} seconds total
+
+## Original Idea
+{idea}
+
+## Instructions
+
+The pitch has been APPROVED by the user. You MUST:
+1. Use the title EXACTLY as approved
+2. Maintain the logline EXACTLY as approved
+3. Keep the tone EXACTLY as approved
+4. Include ALL key elements mentioned in the pitch
+5. Match the approved scene count (within +/- 1 for technical needs)
+
+Now develop the full script:
+1. Define a cohesive visual_style that matches the tone
+2. Call the screenwriter to develop scenes following the pitch's description
+3. Call the production designer to identify shared visual elements
+4. Call the continuity supervisor to validate and optimize
+5. Call the music director to design background music
+
+Requirements:
+- Each scene should focus on ONE simple action
+- Scene durations: 4-8 seconds each
+- Ensure visual consistency with identified shared elements
+- ALL scenes must pass complexity validation
+"""
+
+    hooks = ProgressTrackingHooks(callback=progress_callback)
+
+    try:
+        result = await Runner.run(showrunner_agent, prompt, hooks=hooks)
+        output = result.final_output
+
+        if isinstance(output, ShowrunnerOutput):
+            logger.info(f"Script development complete: '{output.script.title}'")
+            if output.music_brief and output.script.music_brief is None:
+                output.script.music_brief = output.music_brief
+            return output.script
+
+        if isinstance(output, VideoScript):
+            logger.info(f"Script development complete: '{output.title}'")
+            return output
+
+        raise ScriptDevelopmentError(
+            f"Unexpected output type: {type(output).__name__}"
+        )
+    except AgentsException as e:
+        logger.error(f"Script development from pitch failed: {e}")
+        raise ScriptDevelopmentError(f"Script development failed: {e}") from e
+    except Exception as e:
+        if isinstance(e, (ValueError, ScriptDevelopmentError)):
+            raise
+        logger.error(f"Unexpected error during script development: {e}")
+        raise ScriptDevelopmentError(f"Script development failed: {e}") from e
