@@ -159,6 +159,34 @@ sipvid generate "Robot dance party" --yes
 sipvid status
 ```
 
+### Brand Kit Generation
+
+Generate a complete brand design library from a simple concept:
+
+```bash
+sipvid brandkit "A skincare product brand with a tropical, organic feel"
+```
+
+**How it works:**
+
+1. **Describe your brand** - Provide a concept (product type, style, audience)
+2. **Review the brief** - AI analyzes your concept and creates a brand brief
+3. **Choose a direction** - Select from 3 creative directions with different palettes and styles
+4. **Approve the logo** - Review and approve the generated logo before continuing
+5. **Generate assets** - All other assets use your approved logo for visual consistency
+
+**Generated assets include:**
+
+| Category | Assets |
+|----------|--------|
+| Logo | Primary brand logo (used as reference for all other assets) |
+| Packaging | Hero shot, alternate colorway |
+| Lifestyle | In-use photo, flatlay, environment |
+| Mascot | Primary and alternate poses |
+| Marketing | Landing page, recipe card, merch, pop-up stand, meme |
+
+The logo you approve becomes the visual anchor - it's passed as a reference image to Gemini when generating packaging and marketing assets, ensuring consistent branding across all outputs.
+
 ## Automatic Updates
 
 The tool automatically checks for updates on each run. When a new version is available, you'll see a notification:

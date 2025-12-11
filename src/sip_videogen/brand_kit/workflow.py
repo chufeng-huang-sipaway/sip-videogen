@@ -47,46 +47,24 @@ def _anchor_summary(brief: BrandKitBrief, direction: BrandDirection) -> str:
 
 
 def _logo_prompts(brief: BrandKitBrief, direction: BrandDirection) -> list[BrandAssetPrompt]:
-    """Generate prompts for logo exploration."""
+    """Generate prompt for the definitive brand logo."""
     anchors = _anchor_summary(brief, direction)
-    base = (
-        f"Logo exploration for {brief.brand_name}, a {brief.product_category} brand offering "
-        f"{brief.core_product}. Audience: {brief.target_audience}. {anchors}. "
-        "Critical: one single logo only, centered, no multiple options, no grids or sheets, no extra marks."
+    prompt = (
+        f"Create a single, definitive logo for {brief.brand_name}, "
+        f"a {brief.product_category} brand offering {brief.core_product}. "
+        f"Target audience: {brief.target_audience}. {anchors}. "
+        f"Typography: {direction.typography or 'clean sans serif'}. "
+        "Requirements: ONE logo only, centered on neutral background, professional vector "
+        "style, suitable for packaging and marketing materials. Include both a symbol/icon "
+        "and the brand name. No multiple variations, no grids, no sheets, no extra marks. "
+        "High contrast, crisp edges."
     )
-
     return [
         BrandAssetPrompt(
-            id="logo_wordmark",
+            id="logo_primary",
             category=BrandAssetCategory.LOGO,
-            label="Logo - Minimal Wordmark",
-            prompt=(
-                f"{base} Minimalist wordmark in clean {direction.typography or 'sans serif'} "
-                f"type, vector style, high contrast on neutral background. Do not show multiple variations."
-            ),
-            aspect_ratio="1:1",
-            variants=1,
-        ),
-        BrandAssetPrompt(
-            id="logo_symbol",
-            category=BrandAssetCategory.LOGO,
-            label="Logo - Symbol + Logotype",
-            prompt=(
-                f"{base} Symbol plus logotype that nods to the product. Geometric icon with "
-                f"balanced spacing, crisp vector edges, {direction.typography or 'contemporary type'}, "
-                "monotone mark on softly textured backdrop. Only one logo in frame; no grid; ample whitespace."
-            ),
-            aspect_ratio="1:1",
-            variants=1,
-        ),
-        BrandAssetPrompt(
-            id="logo_badge",
-            category=BrandAssetCategory.LOGO,
-            label="Logo - Badge/Monogram",
-            prompt=(
-                f"{base} Monogram or badge treatment using the brand initials, compact and "
-                "versatile. Elevated but legible, vector finish, subtle shadow for depth. One mark only; no sheets."
-            ),
+            label="Primary Brand Logo",
+            prompt=prompt,
             aspect_ratio="1:1",
             variants=1,
         ),
@@ -101,7 +79,9 @@ def _packaging_prompts(
     anchors = _anchor_summary(brief, direction)
     base = (
         f"Packaging concept for {brief.brand_name} {brief.core_product} "
-        f"({brief.product_category}). {anchors}. Photorealistic product photography."
+        f"({brief.product_category}). {anchors}. Photorealistic product photography. "
+        "IMPORTANT: Use the provided logo reference image exactly as shown - "
+        "incorporate it prominently on the packaging without modification."
     )
 
     return [
@@ -218,15 +198,19 @@ def _marketing_prompts(
     """Generate prompts for marketing assets."""
     anchors = _anchor_summary(brief, direction)
     palette = _comma_join(direction.color_palette)
+    logo_instruction = (
+        "IMPORTANT: Use the provided logo reference image exactly as shown - "
+        "incorporate it prominently without modification. "
+    )
     return [
         BrandAssetPrompt(
             id="marketing_landing",
             category=BrandAssetCategory.MARKETING,
             label="Marketing - Landing Page",
             prompt=(
-                f"Landing page hero layout for {brief.brand_name}. Show the product hero shot, "
-                f"clean grid, strong CTA, {brief.tone} tone. Palette {palette}. "
-                "Modern web aesthetic, generous whitespace, crisp typography."
+                f"Landing page hero layout for {brief.brand_name}. {logo_instruction}"
+                f"Show the product hero shot, clean grid, strong CTA, {brief.tone} tone. "
+                f"Palette {palette}. Modern web aesthetic, generous whitespace."
             ),
             aspect_ratio="16:9",
             variants=1,
@@ -236,9 +220,9 @@ def _marketing_prompts(
             category=BrandAssetCategory.MARKETING,
             label="Marketing - Usage/Recipe Card",
             prompt=(
-                f"Usage or recipe card for {brief.core_product}, styled for social. {anchors}. "
-                "Ingredient or step visual cues, minimal readable text placeholders, "
-                "neat layout on neutral backdrop."
+                f"Usage or recipe card for {brief.core_product}, styled for social. "
+                f"{anchors}. {logo_instruction}Ingredient or step visual cues, "
+                "minimal readable text placeholders, neat layout on neutral backdrop."
             ),
             aspect_ratio="4:5",
             variants=1,
@@ -249,7 +233,7 @@ def _marketing_prompts(
             label="Marketing - Merch",
             prompt=(
                 f"Merch assortment for {brief.brand_name}: tote, tee, hoodie or accessories. "
-                f"Use the logo and palette ({palette}). {anchors}. Studio lighting, clean surface."
+                f"{logo_instruction}Use the palette ({palette}). {anchors}. Studio lighting."
             ),
             aspect_ratio="4:5",
             variants=1,
@@ -260,7 +244,7 @@ def _marketing_prompts(
             label="Marketing - Pop-up Stand",
             prompt=(
                 f"Pop-up stand or booth design for {brief.brand_name} in a small footprint. "
-                f"{anchors}. Include counter, backdrop graphics, and product display. "
+                f"{logo_instruction}{anchors}. Include counter, backdrop graphics, display. "
                 "Bright inviting lighting."
             ),
             aspect_ratio="16:9",
@@ -271,8 +255,8 @@ def _marketing_prompts(
             category=BrandAssetCategory.MARKETING,
             label="Marketing - Playful Meme",
             prompt=(
-                f"Playful meme-style visual using the {brief.brand_name} product and mascot vibe. "
-                "Keep it lighthearted and brand-safe, simple layout, no offensive content."
+                f"Playful meme-style visual using the {brief.brand_name} product and mascot. "
+                f"{logo_instruction}Keep it lighthearted, brand-safe, simple layout."
             ),
             aspect_ratio="1:1",
             variants=1,
@@ -299,6 +283,7 @@ def generate_brand_assets(
     generator: NanoBananaImageGenerator,
     output_dir: Path,
     on_progress: Callable[[BrandAssetPrompt, List[str]], None] | None = None,
+    on_logo_ready: Callable[[str], bool] | None = None,
 ) -> List[BrandAssetResult]:
     """Generate all assets for the provided prompts.
 
@@ -306,23 +291,43 @@ def generate_brand_assets(
         prompts: Prepared prompts to execute.
         generator: Nano Banana image generator instance.
         output_dir: Base directory for outputs.
+        on_progress: Optional callback for progress updates.
+        on_logo_ready: Optional callback when logo is generated. Receives logo path,
+            returns True to continue or False to abort.
 
     Returns:
         List of BrandAssetResult capturing image paths and metadata.
     """
     results: list[BrandAssetResult] = []
     output_dir.mkdir(parents=True, exist_ok=True)
+    logo_path: str | None = None
 
     for prompt in prompts:
         category_dir = output_dir / prompt.category.value
         logger.info("Generating %s (%s)", prompt.label, prompt.category.value)
+
+        # Determine if this asset should use logo as reference
+        use_logo_ref = (
+            logo_path is not None
+            and prompt.category in [BrandAssetCategory.PACKAGING, BrandAssetCategory.MARKETING]
+        )
+
         image_paths = generator.generate_images(
             prompt=prompt.prompt,
             output_dir=category_dir,
             n=prompt.variants,
             aspect_ratio=prompt.aspect_ratio,
             filename_prefix=prompt.id,
+            reference_image_path=logo_path if use_logo_ref else None,
         )
+
+        # Capture logo path and get user approval before continuing
+        if prompt.category == BrandAssetCategory.LOGO and image_paths:
+            logo_path = image_paths[0]
+            logger.info("Logo generated: %s", logo_path)
+            if on_logo_ready:
+                if not on_logo_ready(logo_path):
+                    raise ValueError("Logo not approved - generation aborted")
 
         result = BrandAssetResult(
             prompt_id=prompt.id,

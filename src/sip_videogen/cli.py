@@ -246,9 +246,15 @@ def _generate_brand_assets_with_progress(
     prompts,
     generator: NanoBananaImageGenerator,
     assets_dir: Path,
-) -> list[BrandAssetResult]:
-    """Generate brand assets while displaying progress."""
+) -> tuple[list[BrandAssetResult], str | None]:
+    """Generate brand assets while displaying progress.
+
+    Returns:
+        Tuple of (results, selected_logo_path).
+    """
     results: list[BrandAssetResult] = []
+    selected_logo: str | None = None
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -266,14 +272,35 @@ def _generate_brand_assets_with_progress(
             description = f"[green]{prompt.category.value.title()}:[/green] {prompt.label}"
             progress.update(task, advance=1, description=description)
 
+        def _on_logo_ready(logo_path: str) -> bool:
+            """Pause progress and ask user to approve the logo."""
+            nonlocal selected_logo
+            progress.stop()
+            console.print(f"\n[bold green]Logo generated:[/bold green] {logo_path}")
+            console.print("[dim]Review the logo before continuing with other assets.[/dim]")
+
+            approved = questionary.confirm(
+                "Approve this logo? All other assets will be based on it.",
+                default=True,
+            ).ask()
+
+            if approved:
+                selected_logo = logo_path
+                progress.start()
+                return True
+            else:
+                console.print("[yellow]Logo not approved. Generation aborted.[/yellow]")
+                return False
+
         results = generate_brand_assets(
             prompts=prompts,
             generator=generator,
             output_dir=assets_dir,
             on_progress=_on_progress,
+            on_logo_ready=_on_logo_ready,
         )
 
-    return results
+    return results, selected_logo
 
 
 def _run_brand_kit_generation(concept: str, auto_confirm: bool = False) -> BrandKitPackage | None:
@@ -327,41 +354,23 @@ def _run_brand_kit_generation(concept: str, auto_confirm: bool = False) -> Brand
     generator = NanoBananaImageGenerator(api_key=settings.gemini_api_key)
 
     console.print("\n[bold cyan]Generating brand kit assets...[/bold cyan]")
-    results = _generate_brand_assets_with_progress(prompts, generator, assets_dir)
+    try:
+        results, selected_logo = _generate_brand_assets_with_progress(prompts, generator, assets_dir)
+    except ValueError as e:
+        # Logo was not approved
+        console.print(f"[yellow]{e}[/yellow]")
+        return None
 
-    # Let the user pick a logo (or auto-pick the first)
-    logo_results = [r for r in results if r.category.value == "logo"]
-    selected_logo: str | None = None
-    if logo_results:
-        logo_paths = [p for r in logo_results for p in r.image_paths]
-        if logo_paths:
-            choices = [
-                questionary.Choice(title=Path(p).name, value=p) for p in logo_paths
-            ]
-            choices.append(questionary.Choice(title="Let the agent pick for me", value="auto"))
-            logo_choice = questionary.select(
-                "Select the logo to use as the anchor (one logo per image):",
-                choices=choices,
-                style=questionary.Style([
-                    ("pointer", "fg:cyan bold"),
-                    ("highlighted", "fg:cyan bold"),
-                ]),
-            ).ask()
-            if logo_choice and logo_choice != "auto":
-                selected_logo = logo_choice
-            elif logo_paths:
-                selected_logo = logo_paths[0]
-
-            # Save a stable copy for downstream use
-            if selected_logo:
-                stable_logo = assets_dir / "logo" / "selected_logo.png"
-                stable_logo.parent.mkdir(parents=True, exist_ok=True)
-                try:
-                    import shutil
-                    shutil.copyfile(selected_logo, stable_logo)
-                    selected_logo = str(stable_logo)
-                except Exception as e:
-                    console.print(f"[yellow]Could not copy selected logo: {e}[/yellow]")
+    # Save a stable copy of the approved logo for downstream use
+    if selected_logo:
+        stable_logo = assets_dir / "logo" / "selected_logo.png"
+        stable_logo.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            import shutil
+            shutil.copyfile(selected_logo, stable_logo)
+            selected_logo = str(stable_logo)
+        except Exception as e:
+            console.print(f"[yellow]Could not copy selected logo: {e}[/yellow]")
 
     package = BrandKitPackage(
         brief=plan.brief,

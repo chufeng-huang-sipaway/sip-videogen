@@ -12,6 +12,7 @@ from typing import List
 
 from google import genai
 from google.genai import types
+from PIL import Image as PILImage
 
 from sip_videogen.config.logging import get_logger
 
@@ -33,6 +34,7 @@ class NanoBananaImageGenerator:
         n: int = 1,
         aspect_ratio: str = "1:1",
         filename_prefix: str = "asset",
+        reference_image_path: str | None = None,
     ) -> List[str]:
         """Generate images for a prompt and save them to disk.
 
@@ -42,12 +44,20 @@ class NanoBananaImageGenerator:
             n: Number of images to request.
             aspect_ratio: Image aspect ratio to request (1:1, 3:4, 4:5, 16:9, 9:16).
             filename_prefix: Prefix for output filenames.
+            reference_image_path: Optional path to a reference image for consistency.
 
         Returns:
             List of local file paths to the generated images.
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         paths: list[str] = []
+
+        # Build contents list - supports mixed text + image
+        contents: list = [prompt]
+        if reference_image_path:
+            ref_img = PILImage.open(reference_image_path)
+            contents.append(ref_img)
+            logger.debug("Using reference image: %s", reference_image_path)
 
         for idx in range(n):
             logger.debug(
@@ -60,7 +70,7 @@ class NanoBananaImageGenerator:
 
             response = self.client.models.generate_content(
                 model=self.model,
-                contents=prompt,
+                contents=contents,
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
