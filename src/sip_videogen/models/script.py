@@ -51,6 +51,27 @@ class SharedElement(BaseModel):
     )
 
 
+class SubShot(BaseModel):
+    """A single shot within a timestamp-prompted scene.
+
+    SubShots allow multiple camera angles/shots within a single 8-second VEO clip
+    using timestamp prompting. This is the recommended way to create rhythm and
+    shot variety since VEO forces 8-second clips when using reference images.
+
+    Example timestamp prompt output:
+    [00:00-00:02] Wide establishing shot of food truck
+    [00:02-00:04] Medium shot, vendor prepares ingredients
+    [00:04-00:06] Close-up of sizzling grill
+    [00:06-00:08] Medium shot, vendor plates the food
+    """
+
+    start_second: int = Field(ge=0, le=6, description="Start time in seconds (0, 2, 4, or 6)")
+    end_second: int = Field(ge=2, le=8, description="End time in seconds (2, 4, 6, or 8)")
+    camera_direction: str = Field(description="Shot composition and camera movement")
+    action_description: str = Field(description="What happens during this sub-shot")
+    dialogue: str = Field(default="", description="Dialogue during this sub-shot (if any)")
+
+
 class SceneAction(BaseModel):
     """What happens in a single scene.
 
@@ -62,10 +83,10 @@ class SceneAction(BaseModel):
 
     scene_number: int = Field(ge=1, description="Sequential scene number starting at 1")
     duration_seconds: int = Field(
-        default=6,
+        default=8,
         ge=4,
         le=8,
-        description="Target clip duration (4, 6, or 8s). VEO generates 8s, clips are trimmed to this duration.",
+        description="Clip duration in seconds. VEO forces 8s with reference images.",
     )
     setting_description: str = Field(description="Description of the scene's location/environment")
     action_description: str = Field(
@@ -82,6 +103,11 @@ class SceneAction(BaseModel):
     shared_element_ids: list[str] = Field(
         default_factory=list,
         description="IDs of shared elements appearing in this scene",
+    )
+    sub_shots: list[SubShot] = Field(
+        default_factory=list,
+        description="Optional list of sub-shots for timestamp prompting. "
+        "Creates multi-shot sequences within the 8-second clip for rhythm/variety.",
     )
 
 

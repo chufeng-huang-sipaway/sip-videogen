@@ -32,10 +32,62 @@ Given a script with scenes and shared elements, you:
 - Cause and effect should be clear
 
 ### Technical Consistency
-- Scene durations should match action complexity
-- Camera directions should be achievable
+- All clips are 8 seconds when using reference images (standard workflow)
+- Camera directions should be achievable and use professional terminology
 - Reference image descriptions should work for static images
 - Prompts should be within typical AI generation limits
+- For complex scenes, use timestamp prompting (sub_shots) for multi-shot sequences within 8 seconds
+
+### Camera Direction Validation (NEW)
+Verify each scene's `camera_direction` uses professional cinematography terminology:
+
+**Required vocabulary checks:**
+- **Movement terms**: dolly, tracking, crane, aerial, pan, tilt, POV, handheld, static
+- **Composition terms**: wide shot, full shot, medium shot, close-up, extreme close-up, two-shot, low angle, high angle, over-the-shoulder
+- **Focus terms**: shallow depth of field, deep focus, soft focus, rack focus
+
+**Red flags to fix:**
+- Missing camera_direction (add one using professional terms)
+- Vague descriptions like "camera follows" (change to "tracking shot")
+- Non-cinematic language like "zoom in on face" (change to "dolly in to close-up")
+- Missing depth of field for emotional scenes (add "shallow depth of field" for intimate moments)
+
+**Transformation examples:**
+- Bad: "Camera shows the character"
+- Good: "Medium shot, static camera"
+- Bad: "We see the landscape from above"
+- Good: "Aerial establishing shot, slow pan right"
+- Bad: "Focus on the character's reaction"
+- Good: "Close-up, shallow depth of field"
+
+### Dialogue Attribution Validation (NEW)
+Ensure dialogue is properly attributed to a subject for VEO:
+
+**Check that action descriptions include who speaks when dialogue is present:**
+- Good: "The vendor turns and greets the customer" + dialogue: "Welcome!"
+- Bad: Action has no speaking verb when dialogue exists
+- Fix: Add speaking context like "saying", "replies", "asks", "announces"
+
+**The video generator will automatically format dialogue with quotes**, but the action should provide context for WHO speaks.
+
+### Subject-First Action Validation (NEW)
+Ensure all action descriptions start with an identifiable subject:
+
+**Red flags to fix:**
+- Actions starting with verbs (gerunds): "Walking through the forest" → "The explorer walks through the forest"
+- Actions missing subject: "Picks up the book" → "The librarian picks up the book"
+- Passive constructions: "The door is opened" → "The vendor opens the door"
+
+**Acceptable subjects:**
+- Character role descriptors: "The vendor", "The customer", "The detective"
+- Environment references: "The ancient temple", "The neon sign"
+- Prop references: "The glowing crystal", "The vintage camera"
+
+**Transformation examples:**
+- Bad: "Reaching for the donut display"
+- Good: "The customer reaches for the donut display"
+- Bad: "Morning light streams through windows"
+- Good: "The cozy kitchen fills with morning light streaming through windows"
 
 ### Scene Flow Consistency
 - Verify middle scenes do NOT have action descriptions suggesting pauses at start or end
@@ -178,13 +230,17 @@ When you find issues:
 - **Inconsistent appearance**: Align scene description with element spec
 - **Missing element reference**: Add element ID to scene's shared_element_ids
 - **Vague description**: Add specific visual details (for settings/props, not character appearance)
-- **Impossible action**: Simplify or extend duration
-- **Duration mismatch**: Adjust duration to match action complexity
+- **Impossible action**: Simplify action or split into multiple scenes
+- **Complex action**: Suggest using timestamp prompting (sub_shots) for multi-shot sequences
 - **Scene flow break**: Add continuation language to action descriptions
 - **Static endings**: Replace pauses with motion-forward descriptions
 - **Visual style conflict**: Adjust scene setting/lighting to match global visual_style
 - **Missing visual_style**: Define visual_style if not present (color palette, lighting, camera, treatment)
 - **Contradicting visual_notes**: Remove or adjust scene visual_notes that conflict with global style
+- **Missing camera_direction**: Add professional cinematography terms (e.g., "Medium shot, static camera")
+- **Vague camera_direction**: Replace with specific terminology ("camera follows" → "tracking shot")
+- **Missing dialogue attribution**: Add speaking verbs when dialogue exists (e.g., "saying", "replies")
+- **Non-subject-first action**: Rewrite to start with subject ("Walking..." → "The explorer walks...")
 
 ## Output Requirements
 
@@ -215,6 +271,6 @@ Summarize:
 The validated script should be:
 - **Consistent**: No visual contradictions
 - **Specific**: Clear, concrete descriptions
-- **Achievable**: Actions fit within durations
+- **Achievable**: Actions fit within 8-second clips (use timestamp prompting for complexity)
 - **Compatible**: Works with AI video generation
 - **Complete**: All fields properly populated

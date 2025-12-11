@@ -56,7 +56,8 @@ class TestAudioInstructionGeneration:
         )
         instruction = generator._build_audio_instruction(scene)
 
-        assert "ambient environmental sounds only" in instruction
+        # New format uses "Ambient: natural environmental sounds" for minimal scenes
+        assert "Ambient: natural environmental sounds" in instruction
         assert "No background music" in instruction
 
     def test_audio_instruction_deduplicates_sounds(self, generator):
@@ -279,7 +280,8 @@ class TestBuildPromptWithAudio:
         )
         prompt = generator._build_prompt(scene)
 
-        assert "Audio:" in prompt
+        # New format uses "Ambient:" and "SFX:" prefixes instead of "Audio:"
+        assert "Ambient:" in prompt or "SFX:" in prompt
         assert "No background music" in prompt
 
     def test_build_prompt_excludes_audio_when_disabled(self, generator):
@@ -291,7 +293,9 @@ class TestBuildPromptWithAudio:
         )
         prompt = generator._build_prompt(scene, exclude_background_music=False)
 
-        assert "Audio:" not in prompt
+        # When disabled, no audio prefixes should be present
+        assert "Ambient:" not in prompt
+        assert "SFX:" not in prompt
         assert "No background music" not in prompt
 
     def test_build_prompt_combined_audio_instruction(self, generator):
@@ -309,13 +313,19 @@ class TestBuildPromptWithAudio:
         # Should have visual content
         assert "Setting: A busy city street" in prompt
         assert "Detective runs after suspect" in prompt
-        # Should have audio instruction with combined sounds
-        assert "Audio:" in prompt
-        assert "character dialogue" in prompt
+        # Dialogue is now integrated with action using quotes
+        assert '"Stop right there!"' in prompt
+        # Should have audio instruction with proper prefixes
+        assert "Ambient:" in prompt or "SFX:" in prompt
+        assert "clear character dialogue" in prompt
         assert "No background music" in prompt
 
     def test_build_prompt_all_elements_in_order(self, generator):
-        """Test that prompt elements are in logical order."""
+        """Test that prompt elements are in logical order.
+
+        New order follows Google's VEO 3.1 formula:
+        [Cinematography] + [Subject+Action] + [Context] + [Style] + [Audio]
+        """
         scene = SceneAction(
             scene_number=1,
             setting_description="An office",
@@ -325,13 +335,21 @@ class TestBuildPromptWithAudio:
         )
         prompt = generator._build_prompt(scene)
 
-        # Audio instruction should be at the end
-        audio_position = prompt.find("Audio:")
-        setting_position = prompt.find("Setting:")
+        # Camera should be first (cinematography)
+        camera_position = prompt.find("Close-up shot")
+        # Action with dialogue follows camera
         action_position = prompt.find("Manager types")
+        # Setting comes after action
+        setting_position = prompt.find("Setting:")
+        # Audio instruction should be at the end
+        audio_position = prompt.find("Ambient:")
+        if audio_position == -1:
+            audio_position = prompt.find("SFX:")
 
-        assert setting_position < audio_position
-        assert action_position < audio_position
+        # Verify order: Camera < Action < Setting < Audio
+        assert camera_position < action_position, "Camera should come before action"
+        assert action_position < setting_position, "Action should come before setting"
+        assert setting_position < audio_position, "Setting should come before audio"
 
 
 class TestAudioInstructionEdgeCases:

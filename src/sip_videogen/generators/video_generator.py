@@ -308,6 +308,9 @@ class VEOVideoGenerator(BaseVideoGenerator):
     ) -> str | None:
         """Build explicit reference image linking phrases for VEO.
 
+        Uses Google's recommended phrasing:
+        "Using the provided images for [element1], [element2], and [setting]..."
+
         This tells VEO which character/element in the prompt corresponds to which
         reference image, improving visual consistency without needing detailed
         appearance descriptions in the prompt text.
@@ -322,7 +325,10 @@ class VEOVideoGenerator(BaseVideoGenerator):
         if not reference_images or not script:
             return None
 
-        linking_phrases = []
+        # Collect element names for the opening phrase
+        element_names = []
+        element_details = []
+
         for idx, ref in enumerate(reference_images):
             if not ref.element_id:
                 continue
@@ -334,24 +340,38 @@ class VEOVideoGenerator(BaseVideoGenerator):
             # Use role_descriptor if available, otherwise fall back to name
             descriptor = element.role_descriptor or element.name
 
-            # Create linking phrase based on element type
+            # Collect names for opening phrase
             if element.element_type.value == "character":
-                linking_phrases.append(
-                    f"{descriptor.capitalize()}'s appearance should match "
-                    f"reference image {idx + 1}"
+                element_names.append(descriptor)
+                element_details.append(
+                    f"{descriptor.capitalize()}'s appearance matches reference image {idx + 1}"
                 )
             elif element.element_type.value == "environment":
-                linking_phrases.append(
-                    f"The environment should match reference image {idx + 1}"
+                element_names.append(f"the {element.name.lower()}")
+                element_details.append(
+                    f"The {element.name.lower()} matches reference image {idx + 1}"
                 )
             elif element.element_type.value == "prop":
-                linking_phrases.append(
-                    f"The {element.name} should match reference image {idx + 1}"
+                element_names.append(f"the {element.name.lower()}")
+                element_details.append(
+                    f"The {element.name.lower()} matches reference image {idx + 1}"
                 )
 
-        if linking_phrases:
-            return "Reference image guidance: " + ". ".join(linking_phrases)
-        return None
+        if not element_names:
+            return None
+
+        # Build Google-style opening phrase
+        if len(element_names) == 1:
+            opening = f"Using the provided image for {element_names[0]}"
+        elif len(element_names) == 2:
+            opening = f"Using the provided images for {element_names[0]} and {element_names[1]}"
+        else:
+            opening = (
+                f"Using the provided images for {', '.join(element_names[:-1])}, "
+                f"and {element_names[-1]}"
+            )
+
+        return opening
 
     def _build_prompt(
         self,
@@ -362,6 +382,9 @@ class VEOVideoGenerator(BaseVideoGenerator):
         script: VideoScript | None = None,
     ) -> str:
         """Build a generation prompt from scene details.
+
+        Uses Google's recommended VEO 3.1 prompt formula:
+        [Cinematography] + [Subject+Action] + [Context] + [Style] + [Audio]
 
         Args:
             scene: The SceneAction to build a prompt for.
@@ -380,40 +403,47 @@ class VEOVideoGenerator(BaseVideoGenerator):
         """
         parts = []
 
-        # Add global visual style first (ensures all clips share cohesive look)
-        if script and script.visual_style:
-            parts.append(f"Visual Style: {script.visual_style}")
+        # Check if this scene uses timestamp prompting (experimental)
+        if scene.sub_shots:
+            return self._build_timestamp_prompt_full(
+                scene, reference_images, script, exclude_background_music
+            )
 
-        # Add per-scene visual notes if present (optional adjustments)
-        if scene.visual_notes:
-            parts.append(f"Scene Visual: {scene.visual_notes}")
+        # Standard prompt structure follows Google's VEO 3.1 formula:
+        # [Cinematography] + [Subject+Action] + [Context] + [Style] + [Audio]
 
-        # Add reference image linking context (tells VEO which element matches which image)
+        # 1. CINEMATOGRAPHY - Camera direction first (most control over shot)
+        if scene.camera_direction:
+            parts.append(scene.camera_direction)
+
+        # 2. REFERENCE IMAGES - Tell VEO which elements match which images
+        # Use Google's recommended phrasing: "Using the provided images for X, Y..."
         linking_context = self._build_reference_linking_context(reference_images, script)
         if linking_context:
             parts.append(linking_context)
 
-        # Add scene flow context (crucial for eliminating inter-clip pauses)
+        # 3. SUBJECT + ACTION - Main action with integrated dialogue
+        action_with_dialogue = self._build_action_with_dialogue(scene)
+        parts.append(action_with_dialogue)
+
+        # 4. CONTEXT - Setting/environment description
+        if scene.setting_description:
+            parts.append(f"Setting: {scene.setting_description}")
+
+        # 5. STYLE & AMBIANCE - Visual style for cohesive look
+        if script and script.visual_style:
+            parts.append(f"Visual style: {script.visual_style}")
+
+        # Add per-scene visual notes if present (optional adjustments to global style)
+        if scene.visual_notes:
+            parts.append(f"Scene atmosphere: {scene.visual_notes}")
+
+        # 6. FLOW CONTEXT - Eliminates awkward pauses between clips
         flow_context = self._build_flow_context(scene, total_scenes)
         if flow_context:
             parts.append(flow_context)
 
-        # Add setting context
-        if scene.setting_description:
-            parts.append(f"Setting: {scene.setting_description}")
-
-        # Add the main action (most important)
-        parts.append(scene.action_description)
-
-        # Add camera direction if specified
-        if scene.camera_direction:
-            parts.append(f"Camera: {scene.camera_direction}")
-
-        # Add dialogue context if present
-        if scene.dialogue:
-            parts.append(f"Dialogue: {scene.dialogue}")
-
-        # Add audio instruction to keep SFX/dialogue but exclude background music
+        # 7. AUDIO - Ambient sounds and SFX (no background music)
         if exclude_background_music:
             audio_instruction = self._build_audio_instruction(scene)
             parts.append(audio_instruction)
@@ -421,13 +451,153 @@ class VEOVideoGenerator(BaseVideoGenerator):
         raw_prompt = ". ".join(parts)
         return self._sanitize_prompt_for_vertex(raw_prompt)
 
-    def _build_audio_instruction(self, scene: SceneAction) -> str:
-        """Build audio instruction to keep ambient sounds but exclude background music.
+    def _build_timestamp_prompt_full(
+        self,
+        scene: SceneAction,
+        reference_images: list[GeneratedAsset] | None,
+        script: VideoScript | None,
+        exclude_background_music: bool,
+    ) -> str:
+        """Build a complete timestamp-prompted scene (experimental).
 
-        This analyzes the scene content to infer relevant sound effects and ambient
-        sounds, then instructs VEO to generate those sounds while explicitly
-        excluding background music. This allows consistent background music to be
-        added later via FFmpeg.
+        This creates a multi-shot sequence using Google's VEO 3.1 timestamp format.
+        Each sub_shot becomes a timestamped segment within the generated clip.
+
+        Args:
+            scene: The SceneAction with sub_shots defined.
+            reference_images: Optional reference images for visual consistency.
+            script: Optional VideoScript for context.
+            exclude_background_music: Whether to exclude background music.
+
+        Returns:
+            Complete timestamp-formatted prompt string.
+        """
+        parts = []
+
+        # 1. Reference image context (applies to all sub-shots)
+        linking_context = self._build_reference_linking_context(reference_images, script)
+        if linking_context:
+            parts.append(linking_context)
+
+        # 2. Global setting for all sub-shots
+        if scene.setting_description:
+            parts.append(f"Setting: {scene.setting_description}")
+
+        # 3. Visual style
+        if script and script.visual_style:
+            parts.append(f"Visual style: {script.visual_style}")
+
+        # Add intro context
+        intro = ". ".join(parts) if parts else ""
+
+        # 4. Build timestamp segments
+        timestamp_content = self._build_timestamp_prompt(scene)
+
+        # 5. Audio instruction at the end
+        audio_parts = []
+        if exclude_background_music:
+            audio_instruction = self._build_audio_instruction(scene)
+            audio_parts.append(audio_instruction)
+
+        # Combine: intro, then timestamp segments, then audio
+        final_parts = []
+        if intro:
+            final_parts.append(intro)
+        final_parts.append(timestamp_content)
+        if audio_parts:
+            final_parts.append(". ".join(audio_parts))
+
+        raw_prompt = "\n\n".join(final_parts)
+        return self._sanitize_prompt_for_vertex(raw_prompt)
+
+    def _build_action_with_dialogue(self, scene: SceneAction) -> str:
+        """Build action description with integrated dialogue using quotation marks.
+
+        Following Google's VEO 3.1 best practices:
+        - Use quotation marks for spoken lines
+        - Integrate dialogue naturally into action description
+
+        Example: 'The vendor flips a burger and says, "Best burgers in town!"'
+
+        Args:
+            scene: The SceneAction containing action and optional dialogue.
+
+        Returns:
+            Action string with integrated dialogue.
+        """
+        action = scene.action_description
+
+        if not scene.dialogue:
+            return action
+
+        # Format dialogue with quotation marks
+        dialogue_text = scene.dialogue.strip()
+
+        # Remove any existing quotes to normalize
+        if dialogue_text.startswith('"') and dialogue_text.endswith('"'):
+            dialogue_text = dialogue_text[1:-1]
+        if dialogue_text.startswith("'") and dialogue_text.endswith("'"):
+            dialogue_text = dialogue_text[1:-1]
+
+        # Check if action already mentions speaking/saying
+        speaking_verbs = ["says", "saying", "said", "speaks", "asks", "replies", "responds"]
+        has_speaking_verb = any(verb in action.lower() for verb in speaking_verbs)
+
+        if has_speaking_verb:
+            # Action already has speaking context, just add quoted dialogue
+            # Try to insert dialogue after the speaking verb
+            return f'{action}: "{dialogue_text}"'
+        else:
+            # Append dialogue naturally
+            # Strip trailing punctuation from action for cleaner merge
+            action_clean = action.rstrip(".,;:")
+            return f'{action_clean}, saying "{dialogue_text}"'
+
+    def _build_timestamp_prompt(self, scene: SceneAction) -> str:
+        """Build a timestamp-based prompt for multi-shot scenes (experimental).
+
+        Uses Google's VEO 3.1 timestamp prompting format:
+        [00:00-00:02] Medium shot of explorer pushing aside vines
+        [00:02-00:04] Close-up of explorer's face showing wonder
+        ...
+
+        Args:
+            scene: The SceneAction with sub_shots defined.
+
+        Returns:
+            Timestamp-formatted prompt string.
+        """
+        if not scene.sub_shots:
+            return ""
+
+        segments = []
+        for sub_shot in scene.sub_shots:
+            # Format time as [MM:SS-MM:SS]
+            start_time = f"00:0{sub_shot.start_second}"
+            end_time = f"00:0{sub_shot.end_second}"
+
+            # Build the sub-shot description
+            shot_parts = [sub_shot.camera_direction]
+
+            # Add action with optional dialogue
+            if sub_shot.dialogue:
+                dialogue_clean = sub_shot.dialogue.strip().strip('"').strip("'")
+                shot_parts.append(f'{sub_shot.action_description}, saying "{dialogue_clean}"')
+            else:
+                shot_parts.append(sub_shot.action_description)
+
+            segment = f"[{start_time}-{end_time}] {'. '.join(shot_parts)}"
+            segments.append(segment)
+
+        return "\n\n".join(segments)
+
+    def _build_audio_instruction(self, scene: SceneAction) -> str:
+        """Build audio instruction with SFX prefix following Google's VEO 3.1 guide.
+
+        Uses Google's recommended audio notation:
+        - "SFX:" prefix for specific sound effects
+        - "Ambient:" for environmental background sounds
+        - Separate treatment for dialogue
 
         Args:
             scene: The SceneAction to analyze for audio cues.
@@ -435,33 +605,39 @@ class VEOVideoGenerator(BaseVideoGenerator):
         Returns:
             Audio instruction string for the VEO prompt.
         """
-        sounds = []
-
-        # Add dialogue indicator if present
-        if scene.dialogue:
-            sounds.append("character dialogue")
+        ambient_sounds = []
+        sfx_sounds = []
 
         # Infer ambient sounds from setting
         if scene.setting_description:
             ambient_sounds = self._infer_ambient_sounds(scene.setting_description)
-            sounds.extend(ambient_sounds)
 
-        # Infer action sounds from action description
+        # Infer action-specific sound effects from action description
         if scene.action_description:
-            action_sounds = self._infer_action_sounds(scene.action_description)
-            sounds.extend(action_sounds)
+            sfx_sounds = self._infer_action_sounds(scene.action_description)
 
-        # Build the audio instruction
-        if sounds:
-            # Deduplicate while preserving order
-            unique_sounds = list(dict.fromkeys(sounds))
-            sound_list = ", ".join(unique_sounds)
-            return f"Audio: {sound_list}. No background music, no soundtrack, no musical score"
+        # Build the audio instruction with proper prefixes
+        audio_parts = []
+
+        # Ambient sounds (environmental background)
+        if ambient_sounds:
+            unique_ambient = list(dict.fromkeys(ambient_sounds))
+            audio_parts.append(f"Ambient: {', '.join(unique_ambient)}")
+
+        # SFX for specific action sounds
+        if sfx_sounds:
+            unique_sfx = list(dict.fromkeys(sfx_sounds))
+            audio_parts.append(f"SFX: {', '.join(unique_sfx)}")
+
+        # Note about dialogue (VEO handles this from the action text with quotes)
+        if scene.dialogue:
+            audio_parts.append("clear character dialogue")
+
+        # Combine and add no-music instruction
+        if audio_parts:
+            return ". ".join(audio_parts) + ". No background music, no soundtrack"
         else:
-            return (
-                "Audio: ambient environmental sounds only. "
-                "No background music, no soundtrack, no musical score"
-            )
+            return "Ambient: natural environmental sounds. No background music, no soundtrack"
 
     def _infer_ambient_sounds(self, setting: str) -> list[str]:
         """Infer ambient sounds from scene setting description.

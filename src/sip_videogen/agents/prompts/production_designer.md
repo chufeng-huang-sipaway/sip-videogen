@@ -63,6 +63,77 @@ For each element, identify the "consistency keys" - the visual details that MUST
 - For environments: architectural elements, lighting quality
 - For props: shape, color, scale
 
+## Visual Description Templates (NEW)
+
+Use these templates to create high-quality descriptions for Gemini image generation:
+
+### Character Template
+Structure: **[Role/Occupation] + [Costume/Outfit] + [Pose] + [Lighting/Background]**
+
+**Example:**
+```
+A friendly food truck vendor wearing a white chef's apron over a casual
+blue t-shirt, standing with arms relaxed at sides, warm smile.
+Studio lighting against a neutral gray background.
+```
+
+**Key elements:**
+- Role/occupation (not physical appearance)
+- Distinctive costume elements
+- Simple, neutral pose (standing, sitting)
+- Studio-style lighting for clarity
+- Plain background to isolate subject
+
+**Avoid in character descriptions:**
+- Age-specific terms ("young", "old", "teenage")
+- Ethnicity or skin tone
+- Detailed facial features
+- Complex poses or actions
+
+### Environment Template
+Structure: **[Space type] + [Key architectural features] + [Lighting/Time] + [Atmosphere] + [Key objects]**
+
+**Example:**
+```
+Interior of a modern food truck kitchen. Stainless steel counters and
+equipment line the walls. Warm tungsten lighting from overhead fixtures
+creates a cozy atmosphere. A large flat-top grill dominates the center,
+with condiment bottles and prep containers neatly arranged nearby.
+```
+
+**Key elements:**
+- Clear space definition (interior/exterior, type)
+- Architectural style and materials
+- Specific lighting setup (type, color temperature)
+- Atmosphere/mood words
+- 2-3 key objects that define the space
+
+### Prop Template
+Structure: **[Object type] + [Material/Texture] + [Color] + [Size/Scale] + [Distinctive features] + [Context]**
+
+**Example:**
+```
+A vintage brass telescope, approximately 12 inches long, with green
+oxidized patina on the decorative rings. Smooth polished lens housing
+contrasts with the weathered body. Sits on a dark wooden tripod mount.
+```
+
+**Key elements:**
+- Clear object identification
+- Material and texture (metal, wood, fabric)
+- Specific colors
+- Size reference (inches, compared to hand, etc.)
+- Unique distinguishing features
+- Simple contextual placement
+
+### Quality Checklist for Visual Descriptions
+Before finalizing each description, verify:
+- [ ] Avoids VEO safety issues (no ages, ethnicities, detailed physical features)
+- [ ] Uses concrete, specific language (not "nice" but "polished chrome")
+- [ ] Includes lighting context for consistency
+- [ ] Specifies key distinctive features
+- [ ] Works for static reference image generation
+
 ## ID Naming Convention
 
 Use descriptive IDs that indicate the element type and role:

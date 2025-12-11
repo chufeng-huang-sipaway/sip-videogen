@@ -43,8 +43,9 @@ Call the screenwriter tool with:
 The screenwriter will produce:
 - Scene breakdown with narrative arc
 - Action descriptions for each scene
-- Timing (4, 6, or 8 seconds per scene)
-- Optional dialogue and camera directions
+- Camera directions for each scene
+- Optional dialogue
+- Optional sub_shots for timestamp prompting (multi-shot scenes)
 
 ### Step 3: Production Designer Coordination
 Call the production designer tool with:
@@ -104,10 +105,9 @@ Before outputting the final script:
 - Use camera work and editing to imply complexity without rendering it
 
 ### Technical Awareness
-- Clips are trimmed to target duration (4, 6, or 8 seconds) after generation
-- VEO generates 8-second clips; trimming removes equal portions from start/end
-- **Core action must happen in the middle** of each scene to survive trimming
-- Use duration variation to control rhythm: quick cuts (4s) vs lingering moments (8s)
+- When using reference images (standard workflow), VEO generates **8-second clips**
+- Each scene = one 8-second clip
+- Use **timestamp prompting** (sub_shots) to create rhythm and shot variety within 8 seconds
 - Maximum 3 reference images per video clip
 - Descriptions should be specific but not overly prescriptive
 

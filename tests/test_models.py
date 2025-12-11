@@ -106,7 +106,7 @@ class TestSceneAction:
             setting_description="Test setting",
             action_description="Test action",
         )
-        assert scene.duration_seconds == 6  # Default (was 5, changed to 6 for VEO compatibility)
+        assert scene.duration_seconds == 8  # VEO forces 8s when using reference images (standard)
         # Empty strings are the default (not None) for OpenAI structured output compatibility
         assert scene.dialogue == ""
         assert scene.camera_direction == ""

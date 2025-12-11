@@ -398,10 +398,12 @@ class TestVideoGeneratorSceneFlow:
             )
             prompt = generator._build_prompt(scene, total_scenes=4)
 
-            # Flow context should be first
+            # Flow context should be present
             assert "scene 2 of 4" in prompt
             # All scene fields should be present
             assert "Setting: Dark alley" in prompt
             assert "Detective searches for clues" in prompt
-            assert "Camera: Slow pan right" in prompt
-            assert "Dialogue: Where could it be?" in prompt
+            # Camera direction is now at the beginning without "Camera:" prefix
+            assert "Slow pan right" in prompt
+            # Dialogue is now integrated with action using quotes
+            assert '"Where could it be?"' in prompt

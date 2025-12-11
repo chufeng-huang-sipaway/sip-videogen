@@ -840,7 +840,6 @@ async def _run_pipeline(
         raise typer.Exit(1)
 
     # ========== Prepare Clips for Assembly ==========
-    # Note: Clips are used as-is from the model (no trimming)
     try:
         assembler = FFmpegAssembler()
     except FFmpegError as e:
@@ -1670,10 +1669,10 @@ def _show_more_options_menu() -> str:
 
 # Duration options for video generation (seconds, display label)
 DURATION_OPTIONS = [
-    (15, "15 seconds (~2 scenes)"),
-    (30, "30 seconds (~4 scenes)"),
-    (45, "45 seconds (~6 scenes)"),
-    (60, "60 seconds (~8 scenes)"),
+    (15, "15 seconds"),
+    (30, "30 seconds"),
+    (45, "45 seconds"),
+    (60, "60 seconds"),
 ]
 
 

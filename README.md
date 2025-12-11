@@ -11,8 +11,8 @@ User Idea → AI Agent Script Team → Reference Images → Video Clips → Fina
 1. You provide a video idea (e.g., "A cat astronaut explores Mars")
 2. AI agents collaborate to write a script with scenes and shared visual elements
 3. Reference images are generated for visual consistency (characters, props, environments)
-4. Video clips are generated for each scene using Google VEO 3.1
-5. Clips are assembled into a final video with FFmpeg
+4. Video clips are generated for each scene using Google VEO 3.1 (8 seconds per clip)
+5. Clips are assembled into a final video with background music via FFmpeg
 
 ## Installation
 
@@ -120,15 +120,15 @@ This launches a simplified interactive menu:
 When you select "Generate Video", you'll experience a streamlined creative workflow:
 
 1. **Enter your idea** - Describe your video concept
-2. **Select duration** - Choose from 15s, 30s, 45s, or 60s (the AI calculates scenes automatically)
+2. **Select duration** - Choose from 15s, 30s, 45s, or 60s
 3. **Review the pitch** - The AI presents a "Director's Pitch" with:
    - Title and logline
    - Tone and visual style
-   - Key elements and scene count
+   - Key elements and scene breakdown
 4. **Approve or refine** - Accept the pitch, provide feedback for revision, or cancel
 5. **Generate** - Once approved, full video generation begins
 
-This ensures you're happy with the creative direction before committing to generation.
+The AI agent team decides the optimal scene count based on your story's complexity.
 
 ### View History
 
@@ -184,21 +184,42 @@ sipvid update --check # Only check, don't install
 The tool uses a hub-and-spoke agent pattern:
 
 - **Showrunner** (orchestrator) - Coordinates the script development process
-  - **Screenwriter** - Creates scene breakdown with narrative arc
-  - **Production Designer** - Identifies shared visual elements
+  - **Screenwriter** - Creates scene breakdown with professional cinematography
+  - **Production Designer** - Identifies shared visual elements for consistency
   - **Continuity Supervisor** - Validates consistency and optimizes prompts
+  - **Music Director** - Designs complementary background music
+
+### VEO 3.1 Prompt Optimization
+
+Prompts are structured following [Google's VEO 3.1 best practices](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1):
+
+- **Prompt order**: `[Cinematography] → [Subject+Action] → [Setting] → [Style] → [Audio]`
+- **Professional camera terminology**: dolly, tracking, crane shots with depth of field control
+- **Dialogue integration**: Quotes and speaker attribution for natural delivery
+- **Audio design**: `Ambient:` and `SFX:` prefixes for precise sound control
+
+### Clip Duration & Timestamp Prompting
+
+When using reference images for visual consistency (standard workflow), VEO generates **8-second clips**. To create rhythm and shot variety within this fixed duration, scenes can use **timestamp prompting**:
+
+```
+[00:00-00:02] Wide establishing shot of the food truck
+[00:02-00:04] Medium shot, the vendor prepares ingredients
+[00:04-00:06] Close-up of sizzling grill
+[00:06-00:08] Medium shot, vendor plates the food
+```
+
+This creates dynamic multi-shot sequences within a single clip, similar to professional editing.
 
 ### Seamless Scene Flow
 
-Video clips are generated in parallel for speed, but the system ensures smooth transitions between clips:
+Video clips are generated in parallel for speed, but the system ensures smooth transitions:
 
-- **VEO Prompt Context**: Each clip receives position-aware instructions (first/middle/last scene) to avoid awkward pauses at clip boundaries
-- **Agent Guidelines**: Screenwriter and Continuity Supervisor are instructed to create scenes that flow seamlessly:
+- **Flow Context**: Each clip receives position-aware instructions (first/middle/last) to avoid awkward pauses
+- **Scene Continuity**: Screenwriter creates scenes that flow seamlessly:
   - First scene: May open naturally, must end with action in progress
-  - Middle scenes: Must begin AND end mid-action (no pauses at either end)
+  - Middle scenes: Must begin AND end mid-action (no pauses)
   - Last scene: Must begin mid-action, may conclude naturally
-
-This prevents the "breathing space" effect where assembled clips have noticeable gaps between scenes.
 
 ## Development
 
