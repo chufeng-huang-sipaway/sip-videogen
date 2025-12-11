@@ -45,7 +45,23 @@
       "WebFetch(domain:www.segmind.com)",
       "WebFetch(domain:useapi.net)",
       "WebFetch(domain:docs.qingque.cn)",
-      "WebFetch(domain:doc.dmxapi.cn)"
+      "WebFetch(domain:doc.dmxapi.cn)",
+      "WebFetch(domain:kapps.medium.com)",
+      "WebFetch(domain:kie.ai)",
+      "WebFetch(domain:www.cometapi.com)",
+      "WebFetch(domain:www.prnewswire.com)",
+      "WebFetch(domain:fal.ai)",
+      "WebFetch(domain:blog.fal.ai)",
+      "Bash(chmod:*)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen status:*)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen add:*)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen commit -m \"$(cat <<''EOF''\nfeat: Simplify setup with auto-bootstrap start.sh\n\n- start.sh now auto-creates venv and installs deps on first run\n- Checks for Python 3.11+ and guides user if missing\n- Validates .env exists before running\n- Updated README with simpler Quick Start instructions\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen diff --stat)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen log --oneline -3)",
+      "Bash(xargs -I {} sh -c 'echo \"\"\"\"=== {} ===\"\"\"\" && find {} -type f | head -20')",
+      "Bash(python3 -m py_compile:*)",
+      "Bash(python3:*)",
+      "Bash(/Users/huangcf/Library/Python/3.10/bin/twine upload dist/*)"
     ]
   }
 }

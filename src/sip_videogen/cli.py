@@ -1227,9 +1227,9 @@ def config(
 def setup_credentials() -> None:
     """Set up Google Cloud credentials for GCS access.
 
-    This command helps you configure Google Cloud credentials by pasting
-    a service account JSON key. The credentials are saved securely and
-    the .env file is updated automatically.
+    This command helps you configure Google Cloud credentials by dragging
+    and dropping a service account JSON key file. The credentials are saved
+    securely and the .env file is updated automatically.
 
     Examples:
         sipvid setup-credentials
@@ -1249,48 +1249,52 @@ def setup_credentials() -> None:
     console.print("1. Go to Google Cloud Console → IAM & Admin → Service Accounts")
     console.print("2. Create or select a service account")
     console.print("3. Go to Keys → Add Key → Create new key → JSON")
-    console.print("4. Open the downloaded JSON file and copy its contents")
+    console.print("4. A JSON file will be downloaded to your computer")
     console.print()
 
-    console.print("[bold cyan]Paste your service account JSON below.[/bold cyan]")
-    console.print("[dim]Paste the entire JSON content, then press Enter twice to finish:[/dim]")
+    console.print("[bold cyan]Drag and drop the JSON file here, then press Enter:[/bold cyan]")
+    console.print("[dim](You can drag the file directly from Finder into this terminal)[/dim]")
     console.print()
 
-    # Collect multi-line input
-    lines = []
-    empty_line_count = 0
-    while True:
-        try:
-            line = input()
-            if line == "":
-                empty_line_count += 1
-                if empty_line_count >= 1 and lines:
-                    # Check if we have complete JSON
-                    try:
-                        json.loads("\n".join(lines))
-                        break  # Valid JSON, we're done
-                    except json.JSONDecodeError:
-                        lines.append(line)  # Keep collecting
-                        empty_line_count = 0
-                else:
-                    lines.append(line)
-            else:
-                empty_line_count = 0
-                lines.append(line)
-        except EOFError:
-            break
-
-    json_content = "\n".join(lines).strip()
-
-    if not json_content:
+    # Get file path from drag-and-drop
+    try:
+        file_path_input = input().strip()
+    except EOFError:
         console.print("[red]No input provided. Aborting.[/red]")
+        raise typer.Exit(1)
+
+    if not file_path_input:
+        console.print("[red]No file path provided. Aborting.[/red]")
+        raise typer.Exit(1)
+
+    # Clean up the path - remove quotes and escape characters from drag-and-drop
+    # macOS terminal may add quotes around paths with spaces
+    # or escape spaces with backslashes
+    file_path_str = file_path_input.strip("'\"")
+    file_path_str = file_path_str.replace("\\ ", " ")  # Unescape spaces
+
+    file_path = Path(file_path_str)
+
+    if not file_path.exists():
+        console.print(f"[red]File not found: {file_path}[/red]")
+        raise typer.Exit(1)
+
+    if not file_path.is_file():
+        console.print(f"[red]Not a file: {file_path}[/red]")
+        raise typer.Exit(1)
+
+    # Read the JSON file
+    try:
+        json_content = file_path.read_text()
+    except Exception as e:
+        console.print(f"[red]Failed to read file: {e}[/red]")
         raise typer.Exit(1)
 
     # Validate JSON
     try:
         creds_data = json.loads(json_content)
     except json.JSONDecodeError as e:
-        console.print(f"[red]Invalid JSON: {e}[/red]")
+        console.print(f"[red]Invalid JSON in file: {e}[/red]")
         raise typer.Exit(1)
 
     # Check for required fields
