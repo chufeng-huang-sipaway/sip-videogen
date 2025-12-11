@@ -60,7 +60,9 @@ class MusicGenerator:
             MusicGenerationError: If authentication fails.
         """
         try:
-            creds, _ = google.auth.default()
+            # Specify scopes required for Vertex AI
+            scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+            creds, _ = google.auth.default(scopes=scopes)
             auth_req = google.auth.transport.requests.Request()
             creds.refresh(auth_req)
             return {

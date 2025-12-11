@@ -1077,13 +1077,16 @@ def resume(
         run_dir = run_dir.expanduser()
 
     try:
-        asyncio.run(
+        result = asyncio.run(
             _resume_video_generation(
                 run_dir,
                 provider_override=provider,
                 skip_confirmation=yes,
             )
         )
+        if result:
+            package, run_dir, generated_music = result
+            _display_final_summary(package, run_dir, generated_music)
     except KeyboardInterrupt:
         console.print("\n[yellow]Resume cancelled by user.[/yellow]")
         raise typer.Exit(130)
@@ -1558,7 +1561,10 @@ def _show_history() -> None:
 
     if action == "resume":
         # Trigger resume flow for this run
-        asyncio.run(_resume_video_generation(selected_dir))
+        result = asyncio.run(_resume_video_generation(selected_dir))
+        if result:
+            package, run_dir, generated_music = result
+            _display_final_summary(package, run_dir, generated_music)
     elif action == "open":
         system = platform.system()
         if system == "Darwin":
@@ -2281,7 +2287,7 @@ async def _resume_video_generation(
     run_dir: Path,
     provider_override: VideoProvider | None = None,
     skip_confirmation: bool = False,
-) -> None:
+) -> tuple[ProductionPackage, Path, GeneratedMusic | None] | None:
     """Resume video generation from an existing run folder."""
     logger = get_logger(__name__)
 
@@ -2576,9 +2582,10 @@ async def _resume_video_generation(
             video_clips=prepared_clips,
             final_video_path=str(final_output),
         )
-        _display_final_summary(package, run_dir, generated_music)
+        return (package, run_dir, generated_music)
     except FFmpegError as e:
         console.print(f"[red]Failed to assemble video:[/red] {e}")
+        return None
 
 
 def _show_resume_menu() -> None:
@@ -2591,7 +2598,10 @@ def _show_resume_menu() -> None:
         return
 
     # Run the async function
-    asyncio.run(_resume_video_generation(run_dir))
+    result = asyncio.run(_resume_video_generation(run_dir))
+    if result:
+        package, run_dir, generated_music = result
+        _display_final_summary(package, run_dir, generated_music)
 
 
 def _show_help() -> None:
@@ -2667,7 +2677,10 @@ def menu() -> None:
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
             elif choice == "history":
-                _show_history()
+                try:
+                    _show_history()
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/red]")
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
             elif choice == "more":
