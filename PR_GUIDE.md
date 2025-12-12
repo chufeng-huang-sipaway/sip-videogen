@@ -8,7 +8,7 @@
 
 | Stage | Description | Status |
 |-------|-------------|--------|
-| 1 | Brand Storage Foundation | 🔄 In Progress (5/7 tasks) |
+| 1 | Brand Storage Foundation | 🔄 In Progress (6/7 tasks) |
 | 2 | Hierarchical Memory System | ⏳ Pending |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
@@ -118,20 +118,59 @@
 
 ---
 
-## Next Task
+### Task 1.6: Implement brand storage functions ✅
+**Commit**: `6cd0461`
 
-### Task 1.6: Implement brand storage functions
-**Description**: Create CRUD functions for brand persistence.
+**Files Created**:
+- `src/sip_videogen/brands/storage.py` - CRUD functions for brand persistence
 
-**Files to Create**:
-- `src/sip_videogen/brands/storage.py`
+**Files Modified**:
+- `src/sip_videogen/brands/__init__.py` - Updated exports with storage functions
 
-**Key Points**:
+**Functions Implemented**:
 - Path helpers: `get_brands_dir()`, `get_brand_dir()`, `get_index_path()`
 - `slugify()` function to convert names to URL-safe slugs
 - Index management: `load_index()`, `save_index()`
-- CRUD: `create_brand()`, `load_brand()`, `save_brand()`, `delete_brand()`, `list_brands()`
+- CRUD: `create_brand()`, `load_brand()`, `load_brand_summary()`, `save_brand()`, `delete_brand()`, `list_brands()`
 - Active brand: `get_active_brand()`, `set_active_brand()`
+
+**Directory Structure Created**:
+```
+{brand-slug}/
+├── identity.json          # L0 summary
+├── identity_full.json     # L1 full identity
+├── assets/
+│   ├── logo/
+│   ├── packaging/
+│   ├── lifestyle/
+│   ├── mascot/
+│   └── marketing/
+└── history/
+```
+
+**Acceptance Criteria**:
+- [x] All CRUD functions implemented: create, load, save, delete, list
+- [x] `get_active_brand()` and `set_active_brand()` work
+- [x] Brand directory structure is created correctly
+- [x] Index is updated on all operations
+- [x] slugify() converts names to URL-safe slugs correctly
+
+---
+
+## Next Task
+
+### Task 1.7: Write tests for brand storage
+**Description**: Create comprehensive tests for the storage layer.
+
+**Files to Create**:
+- `tests/test_brands_storage.py`
+
+**Key Points**:
+- Test fixtures with temporary brands directory
+- TestSlugify class for slugify function tests
+- TestBrandCRUD class for CRUD operations
+- TestActiveBrand class for active brand management
+- All tests use temporary directories, not real user data
 
 ## Feature Overview
 
