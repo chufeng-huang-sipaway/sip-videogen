@@ -9,7 +9,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
-| 2 | Hierarchical Memory System | 🔄 In Progress (2/4 tasks) |
+| 2 | Hierarchical Memory System | 🔄 In Progress (3/4 tasks) |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
@@ -249,19 +249,52 @@
 
 ---
 
+### Task 2.3: Create BrandContextBuilder for prompt injection ✅
+**Commit**: `ba197be`
+
+**Files Created**:
+- `src/sip_videogen/brands/context.py` - Brand context builder for agent prompts
+
+**Files Modified**:
+- `src/sip_videogen/brands/__init__.py` - Updated exports with context builder
+
+**Classes/Functions Implemented**:
+- `BrandContextBuilder` class:
+  - `__init__(slug)`: Initialize with brand slug, raises `ValueError` if brand not found
+  - `build_context_section()`: Build formatted brand context string for agent prompts
+  - `_format_available_details()`: Format the available details list with descriptions
+  - `inject_into_prompt(base_prompt, placeholder)`: Replace placeholder with context in prompts
+- `build_brand_context(slug)`: Convenience function that returns context or error message
+- `DETAIL_DESCRIPTIONS`: Dict mapping detail types to human-readable descriptions
+
+**Context Output Format**:
+The generated context includes:
+1. Brand summary (name, tagline, category, tone, colors, style, audience)
+2. Available brand details list with descriptions
+3. Asset library count
+4. Memory Exploration Protocol instructions for agents
+
+**Acceptance Criteria**:
+- [x] `BrandContextBuilder` constructs context from summary
+- [x] Context includes: brand info, available details list, exploration protocol
+- [x] `inject_into_prompt()` replaces placeholder correctly
+- [x] `build_brand_context()` convenience function works
+
+---
+
 ## Next Task
 
-### Task 2.3: Create BrandContextBuilder for prompt injection
-**Description**: Create a utility that builds brand context sections for agent prompts.
+### Task 2.4: Write tests for memory system
+**Description**: Test the memory access and context building functions.
 
 **Files to Create**:
-- `src/sip_videogen/brands/context.py`
+- `tests/test_brands_memory.py`
 
 **Key Points**:
-- `BrandContextBuilder` class that constructs context from summary
-- Context includes: brand info, available details list, exploration protocol
-- `inject_into_prompt()` replaces placeholder in base prompts
-- `build_brand_context()` convenience function
+- Tests for `get_brand_detail()` with each detail type
+- Tests for `list_brand_assets()` with and without category filter
+- Tests for `BrandContextBuilder` output format
+- Tests for tool functions with and without brand context set
 
 ## Feature Overview
 
