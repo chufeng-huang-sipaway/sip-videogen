@@ -34,6 +34,14 @@ from .storage import (
     slugify,
 )
 
+# Memory layer access functions (Task 2.1)
+from .memory import (
+    DetailType,
+    get_brand_detail,
+    get_brand_summary,
+    list_brand_assets,
+)
+
 __all__ = [
     # Models - L0 Summary (Task 1.2)
     "BrandSummary",
@@ -62,4 +70,9 @@ __all__ = [
     "save_brand",
     "set_active_brand",
     "slugify",
+    # Memory (Task 2.1)
+    "DetailType",
+    "get_brand_detail",
+    "get_brand_summary",
+    "list_brand_assets",
 ]
