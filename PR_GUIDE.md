@@ -10,7 +10,7 @@
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
-| 3 | Brand Agent Team | 🔄 In Progress (4/7 tasks) |
+| 3 | Brand Agent Team | 🔄 In Progress (5/7 tasks) |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
 
@@ -435,19 +435,52 @@ The generated context includes:
 
 ---
 
+### Task 3.5: Create Brand Guardian agent ✅
+**Commit**: `4a9fb00`
+
+**Files Created**:
+- `src/sip_videogen/agents/brand_guardian.py` - Agent definition with validation functions
+- `src/sip_videogen/agents/prompts/brand_guardian.md` - Comprehensive validation prompt
+
+**Agent Implementation**:
+- `brand_guardian_agent`: Agent with `output_type=BrandGuardianOutput`
+- Tools registered: `fetch_brand_detail`, `browse_brand_assets`
+- `validate_brand_identity(brand_identity_json, brand_slug)`: Validate a complete identity
+- `validate_brand_work(strategy_output, visual_output, voice_output, brand_slug)`: Validate specialist work
+
+**Prompt Features**:
+- Role definition as senior brand quality assurance specialist
+- 4-section validation checklist:
+  - Strategic consistency (name, tagline, mission, values alignment)
+  - Visual consistency (colors, typography, imagery coherence)
+  - Voice consistency (personality, tone, messaging)
+  - Cross-section consistency (all elements reinforce each other)
+- Severity levels: error (blocks), warning (should fix), suggestion (nice to have)
+- Scoring guidelines: 0.0-1.0 scale with clear meanings
+- Memory Exploration Protocol: Always fetch full details before validating
+- Weak vs Strong examples demonstrating proper validation output
+
+**Acceptance Criteria**:
+- [x] Agent defined with `output_type=BrandGuardianOutput`
+- [x] Prompt includes validation checklist
+- [x] Agent ALWAYS fetches brand details before validating
+
+---
+
 ## Next Task
 
-### Task 3.5: Create Brand Guardian agent
-**Description**: Create the agent that validates brand consistency.
+### Task 3.6: Create Brand Director orchestrator
+**Description**: Create the orchestrator agent that coordinates the brand team.
 
 **Files to Create**:
-- `src/sip_videogen/agents/brand_guardian.py`
-- `src/sip_videogen/agents/prompts/brand_guardian.md`
+- `src/sip_videogen/agents/brand_director.py`
+- `src/sip_videogen/agents/prompts/brand_director.md`
 
 **Key Points**:
-- Agent defined with `output_type=BrandGuardianOutput`
-- Prompt includes validation checklist
-- Agent ALWAYS fetches brand details before validating
+- Agent has specialist agents registered as tools (agent-as-tool pattern)
+- Agent has memory tools registered
+- `develop_brand()` async function implemented
+- Progress callback supported
 
 ## Feature Overview
 
