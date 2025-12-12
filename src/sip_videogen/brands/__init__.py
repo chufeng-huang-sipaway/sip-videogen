@@ -19,17 +19,20 @@ from .models import (
     VoiceGuidelines,
 )
 
-# NOTE: Imports below are commented out until the respective modules are created.
-# Uncomment as each file is implemented in subsequent tasks.
-# from .storage import (
-#     create_brand,
-#     load_brand,
-#     save_brand,
-#     delete_brand,
-#     list_brands,
-#     get_active_brand,
-#     set_active_brand,
-# )
+# Storage functions (Task 1.6)
+from .storage import (
+    create_brand,
+    delete_brand,
+    get_active_brand,
+    get_brand_dir,
+    get_brands_dir,
+    list_brands,
+    load_brand,
+    load_brand_summary,
+    save_brand,
+    set_active_brand,
+    slugify,
+)
 
 __all__ = [
     # Models - L0 Summary (Task 1.2)
@@ -48,11 +51,15 @@ __all__ = [
     "BrandIndex",
     "BrandIndexEntry",
     # Storage (Task 1.6)
-    # "create_brand",
-    # "load_brand",
-    # "save_brand",
-    # "delete_brand",
-    # "list_brands",
-    # "get_active_brand",
-    # "set_active_brand",
+    "create_brand",
+    "delete_brand",
+    "get_active_brand",
+    "get_brand_dir",
+    "get_brands_dir",
+    "list_brands",
+    "load_brand",
+    "load_brand_summary",
+    "save_brand",
+    "set_active_brand",
+    "slugify",
 ]
