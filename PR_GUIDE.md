@@ -8,7 +8,7 @@
 
 | Stage | Description | Status |
 |-------|-------------|--------|
-| 1 | Brand Storage Foundation | 🔄 In Progress (6/7 tasks) |
+| 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ⏳ Pending |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
@@ -157,20 +157,46 @@
 
 ---
 
+### Task 1.7: Write tests for brand storage ✅
+**Commit**: `6815f60`
+
+**Files Created**:
+- `tests/test_brands_storage.py` - Comprehensive test suite for brand storage (45 tests)
+
+**Test Classes**:
+- `TestSlugify`: 9 tests for slugify function covering various inputs
+- `TestPathHelpers`: 3 tests for path helper functions
+- `TestIndexManagement`: 3 tests for index load/save operations
+- `TestBrandCRUD`: 19 tests for create, load, save, delete, list operations
+- `TestActiveBrand`: 5 tests for active brand management
+- `TestBrandToSummaryConversion`: 7 tests for L1 to L0 conversion
+
+**Key Implementation Details**:
+- Uses `temp_brands_dir` fixture with `unittest.mock.patch` to isolate tests
+- Tests use `tmp_path` pytest fixture for temporary directories
+- All tests are deterministic and don't use real user data
+
+**Acceptance Criteria**:
+- [x] Test file created with all test classes
+- [x] All tests pass: `python -m pytest tests/test_brands_storage.py -v` (45 tests)
+- [x] Tests use temporary directories, not real user data
+- [x] Coverage includes: create, load, save, delete, list, active brand
+
+---
+
 ## Next Task
 
-### Task 1.7: Write tests for brand storage
-**Description**: Create comprehensive tests for the storage layer.
+### Task 2.1: Implement memory layer access functions
+**Description**: Create functions to access different layers of brand memory.
 
 **Files to Create**:
-- `tests/test_brands_storage.py`
+- `src/sip_videogen/brands/memory.py`
 
 **Key Points**:
-- Test fixtures with temporary brands directory
-- TestSlugify class for slugify function tests
-- TestBrandCRUD class for CRUD operations
-- TestActiveBrand class for active brand management
-- All tests use temporary directories, not real user data
+- `get_brand_summary()` returns BrandSummary or None
+- `get_brand_detail()` returns JSON string for each detail type
+- `list_brand_assets()` returns list[dict] for asset listings
+- Invalid detail type returns error message string (not exception)
 
 ## Feature Overview
 
