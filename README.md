@@ -11,7 +11,7 @@ User Idea → AI Agent Script Team → Reference Images → Video Clips → Fina
 1. You provide a video idea (e.g., "A cat astronaut explores Mars")
 2. AI agents collaborate to write a script with scenes and shared visual elements
 3. Reference images are generated for visual consistency (characters, props, environments)
-4. Video clips are generated for each scene using Google VEO 3.1 (8 seconds per clip)
+4. Video clips are generated for each scene using VEO 3.1 via Gemini API (8 seconds per clip)
 5. Clips are assembled into a final video with background music via FFmpeg
 
 ## Installation
@@ -54,22 +54,13 @@ cp .env.example .env
 
 Get these API keys:
 
-| Key | Where to get it |
-|-----|-----------------|
-| `OPENAI_API_KEY` | [OpenAI Platform](https://platform.openai.com/api-keys) |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) |
-| `GOOGLE_CLOUD_PROJECT` | [Google Cloud Console](https://console.cloud.google.com) |
-| `SIP_GCS_BUCKET_NAME` | Create via `gsutil mb -l us-central1 gs://your-bucket` |
-
-### Google Cloud Setup (one-time)
-
-```bash
-gcloud auth login
-gcloud auth application-default login
-gcloud config set project YOUR_PROJECT
-gcloud services enable aiplatform.googleapis.com storage.googleapis.com
-gsutil mb -l us-central1 gs://YOUR_BUCKET_NAME
-```
+| Key | Required | Where to get it |
+|-----|----------|-----------------|
+| `OPENAI_API_KEY` | Yes | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| `GEMINI_API_KEY` | Yes | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GOOGLE_CLOUD_PROJECT` | Optional | [Google Cloud Console](https://console.cloud.google.com) - Only needed for Lyria background music |
+| `KLING_ACCESS_KEY` | Optional | [Kling AI](https://app.klingai.com/global/dev/api-key) - Alternative video generator |
+| `KLING_SECRET_KEY` | Optional | Required if using Kling |
 
 ## Configuration
 
@@ -81,8 +72,6 @@ On first run, `sipvid` will prompt you to configure your environment. You can ei
    ```
    OPENAI_API_KEY=sk-...
    GEMINI_API_KEY=AIza...
-   GOOGLE_CLOUD_PROJECT=my-project
-   SIP_GCS_BUCKET_NAME=my-bucket
    ```
 
 2. **Enter keys individually** - Follow the interactive prompts
@@ -308,6 +297,17 @@ mypy src/
 
 Before generating videos, the tool displays estimated costs:
 - Gemini image generation: ~$0.13-0.24 per image
-- VEO video generation: Check current Vertex AI pricing
+- VEO video generation: Check current [Gemini API pricing](https://ai.google.dev/pricing)
 
 Use `--yes` to skip the cost confirmation prompt.
+
+## Video Providers
+
+The tool supports multiple video generation providers:
+
+| Provider | Description |
+|----------|-------------|
+| **VEO** (default) | Google's VEO 3.1 via Gemini API. Supports reference images for visual consistency. |
+| **Kling** | Kling AI video generation. Faster but doesn't support reference images without GCS. |
+
+Switch providers in the Settings menu or set a default in your preferences.
