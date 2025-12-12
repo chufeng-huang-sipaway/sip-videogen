@@ -8,7 +8,7 @@
 
 | Stage | Description | Status |
 |-------|-------------|--------|
-| 1 | Brand Storage Foundation | 🔄 In Progress (4/7 tasks) |
+| 1 | Brand Storage Foundation | 🔄 In Progress (5/7 tasks) |
 | 2 | Hierarchical Memory System | ⏳ Pending |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
@@ -92,18 +92,46 @@
 
 ---
 
+### Task 1.5: Define BrandIndex model ✅
+**Commit**: `aa8bd44`
+
+**Files Modified**:
+- `src/sip_videogen/brands/models.py` - Added BrandIndexEntry and BrandIndex models
+- `src/sip_videogen/brands/__init__.py` - Updated exports
+
+**Models Added**:
+- `BrandIndexEntry`: Entry for quick brand listing
+  - `slug`, `name`, `category` fields
+  - Timestamps: `created_at`, `updated_at`, `last_accessed`
+- `BrandIndex`: Registry of all brands
+  - `version` field for format versioning
+  - `brands` list and `active_brand` tracking
+  - Helper methods: `get_brand()`, `add_brand()`, `remove_brand()`
+  - `remove_brand()` clears `active_brand` if removing the active brand
+
+**Acceptance Criteria**:
+- [x] BrandIndex model defined with brands list and active_brand
+- [x] `get_brand()` returns entry or None
+- [x] `add_brand()` adds new and updates existing
+- [x] `remove_brand()` removes and clears active if needed
+- [x] Test: add brand, get brand, remove brand cycle works
+
+---
+
 ## Next Task
 
-### Task 1.5: Define BrandIndex model
-**Description**: Create the model for the brand registry that tracks all brands.
+### Task 1.6: Implement brand storage functions
+**Description**: Create CRUD functions for brand persistence.
 
-**Files to Modify**:
-- `src/sip_videogen/brands/models.py` (add to existing)
+**Files to Create**:
+- `src/sip_videogen/brands/storage.py`
 
 **Key Points**:
-- BrandIndexEntry for quick listing (slug, name, category, timestamps)
-- BrandIndex with brands list and active_brand field
-- Helper methods: `get_brand()`, `add_brand()`, `remove_brand()`
+- Path helpers: `get_brands_dir()`, `get_brand_dir()`, `get_index_path()`
+- `slugify()` function to convert names to URL-safe slugs
+- Index management: `load_index()`, `save_index()`
+- CRUD: `create_brand()`, `load_brand()`, `save_brand()`, `delete_brand()`, `list_brands()`
+- Active brand: `get_active_brand()`, `set_active_brand()`
 
 ## Feature Overview
 
