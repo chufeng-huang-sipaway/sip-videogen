@@ -6,6 +6,12 @@ and brand-aware agent tools for the brand kit workflow.
 
 # Models (Tasks 1.2-1.5)
 # Memory layer access functions (Task 2.1)
+# Context builder (Task 2.3)
+from .context import (
+    DETAIL_DESCRIPTIONS,
+    BrandContextBuilder,
+    build_brand_context,
+)
 from .memory import (
     DetailType,
     get_brand_detail,
@@ -87,4 +93,8 @@ __all__ = [
     "fetch_brand_detail",
     "get_brand_context",
     "set_brand_context",
+    # Context Builder (Task 2.3)
+    "BrandContextBuilder",
+    "build_brand_context",
+    "DETAIL_DESCRIPTIONS",
 ]
