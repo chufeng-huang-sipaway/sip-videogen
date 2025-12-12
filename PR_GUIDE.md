@@ -9,7 +9,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
-| 2 | Hierarchical Memory System | 🔄 In Progress (3/4 tasks) |
+| 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
@@ -282,19 +282,50 @@ The generated context includes:
 
 ---
 
+### Task 2.4: Write tests for memory system ✅
+**Commit**: `795ed87`
+
+**Files Created**:
+- `tests/test_brands_memory.py` - Comprehensive test suite for memory system (39 tests)
+
+**Test Classes**:
+- `TestGetBrandSummary`: 2 tests for L0 summary retrieval
+- `TestGetBrandDetail`: 7 tests for L1 detail fetching (all 5 detail types + error cases)
+- `TestListBrandAssets`: 7 tests for L2 asset listing with category filters
+- `TestBrandContext`: 3 tests for context management
+- `TestFetchBrandDetailTool`: 3 tests for agent tool with/without context
+- `TestBrowseBrandAssetsTool`: 5 tests for asset browsing tool
+- `TestBrandContextBuilder`: 8 tests for prompt context generation
+- `TestBuildBrandContext`: 2 tests for convenience function
+- `TestDetailDescriptions`: 2 tests for DETAIL_DESCRIPTIONS constant
+
+**Key Implementation Details**:
+- Uses `temp_brands_dir` fixture with `unittest.mock.patch` to isolate tests
+- Uses `brand_with_assets` fixture that creates test image files
+- Tests verify non-image files are filtered from asset listings
+- Tests verify Memory Exploration Protocol is included in context
+
+**Acceptance Criteria**:
+- [x] Tests for `get_brand_detail()` with each detail type
+- [x] Tests for `list_brand_assets()` with and without category filter
+- [x] Tests for `BrandContextBuilder` output format
+- [x] Tests for tool functions with and without brand context set
+- [x] All tests pass
+
+---
+
 ## Next Task
 
-### Task 2.4: Write tests for memory system
-**Description**: Test the memory access and context building functions.
+### Task 3.1: Define agent output models
+**Description**: Create Pydantic models for each agent's structured output.
 
 **Files to Create**:
-- `tests/test_brands_memory.py`
+- `src/sip_videogen/models/brand_agent_outputs.py`
 
 **Key Points**:
-- Tests for `get_brand_detail()` with each detail type
-- Tests for `list_brand_assets()` with and without category filter
-- Tests for `BrandContextBuilder` output format
-- Tests for tool functions with and without brand context set
+- Output models for: BrandStrategyOutput, VisualIdentityOutput, BrandVoiceOutput, BrandGuardianOutput, BrandDirectorOutput
+- Each model should be instantiable
+- Models should match what agents will return
 
 ## Feature Overview
 
