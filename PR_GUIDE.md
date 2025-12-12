@@ -9,7 +9,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
-| 2 | Hierarchical Memory System | ⏳ Pending |
+| 2 | Hierarchical Memory System | 🔄 In Progress (1/4 tasks) |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
@@ -184,19 +184,52 @@
 
 ---
 
+### Task 2.1: Implement memory layer access functions ✅
+**Commit**: `06fadd7`
+
+**Files Created**:
+- `src/sip_videogen/brands/memory.py` - Hierarchical memory access functions
+
+**Files Modified**:
+- `src/sip_videogen/brands/__init__.py` - Updated exports with memory functions
+
+**Functions Implemented**:
+- `get_brand_summary(slug)`: Returns L0 `BrandSummary` or `None` (wrapper for `load_brand_summary`)
+- `get_brand_detail(slug, detail_type)`: Returns JSON string of L1 detail section
+  - Supports: `visual_identity`, `voice_guidelines`, `audience_profile`, `positioning`, `full_identity`
+  - Returns error message string if brand not found or invalid detail type
+- `list_brand_assets(slug, category)`: Returns `list[dict]` of asset info
+  - Filters by category: logo, packaging, lifestyle, mascot, marketing
+  - Returns path, category, name, filename for each image file
+
+**Type Definition**:
+- `DetailType`: Literal type with 5 valid detail types for type safety
+
+**Key Design Decision**:
+- These are **internal functions** that return Python types
+- Agent **tool functions** in Task 2.2 will wrap these and return JSON strings for agent consumption
+
+**Acceptance Criteria**:
+- [x] `get_brand_summary()` returns `BrandSummary` or `None`
+- [x] `get_brand_detail()` returns JSON string for each detail type
+- [x] `list_brand_assets()` returns `list[dict]` (internal use)
+- [x] Invalid detail type returns error message string (not exception)
+
+---
+
 ## Next Task
 
-### Task 2.1: Implement memory layer access functions
-**Description**: Create functions to access different layers of brand memory.
+### Task 2.2: Create agent tools for memory access
+**Description**: Create tool functions that agents can call to explore brand memory.
 
 **Files to Create**:
-- `src/sip_videogen/brands/memory.py`
+- `src/sip_videogen/brands/tools.py`
 
 **Key Points**:
-- `get_brand_summary()` returns BrandSummary or None
-- `get_brand_detail()` returns JSON string for each detail type
-- `list_brand_assets()` returns list[dict] for asset listings
-- Invalid detail type returns error message string (not exception)
+- `set_brand_context()` and `get_brand_context()` to manage current brand
+- `fetch_brand_detail()` for agent use (returns JSON or error message)
+- `browse_brand_assets()` for agent use (returns JSON list or "No assets" message)
+- Functions have detailed docstrings (agents see these)
 
 ## Feature Overview
 
