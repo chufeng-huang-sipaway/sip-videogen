@@ -9,7 +9,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
-| 2 | Hierarchical Memory System | 🔄 In Progress (1/4 tasks) |
+| 2 | Hierarchical Memory System | 🔄 In Progress (2/4 tasks) |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
@@ -217,19 +217,51 @@
 
 ---
 
+### Task 2.2: Create agent tools for memory access ✅
+**Commit**: `09d48d6`
+
+**Files Created**:
+- `src/sip_videogen/brands/tools.py` - Agent-callable tool functions for brand memory access
+
+**Files Modified**:
+- `src/sip_videogen/brands/__init__.py` - Updated exports with tool functions
+
+**Functions Implemented**:
+- `set_brand_context(slug)`: Set current brand context for tools (called before running agents)
+- `get_brand_context()`: Get current brand context
+- `fetch_brand_detail(detail_type)`: Agent tool to fetch L1 brand information
+  - Supports: `visual_identity`, `voice_guidelines`, `audience_profile`, `positioning`, `full_identity`
+  - Returns JSON string or error message if no context set
+- `browse_brand_assets(category)`: Agent tool to explore L2 asset listings
+  - Optional category filter: logo, packaging, lifestyle, mascot, marketing
+  - Returns JSON list or "No assets found" message
+
+**Key Design Decision**:
+- Global `_current_brand_slug` variable tracks which brand agents are working with
+- All tool functions return strings (JSON or error messages) for agent consumption
+- Detailed docstrings included since agents see them when using tools
+
+**Acceptance Criteria**:
+- [x] `set_brand_context()` and `get_brand_context()` work
+- [x] `fetch_brand_detail()` returns JSON or error message
+- [x] `browse_brand_assets()` returns JSON list or "No assets" message
+- [x] Functions have detailed docstrings (agents see these)
+
+---
+
 ## Next Task
 
-### Task 2.2: Create agent tools for memory access
-**Description**: Create tool functions that agents can call to explore brand memory.
+### Task 2.3: Create BrandContextBuilder for prompt injection
+**Description**: Create a utility that builds brand context sections for agent prompts.
 
 **Files to Create**:
-- `src/sip_videogen/brands/tools.py`
+- `src/sip_videogen/brands/context.py`
 
 **Key Points**:
-- `set_brand_context()` and `get_brand_context()` to manage current brand
-- `fetch_brand_detail()` for agent use (returns JSON or error message)
-- `browse_brand_assets()` for agent use (returns JSON list or "No assets" message)
-- Functions have detailed docstrings (agents see these)
+- `BrandContextBuilder` class that constructs context from summary
+- Context includes: brand info, available details list, exploration protocol
+- `inject_into_prompt()` replaces placeholder in base prompts
+- `build_brand_context()` convenience function
 
 ## Feature Overview
 
