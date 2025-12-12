@@ -382,3 +382,66 @@ class BrandIdentityFull(BaseModel):
             ),
             audience_summary=self.audience.primary_summary,
         )
+
+
+# =============================================================================
+# BrandIndex - Registry of All Brands
+# =============================================================================
+
+
+class BrandIndexEntry(BaseModel):
+    """Entry in the brand index for quick listing."""
+
+    slug: str = Field(description="URL-safe identifier")
+    name: str = Field(description="Display name")
+    category: str = Field(default="", description="Product category")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the brand was created",
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the brand was last updated",
+    )
+    last_accessed: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the brand was last accessed",
+    )
+
+
+class BrandIndex(BaseModel):
+    """Registry of all brands - stored at ~/.sip-videogen/brands/index.json."""
+
+    version: str = Field(default="1.0", description="Index format version")
+    brands: List[BrandIndexEntry] = Field(
+        default_factory=list,
+        description="List of registered brands",
+    )
+    active_brand: str | None = Field(
+        default=None,
+        description="Slug of the currently active brand",
+    )
+
+    def get_brand(self, slug: str) -> BrandIndexEntry | None:
+        """Find a brand by slug."""
+        for brand in self.brands:
+            if brand.slug == slug:
+                return brand
+        return None
+
+    def add_brand(self, entry: BrandIndexEntry) -> None:
+        """Add a new brand to the index."""
+        # Remove if exists (for updates)
+        self.brands = [b for b in self.brands if b.slug != entry.slug]
+        self.brands.append(entry)
+
+    def remove_brand(self, slug: str) -> bool:
+        """Remove a brand from the index. Returns True if found and removed."""
+        original_len = len(self.brands)
+        self.brands = [b for b in self.brands if b.slug != slug]
+
+        # Clear active if it was the removed brand
+        if self.active_brand == slug:
+            self.active_brand = None
+
+        return len(self.brands) < original_len

@@ -4,11 +4,13 @@ This package provides persistent brand storage, hierarchical memory,
 and brand-aware agent tools for the brand kit workflow.
 """
 
-# Models (Tasks 1.2-1.4)
+# Models (Tasks 1.2-1.5)
 from .models import (
     AudienceProfile,
     BrandCoreIdentity,
     BrandIdentityFull,
+    BrandIndex,
+    BrandIndexEntry,
     BrandSummary,
     ColorDefinition,
     CompetitivePositioning,
@@ -19,11 +21,6 @@ from .models import (
 
 # NOTE: Imports below are commented out until the respective modules are created.
 # Uncomment as each file is implemented in subsequent tasks.
-
-# from .models import (
-#     BrandIndex,
-#     BrandIndexEntry,
-# )
 # from .storage import (
 #     create_brand,
 #     load_brand,
@@ -48,8 +45,8 @@ __all__ = [
     "BrandCoreIdentity",
     "BrandIdentityFull",
     # Models - Index (Task 1.5)
-    # "BrandIndex",
-    # "BrandIndexEntry",
+    "BrandIndex",
+    "BrandIndexEntry",
     # Storage (Task 1.6)
     # "create_brand",
     # "load_brand",
