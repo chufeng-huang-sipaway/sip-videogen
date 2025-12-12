@@ -10,7 +10,7 @@
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
-| 3 | Brand Agent Team | 🔄 In Progress (3/7 tasks) |
+| 3 | Brand Agent Team | 🔄 In Progress (4/7 tasks) |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
 
@@ -405,19 +405,49 @@ The generated context includes:
 
 ---
 
+### Task 3.4: Create Brand Voice Writer agent ✅
+**Commit**: `e2cbb3b`
+
+**Files Created**:
+- `src/sip_videogen/agents/brand_voice.py` - Agent definition with develop_brand_voice function
+- `src/sip_videogen/agents/prompts/brand_voice.md` - Comprehensive prompt with copywriting guidelines
+
+**Agent Implementation**:
+- `brand_voice_agent`: Agent with `output_type=BrandVoiceOutput`
+- Tools registered: `fetch_brand_detail`, `browse_brand_assets`
+- `develop_brand_voice(brand_strategy, existing_brand_slug)`: Async function for voice development
+
+**Prompt Features**:
+- Role definition as senior brand voice writer with 15+ years experience
+- Voice Personality Development: Character traits, speaking style, voice spectrum
+- Tone Attributes: Voice vs tone distinction, tone variations by context
+- Messaging Framework: Key messages, do's and don'ts (4-6 each)
+- Writing Examples: Headlines, taglines, sample copy
+- Copywriting Best Practices: Clarity, active voice, specificity
+- Memory Exploration Protocol for evolving existing brands
+- Quality checklist for output verification
+- Weak vs Strong examples demonstrating guidelines
+
+**Acceptance Criteria**:
+- [x] Agent defined with `output_type=BrandVoiceOutput`
+- [x] Prompt includes copywriting guidance
+- [x] Prompt includes Memory Exploration Protocol
+
+---
+
 ## Next Task
 
-### Task 3.4: Create Brand Voice Writer agent
-**Description**: Create the agent that develops voice and messaging guidelines.
+### Task 3.5: Create Brand Guardian agent
+**Description**: Create the agent that validates brand consistency.
 
 **Files to Create**:
-- `src/sip_videogen/agents/brand_voice.py`
-- `src/sip_videogen/agents/prompts/brand_voice.md`
+- `src/sip_videogen/agents/brand_guardian.py`
+- `src/sip_videogen/agents/prompts/brand_guardian.md`
 
 **Key Points**:
-- Agent defined with `output_type=BrandVoiceOutput`
-- Prompt includes copywriting guidance
-- Prompt includes Memory Exploration Protocol
+- Agent defined with `output_type=BrandGuardianOutput`
+- Prompt includes validation checklist
+- Agent ALWAYS fetches brand details before validating
 
 ## Feature Overview
 
