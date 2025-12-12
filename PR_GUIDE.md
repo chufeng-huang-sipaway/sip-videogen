@@ -8,7 +8,7 @@
 
 | Stage | Description | Status |
 |-------|-------------|--------|
-| 1 | Brand Storage Foundation | 🔄 In Progress |
+| 1 | Brand Storage Foundation | 🔄 In Progress (4/7 tasks) |
 | 2 | Hierarchical Memory System | ⏳ Pending |
 | 3 | Brand Agent Team | ⏳ Pending |
 | 4 | Interactive Brand Menu | ⏳ Pending |
@@ -68,21 +68,42 @@
 - [x] ColorDefinition and TypographyRule helper models defined
 - [x] All fields have descriptions
 
+### Task 1.4: Define BrandIdentityFull model (L1 - On Demand) ✅
+**Commit**: `8eee1fc`
+
+**Files Modified**:
+- `src/sip_videogen/brands/models.py` - Added BrandCoreIdentity and BrandIdentityFull models
+- `src/sip_videogen/brands/__init__.py` - Updated exports with all models
+
+**Models Added**:
+- `BrandCoreIdentity`: Fundamental brand identity elements
+  - `name`, `tagline`, `mission`, `brand_story`, `values`
+- `BrandIdentityFull`: Complete L1 layer model
+  - Metadata: `slug`, `created_at`, `updated_at`
+  - Identity sections: `core`, `visual`, `voice`, `audience`, `positioning`
+  - Constraints: `constraints`, `avoid` lists
+  - `to_summary()` method to extract L0 BrandSummary from full identity
+
+**Acceptance Criteria**:
+- [x] BrandIdentityFull model defined with all sections
+- [x] `to_summary()` method correctly extracts BrandSummary
+- [x] Can round-trip: create full identity → extract summary → summary has correct values
+- [x] All fields have `description` parameter in Field()
+
 ---
 
 ## Next Task
 
-### Task 1.4: Define BrandIdentityFull model (L1 - On Demand)
-**Description**: Create the complete brand identity model that agents fetch on demand.
+### Task 1.5: Define BrandIndex model
+**Description**: Create the model for the brand registry that tracks all brands.
 
 **Files to Modify**:
 - `src/sip_videogen/brands/models.py` (add to existing)
 
 **Key Points**:
-- This is the L1 layer - comprehensive brand information agents request
-- Includes BrandCoreIdentity model with name, tagline, mission, story, values
-- BrandIdentityFull composes all supporting models (visual, voice, audience, positioning)
-- Must include `to_summary()` method to extract BrandSummary from full identity
+- BrandIndexEntry for quick listing (slug, name, category, timestamps)
+- BrandIndex with brands list and active_brand field
+- Helper methods: `get_brand()`, `add_brand()`, `remove_brand()`
 
 ## Feature Overview
 
