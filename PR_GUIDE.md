@@ -10,7 +10,7 @@
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
-| 3 | Brand Agent Team | ⏳ Pending |
+| 3 | Brand Agent Team | 🔄 In Progress (1/7 tasks) |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
 
@@ -314,18 +314,52 @@ The generated context includes:
 
 ---
 
+### Task 3.1: Define agent output models ✅
+**Commit**: `5de3b85`
+
+**Files Created**:
+- `src/sip_videogen/models/brand_agent_outputs.py` - Output models for brand agents
+
+**Models Added**:
+- `BrandStrategyOutput`: Output from Brand Strategist agent
+  - Contains: `core_identity`, `audience_profile`, `positioning`, `strategy_notes`
+- `VisualIdentityOutput`: Output from Visual Identity Designer agent
+  - Contains: `visual_identity`, `design_rationale`, `logo_brief`
+- `BrandVoiceOutput`: Output from Brand Voice Writer agent
+  - Contains: `voice_guidelines`, `sample_copy`, `voice_rationale`
+- `BrandValidationIssue`: Single validation issue for Brand Guardian
+  - Contains: `category`, `severity`, `description`, `recommendation`
+- `BrandGuardianOutput`: Output from Brand Guardian agent
+  - Contains: `is_valid`, `issues`, `consistency_score`, `validation_notes`
+- `BrandDirectorOutput`: Output from Brand Director orchestrator
+  - Contains: `brand_identity`, `creative_rationale`, `validation_passed`, `next_steps`
+
+**Key Design Decisions**:
+- All models reuse existing brand identity models from `sip_videogen.brands.models`
+- Follows same patterns as existing `agent_outputs.py`
+- All fields have descriptive `Field()` parameters
+
+**Acceptance Criteria**:
+- [x] Output models defined for all 5 agents
+- [x] Each model can be instantiated
+- [x] Models match what agents will return
+
+---
+
 ## Next Task
 
-### Task 3.1: Define agent output models
-**Description**: Create Pydantic models for each agent's structured output.
+### Task 3.2: Create Brand Strategist agent
+**Description**: Create the agent that develops brand identity, positioning, and audience.
 
 **Files to Create**:
-- `src/sip_videogen/models/brand_agent_outputs.py`
+- `src/sip_videogen/agents/brand_strategist.py`
+- `src/sip_videogen/agents/prompts/brand_strategist.md`
 
 **Key Points**:
-- Output models for: BrandStrategyOutput, VisualIdentityOutput, BrandVoiceOutput, BrandGuardianOutput, BrandDirectorOutput
-- Each model should be instantiable
-- Models should match what agents will return
+- Agent defined with `output_type=BrandStrategyOutput`
+- Prompt loaded from markdown file
+- Prompt includes Memory Exploration Protocol
+- Agent has clear, specific role (not generic)
 
 ## Feature Overview
 
