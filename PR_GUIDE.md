@@ -48,19 +48,41 @@
 - [x] `model.model_dump_json()` produces valid JSON under 2000 characters (actual: 457 chars)
 - [x] All fields have `description` parameter in Field()
 
+### Task 1.3: Define supporting identity models ✅
+**Commit**: `36c7532`
+
+**Files Modified**:
+- `src/sip_videogen/brands/models.py` - Added 6 supporting models for L1 layer
+
+**Models Added**:
+- `ColorDefinition`: Single color with hex, name, and usage
+- `TypographyRule`: Typography specification by role (headings, body, accent)
+- `VisualIdentity`: Complete visual design system (12 fields)
+- `VoiceGuidelines`: Brand voice and messaging (7 fields)
+- `AudienceProfile`: Target audience demographics/psychographics (10 fields)
+- `CompetitivePositioning`: Market positioning and differentiation (5 fields)
+
+**Acceptance Criteria**:
+- [x] All 4 supporting models defined: VisualIdentity, VoiceGuidelines, AudienceProfile, CompetitivePositioning
+- [x] Each model can be instantiated with no arguments (all fields have defaults)
+- [x] ColorDefinition and TypographyRule helper models defined
+- [x] All fields have descriptions
+
+---
+
 ## Next Task
 
-### Task 1.3: Define supporting identity models
-**Description**: Create the sub-models used by BrandIdentityFull: VisualIdentity, VoiceGuidelines, AudienceProfile, CompetitivePositioning.
+### Task 1.4: Define BrandIdentityFull model (L1 - On Demand)
+**Description**: Create the complete brand identity model that agents fetch on demand.
 
 **Files to Modify**:
 - `src/sip_videogen/brands/models.py` (add to existing)
 
 **Key Points**:
-- These are the building blocks of the full brand identity (L1 layer)
-- All fields should have defaults (brands may start incomplete)
-- Use `default_factory=list` for list fields (not `default=[]`)
-- All fields need `Field(description="...")`
+- This is the L1 layer - comprehensive brand information agents request
+- Includes BrandCoreIdentity model with name, tagline, mission, story, values
+- BrandIdentityFull composes all supporting models (visual, voice, audience, positioning)
+- Must include `to_summary()` method to extract BrandSummary from full identity
 
 ## Feature Overview
 
