@@ -11,7 +11,6 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import httpx
 from pydantic import BaseModel, Field
@@ -163,25 +162,23 @@ class KlingVideoGenerator(BaseVideoGenerator):
     async def generate_video_clip(
         self,
         scene: SceneAction,
-        output_path: str,
+        output_dir: str,
         reference_images: list[GeneratedAsset] | None = None,
         aspect_ratio: str = "16:9",
         generate_audio: bool = True,
         total_scenes: int | None = None,
         script: VideoScript | None = None,
-        signed_url_generator: Callable[[str], str] | None = None,
     ) -> GeneratedAsset:
         """Generate a video clip using Kling API.
 
         Args:
             scene: The scene to generate video for.
-            output_path: Local directory to save downloaded video.
-            reference_images: Optional reference images (will use signed URLs).
+            output_dir: Local directory to save downloaded video.
+            reference_images: Optional reference images (currently not supported without GCS).
             aspect_ratio: Video aspect ratio (e.g., "16:9", "9:16", "1:1").
             generate_audio: Whether to generate audio (Kling always includes audio).
             total_scenes: Total number of scenes for flow context.
             script: Full VideoScript for element lookups.
-            signed_url_generator: Function to generate signed URLs from GCS URIs.
 
         Returns:
             GeneratedAsset with path to the generated video.
@@ -201,12 +198,11 @@ class KlingVideoGenerator(BaseVideoGenerator):
         )
 
         # Build request payload and endpoint
+        # Note: reference_images not used - Kling requires public URLs which need GCS
         endpoint, payload, _ = self._build_request_payload(
             prompt=prompt,
             duration=duration,
             aspect_ratio=aspect_ratio,
-            reference_images=reference_images,
-            signed_url_generator=signed_url_generator,
         )
 
         # Submit generation request to v1 API
@@ -241,7 +237,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
 
         # Download video from CDN
         local_path = await self._download_video(
-            video_url, output_path, scene.scene_number
+            video_url, output_dir, scene.scene_number
         )
 
         return GeneratedAsset(
@@ -256,8 +252,6 @@ class KlingVideoGenerator(BaseVideoGenerator):
         prompt: str,
         duration: int,
         aspect_ratio: str,
-        reference_images: list[GeneratedAsset] | None = None,
-        signed_url_generator: Callable[[str], str] | None = None,
     ) -> tuple[str, dict, list[str]]:
         """Build the request payload and endpoint for Kling API.
 
@@ -279,11 +273,6 @@ class KlingVideoGenerator(BaseVideoGenerator):
             "aspect_ratio": aspect_ratio,
             "cfg_scale": 0.5,  # Default creativity vs prompt adherence
         }
-
-        image_url = self._get_image_url(reference_images, signed_url_generator)
-        if image_url:
-            payload["image"] = image_url
-            logger.debug("Using image-to-video mode with reference image")
 
         if self.config.camera_control:
             payload["camera_control"] = self.config.camera_control
@@ -341,47 +330,6 @@ class KlingVideoGenerator(BaseVideoGenerator):
         # Fallback to v1.6 (most stable)
         logger.warning("Unknown Kling version '%s', falling back to kling-v1-6", version)
         return "kling-v1-6"
-
-    def _get_image_url(
-        self,
-        reference_images: list[GeneratedAsset] | None,
-        signed_url_generator: Callable[[str], str] | None,
-    ) -> str | None:
-        """Get a publicly accessible URL for the reference image.
-
-        Tries multiple strategies:
-        1. Use signed URL generator if available
-        2. Use local_path to read and upload (future)
-        3. Skip if no viable option
-
-        Args:
-            reference_images: Optional reference images.
-            signed_url_generator: Function to generate signed URLs.
-
-        Returns:
-            Public URL string, or None if unavailable.
-        """
-        if not reference_images:
-            return None
-
-        ref_image = reference_images[0]  # Kling supports 1 reference image
-
-        # Try signed URL first
-        if ref_image.gcs_uri and signed_url_generator:
-            try:
-                return signed_url_generator(ref_image.gcs_uri)
-            except Exception as e:
-                logger.warning("Failed to generate signed URL for reference image: %s", e)
-
-        # If local path exists, we could upload directly to Kling in the future
-        # For now, skip and use text-to-video
-        if ref_image.local_path:
-            logger.info(
-                "Reference image has local path but no signed URL - "
-                "falling back to text-to-video mode"
-            )
-
-        return None
 
     async def _poll_for_completion(self, task_id: str, scene_number: int) -> str:
         """Poll Kling API until video generation completes.
@@ -606,21 +554,19 @@ class KlingVideoGenerator(BaseVideoGenerator):
     async def generate_all_video_clips(
         self,
         script: VideoScript,
-        output_path: str,
+        output_dir: str,
         reference_images: list[GeneratedAsset] | None = None,
         max_concurrent: int = 3,
         show_progress: bool = True,
-        signed_url_generator: Callable[[str], str] | None = None,
     ) -> list[GeneratedAsset]:
         """Generate video clips for all scenes in the script.
 
         Args:
             script: The VideoScript containing all scenes.
-            output_path: Local directory to save videos.
-            reference_images: Optional reference images for visual consistency.
+            output_dir: Local directory to save videos.
+            reference_images: Optional reference images (not used - Kling requires public URLs).
             max_concurrent: Maximum concurrent generations (Kling limit is typically 5).
             show_progress: Whether to show progress bar.
-            signed_url_generator: Function to generate signed URLs from GCS URIs.
 
         Returns:
             List of GeneratedAssets for all successfully generated clips.
@@ -646,11 +592,10 @@ class KlingVideoGenerator(BaseVideoGenerator):
                     refs = scene_refs.get(scene.scene_number, [])
                     asset = await self.generate_video_clip(
                         scene=scene,
-                        output_path=output_path,
+                        output_dir=output_dir,
                         reference_images=refs,
                         total_scenes=total_scenes,
                         script=script,
-                        signed_url_generator=signed_url_generator,
                     )
                     if progress and task_id is not None:
                         progress.update(task_id, advance=1)

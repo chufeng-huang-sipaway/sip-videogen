@@ -51,33 +51,10 @@ class Settings(BaseSettings):
         description="Google Gemini API key for image generation",
     )
 
-    # Google Cloud Project configuration
-    google_cloud_project: str = Field(
-        ...,
-        description="Google Cloud Project ID",
-    )
-    google_cloud_location: str = Field(
-        default="us-central1",
-        description="Google Cloud region for Vertex AI",
-    )
-
-    # GCS bucket for VEO video generation
-    sip_gcs_bucket_name: str = Field(
-        ...,
-        description="GCS bucket name for VEO video generation",
-    )
-
-    # Google Cloud credentials JSON (base64 encoded service account key)
-    # Alternative to running 'gcloud auth application-default login'
-    google_cloud_credentials_json: str | None = Field(
+    # Google Cloud Project configuration (optional, for music generation)
+    google_cloud_project: str | None = Field(
         default=None,
-        description="Base64-encoded service account JSON key for GCS authentication",
-    )
-
-    # Enable Vertex AI for VEO
-    google_genai_use_vertexai: bool = Field(
-        default=True,
-        description="Enable Vertex AI for VEO video generation",
+        description="Google Cloud Project ID (optional, for Lyria music generation)",
     )
 
     # Kling API credentials (optional, for Kling video generation)
@@ -153,26 +130,16 @@ class Settings(BaseSettings):
         return self.sip_output_dir
 
     def is_configured(self) -> dict[str, bool]:
-        """Check which settings are properly configured.
-
-        Note: google_cloud_credentials_json is NOT included here because
-        it's optional - users can authenticate via ADC (gcloud login) instead.
-        """
+        """Check which settings are properly configured."""
         return {
             "openai_api_key": bool(self.openai_api_key and self.openai_api_key != "sk-..."),
             "gemini_api_key": bool(self.gemini_api_key and self.gemini_api_key != "..."),
             "google_cloud_project": bool(
-                self.google_cloud_project and self.google_cloud_project != "your-project-id"
-            ),
-            "sip_gcs_bucket_name": bool(
-                self.sip_gcs_bucket_name and self.sip_gcs_bucket_name != "your-bucket-name"
+                self.google_cloud_project
+                and self.google_cloud_project != "your-project-id"
             ),
             "kling_api": bool(self.kling_access_key and self.kling_secret_key),
         }
-
-    def has_gcs_credentials(self) -> bool:
-        """Check if GCS credentials are available (inline or via ADC)."""
-        return bool(self.google_cloud_credentials_json)
 
 
 @lru_cache

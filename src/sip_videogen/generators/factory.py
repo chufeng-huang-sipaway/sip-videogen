@@ -64,8 +64,7 @@ class VideoGeneratorFactory:
         from sip_videogen.generators.video_generator import VEOVideoGenerator
 
         return VEOVideoGenerator(
-            project=settings.google_cloud_project,
-            location=settings.google_cloud_location,
+            api_key=settings.gemini_api_key,
         )
 
     @staticmethod
@@ -112,9 +111,9 @@ class VideoGeneratorFactory:
         settings = get_settings()
         available = []
 
-        # VEO requires Google Cloud configuration
+        # VEO requires Gemini API key
         config_status = settings.is_configured()
-        if config_status.get("google_cloud_project") and config_status.get("sip_gcs_bucket_name"):
+        if config_status.get("gemini_api_key"):
             available.append(VideoProvider.VEO)
 
         # Kling requires access key and secret key

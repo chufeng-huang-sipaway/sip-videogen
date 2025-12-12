@@ -30,19 +30,9 @@ REQUIRED_KEYS = {
         "placeholder": "sk-...",
     },
     "GEMINI_API_KEY": {
-        "description": "Google Gemini API key for image generation",
+        "description": "Google Gemini API key for image and video generation",
         "hint": "Get from https://aistudio.google.com/apikey",
         "placeholder": "AIza...",
-    },
-    "GOOGLE_CLOUD_PROJECT": {
-        "description": "Google Cloud Project ID",
-        "hint": "Create at https://console.cloud.google.com",
-        "placeholder": "my-project-id",
-    },
-    "SIP_GCS_BUCKET_NAME": {
-        "description": "GCS bucket name for video storage",
-        "hint": "Create with: gsutil mb -l us-central1 gs://your-bucket",
-        "placeholder": "my-sip-bucket",
     },
 }
 
@@ -58,10 +48,10 @@ OPTIONAL_KEYS = {
         "hint": "Required if using Kling video generation",
         "placeholder": "",
     },
-    "GOOGLE_CLOUD_LOCATION": {
-        "description": "Google Cloud region",
-        "hint": "Default: us-central1",
-        "placeholder": "us-central1",
+    "GOOGLE_CLOUD_PROJECT": {
+        "description": "Google Cloud Project ID (optional, for Lyria music)",
+        "hint": "Create at https://console.cloud.google.com",
+        "placeholder": "",
     },
     "SIP_OUTPUT_DIR": {
         "description": "Local output directory",
@@ -77,8 +67,6 @@ OPTIONAL_KEYS = {
 
 # Defaults for optional keys
 DEFAULTS = {
-    "GOOGLE_CLOUD_LOCATION": "us-central1",
-    "GOOGLE_GENAI_USE_VERTEXAI": "True",
     "SIP_OUTPUT_DIR": "./output",
     "SIP_DEFAULT_SCENES": "3",
     "SIP_VIDEO_DURATION": "6",
@@ -166,7 +154,7 @@ def validate_config(config: dict[str, str]) -> tuple[list[str], list[str]]:
 
     for key in REQUIRED_KEYS:
         value = config.get(key, "")
-        if not value or value in ("sk-...", "...", "your-project-id", "your-bucket-name"):
+        if not value or value in ("sk-...", "...", "your-project-id"):
             missing.append(key)
 
     # Check for placeholder values
@@ -199,24 +187,18 @@ def save_config(config: dict[str, str]) -> None:
 
     lines.extend([
         "",
-        "# Google Gemini (for image generation)",
+        "# Google Gemini (for image and video generation)",
     ])
     if "GEMINI_API_KEY" in config:
         lines.append(f"GEMINI_API_KEY={config['GEMINI_API_KEY']}")
 
-    lines.extend([
-        "",
-        "# Google Cloud (for VEO video generation)",
-    ])
-    gcp_keys = [
-        "GOOGLE_CLOUD_PROJECT",
-        "GOOGLE_CLOUD_LOCATION",
-        "SIP_GCS_BUCKET_NAME",
-        "GOOGLE_GENAI_USE_VERTEXAI",
-    ]
-    for key in gcp_keys:
-        if key in config:
-            lines.append(f"{key}={config[key]}")
+    # Add Google Cloud Project if present (optional, for Lyria music)
+    if config.get("GOOGLE_CLOUD_PROJECT"):
+        lines.extend([
+            "",
+            "# Google Cloud (optional, for Lyria music generation)",
+            f"GOOGLE_CLOUD_PROJECT={config['GOOGLE_CLOUD_PROJECT']}",
+        ])
 
     # Add Kling keys if present
     if config.get("KLING_ACCESS_KEY") or config.get("KLING_SECRET_KEY"):

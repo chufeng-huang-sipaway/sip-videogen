@@ -75,13 +75,6 @@ from .models import (
     BrandKitPackage,
     BrandKitPlan,
 )
-from .storage import (
-    GCSAuthenticationError,
-    GCSBucketNotFoundError,
-    GCSPermissionError,
-    GCSStorage,
-    GCSStorageError,
-)
 from .generators.nano_banana_generator import NanoBananaImageGenerator
 from .utils.updater import (
     check_for_update,
@@ -603,36 +596,6 @@ def generate(
             )
         )
         raise typer.Exit(1)
-    except GCSAuthenticationError as e:
-        logger.error("GCS authentication failed: %s", e)
-        console.print(
-            Panel(
-                f"[red]Google Cloud authentication failed[/red]\n\n{e}",
-                title="Authentication Error",
-                border_style="red",
-            )
-        )
-        raise typer.Exit(1)
-    except GCSBucketNotFoundError as e:
-        logger.error("GCS bucket not found: %s", e)
-        console.print(
-            Panel(
-                f"[red]GCS bucket error[/red]\n\n{e}",
-                title="Storage Error",
-                border_style="red",
-            )
-        )
-        raise typer.Exit(1)
-    except GCSPermissionError as e:
-        logger.error("GCS permission denied: %s", e)
-        console.print(
-            Panel(
-                f"[red]GCS permission denied[/red]\n\n{e}",
-                title="Permission Error",
-                border_style="red",
-            )
-        )
-        raise typer.Exit(1)
     except FFmpegError as e:
         logger.error("FFmpeg error: %s", e)
         console.print(
@@ -682,12 +645,10 @@ async def _run_pipeline(
     Flow:
     1. Run Showrunner to develop script (skipped if existing_script provided)
     2. Generate reference images for shared elements (dry-run stops here)
-    3. Upload reference images to GCS
-    4. Generate video clips (parallel)
-    5. Download video clips from GCS
-    6. Generate background music (if enabled)
-    7. Assemble clips with FFmpeg (with music overlay if enabled)
-    8. Display final video path
+    3. Generate video clips (parallel)
+    4. Generate background music (if enabled and Google Cloud Project configured)
+    5. Assemble clips with FFmpeg (with music overlay if enabled)
+    6. Display final video path
 
     Args:
         idea: The user's video idea.
@@ -940,91 +901,8 @@ async def _run_pipeline(
             "reference images with quality review.[/green]"
         )
 
-    # ========== STAGE 3: Upload Reference Images to GCS ==========
-    console.print("\n[bold cyan]Stage 3/{total_stages}:[/bold cyan] Uploading images to GCS...")
-
-    # Try to initialize GCS storage - needed for both VEO (direct URIs) and KLING (signed URLs)
-    gcs_storage: GCSStorage | None = None
-    gcs_prefix = f"sip-videogen/{project_id}"
-
-    try:
-        if settings.sip_gcs_bucket_name:
-            gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
-        else:
-            raise GCSStorageError("GCS bucket not configured")
-    except (GCSStorageError, GCSAuthenticationError, GCSBucketNotFoundError) as e:
-        if package.reference_images:
-            console.print(
-                f"[yellow]Warning: GCS not available ({e})[/yellow]\n"
-                "[yellow]Reference images will not be used for video generation.[/yellow]\n"
-                "[dim]To enable reference images, configure SIP_GCS_BUCKET_NAME and run:[/dim]\n"
-                "[dim]  gcloud auth application-default login[/dim]"
-            )
-            # Clear GCS URIs since we can't upload
-            for asset in package.reference_images:
-                asset.gcs_uri = None
-        else:
-            console.print("[dim]GCS not configured (not needed without reference images)[/dim]")
-
-    if package.reference_images and gcs_storage:
-        # Prepare upload list: (local_path, remote_path) tuples
-        upload_files: list[tuple[Path, str]] = []
-        asset_by_path: dict[str, GeneratedAsset] = {}
-
-        for asset in package.reference_images:
-            local_path = Path(asset.local_path)
-            remote_path = gcs_storage.generate_remote_path(
-                f"{gcs_prefix}/reference_images",
-                local_path.name,
-            )
-            upload_files.append((local_path, remote_path))
-            asset_by_path[str(local_path)] = asset
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task(
-                "[cyan]Uploading to GCS in parallel...",
-                total=len(upload_files),
-            )
-
-            def on_upload_complete(local_path: Path, gcs_uri: str) -> None:
-                """Callback to update progress and asset when each upload completes."""
-                asset = asset_by_path.get(str(local_path))
-                if asset and gcs_uri:
-                    asset.gcs_uri = gcs_uri
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=f"[green]Uploaded: {local_path.name}",
-                    )
-                else:
-                    progress.update(
-                        task,
-                        advance=1,
-                        description=f"[red]Failed: {local_path.name}",
-                    )
-
-            # Upload all files in parallel (5 concurrent by default)
-            await gcs_storage.upload_files_parallel(
-                files=upload_files,
-                max_concurrent=5,
-                on_complete=on_upload_complete,
-            )
-
-        console.print(
-            f"[green]Uploaded {sum(1 for a in package.reference_images if a.gcs_uri)} images to GCS.[/green]"
-        )
-    else:
-        console.print("[yellow]No images to upload.[/yellow]")
-
-    # ========== STAGE 4: Generate Video Clips ==========
-    console.print("\n[bold cyan]Stage 4/{total_stages}:[/bold cyan] Generating video clips...")
+    # ========== STAGE 3: Generate Video Clips ==========
+    console.print("\n[bold cyan]Stage 3/{total_stages}:[/bold cyan] Generating video clips...")
 
     # Get user's preferred video provider
     prefs = UserPreferences.load()
@@ -1043,106 +921,37 @@ async def _run_pipeline(
 
     try:
         if provider == VideoProvider.VEO:
-            # VEO requires GCS for video storage
-            if not gcs_storage:
-                console.print(
-                    "[red]Error: VEO requires Google Cloud Storage.[/red]\n"
-                    "[dim]Configure SIP_GCS_BUCKET_NAME in your .env file and run:[/dim]\n"
-                    "[dim]  gcloud auth application-default login[/dim]"
-                )
-                raise typer.Exit(1)
-
-            # VEO: Generate to GCS, then download
-            output_gcs_prefix = f"gs://{settings.sip_gcs_bucket_name}/{gcs_prefix}/videos"
-
+            # VEO: Generate directly to local directory via Gemini API
+            # Reference images are uploaded via Files API automatically
             video_clips = await video_generator.generate_all_video_clips(
                 script=script,
-                output_gcs_prefix=output_gcs_prefix,
+                output_dir=str(videos_dir),
                 reference_images=package.reference_images,
                 show_progress=True,
             )
-            package.video_clips = video_clips
-
-            if not video_clips:
-                console.print("[red]No video clips were generated.[/red]")
-                raise typer.Exit(1)
-
-            console.print(
-                f"[green]Generated {len(video_clips)}/{len(script.scenes)} video clips.[/green]"
-            )
-
-            # Download VEO clips from GCS
-            console.print("\n[bold cyan]Stage 5/{total_stages}:[/bold cyan] Downloading video clips...")
-
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                TimeElapsedColumn(),
-                console=console,
-            ) as progress:
-                task = progress.add_task(
-                    "[cyan]Downloading from GCS...",
-                    total=len(package.video_clips),
-                )
-
-                for clip in package.video_clips:
-                    if not clip.gcs_uri:
-                        progress.update(task, advance=1)
-                        continue
-
-                    try:
-                        filename = f"scene_{clip.scene_number:03d}.mp4"
-                        local_path = videos_dir / filename
-
-                        gcs_storage.download_file(clip.gcs_uri, local_path)
-                        clip.local_path = str(local_path)
-                        progress.update(
-                            task,
-                            advance=1,
-                            description=f"[green]Downloaded: {filename}",
-                        )
-                    except GCSStorageError as e:
-                        logger.warning(f"Failed to download {clip.gcs_uri}: {e}")
-                        progress.update(
-                            task,
-                            advance=1,
-                            description=f"[red]Failed: scene {clip.scene_number}",
-                        )
-
-            downloaded_clips = [c for c in package.video_clips if c.local_path]
-            console.print(
-                f"[green]Downloaded {len(downloaded_clips)}/{len(package.video_clips)} clips.[/green]"
-            )
-
         else:
             # Kling: Generate directly to local directory
-            # Create signed URL generator for reference images (requires GCS)
-            signed_url_generator = None
-            if gcs_storage:
-                def signed_url_generator(gcs_uri: str) -> str:
-                    return gcs_storage.generate_signed_url(gcs_uri, expiration_minutes=120)
-
+            # Note: Kling reference images not supported without GCS
+            if package.reference_images:
+                console.print(
+                    "[yellow]Note: Reference images not supported for Kling without GCS.[/yellow]"
+                )
             video_clips = await video_generator.generate_all_video_clips(
                 script=script,
-                output_path=str(videos_dir),
-                reference_images=package.reference_images if gcs_storage else None,
+                output_dir=str(videos_dir),
+                reference_images=None,
                 show_progress=True,
-                signed_url_generator=signed_url_generator,
-            )
-            package.video_clips = video_clips
-
-            if not video_clips:
-                console.print("[red]No video clips were generated.[/red]")
-                raise typer.Exit(1)
-
-            console.print(
-                f"[green]Generated {len(video_clips)}/{len(script.scenes)} video clips.[/green]"
             )
 
-            # Kling clips are already local, no download needed
-            downloaded_clips = [c for c in package.video_clips if c.local_path]
+        package.video_clips = video_clips
+
+        if not video_clips:
+            console.print("[red]No video clips were generated.[/red]")
+            raise typer.Exit(1)
+
+        console.print(
+            f"[green]Generated {len(video_clips)}/{len(script.scenes)} video clips.[/green]"
+        )
 
     except VideoGenerationError as e:
         logger.error(f"Video generation failed: {e}")
@@ -1175,33 +984,40 @@ async def _run_pipeline(
         music_dir.mkdir(exist_ok=True)
 
         try:
-            music_generator = MusicGenerator(
-                project_id=settings.google_cloud_project,
-                location=settings.google_cloud_location,
-            )
-
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                TimeElapsedColumn(),
-                console=console,
-            ) as progress:
-                mood = script.music_brief.mood.value
-                genre = script.music_brief.genre.value
-                task = progress.add_task(
-                    f"[cyan]Generating {mood} {genre} music...",
-                    total=None,
+            if not settings.google_cloud_project:
+                console.print(
+                    "[yellow]Music generation requires GOOGLE_CLOUD_PROJECT.[/yellow]\n"
+                    "[dim]Continuing without background music...[/dim]"
                 )
-                generated_music = await music_generator.generate(
-                    brief=script.music_brief,
-                    output_dir=music_dir,
+                generated_music = None
+            else:
+                music_generator = MusicGenerator(
+                    project_id=settings.google_cloud_project,
+                    location="us-central1",
                 )
-                progress.update(task, description="[green]Music generated ✓")
 
-            console.print(
-                f"[green]Generated background music:[/green] {script.music_brief.mood.value} "
-                f"{script.music_brief.genre.value} (~{generated_music.duration_seconds:.0f}s)"
-            )
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    TimeElapsedColumn(),
+                    console=console,
+                ) as progress:
+                    mood = script.music_brief.mood.value
+                    genre = script.music_brief.genre.value
+                    task = progress.add_task(
+                        f"[cyan]Generating {mood} {genre} music...",
+                        total=None,
+                    )
+                    generated_music = await music_generator.generate(
+                        brief=script.music_brief,
+                        output_dir=music_dir,
+                    )
+                    progress.update(task, description="[green]Music generated ✓")
+
+                console.print(
+                    f"[green]Generated background music:[/green] {script.music_brief.mood.value} "
+                    f"{script.music_brief.genre.value} (~{generated_music.duration_seconds:.0f}s)"
+                )
         except MusicGenerationError as e:
             logger.warning(f"Music generation failed: {e}")
             console.print(
@@ -1461,8 +1277,8 @@ def status() -> None:
     table.add_column("Status")
     table.add_column("Notes", style="dim")
 
-    # Check each configuration
-    status_items = [
+    # Check required configuration
+    required_items = [
         (
             "OPENAI_API_KEY",
             config_status["openai_api_key"],
@@ -1471,27 +1287,37 @@ def status() -> None:
         (
             "GEMINI_API_KEY",
             config_status["gemini_api_key"],
-            "For image generation",
-        ),
-        (
-            "GOOGLE_CLOUD_PROJECT",
-            config_status["google_cloud_project"],
-            "GCP project ID",
-        ),
-        (
-            "SIP_GCS_BUCKET_NAME",
-            config_status["sip_gcs_bucket_name"],
-            "For VEO video storage",
+            "For image and video generation",
         ),
     ]
 
-    all_configured = True
-    for name, is_set, notes in status_items:
+    all_required_configured = True
+    for name, is_set, notes in required_items:
         if is_set:
             table.add_row(name, "[green]✓ Set[/green]", notes)
         else:
             table.add_row(name, "[red]✗ Not set[/red]", notes)
-            all_configured = False
+            all_required_configured = False
+
+    # Optional configuration
+    optional_items = [
+        (
+            "GOOGLE_CLOUD_PROJECT",
+            config_status["google_cloud_project"],
+            "Optional (for Lyria music)",
+        ),
+        (
+            "Kling API",
+            config_status["kling_api"],
+            "Alternative video generator",
+        ),
+    ]
+
+    for name, is_set, notes in optional_items:
+        if is_set:
+            table.add_row(name, "[green]✓ Set[/green]", notes)
+        else:
+            table.add_row(name, "[dim]○ Not set[/dim]", notes)
 
     console.print(table)
 
@@ -1501,7 +1327,6 @@ def status() -> None:
     details_table.add_column("Setting", style="cyan")
     details_table.add_column("Value")
 
-    details_table.add_row("Google Cloud Location", settings.google_cloud_location)
     details_table.add_row("Output Directory", str(settings.sip_output_dir))
     details_table.add_row("Default Scenes", str(settings.sip_default_scenes))
     details_table.add_row("Video Duration", f"{settings.sip_video_duration}s")
@@ -1510,13 +1335,13 @@ def status() -> None:
     console.print(details_table)
 
     # Summary
-    if all_configured:
+    if all_required_configured:
         console.print("\n[green]✓ All required settings are configured![/green]")
         console.print('Run [bold]sip-videogen generate "your idea"[/bold] to create a video.')
     else:
         console.print("\n[red]✗ Missing required configuration[/red]")
         console.print(
-            "Copy [bold].env.example[/bold] to [bold].env[/bold] and fill in missing values."
+            "Run [bold]sipvid config[/bold] to set up your API keys."
         )
         raise typer.Exit(1)
 
@@ -1563,141 +1388,6 @@ def config(
         return
 
     run_setup_wizard(reset=reset)
-
-
-@app.command(name="setup-credentials")
-def setup_credentials() -> None:
-    """Set up Google Cloud credentials for GCS access.
-
-    This command helps you configure Google Cloud credentials by dragging
-    and dropping a service account JSON key file. The credentials are saved
-    securely and the .env file is updated automatically.
-
-    Examples:
-        sipvid setup-credentials
-    """
-    import json
-
-    console.print(
-        Panel(
-            "[bold]Google Cloud Credentials Setup[/bold]\n\n"
-            "This will configure GCS credentials for uploading reference images.\n"
-            "You'll need a service account JSON key from Google Cloud Console.",
-            border_style="cyan",
-        )
-    )
-
-    console.print("\n[bold]Instructions:[/bold]")
-    console.print("1. Go to Google Cloud Console → IAM & Admin → Service Accounts")
-    console.print("2. Create or select a service account")
-    console.print("3. Go to Keys → Add Key → Create new key → JSON")
-    console.print("4. A JSON file will be downloaded to your computer")
-    console.print()
-
-    console.print("[bold cyan]Drag and drop the JSON file here, then press Enter:[/bold cyan]")
-    console.print("[dim](You can drag the file directly from Finder into this terminal)[/dim]")
-    console.print()
-
-    # Get file path from drag-and-drop
-    try:
-        file_path_input = input().strip()
-    except EOFError:
-        console.print("[red]No input provided. Aborting.[/red]")
-        raise typer.Exit(1)
-
-    if not file_path_input:
-        console.print("[red]No file path provided. Aborting.[/red]")
-        raise typer.Exit(1)
-
-    # Clean up the path - remove quotes and escape characters from drag-and-drop
-    # macOS terminal may add quotes around paths with spaces
-    # or escape spaces with backslashes
-    file_path_str = file_path_input.strip("'\"")
-    file_path_str = file_path_str.replace("\\ ", " ")  # Unescape spaces
-
-    file_path = Path(file_path_str)
-
-    if not file_path.exists():
-        console.print(f"[red]File not found: {file_path}[/red]")
-        raise typer.Exit(1)
-
-    if not file_path.is_file():
-        console.print(f"[red]Not a file: {file_path}[/red]")
-        raise typer.Exit(1)
-
-    # Read the JSON file
-    try:
-        json_content = file_path.read_text()
-    except Exception as e:
-        console.print(f"[red]Failed to read file: {e}[/red]")
-        raise typer.Exit(1)
-
-    # Validate JSON
-    try:
-        creds_data = json.loads(json_content)
-    except json.JSONDecodeError as e:
-        console.print(f"[red]Invalid JSON in file: {e}[/red]")
-        raise typer.Exit(1)
-
-    # Check for required fields
-    required_fields = ["type", "project_id", "private_key", "client_email"]
-    missing_fields = [f for f in required_fields if f not in creds_data]
-    if missing_fields:
-        console.print(f"[red]Missing required fields: {', '.join(missing_fields)}[/red]")
-        console.print("[dim]Make sure you're pasting a service account JSON key.[/dim]")
-        raise typer.Exit(1)
-
-    if creds_data.get("type") != "service_account":
-        console.print("[red]Invalid credential type. Expected 'service_account'.[/red]")
-        raise typer.Exit(1)
-
-    # Save to file
-    config_dir = Path.home() / ".sip-videogen"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    creds_file = config_dir / "service-account.json"
-
-    try:
-        creds_file.write_text(json_content)
-        console.print(f"\n[green]✓[/green] Saved credentials to: {creds_file}")
-    except Exception as e:
-        console.print(f"[red]Failed to save credentials: {e}[/red]")
-        raise typer.Exit(1)
-
-    # Update .env file
-    env_file = config_dir / ".env"
-    env_line = f"GOOGLE_APPLICATION_CREDENTIALS={creds_file}"
-
-    if env_file.exists():
-        env_content = env_file.read_text()
-        if "GOOGLE_APPLICATION_CREDENTIALS" in env_content:
-            # Replace existing line
-            import re
-            env_content = re.sub(
-                r"GOOGLE_APPLICATION_CREDENTIALS=.*",
-                env_line,
-                env_content,
-            )
-        else:
-            # Append new line
-            if not env_content.endswith("\n"):
-                env_content += "\n"
-            env_content += f"\n# Google Cloud credentials\n{env_line}\n"
-        env_file.write_text(env_content)
-    else:
-        # Create new .env with this line
-        env_file.write_text(f"# Google Cloud credentials\n{env_line}\n")
-
-    console.print(f"[green]✓[/green] Updated config: {env_file}")
-
-    console.print(
-        Panel(
-            "[bold green]Setup complete![/bold green]\n\n"
-            f"Service account: [cyan]{creds_data.get('client_email', 'unknown')}[/cyan]\n"
-            f"Project: [cyan]{creds_data.get('project_id', 'unknown')}[/cyan]\n\n"
-            "You can now run [bold]sipvid[/bold] to generate videos.",
-            border_style="green",
-        )
-    )
 
 
 @app.command()
@@ -2246,13 +1936,10 @@ def _show_settings_menu() -> None:
 
         # API status
         config_status = settings.is_configured()
-        veo_status = "[green]Configured[/green]" if (
-            config_status.get("google_cloud_project") and
-            config_status.get("sip_gcs_bucket_name")
-        ) else "[red]Not configured[/red]"
+        veo_status = "[green]Configured[/green]" if config_status.get("gemini_api_key") else "[red]Not configured[/red]"
         kling_status = "[green]Configured[/green]" if config_status.get("kling_api") else "[red]Not configured[/red]"
 
-        table.add_row("VEO (Google) Status", veo_status)
+        table.add_row("VEO (Gemini API) Status", veo_status)
         table.add_row("Kling API Status", kling_status)
 
         console.print(table)
@@ -2299,10 +1986,10 @@ def _change_video_provider(prefs: UserPreferences, settings) -> None:
     choices = []
 
     # VEO option (always show, but indicate if not configured)
-    veo_available = config_status.get("google_cloud_project") and config_status.get("sip_gcs_bucket_name")
-    veo_title = "VEO (Google Vertex AI)"
+    veo_available = config_status.get("gemini_api_key")
+    veo_title = "VEO (Gemini API)"
     if not veo_available:
-        veo_title += " [dim][Not configured][/dim]"
+        veo_title += " [dim][Not configured - set GEMINI_API_KEY][/dim]"
     choices.append(questionary.Choice(title=veo_title, value=VideoProvider.VEO.value))
 
     # Kling option
@@ -2703,61 +2390,10 @@ async def _resume_video_generation(
 
     try:
         if provider == VideoProvider.VEO:
-            gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
-            gcs_prefix = f"sip-videogen/{run_dir.name}"
-
-            # Upload reference images to GCS if needed
-            if reference_images:
-                console.print("\n[bold cyan]Uploading reference images to GCS...[/bold cyan]")
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    BarColumn(),
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    TimeElapsedColumn(),
-                    console=console,
-                ) as progress:
-                    task = progress.add_task(
-                        "[cyan]Uploading images...",
-                        total=len(reference_images),
-                    )
-
-                    for asset in reference_images:
-                        local_path = Path(asset.local_path)
-                        if asset.gcs_uri:
-                            progress.update(
-                                task,
-                                advance=1,
-                                description=f"[dim]Using existing upload: {local_path.name}[/dim]",
-                            )
-                            continue
-
-                        remote_path = gcs_storage.generate_remote_path(
-                            f"{gcs_prefix}/reference_images",
-                            local_path.name,
-                        )
-                        try:
-                            asset.gcs_uri = gcs_storage.upload_file(local_path, remote_path)
-                            progress.update(
-                                task,
-                                advance=1,
-                                description=f"[green]Uploaded: {local_path.name}",
-                            )
-                        except GCSStorageError as e:
-                            logger.warning("Failed to upload %s: %s", local_path, e)
-                            progress.update(
-                                task,
-                                advance=1,
-                                description=f"[red]Failed: {local_path.name}",
-                            )
-
-            output_gcs_prefix = (
-                f"gs://{settings.sip_gcs_bucket_name}/{gcs_prefix}/videos"
-            )
-
+            # VEO: Generate directly to local directory via Gemini API
             video_clips = await video_generator.generate_all_video_clips(
                 script=script,
-                output_gcs_prefix=output_gcs_prefix,
+                output_dir=str(videos_dir),
                 reference_images=reference_images,
                 show_progress=True,
             )
@@ -2770,71 +2406,20 @@ async def _resume_video_generation(
                 f"[green]✓[/green] Generated {len(video_clips)}/{len(script.scenes)} video clips"
             )
 
-            # Download clips from GCS
-            console.print("\n[bold cyan]Downloading video clips from GCS...[/bold cyan]")
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                TimeElapsedColumn(),
-                console=console,
-            ) as progress:
-                task = progress.add_task(
-                    "[cyan]Downloading clips...",
-                    total=len(video_clips),
-                )
-
-                for clip in video_clips:
-                    if not clip.gcs_uri:
-                        progress.update(task, advance=1)
-                        continue
-
-                    try:
-                        local_path = videos_dir / f"scene_{clip.scene_number:03d}.mp4"
-                        gcs_storage.download_file(clip.gcs_uri, local_path)
-                        clip.local_path = str(local_path)
-                        progress.update(
-                            task,
-                            advance=1,
-                            description=f"[green]Downloaded: {local_path.name}",
-                        )
-                    except GCSStorageError as e:
-                        logger.warning("Failed to download %s: %s", clip.gcs_uri, e)
-                        progress.update(
-                            task,
-                            advance=1,
-                            description=f"[red]Failed: scene {clip.scene_number}",
-                        )
-
         else:
             # Kling generates directly to local path
-            signed_url_generator = None
-            kling_gcs_storage = None
-            try:
-                if settings.sip_gcs_bucket_name:
-                    kling_gcs_storage = GCSStorage(bucket_name=settings.sip_gcs_bucket_name)
-                    signed_url_generator = lambda uri: kling_gcs_storage.generate_signed_url(
-                        uri,
-                        expiration_minutes=120,
-                    )
-            except Exception:
-                logger.debug("Signed URL generation unavailable; continuing without it")
-
-            # Only pass reference images if GCS is available (needed for signed URLs)
-            kling_refs = reference_images if kling_gcs_storage else None
-            if reference_images and not kling_gcs_storage:
+            # Note: Kling reference images not supported without GCS
+            if reference_images:
                 console.print(
-                    "[yellow]Note: Reference images will not be used (GCS not configured)[/yellow]"
+                    "[yellow]Note: Reference images not supported for Kling without GCS.[/yellow]"
                 )
 
             video_clips = await video_generator.generate_all_video_clips(
                 script=script,
-                output_path=str(videos_dir),
-                reference_images=kling_refs,
+                output_dir=str(videos_dir),
+                reference_images=None,
                 max_concurrent=3,
                 show_progress=True,
-                signed_url_generator=signed_url_generator,
             )
 
             if not video_clips:
@@ -2845,7 +2430,7 @@ async def _resume_video_generation(
                 f"[green]✓[/green] Generated {len(video_clips)}/{len(script.scenes)} video clips"
             )
 
-    except (VideoGenerationError, GCSStorageError) as e:
+    except VideoGenerationError as e:
         console.print(f"[red]Video generation failed:[/red] {e}")
         return
 
@@ -2873,15 +2458,21 @@ async def _resume_video_generation(
             music_dir = run_dir / "music"
             music_dir.mkdir(parents=True, exist_ok=True)
             try:
-                music_generator = MusicGenerator(
-                    project_id=settings.google_cloud_project,
-                    location=settings.google_cloud_location,
-                )
-                generated_music = await music_generator.generate(
-                    brief=script.music_brief,
-                    output_dir=music_dir,
-                )
-                console.print(f"[green]✓[/green] Generated new background music ({generated_music.duration_seconds:.0f}s)")
+                if not settings.google_cloud_project:
+                    console.print(
+                        "[yellow]Music generation requires GOOGLE_CLOUD_PROJECT.[/yellow]\n"
+                        "[dim]Continuing without background music...[/dim]"
+                    )
+                else:
+                    music_generator = MusicGenerator(
+                        project_id=settings.google_cloud_project,
+                        location="us-central1",
+                    )
+                    generated_music = await music_generator.generate(
+                        brief=script.music_brief,
+                        output_dir=music_dir,
+                    )
+                    console.print(f"[green]✓[/green] Generated new background music ({generated_music.duration_seconds:.0f}s)")
             except MusicGenerationError as e:
                 console.print(
                     f"[yellow]Music generation failed:[/yellow] {e}\n"
@@ -2970,8 +2561,7 @@ def _show_help() -> None:
 
 [bold]Requirements:[/bold]
   - OpenAI API key (for AI agents)
-  - Google Gemini API key (for image generation)
-  - Google Cloud project with Vertex AI enabled (for video generation)
+  - Google Gemini API key (for image and video generation)
   - FFmpeg installed (for video assembly)
 
 [bold]More info:[/bold]

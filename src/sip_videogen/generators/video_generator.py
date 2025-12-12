@@ -1,7 +1,7 @@
 """VEO 3.1 Video Generator for creating video clips.
 
 This module provides video generation functionality using Google's VEO 3.1 API
-via Vertex AI to create video clips for each scene in the script.
+via the Gemini API to create video clips for each scene in the script.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import asyncio
 from dataclasses import dataclass
 
 from google import genai
-from google.genai.types import GenerateVideosConfig, Image, VideoGenerationReferenceImage
+from google.genai.types import GenerateVideosConfig, RawReferenceImage, Image
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 
 
 class VEOVideoGenerator(BaseVideoGenerator):
-    """Generates video clips using Google VEO 3.1 via Vertex AI.
+    """Generates video clips using Google VEO 3.1 via Gemini API.
 
     This class handles the generation of video clips for each scene,
     optionally using reference images for visual consistency.
@@ -46,29 +46,19 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
     def __init__(
         self,
-        project: str,
-        location: str = "us-central1",
+        api_key: str,
         model: str = "veo-3.1-generate-preview",
     ):
-        """Initialize the video generator with Vertex AI.
+        """Initialize the video generator with Gemini API.
 
         Args:
-            project: Google Cloud project ID.
-            location: Google Cloud region. Defaults to us-central1.
+            api_key: Google Gemini API key.
             model: Model to use for video generation. Defaults to veo-3.1-generate-preview.
         """
-        self.client = genai.Client(
-            vertexai=True,
-            project=project,
-            location=location,
-        )
+        self.client = genai.Client(api_key=api_key)
         self.model = model
-        self.project = project
-        self.location = location
-        logger.debug(
-            f"Initialized VideoGenerator with model: {model}, "
-            f"project: {project}, location: {location}"
-        )
+        self.api_key = api_key
+        logger.debug(f"Initialized VEOVideoGenerator with model: {model}")
 
     @retry(
         retry=retry_if_exception(lambda e: not isinstance(e, PromptSafetyError)),
@@ -79,7 +69,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
     async def generate_video_clip(
         self,
         scene: SceneAction,
-        output_gcs_uri: str,
+        output_dir: str,
         reference_images: list[GeneratedAsset] | None = None,
         aspect_ratio: str = "16:9",
         generate_audio: bool = True,
@@ -90,7 +80,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
         Args:
             scene: The SceneAction to generate a video for.
-            output_gcs_uri: GCS URI prefix for output (e.g., gs://bucket/prefix).
+            output_dir: Local directory to save the generated video.
             reference_images: Optional list of reference images for visual consistency.
                              Maximum 3 images allowed.
             aspect_ratio: Video aspect ratio. Defaults to 16:9. Options: 16:9, 9:16.
@@ -103,7 +93,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
                    phrases linking characters to their reference images.
 
         Returns:
-            GeneratedAsset with the GCS URI to the generated video.
+            GeneratedAsset with the local path to the generated video.
 
         Raises:
             VideoGenerationError: If video generation fails after retries.
@@ -113,7 +103,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
         # Build reference image configs (max 3)
         ref_configs = None
         if reference_images:
-            ref_configs = self._build_reference_configs(reference_images)
+            ref_configs = await self._build_reference_configs(reference_images)
             logger.debug(f"Using {len(ref_configs)} reference images")
 
         # Determine duration (forced to 8s when using reference images)
@@ -129,7 +119,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
         logger.debug(f"Video prompt: {prompt}")
 
         try:
-            # Start video generation
+            # Start video generation via Gemini API
             operation = self.client.models.generate_videos(
                 model=self.model,
                 prompt=prompt,
@@ -137,7 +127,6 @@ class VEOVideoGenerator(BaseVideoGenerator):
                     reference_images=ref_configs,
                     duration_seconds=duration,
                     aspect_ratio=aspect_ratio,
-                    output_gcs_uri=output_gcs_uri,
                     generate_audio=generate_audio,
                     person_generation="allow_adult",
                 ),
@@ -171,7 +160,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 # Prompt/policy violation – do not retry
                 if error_code == 3 or "usage guidelines" in error_msg:
                     raise PromptSafetyError(
-                        "Vertex AI rejected the prompt because it may violate "
+                        "VEO rejected the prompt because it may violate "
                         "usage guidelines (for example, real-person names, brands, "
                         "or other sensitive terms). Please simplify or anonymize "
                         f"the description for scene {scene.scene_number}. "
@@ -181,9 +170,8 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 # Service agents not ready – advise user to wait and retry CLI later
                 if error_code == 9 or "Service agents are being provisioned" in error_msg:
                     raise ServiceAgentNotReadyError(
-                        "Vertex AI service agents for your project are still being "
-                        "provisioned and cannot read from Cloud Storage yet. "
-                        "Wait a few minutes after enabling Vertex AI and try again. "
+                        "VEO service agents are still being provisioned. "
+                        "Wait a few minutes and try again. "
                         f"Raw error: {error_msg}"
                     )
 
@@ -202,15 +190,32 @@ class VEOVideoGenerator(BaseVideoGenerator):
                     f"No response received.{details}"
                 )
 
-            # Extract video URI
-            video_uri = operation.result.generated_videos[0].video.uri
-            logger.info(f"Video clip for scene {scene.scene_number} generated: {video_uri}")
+            # Extract and save video
+            from pathlib import Path
+            import httpx
+
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            video_data = operation.result.generated_videos[0]
+            video_filename = f"scene_{scene.scene_number:03d}.mp4"
+            video_path = output_path / video_filename
+
+            # Download video from the returned URI
+            video_uri = video_data.video.uri
+            logger.info(f"Downloading video for scene {scene.scene_number} from: {video_uri}")
+
+            async with httpx.AsyncClient() as http_client:
+                response = await http_client.get(video_uri, timeout=120.0)
+                response.raise_for_status()
+                video_path.write_bytes(response.content)
+
+            logger.info(f"Video clip for scene {scene.scene_number} saved to: {video_path}")
 
             return GeneratedAsset(
                 asset_type=AssetType.VIDEO_CLIP,
                 scene_number=scene.scene_number,
-                local_path="",  # Will be set after download
-                gcs_uri=video_uri,
+                local_path=str(video_path),
             )
 
         except (PromptSafetyError, ServiceAgentNotReadyError):
@@ -222,36 +227,39 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 f"Failed to generate video clip for scene {scene.scene_number}: {e}"
             ) from e
 
-    def _build_reference_configs(
+    async def _build_reference_configs(
         self,
         reference_images: list[GeneratedAsset],
-    ) -> list[VideoGenerationReferenceImage]:
-        """Build reference image configurations for VEO.
+    ) -> list[RawReferenceImage]:
+        """Build reference image configurations for VEO using Files API.
 
         Args:
-            reference_images: List of GeneratedAssets with GCS URIs.
+            reference_images: List of GeneratedAssets with local paths.
 
         Returns:
-            List of VideoGenerationReferenceImage configs.
+            List of RawReferenceImage configs with uploaded file references.
         """
         configs = []
-        for asset in reference_images[: self.MAX_REFERENCE_IMAGES]:
-            if not asset.gcs_uri:
-                logger.warning(f"Skipping reference image {asset.element_id}: no GCS URI")
+        for idx, asset in enumerate(reference_images[: self.MAX_REFERENCE_IMAGES]):
+            if not asset.local_path:
+                logger.warning(f"Skipping reference image {asset.element_id}: no local path")
                 continue
 
-            # Determine mime type from path
-            mime_type = self._get_mime_type(asset.gcs_uri)
+            try:
+                # Upload the image via Files API
+                logger.debug(f"Uploading reference image {idx + 1}: {asset.local_path}")
+                uploaded_file = self.client.files.upload(file=asset.local_path)
+                logger.debug(f"Uploaded to: {uploaded_file.uri}")
 
-            configs.append(
-                VideoGenerationReferenceImage(
-                    image=Image(
-                        gcs_uri=asset.gcs_uri,
-                        mime_type=mime_type,
-                    ),
-                    reference_type="asset",  # VEO 3.1 only supports "asset"
+                configs.append(
+                    RawReferenceImage(
+                        reference_id=idx + 1,
+                        reference_image=Image(gcs_uri=uploaded_file.uri),
+                    )
                 )
-            )
+            except Exception as e:
+                logger.warning(f"Failed to upload reference image {asset.element_id}: {e}")
+                continue
 
         return configs
 
@@ -806,7 +814,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
         """Determine mime type from file path.
 
         Args:
-            path: File path or GCS URI.
+            path: File path.
 
         Returns:
             MIME type string.
@@ -825,7 +833,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
     async def generate_all_video_clips(
         self,
         script: VideoScript,
-        output_gcs_prefix: str,
+        output_dir: str,
         reference_images: list[GeneratedAsset] | None = None,
         max_concurrent: int = 3,
         inter_request_delay: float = 2.0,
@@ -841,7 +849,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
         Args:
             script: The VideoScript containing scenes to generate videos for.
-            output_gcs_prefix: GCS URI prefix for outputs (e.g., gs://bucket/project).
+            output_dir: Local directory for video outputs.
             reference_images: Optional list of reference images for visual consistency.
             max_concurrent: Maximum number of concurrent video generations. Defaults to 3.
             inter_request_delay: Delay in seconds between starting new requests. Defaults to 2.0.
@@ -891,9 +899,6 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 # Get reference images for this scene
                 scene_refs = scene_references.get(scene.scene_number, [])
 
-                # Generate GCS output URI for this scene
-                scene_output_uri = f"{output_gcs_prefix}/scene_{scene.scene_number:03d}"
-
                 # Track current scene (may be modified by repair agent)
                 current_scene = scene
                 last_error: Exception | None = None
@@ -903,7 +908,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
                     try:
                         result = await self.generate_video_clip(
                             scene=current_scene,
-                            output_gcs_uri=scene_output_uri,
+                            output_dir=output_dir,
                             reference_images=scene_refs,
                             total_scenes=total_scene_count,
                             script=script,

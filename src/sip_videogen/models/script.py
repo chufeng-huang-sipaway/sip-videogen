@@ -78,9 +78,6 @@ class SharedElement(BaseModel):
         default="",
         description="Local path to generated reference image (empty if not yet generated)",
     )
-    reference_image_gcs_uri: str = Field(
-        default="", description="GCS URI of uploaded reference image (empty if not yet uploaded)"
-    )
 
 
 class SubShot(BaseModel):

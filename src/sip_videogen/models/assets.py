@@ -31,7 +31,7 @@ class GeneratedAsset(BaseModel):
     )
     scene_number: int | None = Field(default=None, description="Scene number (for video clips)")
     local_path: str = Field(description="Local filesystem path to the asset")
-    gcs_uri: str | None = Field(default=None, description="GCS URI after upload (gs://bucket/path)")
+    gcs_uri: str | None = Field(default=None, description="Remote URI (Files API or cloud storage)")
 
 
 class ProductionPackage(BaseModel):
