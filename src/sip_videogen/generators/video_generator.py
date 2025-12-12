@@ -247,20 +247,23 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 continue
 
             try:
-                # Upload the image via Files API
-                logger.debug(f"Uploading reference image {idx + 1}: {asset.local_path}")
-                uploaded_file = self.client.files.upload(file=asset.local_path)
-                logger.debug(f"Uploaded to: {uploaded_file.uri}")
+                # Read image as bytes for Gemini API
+                logger.debug(f"Reading reference image {idx + 1}: {asset.local_path}")
+                from pathlib import Path
+                image_path = Path(asset.local_path)
+                image_bytes = image_path.read_bytes()
+                mime_type = self._get_mime_type(asset.local_path)
 
-                # Use VideoGenerationReferenceImage with reference_type="asset"
+                # Use VideoGenerationReferenceImage with image_bytes
                 configs.append(
                     VideoGenerationReferenceImage(
-                        image=Image(gcs_uri=uploaded_file.uri),
+                        image=Image(image_bytes=image_bytes, mime_type=mime_type),
                         reference_type="asset",
                     )
                 )
+                logger.debug(f"Added reference image {idx + 1} ({len(image_bytes)} bytes)")
             except Exception as e:
-                logger.warning(f"Failed to upload reference image {asset.element_id}: {e}")
+                logger.warning(f"Failed to load reference image {asset.element_id}: {e}")
                 continue
 
         return configs
