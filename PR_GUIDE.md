@@ -10,7 +10,7 @@
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
-| 3 | Brand Agent Team | 🔄 In Progress (6/7 tasks) |
+| 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
 
@@ -507,18 +507,56 @@ The generated context includes:
 
 ---
 
+### Task 3.7: Write tests for brand agents ✅
+**Commit**: `3454bb7`
+
+**Files Created**:
+- `tests/test_brand_agents.py` - Comprehensive test suite for brand agents (51 tests)
+
+**Test Classes**:
+- `TestBrandStrategyOutput`: 2 tests for output model validation
+- `TestVisualIdentityOutput`: 2 tests for output model validation
+- `TestBrandVoiceOutput`: 2 tests for output model validation
+- `TestBrandGuardianOutput`: 4 tests for validation output with/without issues
+- `TestBrandDirectorOutput`: 2 tests for orchestrator output
+- `TestBrandStrategistAgent`: 2 tests for async function with mocked Runner
+- `TestVisualDesignerAgent`: 2 tests for async function with mocked Runner
+- `TestBrandVoiceAgent`: 2 tests for async function with mocked Runner
+- `TestBrandGuardianAgent`: 4 tests for validation functions
+- `TestBrandDirectorAgent`: 7 tests for orchestrator (success, errors, progress callback)
+- `TestBrandDevelopmentError`: 2 tests for custom exception
+- `TestBrandAgentProgress`: 2 tests for progress dataclass
+- `TestBrandProgressTrackingHooks`: 6 tests for RunHooks implementation
+- `TestBrandAgentPrompts`: 5 tests verifying all prompt files exist
+- `TestAgentDefinitions`: 7 tests verifying agent output_type and tools
+
+**Key Implementation Details**:
+- Uses `unittest.mock.AsyncMock` to mock `agents.Runner.run`
+- Patches `sip_videogen.brands.context.build_brand_context` and `sip_videogen.brands.tools.set_brand_context` for existing brand tests
+- Tests both success paths and error handling (empty/whitespace/too long input)
+- Fixtures create realistic mock data for all agent output types
+
+**Acceptance Criteria**:
+- [x] Output model validation tests for all 5 agent types
+- [x] Mock agent execution tests with mocked Runner.run
+- [x] Orchestration flow tests including progress callback
+- [x] All 51 tests pass: `python -m pytest tests/test_brand_agents.py -v`
+
+---
+
 ## Next Task
 
-### Task 3.7: Write tests for brand agents
-**Description**: Test agent output structures and orchestration.
+### Task 4.1: Create brand picker menu
+**Description**: Add interactive brand selection menu to CLI.
 
-**Files to Create**:
-- `tests/test_brand_agents.py`
+**Files to Modify**:
+- `src/sip_videogen/cli.py`
 
 **Key Points**:
-- Output model validation tests
-- Mock agent execution tests
-- Orchestration flow tests
+- Create `_show_brand_picker()` function
+- Display brands sorted by last accessed
+- Show active brand with marker
+- Include options: select brand, create new, settings
 
 ## Feature Overview
 
