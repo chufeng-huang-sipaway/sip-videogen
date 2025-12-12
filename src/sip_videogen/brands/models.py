@@ -8,6 +8,7 @@ This module defines the hierarchical brand identity models:
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import List
 
 from pydantic import BaseModel, Field
@@ -267,5 +268,117 @@ class CompetitivePositioning(BaseModel):
     # Positioning Statement
     positioning_statement: str = Field(
         default="",
-        description="Formal positioning: '[Brand] is the [category] for [audience] who [need] because [reason]'",
+        description=(
+            "Formal positioning: '[Brand] is the [category] for [audience] "
+            "who [need] because [reason]'"
+        ),
     )
+
+
+# =============================================================================
+# BrandIdentityFull (L1 Layer - On Demand)
+# =============================================================================
+
+
+class BrandCoreIdentity(BaseModel):
+    """Fundamental brand identity elements.
+
+    All fields have defaults to allow BrandIdentityFull to be instantiated
+    with just a slug. The name/tagline will be populated during brand creation.
+    """
+
+    name: str = Field(
+        default="",
+        description="Official brand name (required for complete brands)",
+    )
+    tagline: str = Field(
+        default="",
+        description="One-line positioning statement",
+    )
+    mission: str = Field(
+        default="",
+        description="2-3 sentence mission/purpose statement",
+    )
+    brand_story: str = Field(
+        default="",
+        description="Origin story and brand narrative",
+    )
+    values: List[str] = Field(
+        default_factory=list,
+        description="3-5 core brand values",
+    )
+
+
+class BrandIdentityFull(BaseModel):
+    """Complete brand identity - the L1 layer loaded on demand.
+
+    This contains everything needed to make informed brand decisions.
+    Agents fetch this via fetch_brand_detail() when they need specifics.
+    """
+
+    # Metadata
+    slug: str = Field(description="URL-safe identifier")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the brand was created",
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the brand was last updated",
+    )
+
+    # Identity sections
+    core: BrandCoreIdentity = Field(
+        default_factory=BrandCoreIdentity,
+        description="Core identity: name, mission, story, values",
+    )
+    visual: VisualIdentity = Field(
+        default_factory=VisualIdentity,
+        description="Visual design system",
+    )
+    voice: VoiceGuidelines = Field(
+        default_factory=VoiceGuidelines,
+        description="Voice and messaging guidelines",
+    )
+    audience: AudienceProfile = Field(
+        default_factory=AudienceProfile,
+        description="Target audience profile",
+    )
+    positioning: CompetitivePositioning = Field(
+        default_factory=CompetitivePositioning,
+        description="Market positioning",
+    )
+
+    # Constraints
+    constraints: List[str] = Field(
+        default_factory=list,
+        description="Must-haves and requirements",
+    )
+    avoid: List[str] = Field(
+        default_factory=list,
+        description="Things to explicitly avoid",
+    )
+
+    def to_summary(self) -> BrandSummary:
+        """Extract a BrandSummary from this full identity.
+
+        Used when saving a brand to generate the L0 layer.
+        """
+        return BrandSummary(
+            slug=self.slug,
+            name=self.core.name,
+            tagline=self.core.tagline,
+            category=self.positioning.market_category or "Uncategorized",
+            tone=(
+                ", ".join(self.voice.tone_attributes[:3])
+                if self.voice.tone_attributes
+                else ""
+            ),
+            primary_colors=[c.hex for c in self.visual.primary_colors[:3]],
+            visual_style=(
+                self.visual.overall_aesthetic[:200]
+                if self.visual.overall_aesthetic
+                else ""
+            ),
+            audience_summary=self.audience.primary_summary,
+        )
