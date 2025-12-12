@@ -206,7 +206,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
             video_uri = video_data.video.uri
             logger.info(f"Downloading video for scene {scene.scene_number} from: {video_uri}")
 
-            async with httpx.AsyncClient() as http_client:
+            async with httpx.AsyncClient(follow_redirects=True) as http_client:
                 response = await http_client.get(video_uri, timeout=120.0)
                 response.raise_for_status()
                 video_path.write_bytes(response.content)
