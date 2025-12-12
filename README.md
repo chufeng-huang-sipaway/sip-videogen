@@ -56,7 +56,7 @@ Get these API keys:
 
 | Key | Required | Where to get it |
 |-----|----------|-----------------|
-| `OPENAI_API_KEY` | Yes | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| `OPENAI_API_KEY` | Yes | [OpenAI Platform](https://platform.openai.com/api-keys) - Also enables Sora video generation |
 | `GEMINI_API_KEY` | Yes | [Google AI Studio](https://aistudio.google.com/apikey) |
 | `GOOGLE_CLOUD_PROJECT` | Optional | [Google Cloud Console](https://console.cloud.google.com) - Only needed for Lyria background music |
 | `KLING_ACCESS_KEY` | Optional | [Kling AI](https://app.klingai.com/global/dev/api-key) - Alternative video generator |
@@ -305,9 +305,26 @@ Use `--yes` to skip the cost confirmation prompt.
 
 The tool supports multiple video generation providers:
 
-| Provider | Description |
-|----------|-------------|
-| **VEO** (default) | Google's VEO 3.1 via Gemini API. Supports reference images for visual consistency. |
-| **Kling** | Kling AI video generation. Faster but doesn't support reference images without GCS. |
+| Provider | Description | Durations | Reference Images |
+|----------|-------------|-----------|------------------|
+| **VEO** (default) | Google's VEO 3.1 via Gemini API | 4, 6, 8s | Up to 3 per clip |
+| **Kling** | Kling AI video generation | 5, 10s | 1 (requires GCS) |
+| **Sora** | OpenAI's Sora 2 video generation | 4, 8, 12s | 1 (first frame) |
+
+### Sora Configuration
+
+Sora uses your existing `OPENAI_API_KEY`. Configure model and resolution in Settings:
+
+| Model | Description |
+|-------|-------------|
+| `sora-2` (default) | Faster, lower cost |
+| `sora-2-pro` | Higher quality output |
+
+| Resolution | Landscape | Portrait |
+|------------|-----------|----------|
+| 720p | 1280x720 | 720x1280 |
+| 1080p | 1792x1024 | 1024x1792 |
+
+**Note**: Sora API requires organization verification at [platform.openai.com](https://platform.openai.com).
 
 Switch providers in the Settings menu or set a default in your preferences.

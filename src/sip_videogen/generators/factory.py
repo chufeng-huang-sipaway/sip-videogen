@@ -7,10 +7,13 @@ video generator based on user preferences or explicit provider selection.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from sip_videogen.config.settings import get_settings
-from sip_videogen.config.user_preferences import UserPreferences
 from sip_videogen.generators.base import BaseVideoGenerator, VideoProvider
+
+if TYPE_CHECKING:
+    from sip_videogen.config.user_preferences import UserPreferences
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,8 @@ class VideoGeneratorFactory:
             ValueError: If Kling is requested but credentials are not configured.
             ValueError: If an unknown provider is specified.
         """
+        from sip_videogen.config.user_preferences import UserPreferences
+
         settings = get_settings()
         prefs = UserPreferences.load()
 
@@ -47,6 +52,9 @@ class VideoGeneratorFactory:
 
         elif actual_provider == VideoProvider.KLING:
             return VideoGeneratorFactory._create_kling_generator(settings, prefs)
+
+        elif actual_provider == VideoProvider.SORA:
+            return VideoGeneratorFactory._create_sora_generator(settings, prefs)
 
         else:
             raise ValueError(f"Unknown video provider: {actual_provider}")
@@ -102,6 +110,40 @@ class VideoGeneratorFactory:
         )
 
     @staticmethod
+    def _create_sora_generator(settings, prefs: UserPreferences) -> BaseVideoGenerator:
+        """Create a Sora video generator.
+
+        Args:
+            settings: Application settings.
+            prefs: User preferences with Sora configuration.
+
+        Returns:
+            SoraVideoGenerator instance.
+
+        Raises:
+            ValueError: If OpenAI API key is not configured.
+        """
+        if not settings.openai_api_key or settings.openai_api_key == "sk-...":
+            raise ValueError(
+                "OpenAI API credentials not configured for Sora.\n"
+                "Set OPENAI_API_KEY in your .env file.\n"
+                "Get credentials from: https://platform.openai.com/api-keys\n"
+                "Note: Sora API requires organization verification at platform.openai.com"
+            )
+
+        from sip_videogen.generators.sora_generator import SoraConfig, SoraVideoGenerator
+
+        config = SoraConfig(
+            model=prefs.sora.model,
+            resolution=prefs.sora.resolution,
+        )
+
+        return SoraVideoGenerator(
+            api_key=settings.openai_api_key,
+            config=config,
+        )
+
+    @staticmethod
     def get_available_providers() -> list[VideoProvider]:
         """Get list of providers that are properly configured.
 
@@ -119,6 +161,10 @@ class VideoGeneratorFactory:
         # Kling requires access key and secret key
         if config_status.get("kling_api"):
             available.append(VideoProvider.KLING)
+
+        # Sora requires OpenAI API key
+        if config_status.get("sora_api"):
+            available.append(VideoProvider.SORA)
 
         return available
 

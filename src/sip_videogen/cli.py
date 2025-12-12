@@ -1934,13 +1934,19 @@ def _show_settings_menu() -> None:
         table.add_row("Kling Model Version", prefs.kling.model_version)
         table.add_row("Kling Mode", prefs.kling.mode.upper())
 
+        # Sora settings
+        table.add_row("Sora Model", prefs.sora.model)
+        table.add_row("Sora Resolution", prefs.sora.resolution)
+
         # API status
         config_status = settings.is_configured()
         veo_status = "[green]Configured[/green]" if config_status.get("gemini_api_key") else "[red]Not configured[/red]"
         kling_status = "[green]Configured[/green]" if config_status.get("kling_api") else "[red]Not configured[/red]"
+        sora_status = "[green]Configured[/green]" if config_status.get("sora_api") else "[red]Not configured[/red]"
 
         table.add_row("VEO (Gemini API) Status", veo_status)
         table.add_row("Kling API Status", kling_status)
+        table.add_row("Sora API Status", sora_status)
 
         console.print(table)
         console.print()
@@ -1954,6 +1960,10 @@ def _show_settings_menu() -> None:
             questionary.Choice(
                 title="Configure Kling settings",
                 value="kling",
+            ),
+            questionary.Choice(
+                title="Configure Sora settings",
+                value="sora",
             ),
             questionary.Choice(
                 title="Back to main menu",
@@ -1974,6 +1984,8 @@ def _show_settings_menu() -> None:
             _change_video_provider(prefs, settings)
         elif choice == "kling":
             _configure_kling_settings(prefs)
+        elif choice == "sora":
+            _configure_sora_settings(prefs)
         elif choice == "back" or choice is None:
             break
 
@@ -1999,6 +2011,13 @@ def _change_video_provider(prefs: UserPreferences, settings) -> None:
         kling_title += " [dim][Not configured - set KLING_ACCESS_KEY and KLING_SECRET_KEY][/dim]"
     choices.append(questionary.Choice(title=kling_title, value=VideoProvider.KLING.value))
 
+    # Sora option
+    sora_available = config_status.get("sora_api")
+    sora_title = "Sora 2 (OpenAI)"
+    if not sora_available:
+        sora_title += " [dim][Not configured - set OPENAI_API_KEY][/dim]"
+    choices.append(questionary.Choice(title=sora_title, value=VideoProvider.SORA.value))
+
     result = questionary.select(
         "Choose provider:",
         choices=choices,
@@ -2016,6 +2035,9 @@ def _change_video_provider(prefs: UserPreferences, settings) -> None:
             console.print("[yellow]Warning: VEO is not fully configured. Video generation may fail.[/yellow]")
         elif new_provider == VideoProvider.KLING and not kling_available:
             console.print("[yellow]Warning: Kling is not configured. Set KLING_ACCESS_KEY and KLING_SECRET_KEY in .env[/yellow]")
+        elif new_provider == VideoProvider.SORA and not sora_available:
+            console.print("[yellow]Warning: Sora is not configured. Set OPENAI_API_KEY in .env[/yellow]")
+            console.print("[dim]Note: Sora API requires organization verification at platform.openai.com[/dim]")
 
         prefs.default_video_provider = new_provider
         prefs.save()
@@ -2091,6 +2113,64 @@ def _configure_kling_settings(prefs: UserPreferences) -> None:
 
     prefs.save()
     console.print("\n[green]Kling settings saved![/green]")
+
+
+def _configure_sora_settings(prefs: UserPreferences) -> None:
+    """Configure Sora-specific settings."""
+    console.print("\n[bold]Configure Sora Settings[/bold]\n")
+
+    # Model selection
+    model_choices = [
+        questionary.Choice(title="sora-2 (Faster, cheaper)", value="sora-2"),
+        questionary.Choice(title="sora-2-pro (Higher quality)", value="sora-2-pro"),
+    ]
+
+    current_model = prefs.sora.model
+    default_idx = next(
+        (i for i, c in enumerate(model_choices) if c.value == current_model),
+        0,
+    )
+
+    model = questionary.select(
+        "Select Sora model:",
+        choices=model_choices,
+        default=model_choices[default_idx],
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if model:
+        prefs.sora.model = model
+
+    # Resolution selection
+    resolution_choices = [
+        questionary.Choice(title="1080p (1920x1080)", value="1080p"),
+        questionary.Choice(title="720p (1280x720)", value="720p"),
+    ]
+
+    current_resolution = prefs.sora.resolution
+    default_res_idx = next(
+        (i for i, c in enumerate(resolution_choices) if c.value == current_resolution),
+        0,
+    )
+
+    resolution = questionary.select(
+        "Select video resolution:",
+        choices=resolution_choices,
+        default=resolution_choices[default_res_idx],
+        style=questionary.Style([
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+        ]),
+    ).ask()
+
+    if resolution:
+        prefs.sora.resolution = resolution
+
+    prefs.save()
+    console.print(f"\n[green]Sora settings saved! Model: {prefs.sora.model}, Resolution: {prefs.sora.resolution}[/green]")
 
 
 def _list_previous_runs() -> list[Path]:

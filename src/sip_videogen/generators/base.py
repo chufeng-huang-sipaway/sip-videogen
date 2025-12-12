@@ -20,6 +20,7 @@ class VideoProvider(str, Enum):
 
     VEO = "veo"
     KLING = "kling"
+    SORA = "sora"
 
 
 class VideoGenerationError(Exception):

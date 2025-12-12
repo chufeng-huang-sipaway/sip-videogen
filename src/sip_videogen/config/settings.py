@@ -139,6 +139,7 @@ class Settings(BaseSettings):
                 and self.google_cloud_project != "your-project-id"
             ),
             "kling_api": bool(self.kling_access_key and self.kling_secret_key),
+            "sora_api": bool(self.openai_api_key and self.openai_api_key != "sk-..."),
         }
 
 
