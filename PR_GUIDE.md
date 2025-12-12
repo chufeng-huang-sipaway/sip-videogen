@@ -10,7 +10,7 @@
 |-------|-------------|--------|
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
-| 3 | Brand Agent Team | 🔄 In Progress (5/7 tasks) |
+| 3 | Brand Agent Team | 🔄 In Progress (6/7 tasks) |
 | 4 | Interactive Brand Menu | ⏳ Pending |
 | 5 | Integration & Polish | ⏳ Pending |
 
@@ -467,20 +467,58 @@ The generated context includes:
 
 ---
 
+### Task 3.6: Create Brand Director orchestrator ✅
+**Commit**: `1f422d6`
+
+**Files Created**:
+- `src/sip_videogen/agents/brand_director.py` - Orchestrator agent with agent-as-tool pattern
+- `src/sip_videogen/agents/prompts/brand_director.md` - Comprehensive orchestration prompt
+
+**Agent Implementation**:
+- `brand_director_agent`: Agent with `output_type=BrandDirectorOutput`
+- Specialist agents registered as tools:
+  - `brand_strategist`: Develops core identity, audience, positioning
+  - `visual_designer`: Creates visual identity and design system
+  - `brand_voice`: Establishes voice and messaging guidelines
+  - `brand_guardian`: Validates brand consistency
+- Memory tools registered: `fetch_brand_detail`, `browse_brand_assets`
+- `develop_brand(concept, existing_brand_slug, progress_callback)`: Main entry point
+- `develop_brand_with_output()`: Returns full BrandDirectorOutput with rationale
+
+**Progress Tracking**:
+- `BrandAgentProgress` dataclass for progress updates
+- `BrandProgressTrackingHooks` class implementing RunHooks interface
+- Progress callback support for real-time UI updates
+
+**Prompt Features**:
+- Role definition as senior brand director with 20+ years experience
+- Team description with each specialist's responsibilities
+- Process flow for new brands and evolving existing brands
+- Memory tools documentation with available detail types
+- Quality standards checklist
+- DO/DON'T guidelines for orchestration
+- Example flow demonstrating full brand development
+
+**Acceptance Criteria**:
+- [x] Agent has specialist agents registered as tools
+- [x] Agent has memory tools registered
+- [x] `develop_brand()` async function implemented
+- [x] Progress callback supported
+
+---
+
 ## Next Task
 
-### Task 3.6: Create Brand Director orchestrator
-**Description**: Create the orchestrator agent that coordinates the brand team.
+### Task 3.7: Write tests for brand agents
+**Description**: Test agent output structures and orchestration.
 
 **Files to Create**:
-- `src/sip_videogen/agents/brand_director.py`
-- `src/sip_videogen/agents/prompts/brand_director.md`
+- `tests/test_brand_agents.py`
 
 **Key Points**:
-- Agent has specialist agents registered as tools (agent-as-tool pattern)
-- Agent has memory tools registered
-- `develop_brand()` async function implemented
-- Progress callback supported
+- Output model validation tests
+- Mock agent execution tests
+- Orchestration flow tests
 
 ## Feature Overview
 
