@@ -120,6 +120,8 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
         try:
             # Start video generation via Gemini API
+            # Note: generate_audio parameter removed - not supported in Gemini API
+            # VEO 3.1 generates audio by default
             operation = self.client.models.generate_videos(
                 model=self.model,
                 prompt=prompt,
@@ -127,7 +129,6 @@ class VEOVideoGenerator(BaseVideoGenerator):
                     reference_images=ref_configs,
                     duration_seconds=duration,
                     aspect_ratio=aspect_ratio,
-                    generate_audio=generate_audio,
                     person_generation="allow_adult",
                 ),
             )
