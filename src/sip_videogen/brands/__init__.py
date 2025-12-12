@@ -5,6 +5,13 @@ and brand-aware agent tools for the brand kit workflow.
 """
 
 # Models (Tasks 1.2-1.5)
+# Memory layer access functions (Task 2.1)
+from .memory import (
+    DetailType,
+    get_brand_detail,
+    get_brand_summary,
+    list_brand_assets,
+)
 from .models import (
     AudienceProfile,
     BrandCoreIdentity,
@@ -34,12 +41,12 @@ from .storage import (
     slugify,
 )
 
-# Memory layer access functions (Task 2.1)
-from .memory import (
-    DetailType,
-    get_brand_detail,
-    get_brand_summary,
-    list_brand_assets,
+# Agent tools (Task 2.2)
+from .tools import (
+    browse_brand_assets,
+    fetch_brand_detail,
+    get_brand_context,
+    set_brand_context,
 )
 
 __all__ = [
@@ -75,4 +82,9 @@ __all__ = [
     "get_brand_detail",
     "get_brand_summary",
     "list_brand_assets",
+    # Agent Tools (Task 2.2)
+    "browse_brand_assets",
+    "fetch_brand_detail",
+    "get_brand_context",
+    "set_brand_context",
 ]
