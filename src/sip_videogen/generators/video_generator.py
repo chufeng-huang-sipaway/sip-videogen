@@ -10,7 +10,7 @@ import asyncio
 from dataclasses import dataclass
 
 from google import genai
-from google.genai.types import GenerateVideosConfig, RawReferenceImage, Image
+from google.genai.types import GenerateVideosConfig, VideoGenerationReferenceImage, Image
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -252,10 +252,11 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 uploaded_file = self.client.files.upload(file=asset.local_path)
                 logger.debug(f"Uploaded to: {uploaded_file.uri}")
 
+                # Use VideoGenerationReferenceImage with reference_type="asset"
                 configs.append(
-                    RawReferenceImage(
-                        reference_id=idx + 1,
-                        reference_image=Image(gcs_uri=uploaded_file.uri),
+                    VideoGenerationReferenceImage(
+                        image=Image(gcs_uri=uploaded_file.uri),
+                        reference_type="asset",
                     )
                 )
             except Exception as e:
