@@ -148,17 +148,49 @@ sipvid generate "Robot dance party" --yes
 sipvid status
 ```
 
-### Brand Kit Generation
+### Brand Studio
 
-Generate a complete brand design library from a simple concept:
+Create and manage persistent brands with an AI-powered brand development team:
 
 ```bash
+sipvid brands
+```
+
+**Brand Studio features:**
+
+- **Create brands** - Describe your concept, AI agents develop complete brand identity
+- **Evolve brands** - Refine visual identity, voice, audience, or positioning over time
+- **Generate assets** - Create brand kit assets using your saved brand's style
+- **Manage brands** - Set active brand, view details, delete brands
+
+**How brand creation works:**
+
+1. **Describe your concept** - Product category, target audience, differentiators, tone
+2. **AI team develops identity** - Brand Director orchestrates specialist agents:
+   - Brand Strategist (positioning, audience, values)
+   - Visual Designer (colors, typography, imagery)
+   - Brand Voice Writer (tone, messaging, copy)
+   - Brand Guardian (consistency validation)
+3. **Review and approve** - See the complete brand identity before saving
+4. **Brand is saved** - Stored at `~/.sip-videogen/brands/` for future use
+
+### Brand Kit Generation
+
+Generate a complete brand design library:
+
+```bash
+# Use a saved brand (recommended)
+sipvid brandkit --brand my-brand-slug
+
+# Or create a one-shot brand from concept
 sipvid brandkit "A skincare product brand with a tropical, organic feel"
 ```
 
+When using a saved brand, assets are generated using your brand's established colors, style, and visual identity - ensuring consistency across all outputs.
+
 **How it works:**
 
-1. **Describe your brand** - Provide a concept (product type, style, audience)
+1. **Select or describe brand** - Use saved brand or provide a new concept
 2. **Review the brief** - AI analyzes your concept and creates a brand brief
 3. **Choose a direction** - Select from 3 creative directions with different palettes and styles
 4. **Approve the logo** - Review and approve the generated logo before continuing
@@ -206,13 +238,21 @@ sipvid update --check # Only check, don't install
 
 ## Architecture
 
-The tool uses a hub-and-spoke agent pattern:
+The tool uses a hub-and-spoke agent pattern with specialized teams:
 
+**Video Generation Team:**
 - **Showrunner** (orchestrator) - Coordinates the script development process
   - **Screenwriter** - Creates scene breakdown with professional cinematography
   - **Production Designer** - Identifies shared visual elements for consistency
   - **Continuity Supervisor** - Validates consistency and optimizes prompts
   - **Music Director** - Designs complementary background music
+
+**Brand Development Team:**
+- **Brand Director** (orchestrator) - Coordinates the brand identity process
+  - **Brand Strategist** - Develops positioning, audience profile, and values
+  - **Visual Designer** - Creates color palette, typography, and imagery direction
+  - **Brand Voice Writer** - Establishes tone, messaging guidelines, and copy
+  - **Brand Guardian** - Validates consistency across all brand elements
 
 ### VEO 3.1 Prompt Optimization
 
