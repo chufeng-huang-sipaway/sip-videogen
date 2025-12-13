@@ -11,7 +11,7 @@
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
-| 4 | Interactive Brand Menu | 🔄 In Progress (1/5 tasks) |
+| 4 | Interactive Brand Menu | 🔄 In Progress (2/5 tasks) |
 | 5 | Integration & Polish | ⏳ Pending |
 
 ## Completed Tasks
@@ -567,20 +567,51 @@ The generated context includes:
 
 ---
 
+### Task 4.2: Create brand detail view ✅
+**Commit**: `be43d6c`
+
+**Files Modified**:
+- `src/sip_videogen/cli.py` - Added `_display_brand_detail()` function
+
+**Implementation Details**:
+- Added `_display_brand_detail(slug)` function for displaying brand information
+- Shows brand summary in formatted rich Panel with:
+  - Brand name and tagline as header
+  - Category and tone information
+  - Visual style description
+  - Audience summary
+  - Color palette (hex codes displayed as bold text)
+  - Asset counts by category (logo, packaging, lifestyle, mascot, marketing)
+  - Last generation timestamp
+- Displays actions menu with options:
+  - Generate Assets - Create brand kit images
+  - Evolve Brand - Update or refine brand identity
+  - Set as Active (or disabled "Already active" indicator)
+  - Delete Brand - Remove permanently
+  - Back to Brand List
+- Uses questionary for arrow-key navigation with styled choices
+
+**Acceptance Criteria**:
+- [x] Brand info displayed in rich Panel
+- [x] Colors shown as hex codes
+- [x] Asset counts displayed by category
+- [x] Actions menu shown with appropriate options
+
+---
+
 ## Next Task
 
-### Task 4.2: Create brand detail view
-**Description**: Add rich panel display for brand details.
+### Task 4.3: Implement create brand flow
+**Description**: Add interactive flow for creating new brands.
 
 **Files to Modify**:
 - `src/sip_videogen/cli.py`
 
 **Key Points**:
-- Create `_display_brand_detail()` function
-- Show brand summary in formatted panel
-- Display color palette visually if possible
-- Show asset counts by category
-- Display actions menu
+- Prompt for brand concept
+- Run Brand Director to develop identity
+- Display proposal for approval
+- Save on approval
 
 ## Feature Overview
 
