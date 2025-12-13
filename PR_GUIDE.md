@@ -11,7 +11,7 @@
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
-| 4 | Interactive Brand Menu | 🔄 In Progress (3/5 tasks) |
+| 4 | Interactive Brand Menu | 🔄 In Progress (4/5 tasks) |
 | 5 | Integration & Polish | ⏳ Pending |
 
 ## Completed Tasks
@@ -637,20 +637,61 @@ The generated context includes:
 
 ---
 
+### Task 4.4: Implement evolve brand flow ✅
+**Commit**: `a3f1bc6`
+
+**Files Modified**:
+- `src/sip_videogen/cli.py` - Added `_evolve_brand_flow()` function
+
+**Implementation Details**:
+- Added `_evolve_brand_flow(slug)` function for interactive brand evolution
+- Step 1: Display current brand state (name, tagline, category, tone, colors)
+- Step 2: Present aspect selection menu with 5 options:
+  - Visual Identity - Colors, typography, imagery style
+  - Brand Voice - Tone, messaging, personality
+  - Audience Targeting - Target market, demographics, psychographics
+  - Market Positioning - Category, competitors, differentiation
+  - Comprehensive - Update multiple aspects at once
+- Step 3: Show aspect-specific guidance prompts for each selection
+- Step 4: Get evolution request via multiline text input
+- Step 5: Build evolution concept with aspect focus and preservation instructions
+- Step 6: Confirmation before proceeding (agent calls cost money)
+- Step 7: Run Brand Director with progress display
+  - Uses rich Live display with real-time activity updates
+  - Passes `existing_brand_slug` to enable brand memory tools
+  - Shows 8 most recent agent activities
+- Step 8: Display evolution proposal with aspect-specific details
+  - Shows relevant changes based on selected aspect
+  - Displays evolution rationale (truncated to 300 chars)
+  - Shows Brand Guardian validation status
+- Step 9: Approval menu (Approve & Save / Reject & Discard)
+- Step 10: Save using `save_brand()` with original slug preserved
+
+**Key Design Decisions**:
+- Uses `develop_brand_with_output()` with `existing_brand_slug` to enable brand context
+- Builds concept with explicit aspect focus instruction
+- Preserves original slug when saving (no rename during evolution)
+- Aspect-specific proposal display shows only relevant changed sections
+
+**Acceptance Criteria**:
+- [x] User can select aspect to evolve (5 options)
+- [x] Changes proposed and validated (via Brand Guardian)
+- [x] Brand updated on approval (save_brand preserves slug)
+
+---
+
 ## Next Task
 
-### Task 4.4: Implement evolve brand flow
-**Description**: Add flow for evolving existing brands.
+### Task 4.5: Add brand studio command
+**Description**: Create the main entry point for brand management.
 
 **Files to Modify**:
 - `src/sip_videogen/cli.py`
 
 **Key Points**:
-- Show what aspects can be evolved
-- Get user's evolution request
-- Run appropriate agent(s)
-- Validate with Brand Guardian
-- Save changes on approval
+- Add `brand` command to typer app with `--brand` option
+- Show brand picker on entry (unless `--brand` specified)
+- Route to appropriate flows based on action selection
 
 ## Feature Overview
 
