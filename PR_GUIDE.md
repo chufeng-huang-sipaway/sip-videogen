@@ -12,7 +12,7 @@
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
 | 4 | Interactive Brand Menu | ✅ Complete (5/5 tasks) |
-| 5 | Integration & Polish | 🔄 In Progress (2/5 tasks) |
+| 5 | Integration & Polish | 🔄 In Progress (3/5 tasks) |
 
 ## Completed Tasks
 
@@ -810,12 +810,90 @@ sipvid brandkit "My concept"
 
 ---
 
+### Task 5.3: Update brand summary after asset generation ✅
+**Commit**: (implemented as part of Task 5.2)
+
+**Note**: This task was already implemented as part of Task 5.2 via the `_update_brand_summary_stats()` function in `cli.py`. The function is called at the end of `_run_brand_kit_generation_from_brand()`.
+
+**Implementation Details**:
+- `_update_brand_summary_stats(slug)` function counts image files in brand's asset folders
+- Updates `asset_count` and `last_generation` fields in brand summary
+- Called automatically after brand kit generation completes
+
+**Acceptance Criteria**:
+- [x] `update_brand_summary_stats()` function exists (as `_update_brand_summary_stats` in cli.py)
+- [x] Called after brandkit asset generation
+- [x] Brand summary shows correct asset count
+- [x] Last generation timestamp updates
+
+---
+
+### Task 5.4: Create migration utility ✅
+**Commit**: `5982330`
+
+**Files Created**:
+- `src/sip_videogen/brands/migration.py` - Migration utility functions
+- `tests/test_brands_migration.py` - 19 tests for migration functionality
+
+**Files Modified**:
+- `src/sip_videogen/brands/__init__.py` - Updated exports with migration functions
+
+**Functions Implemented**:
+- `find_legacy_brand_kits(output_dir)`: Find all brand_kit.json files in output directory
+- `load_legacy_brand_kit(path)`: Load a legacy brand_kit.json file
+- `convert_brief_and_direction_to_identity(brief, direction)`: Convert legacy format to BrandIdentityFull
+  - Maps color palette (first 2 as primary, rest as secondary)
+  - Extracts typography from direction description
+  - Copies constraints and avoid lists
+  - Generates positioning statement
+  - Parses tone attributes from comma-separated string
+- `migrate_brand_kit(path, copy_assets, slug_override)`: Migrate a single brand kit
+  - Creates brand using `create_brand()`
+  - Optionally copies assets to brand's asset folder
+- `migrate_all_brand_kits(output_dir, copy_assets, skip_existing)`: Migrate all legacy brand kits
+
+**Key Mappings**:
+| Legacy Field | New Field |
+|-------------|-----------|
+| `brief.brand_name` | `core.name` |
+| `brief.product_category` | `positioning.market_category` |
+| `brief.target_audience` | `audience.primary_summary` |
+| `brief.tone` | `voice.personality` |
+| `brief.style_keywords` | `core.values`, `visual.style_keywords` |
+| `brief.constraints` | `constraints` |
+| `brief.avoid` | `avoid`, `visual.imagery_avoid` |
+| `direction.color_palette[:2]` | `visual.primary_colors` |
+| `direction.color_palette[2:]` | `visual.secondary_colors` |
+| `direction.typography` | `visual.typography` (parsed for font families) |
+| `direction.materials` | `visual.materials` |
+| `direction.differentiator` | `positioning.differentiation` |
+| `direction.summary` | `core.tagline`, `visual.overall_aesthetic` |
+
+**Test Coverage**:
+- `TestConvertBriefAndDirection`: 8 tests for format conversion
+- `TestFindLegacyBrandKits`: 3 tests for file discovery
+- `TestLoadLegacyBrandKit`: 3 tests for loading legacy files
+- `TestMigrateBrandKit`: 3 tests for single brand migration
+- `TestMigrateAllBrandKits`: 2 tests for batch migration
+
+**Acceptance Criteria**:
+- [x] Finds existing brand kits in output directory
+- [x] Converts to new format with proper field mapping
+- [x] Preserves existing data (colors, constraints, audience)
+- [x] All 19 tests pass
+
+---
+
 ## Next Task
 
-### Task 5.3: Update brand summary after asset generation
-**Description**: Update `asset_count` and `last_generation` fields in brand summary after generating assets.
+### Task 5.5: End-to-end integration tests
+**Description**: Test complete workflows.
 
-**Note**: This task is already implemented as part of Task 5.2 via the `_update_brand_summary_stats()` function. The function is called at the end of `_run_brand_kit_generation_from_brand()`.
+**Acceptance Criteria**:
+- [ ] Create brand → generate assets flow works
+- [ ] Evolve brand flow works
+- [ ] Brand context appears in asset prompts
+- [ ] Asset count updates after generation
 
 ## Feature Overview
 
