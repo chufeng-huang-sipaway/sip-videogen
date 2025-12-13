@@ -82,8 +82,11 @@ from .utils.updater import (
     prompt_for_update,
 )
 from .brands import (
+    delete_brand,
     get_active_brand,
     list_brands,
+    load_brand_summary,
+    set_active_brand,
 )
 
 app = typer.Typer(
@@ -2511,6 +2514,136 @@ def _evolve_brand_flow(slug: str) -> str | None:
     except Exception as e:
         console.print(f"\n[red]Failed to save changes: {e}[/red]")
         return "back"
+
+
+def _work_with_brand(slug: str) -> str | None:
+    """Work with a specific brand, showing details and handling actions.
+
+    Args:
+        slug: Brand slug to work with.
+
+    Returns:
+        - "back": Return to brand picker
+        - "exit": Exit brand studio
+        - None: User cancelled
+    """
+    while True:
+        action = _display_brand_detail(slug)
+
+        if action is None or action == "back":
+            return "back"
+
+        elif action == "generate_assets":
+            # Run brand kit generation for this brand
+            summary = load_brand_summary(slug)
+            if summary:
+                console.print(f"\n[bold cyan]Generating assets for {summary.name}...[/bold cyan]\n")
+                # Use the brand concept from the summary for brandkit generation
+                concept = f"{summary.name}: {summary.tagline}"
+                if summary.category:
+                    concept += f" ({summary.category})"
+                _run_brand_kit_generation(concept)
+            Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+        elif action == "evolve":
+            result = _evolve_brand_flow(slug)
+            if result and result != "back":
+                # Brand was evolved, stay on the brand
+                slug = result
+
+        elif action == "set_active":
+            try:
+                set_active_brand(slug)
+                summary = load_brand_summary(slug)
+                if summary:
+                    console.print(f"\n[green]✓ {summary.name} is now the active brand[/green]")
+            except ValueError as e:
+                console.print(f"\n[red]Error: {e}[/red]")
+            Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+        elif action == "delete":
+            summary = load_brand_summary(slug)
+            brand_name = summary.name if summary else slug
+
+            # Confirm deletion
+            confirm = questionary.confirm(
+                f"Are you sure you want to delete '{brand_name}'? This cannot be undone.",
+                default=False,
+            ).ask()
+
+            if confirm:
+                if delete_brand(slug):
+                    console.print(f"\n[green]✓ Brand '{brand_name}' deleted[/green]")
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+                    return "back"
+                else:
+                    console.print(f"\n[red]Failed to delete brand '{brand_name}'[/red]")
+                    Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+            else:
+                console.print("[dim]Deletion cancelled[/dim]")
+
+
+def _brand_studio_loop() -> None:
+    """Main loop for the brand studio interface."""
+    while True:
+        result = _show_brand_picker()
+
+        if result is None or result == "back":
+            # Exit brand studio
+            return
+
+        elif result == "create_new":
+            create_result = _create_brand_flow()
+            if create_result and create_result not in ("back", None):
+                # Brand was created, go to its detail view
+                _work_with_brand(create_result)
+
+        elif result == "settings":
+            # Brand settings submenu (placeholder for now)
+            console.print("\n[dim]Brand settings coming soon![/dim]")
+            Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+        else:
+            # A brand slug was selected
+            work_result = _work_with_brand(result)
+            if work_result == "exit":
+                return
+            # Otherwise continue the loop to show brand picker again
+
+
+@app.command()
+def brand(
+    brand_slug: str | None = typer.Option(
+        None,
+        "--brand",
+        "-b",
+        help="Brand slug to work with (skips interactive picker)",
+    ),
+) -> None:
+    """Open the brand studio to manage your brands.
+
+    The brand studio allows you to create, evolve, and manage persistent brand identities.
+    Brands are stored in ~/.sip-videogen/brands/ and can be used across video generations.
+
+    Use --brand=<slug> for non-interactive mode to go directly to a specific brand.
+    """
+    console.print(BANNER)
+
+    if brand_slug:
+        # Non-interactive: go directly to brand
+        summary = load_brand_summary(brand_slug)
+        if not summary:
+            console.print(f"[red]Error: Brand '{brand_slug}' not found.[/red]")
+            console.print("[dim]Use 'sipvid brand' to see available brands.[/dim]")
+            raise typer.Exit(1)
+
+        console.print(f"[cyan]Working with brand: {summary.name}[/cyan]\n")
+        _work_with_brand(brand_slug)
+    else:
+        # Interactive: show brand studio loop
+        _brand_studio_loop()
+
+    console.print("\n[bold cyan]Exiting Brand Studio[/bold cyan]\n")
 
 
 def _show_menu() -> str:
