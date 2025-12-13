@@ -18,6 +18,14 @@ from .memory import (
     get_brand_summary,
     list_brand_assets,
 )
+
+# Migration utilities (Task 5.4)
+from .migration import (
+    convert_brief_and_direction_to_identity,
+    find_legacy_brand_kits,
+    migrate_all_brand_kits,
+    migrate_brand_kit,
+)
 from .models import (
     AudienceProfile,
     BrandCoreIdentity,
@@ -97,4 +105,9 @@ __all__ = [
     "BrandContextBuilder",
     "build_brand_context",
     "DETAIL_DESCRIPTIONS",
+    # Migration (Task 5.4)
+    "convert_brief_and_direction_to_identity",
+    "find_legacy_brand_kits",
+    "migrate_all_brand_kits",
+    "migrate_brand_kit",
 ]
