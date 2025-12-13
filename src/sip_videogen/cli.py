@@ -81,6 +81,10 @@ from .utils.updater import (
     get_current_version,
     prompt_for_update,
 )
+from .brands import (
+    get_active_brand,
+    list_brands,
+)
 
 app = typer.Typer(
     name="sip-videogen",
@@ -1603,6 +1607,111 @@ def _show_history() -> None:
             subprocess.run(["xdg-open", str(selected_dir)])
         console.print(f"[green]Opened folder:[/green] {selected_dir}")
     # If "back", just return to history (but we're in a function so it returns to menu)
+
+
+def _show_brand_picker() -> str | None:
+    """Display interactive brand selection menu.
+
+    Shows all brands sorted by last accessed (most recent first).
+    Active brand is marked with an indicator.
+
+    Returns:
+        Selected brand slug, or one of:
+        - "create_new": User wants to create a new brand
+        - "settings": User wants brand settings
+        - "back": User wants to go back
+        - None: User cancelled (Ctrl+C)
+    """
+    console.print("\n[bold cyan]Brand Studio[/bold cyan]\n")
+
+    # Get all brands and active brand
+    brands = list_brands()  # Already sorted by last_accessed (most recent first)
+    active_slug = get_active_brand()
+
+    if not brands:
+        console.print("[dim]No brands found. Create your first brand![/dim]\n")
+        choices = [
+            questionary.Choice(
+                title="Create New Brand      Start building a new brand identity",
+                value="create_new",
+            ),
+            questionary.Choice(
+                title="Back to Main Menu",
+                value="back",
+            ),
+        ]
+    else:
+        # Build brand choices
+        choices = []
+        for brand in brands:
+            # Format: "Brand Name (category) - last accessed X ago"
+            is_active = brand.slug == active_slug
+            active_marker = " ★" if is_active else ""
+
+            # Calculate relative time for last accessed
+            from datetime import datetime, timezone
+
+            now = datetime.now(timezone.utc)
+            # Handle naive datetimes by assuming UTC
+            last_accessed = brand.last_accessed
+            if last_accessed.tzinfo is None:
+                last_accessed = last_accessed.replace(tzinfo=timezone.utc)
+            delta = now - last_accessed
+            if delta.days > 30:
+                time_ago = f"{delta.days // 30}mo ago"
+            elif delta.days > 0:
+                time_ago = f"{delta.days}d ago"
+            elif delta.seconds >= 3600:
+                time_ago = f"{delta.seconds // 3600}h ago"
+            elif delta.seconds >= 60:
+                time_ago = f"{delta.seconds // 60}m ago"
+            else:
+                time_ago = "just now"
+
+            category_str = f" ({brand.category})" if brand.category else ""
+            title = f"{brand.name}{category_str}{active_marker}  [dim]{time_ago}[/dim]"
+
+            choices.append(
+                questionary.Choice(
+                    title=title,
+                    value=brand.slug,
+                )
+            )
+
+        # Add action options
+        choices.extend([
+            questionary.Choice(
+                title="─" * 40,  # Separator
+                value=None,
+                disabled="",
+            ),
+            questionary.Choice(
+                title="Create New Brand      Start building a new brand identity",
+                value="create_new",
+            ),
+            questionary.Choice(
+                title="Brand Settings        Manage brand preferences",
+                value="settings",
+            ),
+            questionary.Choice(
+                title="Back to Main Menu",
+                value="back",
+            ),
+        ])
+
+    result = questionary.select(
+        "Select a brand or action:",
+        choices=choices,
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
+
+    return result
 
 
 def _show_menu() -> str:
