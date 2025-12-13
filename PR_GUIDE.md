@@ -11,7 +11,7 @@
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
-| 4 | Interactive Brand Menu | ⏳ Pending |
+| 4 | Interactive Brand Menu | 🔄 In Progress (1/5 tasks) |
 | 5 | Integration & Polish | ⏳ Pending |
 
 ## Completed Tasks
@@ -544,19 +544,43 @@ The generated context includes:
 
 ---
 
+### Task 4.1: Create brand picker menu ✅
+**Commit**: `79917d0`
+
+**Files Modified**:
+- `src/sip_videogen/cli.py` - Added `_show_brand_picker()` function
+
+**Implementation Details**:
+- Added `_show_brand_picker()` function for interactive brand selection
+- Displays brands sorted by last accessed (most recent first) with relative timestamps
+- Active brand marked with ★ indicator
+- Shows category in parentheses if available
+- Includes options: Create New Brand, Brand Settings, Back to Main Menu
+- Uses questionary for arrow-key navigation with styled choices
+- Handles empty brands list with "No brands found" message
+
+**Acceptance Criteria**:
+- [x] Menu shows all brands with metadata (name, category, last accessed time)
+- [x] Active brand marked with indicator (★)
+- [x] Arrow key navigation works (questionary.select)
+- [x] Returns selected brand slug or action (create_new, settings, back, None)
+
+---
+
 ## Next Task
 
-### Task 4.1: Create brand picker menu
-**Description**: Add interactive brand selection menu to CLI.
+### Task 4.2: Create brand detail view
+**Description**: Add rich panel display for brand details.
 
 **Files to Modify**:
 - `src/sip_videogen/cli.py`
 
 **Key Points**:
-- Create `_show_brand_picker()` function
-- Display brands sorted by last accessed
-- Show active brand with marker
-- Include options: select brand, create new, settings
+- Create `_display_brand_detail()` function
+- Show brand summary in formatted panel
+- Display color palette visually if possible
+- Show asset counts by category
+- Display actions menu
 
 ## Feature Overview
 
