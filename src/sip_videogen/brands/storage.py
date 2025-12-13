@@ -262,6 +262,52 @@ def list_brands() -> list[BrandIndexEntry]:
     return sorted(index.brands, key=lambda b: b.last_accessed, reverse=True)
 
 
+def update_brand_summary_stats(slug: str) -> bool:
+    """Update asset_count and last_generation in brand summary.
+
+    Counts image files directly in assets/{category}/ subdirectories
+    to avoid circular imports with memory.py.
+
+    Args:
+        slug: Brand identifier.
+
+    Returns:
+        True if stats were updated, False if brand not found.
+    """
+    brand_dir = get_brand_dir(slug)
+    summary_path = brand_dir / "identity.json"
+
+    if not summary_path.exists():
+        logger.debug("Brand summary not found for stats update: %s", slug)
+        return False
+
+    # Count assets directly (avoid circular import with memory.py)
+    assets_dir = brand_dir / "assets"
+    asset_count = 0
+    image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+
+    if assets_dir.exists():
+        for category_dir in assets_dir.iterdir():
+            if category_dir.is_dir():
+                for file_path in category_dir.iterdir():
+                    if file_path.suffix.lower() in image_extensions:
+                        asset_count += 1
+
+    # Load, update, and save summary
+    try:
+        data = json.loads(summary_path.read_text())
+        data["asset_count"] = asset_count
+        data["last_generation"] = datetime.utcnow().isoformat()
+        summary_path.write_text(json.dumps(data, indent=2))
+        logger.debug(
+            "Updated brand %s stats: %d assets", slug, asset_count
+        )
+        return True
+    except Exception as e:
+        logger.error("Failed to update brand summary stats for %s: %s", slug, e)
+        return False
+
+
 # =============================================================================
 # Active Brand Management
 # =============================================================================

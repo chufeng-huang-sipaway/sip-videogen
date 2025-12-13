@@ -53,6 +53,7 @@ from .storage import (
     save_brand,
     set_active_brand,
     slugify,
+    update_brand_summary_stats,
 )
 
 # Agent tools (Task 2.2)
@@ -91,6 +92,7 @@ __all__ = [
     "save_brand",
     "set_active_brand",
     "slugify",
+    "update_brand_summary_stats",
     # Memory (Task 2.1)
     "DetailType",
     "get_brand_detail",

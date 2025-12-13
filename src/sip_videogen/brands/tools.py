@@ -10,6 +10,8 @@ import json
 import logging
 from typing import Literal
 
+from agents import function_tool
+
 from .memory import (
     get_brand_detail,
     list_brand_assets,
@@ -36,6 +38,7 @@ def get_brand_context() -> str | None:
     return _current_brand_slug
 
 
+@function_tool
 def fetch_brand_detail(
     detail_type: Literal[
         "visual_identity",
@@ -70,6 +73,7 @@ def fetch_brand_detail(
     return get_brand_detail(slug, detail_type)
 
 
+@function_tool
 def browse_brand_assets(category: str | None = None) -> str:
     """Browse existing brand assets.
 

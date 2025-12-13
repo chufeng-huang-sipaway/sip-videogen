@@ -92,6 +92,7 @@ from .brands import (
     list_brands,
     load_brand_summary,
     set_active_brand,
+    update_brand_summary_stats,
 )
 
 app = typer.Typer(
@@ -522,7 +523,7 @@ def _run_brand_kit_generation_from_brand(
     manifest_path = _save_brand_kit_package(package, run_dir)
 
     # Update brand summary stats
-    _update_brand_summary_stats(slug)
+    update_brand_summary_stats(slug)
 
     console.print(
         Panel(
@@ -536,38 +537,6 @@ def _run_brand_kit_generation_from_brand(
     )
 
     return package
-
-
-def _update_brand_summary_stats(slug: str) -> None:
-    """Update asset_count and last_generation in brand summary.
-
-    Call this after generating assets to keep summary stats current.
-    """
-    brand_dir = get_brand_dir(slug)
-    summary_path = brand_dir / "identity.json"
-
-    if not summary_path.exists():
-        return
-
-    # Count assets
-    assets_dir = brand_dir / "assets"
-    asset_count = 0
-    if assets_dir.exists():
-        for category in ["logo", "packaging", "lifestyle", "mascot", "marketing"]:
-            cat_dir = assets_dir / category
-            if cat_dir.exists():
-                asset_count += sum(
-                    1
-                    for f in cat_dir.iterdir()
-                    if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
-                )
-
-    # Load, update, save summary
-    summary = load_brand_summary(slug)
-    if summary:
-        summary.asset_count = asset_count
-        summary.last_generation = datetime.utcnow().isoformat()
-        summary_path.write_text(summary.model_dump_json(indent=2))
 
 
 def _prompt_for_brand() -> str | None:
@@ -2140,16 +2109,7 @@ def _create_brand_flow() -> str | None:
         "  • Desired tone/personality\n"
     )
 
-    concept = questionary.text(
-        "Brand concept:",
-        multiline=True,
-        instruction="(Press Enter twice or Ctrl+D when done)",
-        style=questionary.Style([
-            ("qmark", "fg:cyan bold"),
-            ("question", "fg:white bold"),
-            ("answer", "fg:green"),
-        ]),
-    ).ask()
+    concept = Prompt.ask("[bold]Brand concept[/bold]")
 
     if not concept or not concept.strip():
         console.print("[yellow]No concept provided. Going back.[/yellow]")
@@ -2509,16 +2469,7 @@ def _evolve_brand_flow(slug: str) -> str | None:
     console.print(f"[dim]{aspect_guidance[aspect_choice]}[/dim]")
 
     # Get evolution request from user
-    evolution_request = questionary.text(
-        "Evolution request:",
-        multiline=True,
-        instruction="(Press Enter twice or Ctrl+D when done)",
-        style=questionary.Style([
-            ("qmark", "fg:cyan bold"),
-            ("question", "fg:white bold"),
-            ("answer", "fg:green"),
-        ]),
-    ).ask()
+    evolution_request = Prompt.ask("[bold]Evolution request[/bold]")
 
     if not evolution_request or not evolution_request.strip():
         console.print("[yellow]No changes requested. Going back.[/yellow]")
@@ -2881,7 +2832,24 @@ def _show_menu() -> str:
     # Show version
     version = get_current_version()
     console.print(f"[dim]v{version}[/dim]")
+
+    # Show active brand status (used by Brand Kit generation)
+    active_slug = get_active_brand()
+    if active_slug:
+        active_summary = load_brand_summary(active_slug)
+        active_name = active_summary.name if active_summary else active_slug
+        console.print(
+            f"[dim]Active brand:[/dim] [bold]{active_name}[/bold] [dim]({active_slug})[/dim]"
+        )
+    else:
+        console.print("[dim]Active brand:[/dim] [yellow]None[/yellow]")
     console.print()
+
+    brandkit_title = (
+        "Brand Kit          Generate brand kit assets"
+        if not active_slug
+        else "Brand Kit          Generate brand kit assets (uses your active brand by default)"
+    )
 
     choices = [
         questionary.Choice(
@@ -2889,8 +2857,12 @@ def _show_menu() -> str:
             value="generate",
         ),
         questionary.Choice(
-            title="Brand Kit          Generate a brand design library",
+            title=brandkit_title,
             value="brandkit",
+        ),
+        questionary.Choice(
+            title="Brand Studio       Create, evolve, and manage brands",
+            value="brand_studio",
         ),
         questionary.Choice(
             title="View History       See previous generations",
@@ -2919,6 +2891,126 @@ def _show_menu() -> str:
     ).ask()
 
     return result or "exit"  # Default to exit if None (Ctrl+C)
+
+
+def _show_brandkit_menu() -> str:
+    """Show a brand-aware Brand Kit menu.
+
+    Returns:
+        One of: "active", "choose", "create", "concept", "back"
+    """
+    active_slug = get_active_brand()
+    active_summary = load_brand_summary(active_slug) if active_slug else None
+    has_saved_brands = bool(list_brands())
+
+    console.print("\n[bold cyan]Brand Kit[/bold cyan]")
+    if active_summary:
+        console.print(f"[dim]Active brand:[/dim] {active_summary.name} [dim]({active_slug})[/dim]\n")
+    else:
+        console.print("[dim]Active brand:[/dim] None\n")
+
+    choices: list[questionary.Choice] = []
+
+    if active_summary:
+        choices.append(
+            questionary.Choice(
+                title=f"Use Active Brand     Generate assets for {active_summary.name}",
+                value="active",
+            )
+        )
+
+    if has_saved_brands:
+        choices.append(
+            questionary.Choice(
+                title="Choose Brand         Pick a saved brand",
+                value="choose",
+            )
+        )
+
+    choices.append(
+        questionary.Choice(
+            title="Create New Brand     Develop and save a new brand",
+            value="create",
+        )
+    )
+    choices.append(
+        questionary.Choice(
+            title="One-shot Concept     Generate without saving a brand",
+            value="concept",
+        )
+    )
+    choices.append(
+        questionary.Choice(
+            title="Back",
+            value="back",
+        )
+    )
+
+    result = questionary.select(
+        "How would you like to generate your Brand Kit?",
+        choices=choices,
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
+
+    return result or "back"
+
+
+def _run_brandkit_from_menu() -> None:
+    """Entry point for brand kit generation from the interactive menu."""
+    action = _show_brandkit_menu()
+    if action == "back":
+        return
+
+    if action == "active":
+        slug = get_active_brand()
+        if not slug:
+            console.print("[yellow]No active brand set.[/yellow]")
+            return
+        _run_brand_kit_generation_from_brand(slug)
+        return
+
+    if action == "choose":
+        selected_slug = _prompt_for_brand()
+        if not selected_slug:
+            return
+
+        # Offer to set as active for future runs
+        set_active = questionary.confirm(
+            "Set this as your active brand?",
+            default=True,
+        ).ask()
+        if set_active:
+            try:
+                set_active_brand(selected_slug)
+            except Exception as e:
+                console.print(f"[yellow]Could not set active brand: {e}[/yellow]")
+
+        _run_brand_kit_generation_from_brand(selected_slug)
+        return
+
+    if action == "create":
+        created_slug = _create_brand_flow()
+        if not created_slug or created_slug == "back":
+            return
+
+        generate_now = questionary.confirm(
+            "Generate brand kit assets now?",
+            default=True,
+        ).ask()
+        if generate_now:
+            _run_brand_kit_generation_from_brand(created_slug)
+        return
+
+    # One-shot concept-based flow
+    concept = Prompt.ask("[bold]Describe the brand you have in mind[/bold]")
+    if concept and concept.strip():
+        _run_brand_kit_generation(concept.strip())
 
 
 def _show_more_options_menu() -> str:
@@ -3962,9 +4054,14 @@ def menu() -> None:
 
             elif choice == "brandkit":
                 try:
-                    concept = Prompt.ask("[bold]Describe the brand you have in mind[/bold]")
-                    if concept and concept.strip():
-                        _run_brand_kit_generation(concept)
+                    _run_brandkit_from_menu()
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/red]")
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "brand_studio":
+                try:
+                    _brand_studio_loop()
                 except Exception as e:
                     console.print(f"[red]Error: {e}[/red]")
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
