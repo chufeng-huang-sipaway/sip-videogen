@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Iterable, List
+from typing import TYPE_CHECKING, Callable, Iterable, List
 
 from sip_videogen.config.logging import get_logger
 from sip_videogen.generators.nano_banana_generator import NanoBananaImageGenerator
@@ -15,7 +15,102 @@ from sip_videogen.models.brand_kit import (
     BrandKitBrief,
 )
 
+if TYPE_CHECKING:
+    from sip_videogen.brands.models import BrandIdentityFull
+
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Brand Identity to BrandKit Conversion
+# =============================================================================
+
+
+def brand_identity_to_brief_and_direction(
+    identity: "BrandIdentityFull",
+) -> tuple[BrandKitBrief, BrandDirection]:
+    """Convert a BrandIdentityFull to BrandKitBrief and BrandDirection.
+
+    This allows the brand_kit workflow to use persistent brand identities
+    from the brand management system.
+
+    Args:
+        identity: Full brand identity from the brand management system.
+
+    Returns:
+        Tuple of (BrandKitBrief, BrandDirection) for use with build_brand_asset_prompts.
+    """
+    core = identity.core
+    visual = identity.visual
+    audience = identity.audience
+    positioning = identity.positioning
+
+    # Build BrandKitBrief from brand identity
+    tone_attrs = identity.voice.tone_attributes
+    tone = ", ".join(tone_attrs[:3]) if tone_attrs else "professional"
+    brief = BrandKitBrief(
+        brand_name=core.name,
+        product_category=positioning.market_category or "General",
+        core_product=positioning.unique_value_proposition or core.tagline or "Premium products",
+        target_audience=audience.primary_summary or "Discerning consumers",
+        tone=tone,
+        style_keywords=visual.style_keywords,
+        constraints=identity.constraints,
+        avoid=identity.avoid,
+    )
+
+    # Build BrandDirection from visual identity
+    primary_colors = [c.hex for c in visual.primary_colors]
+    secondary_colors = [c.hex for c in visual.secondary_colors]
+    direction = BrandDirection(
+        id=identity.slug,
+        label=core.name,
+        summary=visual.overall_aesthetic or core.mission or f"{core.name} brand identity",
+        tone=", ".join(tone_attrs) if tone_attrs else None,
+        style_keywords=visual.style_keywords,
+        color_palette=primary_colors + secondary_colors,
+        typography=visual.typography[0].family if visual.typography else None,
+        materials=visual.materials,
+        settings=[visual.imagery_style] if visual.imagery_style else [],
+        differentiator=positioning.differentiation or positioning.unique_value_proposition,
+    )
+
+    return brief, direction
+
+
+def build_brand_asset_prompts_from_brand(
+    brand_slug: str,
+) -> tuple[List[BrandAssetPrompt], BrandKitBrief, BrandDirection] | None:
+    """Build asset prompts using a persistent brand identity.
+
+    Loads the brand from storage and converts it to prompts for asset generation.
+    This injects brand context (colors, style, constraints) into all prompts.
+
+    Args:
+        brand_slug: Slug of the brand to load.
+
+    Returns:
+        Tuple of (prompts, brief, direction) or None if brand not found.
+    """
+    from sip_videogen.brands.storage import load_brand
+
+    identity = load_brand(brand_slug)
+    if identity is None:
+        logger.warning("Brand not found: %s", brand_slug)
+        return None
+
+    brief, direction = brand_identity_to_brief_and_direction(identity)
+    prompts = build_brand_asset_prompts(brief, direction)
+
+    logger.info(
+        "Built %d prompts for brand '%s' with %d colors and %d style keywords",
+        len(prompts),
+        brand_slug,
+        len(direction.color_palette),
+        len(direction.style_keywords),
+    )
+
+    return prompts, brief, direction
 
 
 def _comma_join(items: Iterable[str]) -> str:
