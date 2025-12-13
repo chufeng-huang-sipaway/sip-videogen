@@ -1871,6 +1871,276 @@ def _display_brand_detail(slug: str) -> str | None:
     return result
 
 
+def _create_brand_flow() -> str | None:
+    """Interactive flow for creating a new brand.
+
+    Prompts user for brand concept, runs Brand Director to develop identity,
+    displays proposal for approval, and saves on approval.
+
+    Returns:
+        The new brand slug if created successfully, or:
+        - "back": User cancelled or wants to go back
+        - None: User cancelled (Ctrl+C)
+    """
+    from rich.live import Live
+
+    from .agents.brand_director import (
+        BrandAgentProgress,
+        BrandDevelopmentError,
+        develop_brand_with_output,
+    )
+    from .brands import create_brand, slugify
+
+    console.print("\n[bold cyan]Create New Brand[/bold cyan]\n")
+
+    # Step 1: Get brand concept from user
+    console.print(
+        "[dim]Describe your brand concept. Include details like:[/dim]\n"
+        "  • Product/service category\n"
+        "  • Target audience\n"
+        "  • Key differentiators\n"
+        "  • Desired tone/personality\n"
+    )
+
+    concept = questionary.text(
+        "Brand concept:",
+        multiline=True,
+        instruction="(Press Enter twice or Ctrl+D when done)",
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("answer", "fg:green"),
+        ]),
+    ).ask()
+
+    if not concept or not concept.strip():
+        console.print("[yellow]No concept provided. Going back.[/yellow]")
+        return "back"
+
+    concept = concept.strip()
+    console.print()
+
+    # Confirm before proceeding (agent calls cost money)
+    console.print(f"[dim]Concept: {concept[:100]}{'...' if len(concept) > 100 else ''}[/dim]\n")
+    proceed = questionary.confirm(
+        "Proceed with brand development? (This will use AI agents)",
+        default=True,
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+        ]),
+    ).ask()
+
+    if not proceed:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return "back"
+
+    # Step 2: Run Brand Director with progress display
+    console.print("\n[bold]Starting brand development...[/bold]\n")
+
+    # Track agent activities
+    agent_activities: list[str] = []
+    current_status = ["[cyan]Initializing brand agent team...[/cyan]"]
+
+    def on_brand_progress(progress: BrandAgentProgress) -> None:
+        """Callback to update display with brand agent progress."""
+        if progress.event_type == "agent_start":
+            icon = "[bold blue]►[/bold blue]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "agent_end":
+            icon = "[bold green]✓[/bold green]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "tool_start":
+            icon = "[bold yellow]→[/bold yellow]"
+            msg = f"{icon} {progress.message}"
+            if progress.detail:
+                msg += f"\n    [dim]{progress.detail}[/dim]"
+        elif progress.event_type == "tool_end":
+            icon = "[bold green]←[/bold green]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "thinking":
+            icon = "[bold magenta]⋯[/bold magenta]"
+            msg = f"{icon} {progress.message}"
+        else:
+            msg = f"  {progress.message}"
+
+        agent_activities.append(msg)
+        # Keep only last 8 activities
+        if len(agent_activities) > 8:
+            agent_activities.pop(0)
+        current_status[0] = msg
+
+    def build_progress_display() -> Panel:
+        """Build the progress display panel."""
+        lines = []
+        for activity in agent_activities:
+            lines.append(activity)
+        if not lines:
+            lines.append("[dim]Starting...[/dim]")
+        content = "\n".join(lines)
+        return Panel(
+            content,
+            title="[bold]Brand Development Progress[/bold]",
+            border_style="cyan",
+            padding=(0, 1),
+        )
+
+    try:
+        with Live(build_progress_display(), console=console, refresh_per_second=4) as live:
+
+            async def run_with_updates():
+                return await develop_brand_with_output(
+                    concept,
+                    existing_brand_slug=None,
+                    progress_callback=on_brand_progress,
+                )
+
+            async def update_display():
+                while True:
+                    live.update(build_progress_display())
+                    await asyncio.sleep(0.25)
+
+            async def run_both():
+                update_task = asyncio.create_task(update_display())
+                try:
+                    return await run_with_updates()
+                finally:
+                    update_task.cancel()
+                    try:
+                        await update_task
+                    except asyncio.CancelledError:
+                        pass
+
+            director_output = _run_sync(run_both())
+
+    except BrandDevelopmentError as e:
+        console.print(f"\n[red]Brand development failed: {e}[/red]")
+        console.print("[dim]Please check your API keys and try again.[/dim]")
+        return "back"
+    except Exception as e:
+        console.print(f"\n[red]Unexpected error: {e}[/red]")
+        return "back"
+
+    # Step 3: Display proposal for approval
+    brand_identity = director_output.brand_identity
+    console.print("\n[bold green]Brand development complete![/bold green]\n")
+
+    # Build proposal display
+    proposal_lines = []
+    proposal_lines.append(f"[bold white]{brand_identity.core.name}[/bold white]")
+    if brand_identity.core.tagline:
+        proposal_lines.append(f"[italic]\"{brand_identity.core.tagline}\"[/italic]")
+    proposal_lines.append("")
+
+    # Core identity
+    if brand_identity.core.mission:
+        proposal_lines.append(f"[dim]Mission:[/dim] {brand_identity.core.mission}")
+    if brand_identity.positioning.market_category:
+        proposal_lines.append(f"[dim]Category:[/dim] {brand_identity.positioning.market_category}")
+
+    # Audience
+    if brand_identity.audience.primary_summary:
+        audience = brand_identity.audience.primary_summary
+        proposal_lines.append(f"[dim]Target Audience:[/dim] {audience}")
+
+    # Visual identity
+    if brand_identity.visual.primary_colors:
+        colors = [c.hex for c in brand_identity.visual.primary_colors[:3]]
+        proposal_lines.append(f"[dim]Colors:[/dim] {', '.join(colors)}")
+    if brand_identity.visual.overall_aesthetic:
+        aesthetic = brand_identity.visual.overall_aesthetic[:150]
+        proposal_lines.append(f"[dim]Visual Style:[/dim] {aesthetic}...")
+
+    # Voice
+    if brand_identity.voice.tone_attributes:
+        tone = ", ".join(brand_identity.voice.tone_attributes[:3])
+        proposal_lines.append(f"[dim]Tone:[/dim] {tone}")
+
+    # Rationale
+    if director_output.creative_rationale:
+        proposal_lines.append("")
+        proposal_lines.append("[bold]Creative Rationale:[/bold]")
+        rationale = director_output.creative_rationale[:300]
+        ellipsis = "..." if len(director_output.creative_rationale) > 300 else ""
+        proposal_lines.append(f"[dim]{rationale}{ellipsis}[/dim]")
+
+    # Validation status
+    proposal_lines.append("")
+    if director_output.validation_passed:
+        proposal_lines.append("[green]✓ Brand Guardian validation passed[/green]")
+    else:
+        proposal_lines.append("[yellow]⚠ Brand Guardian found some issues[/yellow]")
+
+    proposal_content = "\n".join(proposal_lines)
+    console.print(Panel(
+        proposal_content,
+        title="[bold cyan]Brand Proposal[/bold cyan]",
+        border_style="cyan",
+        padding=(1, 2),
+    ))
+
+    # Step 4: Approval
+    console.print()
+    approval = questionary.select(
+        "What would you like to do?",
+        choices=[
+            questionary.Choice(
+                title="Approve & Save     Save this brand to your library",
+                value="approve",
+            ),
+            questionary.Choice(
+                title="Reject & Discard   Start over or go back",
+                value="reject",
+            ),
+        ],
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
+
+    if approval != "approve":
+        console.print("[yellow]Brand discarded.[/yellow]")
+        return "back"
+
+    # Step 5: Save the brand
+    try:
+        # Generate slug from brand name
+        slug = slugify(brand_identity.core.name)
+        brand_identity.slug = slug
+
+        summary = create_brand(brand_identity)
+        console.print(f"\n[bold green]✓ Brand '{summary.name}' saved![/bold green]")
+        console.print(f"[dim]Slug: {slug}[/dim]")
+
+        # Ask if they want to set as active
+        set_active = questionary.confirm(
+            "Set as active brand?",
+            default=True,
+            style=questionary.Style([
+                ("qmark", "fg:cyan bold"),
+                ("question", "fg:white bold"),
+            ]),
+        ).ask()
+
+        if set_active:
+            from .brands import set_active_brand
+            set_active_brand(slug)
+            console.print(f"[green]'{summary.name}' is now your active brand.[/green]")
+
+        return slug
+
+    except ValueError as e:
+        console.print(f"\n[red]Failed to save brand: {e}[/red]")
+        return "back"
+    except Exception as e:
+        console.print(f"\n[red]Unexpected error saving brand: {e}[/red]")
+        return "back"
+
+
 def _show_menu() -> str:
     """Display the simplified main menu with primary actions."""
     console.print(BANNER)
