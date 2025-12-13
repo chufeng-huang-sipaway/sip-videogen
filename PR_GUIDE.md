@@ -12,7 +12,7 @@
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
 | 4 | Interactive Brand Menu | ✅ Complete (5/5 tasks) |
-| 5 | Integration & Polish | ⏳ Pending |
+| 5 | Integration & Polish | 🔄 In Progress (2/5 tasks) |
 
 ## Completed Tasks
 
@@ -719,19 +719,103 @@ sipvid brand -b my-brand-slug
 
 ---
 
+### Task 5.1: Update brand_kit workflow to use brand memory ✅
+**Commit**: `39edbeb`
+
+**Files Modified**:
+- `src/sip_videogen/brand_kit/workflow.py` - Added brand identity conversion functions
+- `src/sip_videogen/brand_kit/__init__.py` - Updated exports
+
+**Implementation Details**:
+- Added `brand_identity_to_brief_and_direction(identity)` function:
+  - Converts `BrandIdentityFull` to `BrandKitBrief` and `BrandDirection`
+  - Maps brand fields: name, category, product, audience, tone, style keywords
+  - Includes constraints and avoids from brand identity
+  - Maps visual identity: colors (primary + secondary), typography, materials, imagery style
+  - Maps positioning: differentiation, unique value proposition
+- Added `build_brand_asset_prompts_from_brand(brand_slug)` function:
+  - Loads brand from storage by slug
+  - Converts to brief/direction using conversion function
+  - Builds all asset prompts using existing `build_brand_asset_prompts()`
+  - Returns tuple of (prompts, brief, direction) or None if not found
+  - Logs prompt count, color count, and style keyword count
+
+**Key Mapping**:
+| Brand Identity Field | BrandKitBrief/Direction Field |
+|---------------------|------------------------------|
+| `core.name` | `brand_name`, `label` |
+| `positioning.market_category` | `product_category` |
+| `positioning.unique_value_proposition` | `core_product`, `differentiator` |
+| `audience.primary_summary` | `target_audience` |
+| `voice.tone_attributes[:3]` | `tone` |
+| `visual.style_keywords` | `style_keywords` |
+| `visual.primary_colors + secondary_colors` | `color_palette` |
+| `visual.typography[0].family` | `typography` |
+| `visual.materials` | `materials` |
+| `visual.imagery_style` | `settings` |
+| `constraints` | `constraints` |
+| `avoid` | `avoid` |
+
+**Acceptance Criteria**:
+- [x] Workflow accepts brand slug
+- [x] Asset prompts include brand visual style
+- [x] Brand constraints/avoids applied to prompts
+
+---
+
+### Task 5.2: Update brandkit CLI command ✅
+**Commit**: `961aa04`
+
+**Files Modified**:
+- `src/sip_videogen/cli.py` - Added brand-aware generation flow
+
+**Implementation Details**:
+- Added `--brand/-b` option to `brandkit` command for non-interactive mode
+- Added `_run_brand_kit_generation_from_brand(slug, auto_confirm)` function:
+  - Loads brand identity using `build_brand_asset_prompts_from_brand()`
+  - Uses brand's stored colors, style, constraints for asset prompts
+  - Saves generated assets to brand's asset folder (`~/.sip-videogen/brands/{slug}/assets/`)
+  - Also saves manifest to timestamped run folder for tracking
+  - Updates brand summary stats after generation
+- Added `_update_brand_summary_stats(slug)` function:
+  - Counts image files in brand's asset folders
+  - Updates `asset_count` and `last_generation` in brand summary
+- Added `_prompt_for_brand()` function for interactive brand selection
+- Updated `_work_with_brand()` to use brand-aware generation instead of concept-based
+
+**Command Usage**:
+```bash
+# Non-interactive mode - use specific brand
+sipvid brandkit --brand=my-brand-slug
+sipvid brandkit -b my-brand-slug -y  # Skip confirmation
+
+# Interactive mode - uses active brand if set
+sipvid brandkit
+
+# Interactive mode - prompts to select brand if any exist
+sipvid brandkit "My concept"
+```
+
+**Flow Logic**:
+1. If `--brand=slug` provided → use that brand
+2. Else if active brand set → use active brand
+3. Else if interactive and brands exist → prompt to select/create
+4. Else → fall back to concept-based generation (original behavior)
+
+**Acceptance Criteria**:
+- [x] `brandkit --brand=slug` works (non-interactive)
+- [x] `brandkit` uses active brand if set
+- [x] Prompts if no active brand and interactive
+- [x] Assets saved to brand's asset folder
+
+---
+
 ## Next Task
 
-### Task 5.1: Update brand_kit workflow to use brand memory
-**Description**: Modify asset generation to use brand context.
+### Task 5.3: Update brand summary after asset generation
+**Description**: Update `asset_count` and `last_generation` fields in brand summary after generating assets.
 
-**Files to Modify**:
-- `src/sip_videogen/brand_kit/workflow.py`
-
-**Key Points**:
-- Accept brand slug parameter
-- Load brand identity
-- Inject brand context into asset prompts
-- Include brand colors, style, constraints in prompts
+**Note**: This task is already implemented as part of Task 5.2 via the `_update_brand_summary_stats()` function. The function is called at the end of `_run_brand_kit_generation_from_brand()`.
 
 ## Feature Overview
 
