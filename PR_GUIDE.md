@@ -11,7 +11,7 @@
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
-| 4 | Interactive Brand Menu | 🔄 In Progress (2/5 tasks) |
+| 4 | Interactive Brand Menu | 🔄 In Progress (3/5 tasks) |
 | 5 | Integration & Polish | ⏳ Pending |
 
 ## Completed Tasks
@@ -599,19 +599,58 @@ The generated context includes:
 
 ---
 
+### Task 4.3: Implement create brand flow ✅
+**Commit**: `a268dc8`
+
+**Files Modified**:
+- `src/sip_videogen/cli.py` - Added `_create_brand_flow()` function
+
+**Implementation Details**:
+- Added `_create_brand_flow()` function for interactive brand creation
+- Step 1: Prompt user for brand concept with helpful guidance
+  - Shows bullet points for what to include (category, audience, differentiators, tone)
+  - Uses questionary multiline text input
+- Step 2: Confirmation before proceeding (agent calls cost money)
+- Step 3: Run Brand Director with real-time progress display
+  - Uses rich Live display with progress panel
+  - Shows agent activities (start, end, tool calls, thinking)
+  - Uses `BrandAgentProgress` callback for updates
+- Step 4: Display brand proposal in formatted Panel
+  - Shows: name, tagline, mission, category, audience, colors, visual style, tone
+  - Shows creative rationale (truncated to 300 chars)
+  - Shows Brand Guardian validation status
+- Step 5: Approval menu (Approve & Save / Reject & Discard)
+- Step 6: Save brand using `create_brand()` with slug generated from name
+  - Option to set as active brand after creation
+
+**Error Handling**:
+- Handles empty/cancelled concept input
+- Catches `BrandDevelopmentError` with helpful message
+- Catches `ValueError` on save (e.g., duplicate brand)
+- Returns "back" on any error to allow retry
+
+**Acceptance Criteria**:
+- [x] User can input brand concept
+- [x] Progress shown during agent work (Live display with updates)
+- [x] Proposal displayed for review (rich Panel with key details)
+- [x] Brand saved on approval (using create_brand and slugify)
+
+---
+
 ## Next Task
 
-### Task 4.3: Implement create brand flow
-**Description**: Add interactive flow for creating new brands.
+### Task 4.4: Implement evolve brand flow
+**Description**: Add flow for evolving existing brands.
 
 **Files to Modify**:
 - `src/sip_videogen/cli.py`
 
 **Key Points**:
-- Prompt for brand concept
-- Run Brand Director to develop identity
-- Display proposal for approval
-- Save on approval
+- Show what aspects can be evolved
+- Get user's evolution request
+- Run appropriate agent(s)
+- Validate with Brand Guardian
+- Save changes on approval
 
 ## Feature Overview
 
