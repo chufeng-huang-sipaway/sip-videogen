@@ -11,7 +11,7 @@
 | 1 | Brand Storage Foundation | ✅ Complete (7/7 tasks) |
 | 2 | Hierarchical Memory System | ✅ Complete (4/4 tasks) |
 | 3 | Brand Agent Team | ✅ Complete (7/7 tasks) |
-| 4 | Interactive Brand Menu | 🔄 In Progress (4/5 tasks) |
+| 4 | Interactive Brand Menu | ✅ Complete (5/5 tasks) |
 | 5 | Integration & Polish | ⏳ Pending |
 
 ## Completed Tasks
@@ -680,18 +680,58 @@ The generated context includes:
 
 ---
 
+### Task 4.5: Add brand studio command ✅
+**Commit**: `1903d19`
+
+**Files Modified**:
+- `src/sip_videogen/cli.py` - Added `brand` command and supporting functions
+
+**Implementation Details**:
+- Added `brand` command to typer app as main entry point for brand management
+- `--brand/-b` option for non-interactive mode to go directly to a specific brand
+- Added `_work_with_brand(slug)` function to handle brand detail view and actions:
+  - generate_assets: Run brand kit generation using brand concept
+  - evolve: Route to `_evolve_brand_flow()`
+  - set_active: Set brand as active via `set_active_brand()`
+  - delete: Confirm and delete brand via `delete_brand()`
+  - back: Return to brand picker
+- Added `_brand_studio_loop()` function for main interactive loop:
+  - Shows brand picker via `_show_brand_picker()`
+  - Routes to create flow, settings, or brand detail view
+  - Continues until user selects "back" or cancels
+- Added new imports: `delete_brand`, `set_active_brand`, `load_brand_summary`
+
+**Command Usage**:
+```bash
+# Interactive mode - show brand picker
+sipvid brand
+
+# Non-interactive mode - go directly to a specific brand
+sipvid brand --brand=my-brand-slug
+sipvid brand -b my-brand-slug
+```
+
+**Acceptance Criteria**:
+- [x] `sip-videogen brand` command works (interactive)
+- [x] `sip-videogen brand --brand=slug` works (non-interactive)
+- [x] Shows brand picker menu when no `--brand` flag
+- [x] Can create, select, and evolve brands
+
+---
+
 ## Next Task
 
-### Task 4.5: Add brand studio command
-**Description**: Create the main entry point for brand management.
+### Task 5.1: Update brand_kit workflow to use brand memory
+**Description**: Modify asset generation to use brand context.
 
 **Files to Modify**:
-- `src/sip_videogen/cli.py`
+- `src/sip_videogen/brand_kit/workflow.py`
 
 **Key Points**:
-- Add `brand` command to typer app with `--brand` option
-- Show brand picker on entry (unless `--brand` specified)
-- Route to appropriate flows based on action selection
+- Accept brand slug parameter
+- Load brand identity
+- Inject brand context into asset prompts
+- Include brand colors, style, constraints in prompts
 
 ## Feature Overview
 
