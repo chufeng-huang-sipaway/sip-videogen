@@ -39,7 +39,11 @@ from .agents import (
     generate_directors_pitch,
     plan_brand_kit,
 )
-from .brand_kit import build_brand_asset_prompts, generate_brand_assets
+from .brand_kit import (
+    build_brand_asset_prompts,
+    build_brand_asset_prompts_from_brand,
+    generate_brand_assets,
+)
 from .agents.tools import ImageProductionManager
 from .assembler import FFmpegAssembler, FFmpegError
 from .config.costs import estimate_pre_generation_costs
@@ -84,6 +88,7 @@ from .utils.updater import (
 from .brands import (
     delete_brand,
     get_active_brand,
+    get_brand_dir,
     list_brands,
     load_brand_summary,
     set_active_brand,
@@ -424,6 +429,190 @@ def _run_brand_kit_generation(concept: str, auto_confirm: bool = False) -> Brand
     )
 
     return package
+
+
+def _run_brand_kit_generation_from_brand(
+    slug: str, auto_confirm: bool = False
+) -> BrandKitPackage | None:
+    """Generate brand kit assets using a persistent brand identity.
+
+    This uses the brand's stored identity (colors, style, etc.) instead of
+    running the AI planning flow. Assets are saved to the brand's asset folder.
+
+    Args:
+        slug: Brand slug to generate assets for.
+        auto_confirm: Skip confirmation prompts if True.
+
+    Returns:
+        BrandKitPackage on success, None if cancelled or error.
+    """
+    # Load brand and build prompts
+    result = build_brand_asset_prompts_from_brand(slug)
+    if result is None:
+        console.print(f"[red]Brand '{slug}' not found.[/red]")
+        return None
+
+    prompts, brief, direction = result
+    summary = load_brand_summary(slug)
+    if not summary:
+        console.print(f"[red]Could not load brand summary for '{slug}'.[/red]")
+        return None
+
+    console.print(f"\n[bold cyan]Generating assets for: {summary.name}[/bold cyan]")
+    console.print(f"[dim]Category: {summary.category or 'General'}[/dim]")
+    console.print(f"[dim]Colors: {', '.join(summary.primary_colors) if summary.primary_colors else 'Default'}[/dim]")
+    console.print(
+        f"[cyan]Prepared {len(prompts)} prompts across logo, packaging, lifestyle, mascot, and marketing.[/cyan]\n"
+    )
+
+    if not auto_confirm:
+        proceed = questionary.confirm(
+            "Generate all assets with Nano Banana Pro now?",
+            default=True,
+        ).ask()
+        if not proceed:
+            console.print("[yellow]Cancelled before generation.[/yellow]")
+            return None
+
+    # Load settings
+    try:
+        settings = get_settings()
+    except ValidationError as e:
+        console.print(f"[red]Configuration error:[/red] {e}")
+        return None
+
+    # Use the brand's asset folder as output directory
+    brand_dir = get_brand_dir(slug)
+    assets_dir = brand_dir / "assets"
+
+    generator = NanoBananaImageGenerator(api_key=settings.gemini_api_key)
+
+    console.print("\n[bold cyan]Generating brand kit assets...[/bold cyan]")
+    try:
+        results, selected_logo = _generate_brand_assets_with_progress(prompts, generator, assets_dir)
+    except ValueError as e:
+        # Logo was not approved
+        console.print(f"[yellow]{e}[/yellow]")
+        return None
+
+    # Save a stable copy of the approved logo for downstream use
+    if selected_logo:
+        stable_logo = assets_dir / "logo" / "selected_logo.png"
+        stable_logo.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            import shutil as shutil_copy
+
+            shutil_copy.copyfile(selected_logo, stable_logo)
+            selected_logo = str(stable_logo)
+        except Exception as e:
+            console.print(f"[yellow]Could not copy selected logo: {e}[/yellow]")
+
+    # Also save to a timestamped run folder for tracking
+    base_output = settings.ensure_output_dir()
+    run_id = f"brandkit_{slug}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    run_dir = base_output / run_id
+
+    package = BrandKitPackage(
+        brief=brief,
+        selected_direction=direction,
+        asset_results=results,
+        output_dir=str(run_dir),
+        selected_logo_path=selected_logo,
+    )
+    manifest_path = _save_brand_kit_package(package, run_dir)
+
+    # Update brand summary stats
+    _update_brand_summary_stats(slug)
+
+    console.print(
+        Panel(
+            f"[green]Brand kit generated![/green]\n\n"
+            f"[bold]Brand:[/bold] {summary.name}\n"
+            f"[bold]Assets saved to:[/bold] {assets_dir}\n"
+            f"[bold]Run manifest:[/bold] {manifest_path}",
+            title="Brand Kit Complete",
+            border_style="green",
+        )
+    )
+
+    return package
+
+
+def _update_brand_summary_stats(slug: str) -> None:
+    """Update asset_count and last_generation in brand summary.
+
+    Call this after generating assets to keep summary stats current.
+    """
+    brand_dir = get_brand_dir(slug)
+    summary_path = brand_dir / "identity.json"
+
+    if not summary_path.exists():
+        return
+
+    # Count assets
+    assets_dir = brand_dir / "assets"
+    asset_count = 0
+    if assets_dir.exists():
+        for category in ["logo", "packaging", "lifestyle", "mascot", "marketing"]:
+            cat_dir = assets_dir / category
+            if cat_dir.exists():
+                asset_count += sum(
+                    1
+                    for f in cat_dir.iterdir()
+                    if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
+                )
+
+    # Load, update, save summary
+    summary = load_brand_summary(slug)
+    if summary:
+        summary.asset_count = asset_count
+        summary.last_generation = datetime.utcnow().isoformat()
+        summary_path.write_text(summary.model_dump_json(indent=2))
+
+
+def _prompt_for_brand() -> str | None:
+    """Prompt user to select or create a brand.
+
+    Returns:
+        Brand slug, or None if cancelled.
+    """
+    brands = list_brands()
+    active_slug = get_active_brand()
+
+    if not brands:
+        console.print("\n[dim]No brands found.[/dim]")
+        create = questionary.confirm(
+            "Would you like to create a new brand first?",
+            default=True,
+        ).ask()
+        if create:
+            console.print(
+                "\n[dim]Use 'sipvid brand' to create a brand, then run brandkit again.[/dim]"
+            )
+        return None
+
+    # Show brand picker
+    console.print("\n[bold cyan]Select a brand:[/bold cyan]\n")
+    choices = []
+    for brand in brands:
+        is_active = brand.slug == active_slug
+        active_marker = " ★" if is_active else ""
+        category_str = f" ({brand.category})" if brand.category else ""
+        title = f"{brand.name}{category_str}{active_marker}"
+        choices.append(questionary.Choice(title=title, value=brand.slug))
+
+    choices.append(questionary.Choice(title="Cancel", value=None))
+
+    return questionary.select(
+        "Choose brand:",
+        choices=choices,
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan bold"),
+                ("pointer", "fg:cyan bold"),
+            ]
+        ),
+    ).ask()
 
 
 @app.command()
@@ -1190,6 +1379,12 @@ def brandkit(
         None,
         help="Brand concept or product description (leave blank for interactive prompt)",
     ),
+    brand_slug: str | None = typer.Option(
+        None,
+        "--brand",
+        "-b",
+        help="Brand slug to use (skips interactive picker and uses stored brand identity)",
+    ),
     yes: bool = typer.Option(
         False,
         "--yes",
@@ -1197,7 +1392,47 @@ def brandkit(
         help="Skip the confirmation prompt before image generation",
     ),
 ) -> None:
-    """Generate a Brand Design Library using Nano Banana Pro."""
+    """Generate a Brand Design Library using Nano Banana Pro.
+
+    If --brand is specified, uses the stored brand identity for colors, style, etc.
+    Otherwise, runs the AI planning flow to create a new brand direction.
+
+    When using a brand, assets are saved to the brand's asset folder.
+    """
+    # Determine which brand to use
+    slug = brand_slug or get_active_brand()
+
+    if slug:
+        # Use brand-aware generation
+        summary = load_brand_summary(slug)
+        if not summary:
+            console.print(f"[red]Brand '{slug}' not found.[/red]")
+            raise typer.Exit(1)
+
+        console.print(f"\n[bold cyan]Using brand: {summary.name}[/bold cyan]")
+        package = _run_brand_kit_generation_from_brand(slug, auto_confirm=yes)
+        if not package:
+            raise typer.Exit(1)
+        return
+
+    # No brand - check if we should prompt for one
+    brands = list_brands()
+    if brands and not yes:
+        # Interactive mode with existing brands - offer to use one
+        use_brand = questionary.confirm(
+            "You have existing brands. Use one for this generation?",
+            default=True,
+        ).ask()
+        if use_brand:
+            selected_slug = _prompt_for_brand()
+            if selected_slug:
+                package = _run_brand_kit_generation_from_brand(selected_slug, auto_confirm=yes)
+                if not package:
+                    raise typer.Exit(1)
+                return
+            # User cancelled brand selection - fall through to concept-based flow
+
+    # Fall back to concept-based flow (original behavior)
     if not concept:
         concept = Prompt.ask("[bold]Describe the brand you have in mind[/bold]")
 
@@ -2534,15 +2769,8 @@ def _work_with_brand(slug: str) -> str | None:
             return "back"
 
         elif action == "generate_assets":
-            # Run brand kit generation for this brand
-            summary = load_brand_summary(slug)
-            if summary:
-                console.print(f"\n[bold cyan]Generating assets for {summary.name}...[/bold cyan]\n")
-                # Use the brand concept from the summary for brandkit generation
-                concept = f"{summary.name}: {summary.tagline}"
-                if summary.category:
-                    concept += f" ({summary.category})"
-                _run_brand_kit_generation(concept)
+            # Run brand kit generation using the brand's stored identity
+            _run_brand_kit_generation_from_brand(slug)
             Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
         elif action == "evolve":
