@@ -1714,6 +1714,163 @@ def _show_brand_picker() -> str | None:
     return result
 
 
+def _display_brand_detail(slug: str) -> str | None:
+    """Display detailed brand information with actions menu.
+
+    Shows brand summary in a formatted panel with color palette,
+    asset counts by category, and available actions.
+
+    Args:
+        slug: Brand slug to display.
+
+    Returns:
+        Selected action or None if cancelled:
+        - "generate_assets": Generate brand kit assets
+        - "evolve": Evolve/update the brand
+        - "set_active": Set as active brand
+        - "delete": Delete the brand
+        - "back": Go back to brand picker
+        - None: User cancelled (Ctrl+C)
+    """
+    from .brands import (
+        load_brand_summary,
+        list_brand_assets,
+        get_active_brand,
+        set_active_brand,
+    )
+
+    summary = load_brand_summary(slug)
+    if not summary:
+        console.print(f"[red]Brand '{slug}' not found.[/red]")
+        return "back"
+
+    # Build brand info panel content
+    info_lines = []
+
+    # Header with name and tagline
+    info_lines.append(f"[bold white]{summary.name}[/bold white]")
+    if summary.tagline:
+        info_lines.append(f"[italic]{summary.tagline}[/italic]")
+    info_lines.append("")
+
+    # Category and tone
+    if summary.category:
+        info_lines.append(f"[dim]Category:[/dim] {summary.category}")
+    if summary.tone:
+        info_lines.append(f"[dim]Tone:[/dim] {summary.tone}")
+
+    # Visual style
+    if summary.visual_style:
+        info_lines.append(f"[dim]Visual Style:[/dim] {summary.visual_style}")
+
+    # Audience
+    if summary.audience_summary:
+        info_lines.append(f"[dim]Audience:[/dim] {summary.audience_summary}")
+
+    # Color palette
+    if summary.primary_colors:
+        info_lines.append("")
+        info_lines.append("[dim]Color Palette:[/dim]")
+        color_display = "  "
+        for color in summary.primary_colors:
+            # Display color as hex code with background color hint
+            color_display += f"[bold]{color}[/bold]  "
+        info_lines.append(color_display)
+
+    # Asset counts by category
+    info_lines.append("")
+    info_lines.append("[dim]Assets:[/dim]")
+    categories = ["logo", "packaging", "lifestyle", "mascot", "marketing"]
+    asset_counts = {}
+    total_assets = 0
+    for cat in categories:
+        cat_assets = list_brand_assets(slug, cat)
+        asset_counts[cat] = len(cat_assets)
+        total_assets += len(cat_assets)
+
+    if total_assets == 0:
+        info_lines.append("  [dim]No assets generated yet[/dim]")
+    else:
+        assets_line = "  "
+        for cat in categories:
+            count = asset_counts[cat]
+            if count > 0:
+                assets_line += f"{cat.capitalize()}: {count}  "
+        info_lines.append(assets_line)
+        info_lines.append(f"  [dim]Total: {total_assets} assets[/dim]")
+
+    # Last generation time
+    if summary.last_generation:
+        info_lines.append("")
+        info_lines.append(f"[dim]Last generated: {summary.last_generation}[/dim]")
+
+    # Create and display panel
+    panel_content = "\n".join(info_lines)
+    console.print()
+    console.print(Panel(
+        panel_content,
+        title=f"[bold cyan]Brand: {summary.name}[/bold cyan]",
+        border_style="cyan",
+        padding=(1, 2),
+    ))
+
+    # Build action choices
+    is_active = get_active_brand() == slug
+    choices = []
+
+    choices.append(questionary.Choice(
+        title="Generate Assets     Create brand kit images",
+        value="generate_assets",
+    ))
+    choices.append(questionary.Choice(
+        title="Evolve Brand        Update or refine brand identity",
+        value="evolve",
+    ))
+
+    if is_active:
+        choices.append(questionary.Choice(
+            title="[★ Active Brand]    Currently selected for generation",
+            value=None,
+            disabled="Already active",
+        ))
+    else:
+        choices.append(questionary.Choice(
+            title="Set as Active       Use this brand for generation",
+            value="set_active",
+        ))
+
+    choices.extend([
+        questionary.Choice(
+            title="─" * 40,  # Separator
+            value=None,
+            disabled="",
+        ),
+        questionary.Choice(
+            title="Delete Brand        Remove this brand permanently",
+            value="delete",
+        ),
+        questionary.Choice(
+            title="Back to Brand List",
+            value="back",
+        ),
+    ])
+
+    console.print()
+    result = questionary.select(
+        "Choose an action:",
+        choices=choices,
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
+
+    return result
+
+
 def _show_menu() -> str:
     """Display the simplified main menu with primary actions."""
     console.print(BANNER)
