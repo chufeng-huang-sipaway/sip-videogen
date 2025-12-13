@@ -2141,6 +2141,378 @@ def _create_brand_flow() -> str | None:
         return "back"
 
 
+def _evolve_brand_flow(slug: str) -> str | None:
+    """Interactive flow for evolving an existing brand.
+
+    Allows users to update or refine specific aspects of an existing brand.
+    The Brand Director coordinates changes while respecting established elements.
+
+    Args:
+        slug: The brand slug to evolve.
+
+    Returns:
+        The brand slug if evolution was successful, or:
+        - "back": User cancelled or wants to go back
+        - None: User cancelled (Ctrl+C)
+    """
+    from rich.live import Live
+
+    from .agents.brand_director import (
+        BrandAgentProgress,
+        BrandDevelopmentError,
+        develop_brand_with_output,
+    )
+    from .brands import load_brand, load_brand_summary, save_brand
+
+    # Load current brand state
+    summary = load_brand_summary(slug)
+    if not summary:
+        console.print(f"[red]Brand '{slug}' not found.[/red]")
+        return "back"
+
+    console.print(f"\n[bold cyan]Evolve Brand: {summary.name}[/bold cyan]\n")
+
+    # Display current brand state
+    console.print("[dim]Current Brand State:[/dim]")
+    console.print(f"  [dim]Name:[/dim] {summary.name}")
+    if summary.tagline:
+        console.print(f"  [dim]Tagline:[/dim] {summary.tagline}")
+    if summary.category:
+        console.print(f"  [dim]Category:[/dim] {summary.category}")
+    if summary.tone:
+        console.print(f"  [dim]Tone:[/dim] {summary.tone}")
+    if summary.primary_colors:
+        console.print(f"  [dim]Colors:[/dim] {', '.join(summary.primary_colors)}")
+    console.print()
+
+    # Show evolution options - what aspects can be changed
+    console.print("[bold]What would you like to evolve?[/bold]\n")
+
+    aspect_choice = questionary.select(
+        "Select an aspect to evolve:",
+        choices=[
+            questionary.Choice(
+                title="Visual Identity      Colors, typography, imagery style",
+                value="visual",
+            ),
+            questionary.Choice(
+                title="Brand Voice          Tone, messaging, personality",
+                value="voice",
+            ),
+            questionary.Choice(
+                title="Audience Targeting   Target market, demographics, psychographics",
+                value="audience",
+            ),
+            questionary.Choice(
+                title="Market Positioning   Category, competitors, differentiation",
+                value="positioning",
+            ),
+            questionary.Choice(
+                title="Comprehensive        Update multiple aspects at once",
+                value="comprehensive",
+            ),
+            questionary.Choice(
+                title="─" * 40,  # Separator
+                value=None,
+                disabled="",
+            ),
+            questionary.Choice(
+                title="Back to Brand",
+                value="back",
+            ),
+        ],
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
+
+    if not aspect_choice or aspect_choice == "back":
+        return "back"
+
+    # Provide guidance based on selected aspect
+    aspect_guidance = {
+        "visual": (
+            "Describe how you want the visual identity to change:\n"
+            "  • New color direction (e.g., 'warmer tones', 'more vibrant')\n"
+            "  • Typography changes (e.g., 'more modern fonts')\n"
+            "  • Imagery style (e.g., 'lifestyle photography', 'minimalist')\n"
+        ),
+        "voice": (
+            "Describe how you want the brand voice to change:\n"
+            "  • Tone shift (e.g., 'more casual', 'more authoritative')\n"
+            "  • Messaging focus (e.g., 'emphasize sustainability')\n"
+            "  • Personality traits (e.g., 'friendlier', 'more professional')\n"
+        ),
+        "audience": (
+            "Describe the new audience targeting:\n"
+            "  • Target demographics (e.g., 'younger audience', 'B2B focus')\n"
+            "  • Lifestyle changes (e.g., 'health-conscious', 'tech-savvy')\n"
+            "  • New pain points or desires to address\n"
+        ),
+        "positioning": (
+            "Describe the new market positioning:\n"
+            "  • Category shift (e.g., 'move to premium tier')\n"
+            "  • New differentiators (e.g., 'sustainability focus')\n"
+            "  • Competitive strategy (e.g., 'differentiate from X brand')\n"
+        ),
+        "comprehensive": (
+            "Describe all the changes you want to make:\n"
+            "  • Be specific about what to keep vs. what to change\n"
+            "  • Mention any aspects that must stay the same\n"
+            "  • Include your overall vision for the evolution\n"
+        ),
+    }
+
+    console.print()
+    console.print(f"[dim]{aspect_guidance[aspect_choice]}[/dim]")
+
+    # Get evolution request from user
+    evolution_request = questionary.text(
+        "Evolution request:",
+        multiline=True,
+        instruction="(Press Enter twice or Ctrl+D when done)",
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("answer", "fg:green"),
+        ]),
+    ).ask()
+
+    if not evolution_request or not evolution_request.strip():
+        console.print("[yellow]No changes requested. Going back.[/yellow]")
+        return "back"
+
+    evolution_request = evolution_request.strip()
+    console.print()
+
+    # Build the evolution concept that includes the aspect focus
+    aspect_focus_map = {
+        "visual": "Focus on evolving the VISUAL IDENTITY while keeping other aspects consistent.",
+        "voice": "Focus on evolving the BRAND VOICE while keeping other aspects consistent.",
+        "audience": "Focus on evolving the AUDIENCE TARGETING while keeping other aspects consistent.",
+        "positioning": "Focus on evolving the MARKET POSITIONING while keeping other aspects consistent.",
+        "comprehensive": "Consider all aspects that may need to change based on the request.",
+    }
+
+    evolution_concept = (
+        f"EVOLUTION REQUEST for existing brand '{summary.name}':\n\n"
+        f"{aspect_focus_map[aspect_choice]}\n\n"
+        f"User's request:\n{evolution_request}\n\n"
+        "IMPORTANT: Preserve established brand elements that aren't explicitly being changed. "
+        "The brand already has an identity - you are refining it, not recreating it."
+    )
+
+    # Confirm before proceeding
+    console.print(f"[dim]Aspect: {aspect_choice.title()}[/dim]")
+    console.print(f"[dim]Request: {evolution_request[:100]}{'...' if len(evolution_request) > 100 else ''}[/dim]\n")
+    proceed = questionary.confirm(
+        "Proceed with brand evolution? (This will use AI agents)",
+        default=True,
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+        ]),
+    ).ask()
+
+    if not proceed:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return "back"
+
+    # Run Brand Director with progress display
+    console.print("\n[bold]Starting brand evolution...[/bold]\n")
+
+    # Track agent activities
+    agent_activities: list[str] = []
+
+    def on_brand_progress(progress: BrandAgentProgress) -> None:
+        """Callback to update display with brand agent progress."""
+        if progress.event_type == "agent_start":
+            icon = "[bold blue]►[/bold blue]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "agent_end":
+            icon = "[bold green]✓[/bold green]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "tool_start":
+            icon = "[bold yellow]→[/bold yellow]"
+            msg = f"{icon} {progress.message}"
+            if progress.detail:
+                msg += f"\n    [dim]{progress.detail}[/dim]"
+        elif progress.event_type == "tool_end":
+            icon = "[bold green]←[/bold green]"
+            msg = f"{icon} {progress.message}"
+        elif progress.event_type == "thinking":
+            icon = "[bold magenta]⋯[/bold magenta]"
+            msg = f"{icon} {progress.message}"
+        else:
+            msg = f"  {progress.message}"
+
+        agent_activities.append(msg)
+        # Keep only last 8 activities
+        if len(agent_activities) > 8:
+            agent_activities.pop(0)
+
+    def build_progress_display() -> Panel:
+        """Build the progress display panel."""
+        lines = []
+        for activity in agent_activities:
+            lines.append(activity)
+        if not lines:
+            lines.append("[dim]Starting...[/dim]")
+        content = "\n".join(lines)
+        return Panel(
+            content,
+            title="[bold]Brand Evolution Progress[/bold]",
+            border_style="cyan",
+            padding=(0, 1),
+        )
+
+    try:
+        with Live(build_progress_display(), console=console, refresh_per_second=4) as live:
+
+            async def run_with_updates():
+                return await develop_brand_with_output(
+                    evolution_concept,
+                    existing_brand_slug=slug,
+                    progress_callback=on_brand_progress,
+                )
+
+            async def update_display():
+                while True:
+                    live.update(build_progress_display())
+                    await asyncio.sleep(0.25)
+
+            async def run_both():
+                update_task = asyncio.create_task(update_display())
+                try:
+                    return await run_with_updates()
+                finally:
+                    update_task.cancel()
+                    try:
+                        await update_task
+                    except asyncio.CancelledError:
+                        pass
+
+            director_output = _run_sync(run_both())
+
+    except BrandDevelopmentError as e:
+        console.print(f"\n[red]Brand evolution failed: {e}[/red]")
+        console.print("[dim]Please check your API keys and try again.[/dim]")
+        return "back"
+    except Exception as e:
+        console.print(f"\n[red]Unexpected error: {e}[/red]")
+        return "back"
+
+    # Display evolution proposal
+    evolved_identity = director_output.brand_identity
+    console.print("\n[bold green]Brand evolution complete![/bold green]\n")
+
+    # Build comparison display
+    proposal_lines = []
+    proposal_lines.append(f"[bold white]{evolved_identity.core.name}[/bold white]")
+    if evolved_identity.core.tagline:
+        proposal_lines.append(f"[italic]\"{evolved_identity.core.tagline}\"[/italic]")
+    proposal_lines.append("")
+
+    # Show key changes based on aspect
+    proposal_lines.append("[bold]Evolution Summary:[/bold]")
+
+    if aspect_choice in ("visual", "comprehensive"):
+        if evolved_identity.visual.primary_colors:
+            colors = [c.hex for c in evolved_identity.visual.primary_colors[:3]]
+            proposal_lines.append(f"[dim]Colors:[/dim] {', '.join(colors)}")
+        if evolved_identity.visual.overall_aesthetic:
+            aesthetic = evolved_identity.visual.overall_aesthetic[:150]
+            proposal_lines.append(f"[dim]Visual Style:[/dim] {aesthetic}...")
+
+    if aspect_choice in ("voice", "comprehensive"):
+        if evolved_identity.voice.tone_attributes:
+            tone = ", ".join(evolved_identity.voice.tone_attributes[:3])
+            proposal_lines.append(f"[dim]Tone:[/dim] {tone}")
+        if evolved_identity.voice.personality:
+            personality = evolved_identity.voice.personality[:100]
+            proposal_lines.append(f"[dim]Personality:[/dim] {personality}...")
+
+    if aspect_choice in ("audience", "comprehensive"):
+        if evolved_identity.audience.primary_summary:
+            audience = evolved_identity.audience.primary_summary[:150]
+            proposal_lines.append(f"[dim]Target Audience:[/dim] {audience}...")
+
+    if aspect_choice in ("positioning", "comprehensive"):
+        if evolved_identity.positioning.market_category:
+            proposal_lines.append(f"[dim]Category:[/dim] {evolved_identity.positioning.market_category}")
+        if evolved_identity.positioning.unique_value_proposition:
+            uvp = evolved_identity.positioning.unique_value_proposition[:100]
+            proposal_lines.append(f"[dim]Value Prop:[/dim] {uvp}...")
+
+    # Rationale
+    if director_output.creative_rationale:
+        proposal_lines.append("")
+        proposal_lines.append("[bold]Evolution Rationale:[/bold]")
+        rationale = director_output.creative_rationale[:300]
+        ellipsis = "..." if len(director_output.creative_rationale) > 300 else ""
+        proposal_lines.append(f"[dim]{rationale}{ellipsis}[/dim]")
+
+    # Validation status
+    proposal_lines.append("")
+    if director_output.validation_passed:
+        proposal_lines.append("[green]✓ Brand Guardian validation passed[/green]")
+    else:
+        proposal_lines.append("[yellow]⚠ Brand Guardian found some issues[/yellow]")
+
+    proposal_content = "\n".join(proposal_lines)
+    console.print(Panel(
+        proposal_content,
+        title="[bold cyan]Evolution Proposal[/bold cyan]",
+        border_style="cyan",
+        padding=(1, 2),
+    ))
+
+    # Approval
+    console.print()
+    approval = questionary.select(
+        "What would you like to do?",
+        choices=[
+            questionary.Choice(
+                title="Approve & Save     Apply these changes to the brand",
+                value="approve",
+            ),
+            questionary.Choice(
+                title="Reject & Discard   Keep the original brand unchanged",
+                value="reject",
+            ),
+        ],
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
+
+    if approval != "approve":
+        console.print("[yellow]Changes discarded. Brand unchanged.[/yellow]")
+        return "back"
+
+    # Save the evolved brand
+    try:
+        # Keep the original slug
+        evolved_identity.slug = slug
+
+        updated_summary = save_brand(evolved_identity)
+        console.print(f"\n[bold green]✓ Brand '{updated_summary.name}' updated successfully![/bold green]")
+
+        return slug
+
+    except Exception as e:
+        console.print(f"\n[red]Failed to save changes: {e}[/red]")
+        return "back"
+
+
 def _show_menu() -> str:
     """Display the simplified main menu with primary actions."""
     console.print(BANNER)
