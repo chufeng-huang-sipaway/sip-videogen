@@ -84,7 +84,9 @@ def list_brand_assets(slug: str, category: str | None = None) -> list[dict]:
 
     assets = []
     categories = (
-        [category] if category else ["logo", "packaging", "lifestyle", "mascot", "marketing"]
+        [category]
+        if category
+        else ["logo", "packaging", "lifestyle", "mascot", "marketing", "generated"]
     )
 
     for cat in categories:
