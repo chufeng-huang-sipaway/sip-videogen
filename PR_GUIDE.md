@@ -335,18 +335,42 @@ cd src/sip_videogen/studio/frontend
 npm run build  # Should compile successfully
 ```
 
+### Task 3.4: Implement AssetTree Component
+**Status**: Completed
+**Commit**: `9a1f08f`
+
+Changes:
+- Implemented full AssetTree component with folder expansion
+- Added AssetThumbnail component for loading image thumbnails via bridge API
+- Added TreeItem recursive component for folder hierarchy rendering
+- Added context menu with Reveal in Finder, Rename, Delete actions
+- Support drag-and-drop upload to assets/generated folder
+- Show file sizes on hover with formatSize helper
+- Added refresh and AI memory refresh buttons
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/AssetTree.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # AssetTree shows in sidebar with folder expansion and thumbnails
+```
+
 ---
 
 ## Next Task
 
-### Task 3.4: Implement AssetTree Component
-**Priority**: P0
-**Depends On**: Task 3.3 (completed)
+### Task 3.5: Add Drag-and-Drop Upload
+**Priority**: P1
+**Depends On**: Task 3.4 (completed)
 
 What To Do:
-- Implement full AssetTree with folder expansion, thumbnails, and context menu
-- Support drag-and-drop upload to specific folders
-- Context menu with Reveal in Finder, Rename, Delete actions
+- Finalize drag-and-drop UX and validation for both documents and assets
+- Documents: accept only .md, .txt, .json, .yaml, .yml and upload into docs/
+- Assets: accept only supported image files and upload into assets/generated/ (MVP default)
+- UX: keep the drop-zone highlight, surface upload failures in UI
 
 ---
 
