@@ -358,19 +358,41 @@ npm run build  # Should compile successfully
 npm run dev    # AssetTree shows in sidebar with folder expansion and thumbnails
 ```
 
+### Task 3.5: Add Drag-and-Drop Upload
+**Status**: Completed
+**Commit**: `c0f6d69`
+
+Changes:
+- Added error feedback for unsupported file types in DocumentsList and AssetTree
+- Implemented inline Alert component with 5-second auto-dismiss for upload errors
+- Added console logging for rejected/failed file uploads for debugging
+- DocumentsList: validates file extension against allowed list (.md, .txt, .json, .yaml, .yml)
+- AssetTree: validates both MIME type and extension for better image filtering
+- Both components now surface upload failures in UI instead of silently skipping
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx`
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/AssetTree.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # Drag unsupported file types to see error alerts
+```
+
 ---
 
 ## Next Task
 
-### Task 3.5: Add Drag-and-Drop Upload
+### Task 4.1: Implement Dark Mode
 **Priority**: P1
-**Depends On**: Task 3.4 (completed)
+**Depends On**: None
 
 What To Do:
-- Finalize drag-and-drop UX and validation for both documents and assets
-- Documents: accept only .md, .txt, .json, .yaml, .yml and upload into docs/
-- Assets: accept only supported image files and upload into assets/generated/ (MVP default)
-- UX: keep the drop-zone highlight, surface upload failures in UI
+- Create `useTheme` hook to detect and apply system dark/light mode
+- Apply Tailwind's `dark` class to `<html>` element
+- Update App.tsx to call the hook on mount
 
 ---
 
