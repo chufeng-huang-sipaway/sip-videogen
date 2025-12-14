@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronRight, ChevronDown, Folder, Image, RefreshCw, Brain } from 'lucide-react'
+import { ChevronRight, ChevronDown, Folder, Image, RefreshCw, Brain, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -8,9 +8,12 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBrand } from '@/context/BrandContext'
 import { useAssets } from '@/hooks/useAssets'
 import { bridge, isPyWebView, type AssetNode } from '@/lib/bridge'
+
+const ALLOWED_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'])
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -145,6 +148,15 @@ export function AssetTree() {
   const { activeBrand } = useBrand()
   const { tree, isLoading, error, refresh, deleteAsset, renameAsset, uploadAsset, refreshMemory } = useAssets(activeBrand)
   const [isDragging, setIsDragging] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  // Auto-clear upload error after 5 seconds
+  useEffect(() => {
+    if (uploadError) {
+      const timer = setTimeout(() => setUploadError(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [uploadError])
 
   const handleOpen = useCallback(async (path: string) => {
     if (isPyWebView()) {
@@ -171,9 +183,34 @@ export function AssetTree() {
     if (!isPyWebView()) return
 
     const files = Array.from(e.dataTransfer.files)
+    const rejectedFiles: string[] = []
+
     for (const file of files) {
-      if (!file.type.startsWith('image/')) continue
-      await uploadAsset(file, 'generated')
+      const lower = file.name.toLowerCase()
+      const dot = lower.lastIndexOf('.')
+      const ext = dot >= 0 ? lower.slice(dot) : ''
+
+      // Check both MIME type and extension for better validation
+      const isValidMime = file.type.startsWith('image/')
+      const isValidExt = ALLOWED_IMAGE_EXTS.has(ext)
+
+      if (!isValidMime && !isValidExt) {
+        console.warn(`[AssetTree] Rejected file "${file.name}": not a valid image. Type: "${file.type}", Extension: "${ext}"`)
+        rejectedFiles.push(file.name)
+        continue
+      }
+
+      try {
+        await uploadAsset(file, 'generated')
+      } catch (err) {
+        console.error(`[AssetTree] Failed to upload "${file.name}":`, err)
+        rejectedFiles.push(file.name)
+      }
+    }
+
+    if (rejectedFiles.length > 0) {
+      const allowedList = Array.from(ALLOWED_IMAGE_EXTS).join(', ')
+      setUploadError(`Unsupported file(s): ${rejectedFiles.join(', ')}. Allowed types: ${allowedList}`)
     }
   }, [uploadAsset])
 
@@ -223,6 +260,22 @@ export function AssetTree() {
           </Button>
         </div>
       </div>
+
+      {uploadError && (
+        <Alert variant="destructive" className="py-2 px-3">
+          <AlertDescription className="flex items-center justify-between text-xs">
+            <span>{uploadError}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-4 shrink-0"
+              onClick={() => setUploadError(null)}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {tree.length === 0 ? (
         <p className="text-sm text-gray-400 italic">

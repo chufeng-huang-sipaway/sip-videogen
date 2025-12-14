@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
-import { FileText, RefreshCw, Upload } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { FileText, RefreshCw, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -9,6 +9,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBrand } from '@/context/BrandContext'
 import { useDocuments } from '@/hooks/useDocuments'
 import { isPyWebView } from '@/lib/bridge'
@@ -30,6 +31,15 @@ export function DocumentsList() {
   const [previewPath, setPreviewPath] = useState<string | null>(null)
   const [previewContent, setPreviewContent] = useState<string>('')
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  // Auto-clear upload error after 5 seconds
+  useEffect(() => {
+    if (uploadError) {
+      const timer = setTimeout(() => setUploadError(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [uploadError])
 
   const acceptExts = useMemo(() => Array.from(ALLOWED_DOC_EXTS).join(','), [])
 
@@ -51,12 +61,28 @@ export function DocumentsList() {
     if (!activeBrand || !isPyWebView()) return
 
     const files = Array.from(e.dataTransfer.files)
+    const rejectedFiles: string[] = []
+
     for (const file of files) {
       const lower = file.name.toLowerCase()
       const dot = lower.lastIndexOf('.')
       const ext = dot >= 0 ? lower.slice(dot) : ''
-      if (!ALLOWED_DOC_EXTS.has(ext)) continue
-      await uploadDocument(file)
+      if (!ALLOWED_DOC_EXTS.has(ext)) {
+        console.warn(`[DocumentsList] Rejected file "${file.name}": unsupported extension "${ext}". Allowed: ${Array.from(ALLOWED_DOC_EXTS).join(', ')}`)
+        rejectedFiles.push(file.name)
+        continue
+      }
+      try {
+        await uploadDocument(file)
+      } catch (err) {
+        console.error(`[DocumentsList] Failed to upload "${file.name}":`, err)
+        rejectedFiles.push(file.name)
+      }
+    }
+
+    if (rejectedFiles.length > 0) {
+      const allowedList = Array.from(ALLOWED_DOC_EXTS).join(', ')
+      setUploadError(`Unsupported file(s): ${rejectedFiles.join(', ')}. Allowed types: ${allowedList}`)
     }
   }, [activeBrand, uploadDocument])
 
@@ -117,6 +143,22 @@ export function DocumentsList() {
           </label>
         </div>
       </div>
+
+      {uploadError && (
+        <Alert variant="destructive" className="py-2 px-3">
+          <AlertDescription className="flex items-center justify-between text-xs">
+            <span>{uploadError}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-4 shrink-0"
+              onClick={() => setUploadError(null)}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {documents.length === 0 ? (
         <p className="text-sm text-gray-400 italic">
