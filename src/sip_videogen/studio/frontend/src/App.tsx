@@ -4,8 +4,10 @@ import { ChatPanel } from '@/components/ChatPanel'
 import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
+import { useTheme } from '@/hooks/useTheme'
 
 function App() {
+  useTheme()
   const { activeBrand } = useBrand()
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
 
