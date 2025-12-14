@@ -316,18 +316,37 @@ npm run build  # Should compile successfully
 npm run dev    # DocumentsList shows in sidebar with upload/preview features
 ```
 
+### Task 3.3: Create useAssets Hook
+**Status**: Completed
+**Commit**: `8125ee0`
+
+Changes:
+- Created useAssets hook for managing asset tree state
+- Support CRUD operations: list, delete, rename, upload, get thumbnail
+- Include mock data fallback for dev mode (non-PyWebView environment)
+- Auto-refresh when brandSlug changes
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/hooks/useAssets.ts`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+```
+
 ---
 
 ## Next Task
 
-### Task 3.3: Create useAssets Hook
+### Task 3.4: Implement AssetTree Component
 **Priority**: P0
-**Depends On**: Task 2.2, Task 2.3 (completed)
+**Depends On**: Task 3.3 (completed)
 
 What To Do:
-- Create a hook for managing asset tree state
-- Support CRUD operations: list, delete, rename, upload, get thumbnail
-- Include mock data fallback for dev mode
+- Implement full AssetTree with folder expansion, thumbnails, and context menu
+- Support drag-and-drop upload to specific folders
+- Context menu with Reveal in Finder, Rename, Delete actions
 
 ---
 
