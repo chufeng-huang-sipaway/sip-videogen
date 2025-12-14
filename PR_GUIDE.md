@@ -403,16 +403,38 @@ npm run build  # Should compile successfully
 npm run dev    # Toggle macOS Appearance (System Settings → Appearance) to verify UI switches
 ```
 
+### Task 4.2: Add Glassmorphism Styling
+**Status**: Completed
+**Commit**: `bdb3014`
+
+Changes:
+- Added `.glass-sidebar` CSS class with macOS-like frosted glass effect
+- Applied `saturate(180%) blur(20px)` backdrop filter for authentic look
+- Support dark mode with separate background opacity (rgba(30, 30, 30, 0.72))
+- Updated Sidebar component to use `glass-sidebar` class instead of `glass bg-sidebar-light dark:bg-sidebar-dark`
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/index.css` - Added `.glass-sidebar` and `.dark .glass-sidebar` CSS rules
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Updated className to use `glass-sidebar`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # Sidebar should have frosted glass appearance in both light and dark modes
+```
+
 ---
 
 ## Next Task
 
-### Task 4.2: Add Glassmorphism Styling
-**Priority**: P2
+### Task 4.3: Create py2app Configuration
+**Priority**: P1
 
 What To Do:
-- Apply glassmorphism (backdrop blur, opacity, border) to Sidebar component
-- Update CSS variables for glass effect in dark/light modes
+- Bundle Brand Studio as a `.app` and prepare for distribution
+- Build the frontend first, then create setup.py with py2app configuration
+- Configure plist with app metadata (name, identifier, version)
 
 ---
 
