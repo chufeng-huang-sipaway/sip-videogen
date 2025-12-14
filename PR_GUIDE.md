@@ -175,20 +175,48 @@ cd src/sip_videogen/studio/frontend
 npm run build  # Should compile successfully
 ```
 
+### Task 2.3: Create BrandContext Provider
+**Status**: Completed
+**Commit**: `1125449`
+
+Changes:
+- Created `src/context/BrandContext.tsx` with BrandProvider and useBrand() hook
+- Centralized brand state management (brands, activeBrand, isLoading, error)
+- Implemented selectBrand() and refresh() functions for brand operations
+- Added mock data fallback for development mode (when not running in PyWebView)
+- Updated main.tsx to wrap App with BrandProvider
+- Updated BrandSelector.tsx to use useBrand() hook with full dropdown menu
+- Updated App.tsx to pass activeBrand to ChatPanel
+- Updated ChatPanel to accept brandSlug prop
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/context/BrandContext.tsx`
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/main.tsx`
+- `src/sip_videogen/studio/frontend/src/App.tsx`
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/BrandSelector.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # BrandSelector now shows loading state, then mock brands
+```
+
 ---
 
 ## Next Task
 
-### Task 2.3: Create BrandContext Provider
+### Task 2.4: Create useChat Hook
 **Priority**: P0
 **Depends On**: Task 2.2 (completed)
 
 What To Do:
-- Create React Context in `src/context/BrandContext.tsx` to share brand state
-- Implement BrandProvider component with brands, activeBrand, isLoading, error state
-- Export useBrand() hook for accessing context
-- Update main.tsx to wrap App with BrandProvider
-- Update BrandSelector.tsx to use useBrand() instead of local state
+- Create `src/hooks/useChat.ts` for chat state management
+- Implement messages state, sendMessage, clearChat functions
+- Handle streaming responses and progress polling
 
 ---
 
