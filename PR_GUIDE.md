@@ -295,18 +295,39 @@ cd src/sip_videogen/studio/frontend
 npm run build  # Should compile successfully
 ```
 
+### Task 3.2: Implement DocumentsList Component
+**Status**: Completed
+**Commit**: `72632a0`
+
+Changes:
+- Implemented full DocumentsList component with drag-and-drop file upload
+- Added context menu with Preview, Reveal in Finder, Rename, Delete actions
+- Added document preview dialog for viewing file contents
+- Show file sizes on hover, loading state, and error handling
+- Filter uploads to allowed extensions (.md, .txt, .json, .yaml, .yml)
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # DocumentsList shows in sidebar with upload/preview features
+```
+
 ---
 
 ## Next Task
 
-### Task 3.2: Implement DocumentsList Component
+### Task 3.3: Create useAssets Hook
 **Priority**: P0
-**Depends On**: Task 3.1 (completed)
+**Depends On**: Task 2.2, Task 2.3 (completed)
 
 What To Do:
-- Add a documents section to the sidebar
-- Support drag-and-drop text files
-- Preview documents, delete/rename via context menu
+- Create a hook for managing asset tree state
+- Support CRUD operations: list, delete, rename, upload, get thumbnail
+- Include mock data fallback for dev mode
 
 ---
 
