@@ -424,17 +424,45 @@ npm run build  # Should compile successfully
 npm run dev    # Sidebar should have frosted glass appearance in both light and dark modes
 ```
 
+### Task 4.3: Create py2app Configuration
+**Status**: Completed
+**Commit**: `da9ddab`
+
+Changes:
+- Created `setup.py` with py2app configuration for macOS bundling
+- Configured bundle metadata (CFBundleName, CFBundleIdentifier, version 0.1.0)
+- Set NSHighResolutionCapable and NSRequiresAquaSystemAppearance for modern macOS
+- Bundled frontend dist/ in app Resources
+- Added workaround for pyproject.toml conflict (temporarily moves during build)
+- Support both --alias builds (development) and full builds (production)
+
+Files created:
+- `setup.py` - py2app setup script
+
+Verification:
+```bash
+# Build frontend first
+cd src/sip_videogen/studio/frontend && npm run build
+
+# Development build (fast, uses symlinks)
+python setup.py py2app --alias
+open "dist/Brand Studio.app"
+
+# Production build (standalone app)
+python setup.py py2app
+```
+
 ---
 
 ## Next Task
 
-### Task 4.3: Create py2app Configuration
-**Priority**: P1
+### Task 4.4: Create DMG Installer
+**Priority**: P2
 
 What To Do:
-- Bundle Brand Studio as a `.app` and prepare for distribution
-- Build the frontend first, then create setup.py with py2app configuration
-- Configure plist with app metadata (name, identifier, version)
+- Create a `.dmg` for drag-to-Applications installation
+- Use create-dmg or hdiutil to create professional installer
+- Configure window size, icon positions, app-drop-link
 
 ---
 
