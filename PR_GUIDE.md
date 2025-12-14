@@ -102,19 +102,46 @@ npm run build  # Builds successfully
 npm run dev    # Shows shadcn/ui components demo
 ```
 
+### Task 1.6: Create Basic Two-Panel Layout
+**Status**: Completed
+**Commit**: `bc36c76`
+
+Changes:
+- Created Sidebar component with glassmorphism styling
+- Created BrandSelector, DocumentsList, AssetTree placeholder components
+- Created ChatPanel component placeholder
+- Updated App.tsx with two-panel layout (Sidebar + ChatPanel)
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx`
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/BrandSelector.tsx`
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx`
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/AssetTree.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx`
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/App.tsx` - Two-panel layout
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Builds successfully
+npm run dev    # Shows two-panel layout with Sidebar + ChatPanel
+```
+
 ---
 
 ## Next Task
 
-### Task 1.6: Create Basic Two-Panel Layout
+### Task 2.1: Implement Python Bridge API
 **Priority**: P0
-**Depends On**: Task 1.5 (completed)
+**Depends On**: Task 1.6 (completed)
 
 What To Do:
-- Create placeholder components for Sidebar and ChatPanel layout
-- Create `src/components/Sidebar/index.tsx` with BrandSelector, DocumentsList, AssetTree placeholders
-- Create `src/components/ChatPanel/index.tsx` placeholder
-- Update `App.tsx` to render two-panel layout
+- Implement the Python bridge with correct field access and consistent path safety
+- Add brand management methods (list_brands, select_brand, get_current_brand)
+- Add asset/document listing methods
+- Add chat functionality integration with BrandAdvisor
 
 ---
 
