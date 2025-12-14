@@ -85,14 +85,18 @@ export function waitForPyWebViewReady(timeoutMs = 800): Promise<boolean> {
   return new Promise((resolve) => {
     if (isPyWebView()) return resolve(true)
 
-    const timer = window.setTimeout(() => resolve(false), timeoutMs)
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      controller.abort()
+      resolve(false)
+    }, timeoutMs)
     window.addEventListener(
       'pywebviewready',
       () => {
         window.clearTimeout(timer)
         resolve(true)
       },
-      { once: true }
+      { once: true, signal: controller.signal }
     )
   })
 }

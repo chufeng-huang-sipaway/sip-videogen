@@ -65,11 +65,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onOpen }: TreeItemProps
   const handleClick = () => {
     if (node.type === 'folder') {
       setIsOpen(!isOpen)
-    }
-  }
-
-  const handleDoubleClick = () => {
-    if (node.type === 'image') {
+    } else if (node.type === 'image') {
       onOpen(node.path)
     }
   }
@@ -82,7 +78,6 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onOpen }: TreeItemProps
             className="flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group"
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
             onClick={handleClick}
-            onDoubleClick={handleDoubleClick}
           >
             {node.type === 'folder' ? (
               hasChildren ? (

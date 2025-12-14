@@ -82,7 +82,7 @@ export function ApiKeySetup({ onComplete }: ApiKeySetupProps) {
         </form>
 
         <p className="text-xs text-center text-gray-400">
-          Keys are stored in memory for this session only.
+          Keys are saved locally in ~/.sip-videogen/config.json
         </p>
       </div>
     </div>

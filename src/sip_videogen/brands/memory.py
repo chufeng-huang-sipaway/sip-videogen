@@ -100,6 +100,8 @@ def list_brand_assets(slug: str, category: str | None = None) -> list[dict]:
                 ".jpg",
                 ".jpeg",
                 ".webp",
+                ".gif",
+                ".svg",
             ]:
                 assets.append(
                     {

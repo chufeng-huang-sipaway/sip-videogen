@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import json
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -19,6 +20,39 @@ from sip_videogen.brands.storage import (
 
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 ALLOWED_TEXT_EXTS = {".md", ".txt", ".json", ".yaml", ".yml"}
+
+# Config file for persistent settings (API keys, preferences)
+CONFIG_PATH = Path.home() / ".sip-videogen" / "config.json"
+
+
+def _load_config() -> dict:
+    """Load config from disk."""
+    if CONFIG_PATH.exists():
+        try:
+            return json.loads(CONFIG_PATH.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def _save_config(config: dict) -> None:
+    """Save config to disk."""
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(config, indent=2))
+
+
+def _load_api_keys_from_config() -> None:
+    """Load API keys from config into environment (called on startup)."""
+    config = _load_config()
+    api_keys = config.get("api_keys", {})
+    if api_keys.get("openai") and not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = api_keys["openai"]
+    if api_keys.get("gemini") and not os.environ.get("GEMINI_API_KEY"):
+        os.environ["GEMINI_API_KEY"] = api_keys["gemini"]
+
+
+# Load keys on module import (app startup)
+_load_api_keys_from_config()
 
 
 @dataclass
@@ -99,17 +133,25 @@ class StudioBridge:
         ).to_dict()
 
     def save_api_keys(self, openai_key: str, gemini_key: str) -> dict:
-        """Save API keys to environment (session only).
+        """Save API keys to environment and persist to config file.
 
-        NOTE: Keys are not persisted. For a production app, consider:
-        - macOS Keychain via `keyring` library
-        - Encrypted config file in ~/Library/Application Support/
+        Keys are stored in ~/.sip-videogen/config.json for persistence across sessions.
         """
         try:
+            # Set in environment for current session
             if openai_key:
                 os.environ["OPENAI_API_KEY"] = openai_key
             if gemini_key:
                 os.environ["GEMINI_API_KEY"] = gemini_key
+
+            # Persist to config file
+            config = _load_config()
+            config["api_keys"] = {
+                "openai": openai_key or config.get("api_keys", {}).get("openai", ""),
+                "gemini": gemini_key or config.get("api_keys", {}).get("gemini", ""),
+            }
+            _save_config(config)
+
             return BridgeResponse(success=True).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
