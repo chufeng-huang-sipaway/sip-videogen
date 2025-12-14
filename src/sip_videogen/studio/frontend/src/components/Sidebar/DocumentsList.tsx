@@ -1,3 +1,179 @@
+import { useCallback, useMemo, useState } from 'react'
+import { FileText, RefreshCw, Upload } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useBrand } from '@/context/BrandContext'
+import { useDocuments } from '@/hooks/useDocuments'
+import { isPyWebView } from '@/lib/bridge'
+
+const ALLOWED_DOC_EXTS = new Set(['.md', '.txt', '.json', '.yaml', '.yml'])
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function DocumentsList() {
-  return <div className="text-sm text-gray-500">No documents</div>
+  const { activeBrand } = useBrand()
+  const { documents, isLoading, error, refresh, openInFinder, readDocument, deleteDocument, renameDocument, uploadDocument } =
+    useDocuments(activeBrand)
+
+  const [isDragging, setIsDragging] = useState(false)
+  const [previewPath, setPreviewPath] = useState<string | null>(null)
+  const [previewContent, setPreviewContent] = useState<string>('')
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+
+  const acceptExts = useMemo(() => Array.from(ALLOWED_DOC_EXTS).join(','), [])
+
+  const openPreview = useCallback(async (path: string) => {
+    setPreviewPath(path)
+    setPreviewContent('')
+    setIsPreviewOpen(true)
+    try {
+      const content = await readDocument(path)
+      setPreviewContent(content)
+    } catch (err) {
+      setPreviewContent(err instanceof Error ? err.message : 'Failed to load document')
+    }
+  }, [readDocument])
+
+  const onDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (!activeBrand || !isPyWebView()) return
+
+    const files = Array.from(e.dataTransfer.files)
+    for (const file of files) {
+      const lower = file.name.toLowerCase()
+      const dot = lower.lastIndexOf('.')
+      const ext = dot >= 0 ? lower.slice(dot) : ''
+      if (!ALLOWED_DOC_EXTS.has(ext)) continue
+      await uploadDocument(file)
+    }
+  }, [activeBrand, uploadDocument])
+
+  if (!activeBrand) {
+    return <div className="text-sm text-gray-500">Select a brand</div>
+  }
+
+  if (error) {
+    return (
+      <div className="text-sm text-red-500">
+        Error: {error}
+        <Button variant="ghost" size="sm" onClick={refresh}>Retry</Button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`space-y-2 ${isDragging ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 rounded' : ''}`}
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={onDrop}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Documents
+        </h3>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={refresh}
+            disabled={isLoading}
+            title="Refresh"
+          >
+            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <label className="inline-flex">
+            <Button variant="ghost" size="icon" className="h-6 w-6" title="Upload" asChild>
+              <span>
+                <Upload className="h-3 w-3" />
+              </span>
+            </Button>
+            <input
+              type="file"
+              className="hidden"
+              multiple
+              accept={acceptExts}
+              onChange={async (e) => {
+                if (!e.target.files || !isPyWebView()) return
+                for (const f of Array.from(e.target.files)) {
+                  await uploadDocument(f)
+                }
+                e.target.value = ''
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      {documents.length === 0 ? (
+        <p className="text-sm text-gray-400 italic">
+          {isLoading ? 'Loading…' : 'No documents yet. Drag text files here to upload.'}
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {documents.map((doc) => (
+            <ContextMenu key={doc.path}>
+              <ContextMenuTrigger asChild>
+                <div
+                  className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group"
+                  onDoubleClick={() => openPreview(doc.path)}
+                >
+                  <FileText className="h-4 w-4 text-gray-500 shrink-0" />
+                  <span className="text-sm truncate flex-1">{doc.name}</span>
+                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100">
+                    {formatSize(doc.size)}
+                  </span>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => openPreview(doc.path)}>Preview</ContextMenuItem>
+                <ContextMenuItem onClick={() => openInFinder(doc.path)}>Reveal in Finder</ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onClick={async () => {
+                    const newName = prompt('New name:', doc.name)
+                    if (newName) await renameDocument(doc.path, newName)
+                  }}
+                >
+                  Rename
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={async () => {
+                    if (confirm(`Delete ${doc.name}?`)) await deleteDocument(doc.path)
+                  }}
+                  className="text-red-600"
+                >
+                  Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{previewPath || 'Document Preview'}</DialogTitle>
+          </DialogHeader>
+          <pre className="text-xs whitespace-pre-wrap max-h-[70vh] overflow-auto">
+            {previewContent || 'Loading…'}
+          </pre>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
