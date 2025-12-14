@@ -69,19 +69,52 @@ npm run build  # Should build successfully with Tailwind styles
 npm run dev    # Should show styled "Brand Studio" page
 ```
 
+### Task 1.5: Install and Configure shadcn/ui
+**Status**: Completed
+**Commit**: `0324327`
+
+Changes:
+- Installed lucide-react for icons
+- Installed Radix UI primitives for shadcn/ui components
+- Installed class-variance-authority, clsx, tailwind-merge for styling utilities
+- Created `src/lib/utils.ts` with `cn()` helper function
+- Created shadcn/ui components: button, input, scroll-area, dropdown-menu, context-menu, dialog, tooltip, separator, alert
+- Updated `src/index.css` with CSS variables for light/dark theme support
+- Updated `App.tsx` to demonstrate shadcn/ui components are working
+- Updated root `.gitignore` to allow frontend `src/lib/` directory
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/lib/utils.ts`
+- `src/sip_videogen/studio/frontend/src/components/ui/button.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/input.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/scroll-area.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/dropdown-menu.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/context-menu.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/dialog.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/tooltip.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/separator.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ui/alert.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Builds successfully
+npm run dev    # Shows shadcn/ui components demo
+```
+
 ---
 
 ## Next Task
 
-### Task 1.5: Install and Configure shadcn/ui
+### Task 1.6: Create Basic Two-Panel Layout
 **Priority**: P0
-**Depends On**: Task 1.4 (completed)
+**Depends On**: Task 1.5 (completed)
 
-Steps:
-1. Run `npx shadcn@latest init`
-2. Choose options: TypeScript=Yes, Style=Default, Base=Slate, CSS vars=Yes, RSC=No, Dir=src/components, Alias=@/
-3. Install components: button, input, scroll-area, dropdown-menu, context-menu, dialog, tooltip, separator, alert
-4. Install lucide-react for icons
+What To Do:
+- Create placeholder components for Sidebar and ChatPanel layout
+- Create `src/components/Sidebar/index.tsx` with BrandSelector, DocumentsList, AssetTree placeholders
+- Create `src/components/ChatPanel/index.tsx` placeholder
+- Update `App.tsx` to render two-panel layout
 
 ---
 
