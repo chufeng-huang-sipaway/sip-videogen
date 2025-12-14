@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBrand } from '@/context/BrandContext'
 import { useDocuments } from '@/hooks/useDocuments'
 import { isPyWebView } from '@/lib/bridge'
+import { MarkdownContent } from '../ChatPanel/MarkdownContent'
 
 const ALLOWED_DOC_EXTS = new Set(['.md', '.txt', '.json', '.yaml', '.yml'])
 
@@ -211,9 +212,17 @@ export function DocumentsList() {
           <DialogHeader>
             <DialogTitle>{previewPath || 'Document Preview'}</DialogTitle>
           </DialogHeader>
-          <pre className="text-xs whitespace-pre-wrap max-h-[70vh] overflow-auto">
-            {previewContent || 'Loading…'}
-          </pre>
+          <div className="max-h-[70vh] overflow-auto">
+            {previewContent ? (
+              previewPath?.endsWith('.md') ? (
+                <MarkdownContent content={previewContent} />
+              ) : (
+                <pre className="text-xs whitespace-pre-wrap">{previewContent}</pre>
+              )
+            ) : (
+              <p className="text-gray-500">Loading…</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
