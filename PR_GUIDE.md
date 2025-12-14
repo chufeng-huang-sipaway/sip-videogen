@@ -381,18 +381,38 @@ npm run build  # Should compile successfully
 npm run dev    # Drag unsupported file types to see error alerts
 ```
 
+### Task 4.1: Implement Dark Mode
+**Status**: Completed
+**Commit**: `93cecce`
+
+Changes:
+- Created `useTheme` hook to detect system dark/light mode preference
+- Hook applies Tailwind's `dark` class to `<html>` element on mode change
+- Updated App.tsx to call useTheme on mount (before any conditional rendering)
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/hooks/useTheme.ts`
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/App.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # Toggle macOS Appearance (System Settings → Appearance) to verify UI switches
+```
+
 ---
 
 ## Next Task
 
-### Task 4.1: Implement Dark Mode
-**Priority**: P1
-**Depends On**: None
+### Task 4.2: Add Glassmorphism Styling
+**Priority**: P2
 
 What To Do:
-- Create `useTheme` hook to detect and apply system dark/light mode
-- Apply Tailwind's `dark` class to `<html>` element
-- Update App.tsx to call the hook on mount
+- Apply glassmorphism (backdrop blur, opacity, border) to Sidebar component
+- Update CSS variables for glass effect in dark/light modes
 
 ---
 
