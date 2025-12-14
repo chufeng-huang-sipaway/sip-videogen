@@ -129,19 +129,40 @@ npm run build  # Builds successfully
 npm run dev    # Shows two-panel layout with Sidebar + ChatPanel
 ```
 
+### Task 2.1: Implement Python Bridge API
+**Status**: Completed
+**Commit**: `b9943b1`
+
+Changes:
+- Added document management methods: get_documents, read_document, open_document_in_finder, delete_document, rename_document, upload_document
+- Added ALLOWED_IMAGE_EXTS and ALLOWED_TEXT_EXTS constants for file validation
+- Refactored path safety helpers with _get_active_slug, _get_brand_dir, _resolve_in_dir, _resolve_assets_path, _resolve_docs_path
+- Improved asset validation with extension checks in all asset operations
+- Added proper thumbnail generation using PIL (256x256) for raster images
+- Improved chat() method with before/after asset snapshot for robust image detection
+- Added file type validation throughout all file operations
+
+Files modified:
+- `src/sip_videogen/studio/bridge.py` - Complete Python Bridge API implementation
+
+Verification:
+```bash
+python3 -m py_compile src/sip_videogen/studio/bridge.py  # Should pass
+ruff check src/sip_videogen/studio/bridge.py             # Should pass
+```
+
 ---
 
 ## Next Task
 
-### Task 2.1: Implement Python Bridge API
+### Task 2.2: Create JavaScript Bridge Wrapper
 **Priority**: P0
-**Depends On**: Task 1.6 (completed)
+**Depends On**: Task 2.1 (completed)
 
 What To Do:
-- Implement the Python bridge with correct field access and consistent path safety
-- Add brand management methods (list_brands, select_brand, get_current_brand)
-- Add asset/document listing methods
-- Add chat functionality integration with BrandAdvisor
+- Create typed TypeScript wrapper for the Python bridge in `src/lib/bridge.ts`
+- Define interfaces for BrandEntry, AssetNode, DocumentEntry, ApiKeyStatus, ChatResponse
+- Implement wrapper functions with proper error handling
 
 ---
 
