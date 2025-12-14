@@ -205,18 +205,40 @@ npm run build  # Should compile successfully
 npm run dev    # BrandSelector now shows loading state, then mock brands
 ```
 
+### Task 2.4: Create useChat Hook
+**Status**: Completed
+**Commit**: `2086d66`
+
+Changes:
+- Created `src/hooks/useChat.ts` for chat state management
+- Implemented Message interface with id, role, content, images, timestamp, status, error
+- Added messages state with sendMessage and clearMessages functions
+- Implemented progress polling for PyWebView (with fallback if concurrent calls fail)
+- Added mock response support for development mode (non-PyWebView environment)
+- Messages auto-clear when brand changes
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/hooks/useChat.ts`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+```
+
 ---
 
 ## Next Task
 
-### Task 2.4: Create useChat Hook
+### Task 2.5: Implement ChatPanel Components
 **Priority**: P0
-**Depends On**: Task 2.2 (completed)
+**Depends On**: Task 2.4 (completed)
 
 What To Do:
-- Create `src/hooks/useChat.ts` for chat state management
-- Implement messages state, sendMessage, clearChat functions
-- Handle streaming responses and progress polling
+- Update ChatPanel to use useChat hook
+- Create MessageList component with ImageLightbox
+- Create MessageInput component
+- Render generated images inline with base64 data URLs
 
 ---
 
