@@ -252,18 +252,42 @@ npm run build  # Should compile successfully
 npm run dev    # ChatPanel now shows welcome message, input works
 ```
 
+### Task 2.6: Add First-Run Setup Screen
+**Status**: Completed
+**Commit**: `e693152`
+
+Changes:
+- Created ApiKeySetup component for entering API keys on first run
+- Updated App.tsx to gate app behind setup screen when keys missing
+- Show setup screen only in PyWebView mode (not browser dev mode)
+- Keys stored in memory for session via bridge.saveApiKeys()
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/components/Setup/ApiKeySetup.tsx`
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/App.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # In browser, skips setup (dev mode)
+# In PyWebView with no keys, shows setup screen
+```
+
 ---
 
 ## Next Task
 
-### Task 2.6: Add First-Run Setup Screen
-**Priority**: P1
-**Depends On**: Task 2.2 (completed)
+### Task 3.1: Create useDocuments Hook
+**Priority**: P0
+**Depends On**: Task 2.2, Task 2.3 (completed)
 
 What To Do:
-- Create ApiKeySetup component for entering API keys
-- Update App.tsx to gate the app behind setup screen when keys are missing
-- Show setup screen when API keys are not configured (PyWebView only)
+- Create useDocuments hook for listing and managing brand documents
+- Support CRUD operations: list, read, delete, rename, upload
+- Include mock data fallback for dev mode
 
 ---
 
