@@ -1,3 +1,246 @@
+import { useEffect, useState, useCallback } from 'react'
+import { ChevronRight, ChevronDown, Folder, Image, RefreshCw, Brain } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import { useBrand } from '@/context/BrandContext'
+import { useAssets } from '@/hooks/useAssets'
+import { bridge, isPyWebView, type AssetNode } from '@/lib/bridge'
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function AssetThumbnail({ path }: { path: string }) {
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      if (!isPyWebView()) return
+      try {
+        const dataUrl = await bridge.getAssetThumbnail(path)
+        if (!cancelled) setSrc(dataUrl)
+      } catch {
+        // Ignore thumbnail errors and fall back to icon
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [path])
+
+  if (!src) {
+    return <div className="h-5 w-5 rounded bg-gray-200 dark:bg-gray-700" />
+  }
+
+  return <img src={src} alt="" className="h-5 w-5 rounded object-cover" />
+}
+
+interface TreeItemProps {
+  node: AssetNode
+  depth?: number
+  onDelete: (path: string) => void
+  onRename: (path: string) => void
+  onOpen: (path: string) => void
+}
+
+function TreeItem({ node, depth = 0, onDelete, onRename, onOpen }: TreeItemProps) {
+  const [isOpen, setIsOpen] = useState(depth === 0)
+  const hasChildren = node.type === 'folder' && node.children && node.children.length > 0
+
+  const handleClick = () => {
+    if (node.type === 'folder') {
+      setIsOpen(!isOpen)
+    }
+  }
+
+  const handleDoubleClick = () => {
+    if (node.type === 'image') {
+      onOpen(node.path)
+    }
+  }
+
+  return (
+    <div>
+      <ContextMenu>
+        <ContextMenuTrigger>
+          <div
+            className="flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group"
+            style={{ paddingLeft: `${depth * 12 + 8}px` }}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+          >
+            {node.type === 'folder' ? (
+              hasChildren ? (
+                isOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />
+              ) : (
+                <span className="w-4" />
+              )
+            ) : (
+              <span className="w-4" />
+            )}
+            {node.type === 'folder' ? (
+              <Folder className="h-4 w-4 text-gray-500 shrink-0" />
+            ) : isPyWebView() ? (
+              <AssetThumbnail path={node.path} />
+            ) : (
+              <Image className="h-4 w-4 text-gray-500 shrink-0" />
+            )}
+            <span className="text-sm truncate flex-1">{node.name}</span>
+            {node.size && (
+              <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100">
+                {formatSize(node.size)}
+              </span>
+            )}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          {node.type === 'image' && (
+            <>
+              <ContextMenuItem onClick={() => onOpen(node.path)}>
+                Reveal in Finder
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
+          {node.type === 'image' && (
+            <>
+              <ContextMenuItem onClick={() => onRename(node.path)}>
+                Rename
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => onDelete(node.path)} className="text-red-600">
+                Delete
+              </ContextMenuItem>
+            </>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {isOpen && node.children?.map((child) => (
+        <TreeItem
+          key={child.path}
+          node={child}
+          depth={depth + 1}
+          onDelete={onDelete}
+          onRename={onRename}
+          onOpen={onOpen}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function AssetTree() {
-  return <div className="text-sm text-gray-500">No brand selected</div>
+  const { activeBrand } = useBrand()
+  const { tree, isLoading, error, refresh, deleteAsset, renameAsset, uploadAsset, refreshMemory } = useAssets(activeBrand)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleOpen = useCallback(async (path: string) => {
+    if (isPyWebView()) {
+      await bridge.openAssetInFinder(path)
+    }
+  }, [])
+
+  const handleDelete = useCallback(async (path: string) => {
+    if (confirm(`Delete ${path}?`)) {
+      await deleteAsset(path)
+    }
+  }, [deleteAsset])
+
+  const handleRename = useCallback(async (path: string) => {
+    const newName = prompt('New name:', path.split('/').pop())
+    if (!newName) return
+    await renameAsset(path, newName)
+  }, [renameAsset])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    if (!isPyWebView()) return
+
+    const files = Array.from(e.dataTransfer.files)
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue
+      await uploadAsset(file, 'generated')
+    }
+  }, [uploadAsset])
+
+  if (!activeBrand) {
+    return <div className="text-sm text-gray-500">Select a brand</div>
+  }
+
+  if (error) {
+    return (
+      <div className="text-sm text-red-500">
+        Error: {error}
+        <Button variant="ghost" size="sm" onClick={refresh}>Retry</Button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`space-y-2 ${isDragging ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 rounded' : ''}`}
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={handleDrop}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Assets
+        </h3>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={refresh}
+            disabled={isLoading}
+            title="Refresh"
+          >
+            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={refreshMemory}
+            title="Refresh AI Memory"
+          >
+            <Brain className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {tree.length === 0 ? (
+        <p className="text-sm text-gray-400 italic">
+          {isLoading ? 'Loading...' : 'No assets yet. Drag images here to upload.'}
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {tree.map((node) => (
+            <TreeItem
+              key={node.path}
+              node={node}
+              onDelete={handleDelete}
+              onRename={handleRename}
+              onOpen={handleOpen}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
