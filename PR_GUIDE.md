@@ -452,17 +452,51 @@ open "dist/Brand Studio.app"
 python setup.py py2app
 ```
 
+### Task 4.4: Create DMG Installer
+**Status**: Completed
+**Commit**: `9227d42`
+
+Changes:
+- Created `scripts/build-dmg.sh` for building macOS DMG installer
+- Uses hdiutil for reliable DMG creation (avoids AppleScript timeouts with create-dmg)
+- Creates drag-to-Applications installer with /Applications symlink
+- Automatically calculates disk image size based on app bundle size
+
+Files created:
+- `scripts/build-dmg.sh` - Shell script for DMG creation
+
+Verification:
+```bash
+# Build frontend and app first
+cd src/sip_videogen/studio/frontend && npm run build
+cd - && python setup.py py2app --alias
+
+# Create DMG
+./scripts/build-dmg.sh
+# Output: dist/Brand-Studio-0.1.0.dmg
+
+# Test the DMG
+open dist/Brand-Studio-0.1.0.dmg
+# Drag Brand Studio to Applications folder
+```
+
 ---
 
-## Next Task
+## All Tasks Completed
 
-### Task 4.4: Create DMG Installer
-**Priority**: P2
+All tasks in BRAND_STUDIO_TASKS.md have been implemented. The following verification steps should be performed on a clean machine or VM:
 
-What To Do:
-- Create a `.dmg` for drag-to-Applications installation
-- Use create-dmg or hdiutil to create professional installer
-- Configure window size, icon positions, app-drop-link
+- [ ] App launches without errors
+- [ ] Brand selector shows brands and switching works
+- [ ] Chat sends messages and receives responses
+- [ ] Generated images appear inline
+- [ ] Asset tree shows folders and images
+- [ ] Documents list shows files
+- [ ] Document upload + preview works
+- [ ] Drag-and-drop upload works
+- [ ] Delete/rename context menu works
+- [ ] "Refresh Memory" button works
+- [ ] Dark mode follows system
 
 ---
 
