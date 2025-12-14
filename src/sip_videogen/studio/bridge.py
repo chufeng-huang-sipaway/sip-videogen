@@ -169,12 +169,84 @@ class StudioBridge:
     def get_brands(self) -> dict:
         """Get list of all available brands."""
         try:
+            # Sync index with actual directories on disk (handles orphaned entries)
+            self._sync_brand_index()
+
             entries = list_brands()
             brands = [{"slug": e.slug, "name": e.name, "category": e.category} for e in entries]
             active = get_active_brand()
+            print(f"[GET_BRANDS] Found {len(brands)} brands: {[b['slug'] for b in brands]}")
+            print(f"[GET_BRANDS] Active brand: {active}")
             return BridgeResponse(success=True, data={"brands": brands, "active": active}).to_dict()
         except Exception as e:
+            print(f"[GET_BRANDS] ERROR: {e}")
+            import traceback
+            traceback.print_exc()
             return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def _sync_brand_index(self) -> None:
+        """Sync index.json with actual brand directories on disk.
+
+        Removes index entries for brands whose directories don't exist,
+        and adds entries for directories that exist but aren't in the index.
+        """
+        from datetime import datetime
+
+        from sip_videogen.brands.models import BrandIndexEntry
+        from sip_videogen.brands.storage import (
+            get_brands_dir,
+            load_brand_summary,
+            load_index,
+            save_index,
+        )
+
+        try:
+            brands_dir = get_brands_dir()
+            if not brands_dir.exists():
+                return
+
+            index = load_index()
+            changed = False
+
+            # Remove entries for non-existent directories
+            valid_entries = []
+            for entry in index.brands:
+                brand_dir = brands_dir / entry.slug
+                if brand_dir.exists() and (brand_dir / "identity.json").exists():
+                    valid_entries.append(entry)
+                else:
+                    print(f"[SYNC_INDEX] Removing orphaned entry: {entry.slug}")
+                    changed = True
+
+            # Check for directories not in index
+            for item in brands_dir.iterdir():
+                if not item.is_dir() or item.name.startswith("."):
+                    continue
+                if item.name not in [e.slug for e in valid_entries]:
+                    # Try to load summary and add to index
+                    summary = load_brand_summary(item.name)
+                    if summary:
+                        print(f"[SYNC_INDEX] Adding missing entry: {item.name}")
+                        entry = BrandIndexEntry(
+                            slug=summary.slug,
+                            name=summary.name,
+                            category=summary.category,
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow(),
+                        )
+                        valid_entries.append(entry)
+                        changed = True
+
+            if changed:
+                index.brands = valid_entries
+                # Clear active brand if it was removed
+                if index.active_brand and index.active_brand not in [e.slug for e in valid_entries]:
+                    print(f"[SYNC_INDEX] Clearing invalid active brand: {index.active_brand}")
+                    index.active_brand = valid_entries[0].slug if valid_entries else None
+                save_index(index)
+                print(f"[SYNC_INDEX] Index updated with {len(valid_entries)} brands")
+        except Exception as e:
+            print(f"[SYNC_INDEX] Error syncing index: {e}")
 
     def set_brand(self, slug: str) -> dict:
         """Set the active brand and initialize advisor."""
