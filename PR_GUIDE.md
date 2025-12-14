@@ -276,18 +276,37 @@ npm run dev    # In browser, skips setup (dev mode)
 # In PyWebView with no keys, shows setup screen
 ```
 
+### Task 3.1: Create useDocuments Hook
+**Status**: Completed
+**Commit**: `f7535e5`
+
+Changes:
+- Created useDocuments hook for listing and managing brand documents
+- Support CRUD operations: list, read, delete, rename, upload
+- Include mock data fallback for dev mode (non-PyWebView environment)
+- Auto-refresh when brandSlug changes
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/hooks/useDocuments.ts`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+```
+
 ---
 
 ## Next Task
 
-### Task 3.1: Create useDocuments Hook
+### Task 3.2: Implement DocumentsList Component
 **Priority**: P0
-**Depends On**: Task 2.2, Task 2.3 (completed)
+**Depends On**: Task 3.1 (completed)
 
 What To Do:
-- Create useDocuments hook for listing and managing brand documents
-- Support CRUD operations: list, read, delete, rename, upload
-- Include mock data fallback for dev mode
+- Add a documents section to the sidebar
+- Support drag-and-drop text files
+- Preview documents, delete/rename via context menu
 
 ---
 
