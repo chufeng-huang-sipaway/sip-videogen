@@ -41,6 +41,12 @@ interface PyWebViewAPI {
   get_brands(): Promise<BridgeResponse<{ brands: BrandEntry[]; active: string | null }>>
   set_brand(slug: string): Promise<BridgeResponse<{ slug: string }>>
   get_brand_info(slug?: string): Promise<BridgeResponse<{ slug: string; name: string; tagline: string; category: string }>>
+  delete_brand(slug: string): Promise<BridgeResponse<void>>
+  create_brand_from_materials(
+    description: string,
+    images: Array<{ filename: string; data: string }>,
+    documents: Array<{ filename: string; data: string }>
+  ): Promise<BridgeResponse<{ slug: string; name: string }>>
 
   // Documents (text files)
   get_documents(slug?: string): Promise<BridgeResponse<{ documents: DocumentEntry[] }>>
@@ -107,6 +113,12 @@ export const bridge = {
   getBrands: () => callBridge(() => window.pywebview!.api.get_brands()),
   setBrand: (s: string) => callBridge(() => window.pywebview!.api.set_brand(s)),
   getBrandInfo: (s?: string) => callBridge(() => window.pywebview!.api.get_brand_info(s)),
+  deleteBrand: (slug: string) => callBridge(() => window.pywebview!.api.delete_brand(slug)),
+  createBrandFromMaterials: (
+    description: string,
+    images: Array<{ filename: string; data: string }>,
+    documents: Array<{ filename: string; data: string }>
+  ) => callBridge(() => window.pywebview!.api.create_brand_from_materials(description, images, documents)),
 
   // Documents
   getDocuments: async (s?: string) => (await callBridge(() => window.pywebview!.api.get_documents(s))).documents,

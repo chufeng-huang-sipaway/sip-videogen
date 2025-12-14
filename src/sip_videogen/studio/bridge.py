@@ -11,6 +11,12 @@ from typing import Any
 from sip_videogen.advisor.agent import AdvisorProgress, BrandAdvisor
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import (
+    create_brand as storage_create_brand,
+)
+from sip_videogen.brands.storage import (
+    delete_brand as storage_delete_brand,
+)
+from sip_videogen.brands.storage import (
     get_active_brand,
     get_brand_dir,
     list_brands,
@@ -219,6 +225,170 @@ class StudioBridge:
             ).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def delete_brand(self, slug: str) -> dict:
+        """Delete a brand and all its files.
+
+        Args:
+            slug: Brand identifier to delete.
+
+        Returns:
+            Success response or error if brand not found.
+        """
+        try:
+            # Validate brand exists
+            entries = list_brands()
+            if slug not in [e.slug for e in entries]:
+                return BridgeResponse(
+                    success=False, error=f"Brand '{slug}' not found"
+                ).to_dict()
+
+            # If this is the active brand, clear it
+            if self._current_brand == slug:
+                self._current_brand = None
+                self._advisor = None
+
+            # If this is the globally active brand, clear that too
+            if get_active_brand() == slug:
+                set_active_brand(None)
+
+            # Delete the brand
+            deleted = storage_delete_brand(slug)
+            if not deleted:
+                return BridgeResponse(
+                    success=False, error=f"Failed to delete brand '{slug}'"
+                ).to_dict()
+
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def create_brand_from_materials(
+        self,
+        description: str,
+        images: list[dict],
+        documents: list[dict],
+    ) -> dict:
+        """Create a new brand using AI agents with user-provided materials.
+
+        Args:
+            description: User's text description of the brand concept.
+            images: List of dicts with {filename, data} where data is base64.
+            documents: List of dicts with {filename, data} where data is base64.
+
+        Returns:
+            Success response with {slug} of the new brand, or error.
+        """
+        from sip_videogen.agents.brand_director import develop_brand_with_output
+
+        try:
+            # Build concept from description and document contents
+            concept_parts = []
+
+            if description.strip():
+                concept_parts.append(f"## Brand Description\n\n{description.strip()}")
+
+            # Extract text from documents
+            for doc in documents:
+                filename = doc.get("filename", "unknown")
+                data_b64 = doc.get("data", "")
+                try:
+                    content = base64.b64decode(data_b64).decode("utf-8", errors="replace")
+                    # Limit document size (50KB ~= 25 pages)
+                    if len(content) > 50 * 1024:
+                        content = content[: 50 * 1024] + "\n...[truncated]"
+                    concept_parts.append(f"## From: {filename}\n\n{content}")
+                except Exception:
+                    pass  # Skip unreadable documents
+
+            if not concept_parts:
+                return BridgeResponse(
+                    success=False,
+                    error="Please provide a description or upload documents.",
+                ).to_dict()
+
+            concept = "\n\n---\n\n".join(concept_parts)
+
+            # The AI has a 5000 character limit - truncate smartly if needed
+            max_concept_len = 4800  # Leave some buffer
+            if len(concept) > max_concept_len:
+                # Prioritize the description, truncate document content
+                if description.strip():
+                    desc_part = f"## Brand Description\n\n{description.strip()}"
+                    remaining = max_concept_len - len(desc_part) - 100
+                    if remaining > 500:
+                        # Include truncated document summary
+                        doc_summary = concept[len(desc_part) :][:remaining]
+                        concept = desc_part + "\n\n---\n\n" + doc_summary + "\n...[truncated]"
+                    else:
+                        concept = desc_part[:max_concept_len]
+                else:
+                    concept = concept[:max_concept_len] + "\n...[truncated]"
+
+            # Report progress
+            self._current_progress = "Creating brand identity..."
+
+            # Run brand development (async function)
+            output = asyncio.run(develop_brand_with_output(concept))
+            brand_identity = output.brand_identity
+
+            # Save the brand
+            self._current_progress = "Saving brand..."
+            storage_create_brand(brand_identity)
+            slug = brand_identity.slug
+
+            # Save uploaded images to the new brand's assets directory
+            brand_dir = get_brand_dir(slug)
+            assets_dir = brand_dir / "assets"
+            docs_dir = brand_dir / "docs"
+
+            for img in images:
+                filename = img.get("filename", "")
+                data_b64 = img.get("data", "")
+                if not filename or not data_b64:
+                    continue
+
+                ext = Path(filename).suffix.lower()
+                if ext not in ALLOWED_IMAGE_EXTS:
+                    continue
+
+                # Determine category from filename or default to logo
+                category = "logo" if "logo" in filename.lower() else "marketing"
+                target_dir = assets_dir / category
+                target_dir.mkdir(parents=True, exist_ok=True)
+
+                target_path = target_dir / filename
+                if not target_path.exists():
+                    target_path.write_bytes(base64.b64decode(data_b64))
+
+            # Save uploaded documents to the brand's docs directory
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            for doc in documents:
+                filename = doc.get("filename", "")
+                data_b64 = doc.get("data", "")
+                if not filename or not data_b64:
+                    continue
+
+                ext = Path(filename).suffix.lower()
+                if ext not in ALLOWED_TEXT_EXTS:
+                    continue
+
+                target_path = docs_dir / filename
+                if not target_path.exists():
+                    target_path.write_bytes(base64.b64decode(data_b64))
+
+            self._current_progress = ""
+
+            return BridgeResponse(
+                success=True,
+                data={"slug": slug, "name": brand_identity.core.name},
+            ).to_dict()
+
+        except ValueError as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+        except Exception as e:
+            self._current_progress = ""
+            return BridgeResponse(success=False, error=f"Failed to create brand: {e}").to_dict()
 
     # =========================================================================
     # Document Management (Text Files)
