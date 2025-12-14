@@ -259,7 +259,15 @@ def delete_brand(slug: str) -> bool:
 def list_brands() -> list[BrandIndexEntry]:
     """List all brands, sorted by last accessed (most recent first)."""
     index = load_index()
-    return sorted(index.brands, key=lambda b: b.last_accessed, reverse=True)
+
+    def _normalize_dt(dt: datetime) -> datetime:
+        """Convert to naive datetime for comparison (handles mixed tz-aware/naive)."""
+        if dt.tzinfo is not None:
+            # Convert to UTC then strip timezone
+            return dt.replace(tzinfo=None)
+        return dt
+
+    return sorted(index.brands, key=lambda b: _normalize_dt(b.last_accessed), reverse=True)
 
 
 def update_brand_summary_stats(slug: str) -> bool:
