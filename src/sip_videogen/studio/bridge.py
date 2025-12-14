@@ -3,19 +3,22 @@
 import asyncio
 import base64
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from sip_videogen.advisor.agent import BrandAdvisor, AdvisorProgress
+from sip_videogen.advisor.agent import AdvisorProgress, BrandAdvisor
+from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import (
+    get_active_brand,
+    get_brand_dir,
     list_brands,
     load_brand_summary,
-    get_active_brand,
     set_active_brand,
-    get_brand_dir,
 )
-from sip_videogen.brands.memory import list_brand_assets
+
+ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+ALLOWED_TEXT_EXTS = {".md", ".txt", ".json", ".yaml", ".yml"}
 
 
 @dataclass
@@ -37,36 +40,46 @@ class StudioBridge:
         self._advisor: BrandAdvisor | None = None
         self._current_brand: str | None = None
         self._current_progress: str = ""
-        self._generated_images: list[str] = []
         self._window = None
 
     # =========================================================================
-    # Path Safety Helper
+    # Path Safety Helpers
     # =========================================================================
 
-    def _resolve_safe_path(self, relative_path: str) -> tuple[Path | None, str | None]:
-        """Resolve a relative path safely within the brand's assets directory.
+    def _get_active_slug(self) -> str | None:
+        """Get the active brand slug (bridge-local, falling back to global)."""
+        return self._current_brand or get_active_brand()
 
-        Returns:
-            (resolved_path, None) on success
-            (None, error_message) on failure
-        """
-        slug = self._current_brand or get_active_brand()
+    def _get_brand_dir(self) -> tuple[Path | None, str | None]:
+        """Get the active brand directory."""
+        slug = self._get_active_slug()
         if not slug:
             return None, "No brand selected"
+        return get_brand_dir(slug), None
 
-        brand_dir = get_brand_dir(slug)
-        assets_dir = brand_dir / "assets"
-
-        # Resolve the path and check containment
+    def _resolve_in_dir(self, base_dir: Path, relative_path: str) -> tuple[Path | None, str | None]:
+        """Resolve a path safely within a base directory (prevents path traversal)."""
         try:
-            resolved = (assets_dir / relative_path).resolve()
-            # Use is_relative_to() for proper containment check (Python 3.9+)
-            if not resolved.is_relative_to(assets_dir.resolve()):
-                return None, "Invalid path: outside assets directory"
+            resolved = (base_dir / relative_path).resolve()
+            if not resolved.is_relative_to(base_dir.resolve()):
+                return None, "Invalid path: outside allowed directory"
             return resolved, None
         except (ValueError, OSError) as e:
             return None, f"Invalid path: {e}"
+
+    def _resolve_assets_path(self, relative_path: str) -> tuple[Path | None, str | None]:
+        """Resolve a path inside the brand's assets directory."""
+        brand_dir, err = self._get_brand_dir()
+        if err:
+            return None, err
+        return self._resolve_in_dir(brand_dir / "assets", relative_path)
+
+    def _resolve_docs_path(self, relative_path: str) -> tuple[Path | None, str | None]:
+        """Resolve a path inside the brand's docs directory."""
+        brand_dir, err = self._get_brand_dir()
+        if err:
+            return None, err
+        return self._resolve_in_dir(brand_dir / "docs", relative_path)
 
     # =========================================================================
     # Configuration / Setup
@@ -109,13 +122,9 @@ class StudioBridge:
         """Get list of all available brands."""
         try:
             entries = list_brands()
-            brands = [
-                {"slug": e.slug, "name": e.name, "category": e.category} for e in entries
-            ]
+            brands = [{"slug": e.slug, "name": e.name, "category": e.category} for e in entries]
             active = get_active_brand()
-            return BridgeResponse(
-                success=True, data={"brands": brands, "active": active}
-            ).to_dict()
+            return BridgeResponse(success=True, data={"brands": brands, "active": active}).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
@@ -124,9 +133,7 @@ class StudioBridge:
         try:
             entries = list_brands()
             if slug not in [e.slug for e in entries]:
-                return BridgeResponse(
-                    success=False, error=f"Brand '{slug}' not found"
-                ).to_dict()
+                return BridgeResponse(success=False, error=f"Brand '{slug}' not found").to_dict()
 
             set_active_brand(slug)
             self._current_brand = slug
@@ -138,7 +145,6 @@ class StudioBridge:
             else:
                 self._advisor.set_brand(slug, preserve_history=False)
 
-            self._generated_images = []
             return BridgeResponse(success=True, data={"slug": slug}).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
@@ -151,9 +157,7 @@ class StudioBridge:
         try:
             target_slug = slug or self._current_brand or get_active_brand()
             if not target_slug:
-                return BridgeResponse(
-                    success=False, error="No brand selected"
-                ).to_dict()
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
 
             # Use BrandSummary for direct field access
             summary = load_brand_summary(target_slug)
@@ -175,20 +179,183 @@ class StudioBridge:
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
     # =========================================================================
-    # Asset Management (Images Only)
+    # Document Management (Text Files)
+    # =========================================================================
+
+    def get_documents(self, slug: str | None = None) -> dict:
+        """List brand documents (text files) under docs/.
+
+        Returns:
+            {"success": True, "data": {"documents": [{"name": ..., "path": ..., "size": ...}, ...]}}
+        """
+        try:
+            target_slug = slug or self._current_brand or get_active_brand()
+            if not target_slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            docs_dir = get_brand_dir(target_slug) / "docs"
+            if not docs_dir.exists():
+                return BridgeResponse(success=True, data={"documents": []}).to_dict()
+
+            documents: list[dict] = []
+            for path in sorted(docs_dir.rglob("*")):
+                if not path.is_file():
+                    continue
+                if path.name.startswith("."):
+                    continue
+                if path.suffix.lower() not in ALLOWED_TEXT_EXTS:
+                    continue
+
+                rel = str(path.relative_to(docs_dir))
+                documents.append(
+                    {
+                        "name": path.name,
+                        "path": rel,
+                        "size": path.stat().st_size,
+                    }
+                )
+
+            return BridgeResponse(success=True, data={"documents": documents}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def read_document(self, relative_path: str) -> dict:
+        """Read a document's text content (read-only preview)."""
+        try:
+            resolved, error = self._resolve_docs_path(relative_path)
+            if error:
+                return BridgeResponse(success=False, error=error).to_dict()
+
+            if not resolved.exists():
+                return BridgeResponse(success=False, error="Document not found").to_dict()
+
+            if resolved.suffix.lower() not in ALLOWED_TEXT_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
+            # Basic safety limit to avoid returning huge files to the UI
+            max_bytes = 512 * 1024  # 512 KB
+            if resolved.stat().st_size > max_bytes:
+                return BridgeResponse(
+                    success=False,
+                    error="Document too large to preview (limit: 512KB)",
+                ).to_dict()
+
+            content = resolved.read_text(encoding="utf-8", errors="replace")
+            return BridgeResponse(
+                success=True,
+                data={"content": content},
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def open_document_in_finder(self, relative_path: str) -> dict:
+        """Reveal a document in Finder."""
+        import subprocess
+
+        try:
+            resolved, error = self._resolve_docs_path(relative_path)
+            if error:
+                return BridgeResponse(success=False, error=error).to_dict()
+
+            if not resolved.exists():
+                return BridgeResponse(success=False, error="Document not found").to_dict()
+
+            subprocess.run(["open", "-R", str(resolved)], check=True)
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def delete_document(self, relative_path: str) -> dict:
+        """Delete a document file."""
+        try:
+            resolved, error = self._resolve_docs_path(relative_path)
+            if error:
+                return BridgeResponse(success=False, error=error).to_dict()
+
+            if not resolved.exists():
+                return BridgeResponse(success=False, error="Document not found").to_dict()
+
+            if resolved.is_dir():
+                return BridgeResponse(success=False, error="Cannot delete folders").to_dict()
+
+            resolved.unlink()
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def rename_document(self, relative_path: str, new_name: str) -> dict:
+        """Rename a document file."""
+        try:
+            resolved, error = self._resolve_docs_path(relative_path)
+            if error:
+                return BridgeResponse(success=False, error=error).to_dict()
+
+            if not resolved.exists():
+                return BridgeResponse(success=False, error="Document not found").to_dict()
+
+            if "/" in new_name or "\\" in new_name:
+                return BridgeResponse(success=False, error="Invalid filename").to_dict()
+
+            if Path(new_name).suffix.lower() not in ALLOWED_TEXT_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
+            new_path = resolved.parent / new_name
+            if new_path.exists():
+                return BridgeResponse(
+                    success=False, error=f"File already exists: {new_name}"
+                ).to_dict()
+
+            resolved.rename(new_path)
+            brand_dir, err = self._get_brand_dir()
+            if err:
+                return BridgeResponse(success=False, error=err).to_dict()
+            rel = str(new_path.relative_to(brand_dir / "docs"))
+            return BridgeResponse(success=True, data={"newPath": rel}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def upload_document(self, filename: str, data_base64: str) -> dict:
+        """Upload a document into docs/ (text-only)."""
+        try:
+            brand_dir, err = self._get_brand_dir()
+            if err:
+                return BridgeResponse(success=False, error=err).to_dict()
+
+            if "/" in filename or "\\" in filename:
+                return BridgeResponse(success=False, error="Invalid filename").to_dict()
+
+            if Path(filename).suffix.lower() not in ALLOWED_TEXT_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
+            docs_dir = brand_dir / "docs"
+            docs_dir.mkdir(parents=True, exist_ok=True)
+
+            target_path = docs_dir / filename
+            if target_path.exists():
+                return BridgeResponse(
+                    success=False, error=f"File already exists: {filename}"
+                ).to_dict()
+
+            content = base64.b64decode(data_base64)
+            target_path.write_bytes(content)
+
+            return BridgeResponse(success=True, data={"path": filename}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    # =========================================================================
+    # Asset Management (Images)
     # =========================================================================
 
     def get_assets(self, slug: str | None = None) -> dict:
         """Get asset tree for a brand.
 
-        NOTE: Only returns image files. Text file management is out of MVP scope.
+        NOTE: Images are listed via list_brand_assets(). Documents are handled by get_documents().
         """
         try:
             target_slug = slug or self._current_brand or get_active_brand()
             if not target_slug:
-                return BridgeResponse(
-                    success=False, error="No brand selected"
-                ).to_dict()
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
 
             categories = [
                 "logo",
@@ -234,28 +401,41 @@ class StudioBridge:
     def get_asset_thumbnail(self, relative_path: str) -> dict:
         """Get base64-encoded thumbnail for an asset."""
         try:
-            resolved, error = self._resolve_safe_path(relative_path)
+            resolved, error = self._resolve_assets_path(relative_path)
             if error:
                 return BridgeResponse(success=False, error=error).to_dict()
 
             if not resolved.exists():
                 return BridgeResponse(success=False, error="Asset not found").to_dict()
 
-            content = resolved.read_bytes()
-            encoded = base64.b64encode(content).decode("utf-8")
+            suffix = resolved.suffix.lower()
+            if suffix not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
 
-            mime_types = {
-                ".png": "image/png",
-                ".jpg": "image/jpeg",
-                ".jpeg": "image/jpeg",
-                ".gif": "image/gif",
-                ".webp": "image/webp",
-                ".svg": "image/svg+xml",
-            }
-            mime = mime_types.get(resolved.suffix.lower(), "application/octet-stream")
+            # SVG: return as-is (thumbnailing SVG is non-trivial without extra deps)
+            if suffix == ".svg":
+                content = resolved.read_bytes()
+                encoded = base64.b64encode(content).decode("utf-8")
+                return BridgeResponse(
+                    success=True,
+                    data={"dataUrl": f"data:image/svg+xml;base64,{encoded}"},
+                ).to_dict()
+
+            # Raster images: generate a real thumbnail to reduce payload size
+            import io
+
+            from PIL import Image
+
+            with Image.open(resolved) as img:
+                img = img.convert("RGBA")
+                img.thumbnail((256, 256))
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
 
             return BridgeResponse(
-                success=True, data={"dataUrl": f"data:{mime};base64,{encoded}"}
+                success=True,
+                data={"dataUrl": f"data:image/png;base64,{encoded}"},
             ).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
@@ -265,12 +445,15 @@ class StudioBridge:
         import subprocess
 
         try:
-            resolved, error = self._resolve_safe_path(relative_path)
+            resolved, error = self._resolve_assets_path(relative_path)
             if error:
                 return BridgeResponse(success=False, error=error).to_dict()
 
             if not resolved.exists():
                 return BridgeResponse(success=False, error="Asset not found").to_dict()
+
+            if resolved.suffix.lower() not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
 
             subprocess.run(["open", "-R", str(resolved)], check=True)
             return BridgeResponse(success=True).to_dict()
@@ -280,7 +463,7 @@ class StudioBridge:
     def delete_asset(self, relative_path: str) -> dict:
         """Delete an asset file."""
         try:
-            resolved, error = self._resolve_safe_path(relative_path)
+            resolved, error = self._resolve_assets_path(relative_path)
             if error:
                 return BridgeResponse(success=False, error=error).to_dict()
 
@@ -288,9 +471,10 @@ class StudioBridge:
                 return BridgeResponse(success=False, error="Asset not found").to_dict()
 
             if resolved.is_dir():
-                return BridgeResponse(
-                    success=False, error="Cannot delete folders"
-                ).to_dict()
+                return BridgeResponse(success=False, error="Cannot delete folders").to_dict()
+
+            if resolved.suffix.lower() not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
 
             resolved.unlink()
             return BridgeResponse(success=True).to_dict()
@@ -300,17 +484,21 @@ class StudioBridge:
     def rename_asset(self, relative_path: str, new_name: str) -> dict:
         """Rename an asset file."""
         try:
-            resolved, error = self._resolve_safe_path(relative_path)
+            resolved, error = self._resolve_assets_path(relative_path)
             if error:
                 return BridgeResponse(success=False, error=error).to_dict()
 
             if not resolved.exists():
                 return BridgeResponse(success=False, error="Asset not found").to_dict()
 
+            if resolved.suffix.lower() not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
             if "/" in new_name or "\\" in new_name:
-                return BridgeResponse(
-                    success=False, error="Invalid filename"
-                ).to_dict()
+                return BridgeResponse(success=False, error="Invalid filename").to_dict()
+
+            if Path(new_name).suffix.lower() not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
 
             new_path = resolved.parent / new_name
             if new_path.exists():
@@ -325,16 +513,12 @@ class StudioBridge:
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
-    def upload_asset(
-        self, filename: str, data_base64: str, category: str = "generated"
-    ) -> dict:
+    def upload_asset(self, filename: str, data_base64: str, category: str = "generated") -> dict:
         """Upload a file to brand's assets directory."""
         try:
             slug = self._current_brand or get_active_brand()
             if not slug:
-                return BridgeResponse(
-                    success=False, error="No brand selected"
-                ).to_dict()
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
 
             valid_categories = [
                 "logo",
@@ -345,26 +529,28 @@ class StudioBridge:
                 "generated",
             ]
             if category not in valid_categories:
-                return BridgeResponse(
-                    success=False, error="Invalid category"
-                ).to_dict()
+                return BridgeResponse(success=False, error="Invalid category").to_dict()
 
             if "/" in filename or "\\" in filename:
-                return BridgeResponse(
-                    success=False, error="Invalid filename"
-                ).to_dict()
+                return BridgeResponse(success=False, error="Invalid filename").to_dict()
+
+            if Path(filename).suffix.lower() not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
 
             brand_dir = get_brand_dir(slug)
             target_dir = brand_dir / "assets" / category
             target_dir.mkdir(parents=True, exist_ok=True)
 
             target_path = target_dir / filename
+            if target_path.exists():
+                return BridgeResponse(
+                    success=False, error=f"File already exists: {filename}"
+                ).to_dict()
+
             content = base64.b64decode(data_base64)
             target_path.write_bytes(content)
 
-            return BridgeResponse(
-                success=True, data={"path": f"{category}/{filename}"}
-            ).to_dict()
+            return BridgeResponse(success=True, data={"path": f"{category}/{filename}"}).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
@@ -382,10 +568,6 @@ class StudioBridge:
             else:
                 self._current_progress = progress.message
         elif progress.event_type == "tool_end":
-            if progress.detail and progress.detail.endswith(
-                (".png", ".jpg", ".jpeg")
-            ):
-                self._generated_images.append(progress.detail)
             self._current_progress = ""
 
     def get_progress(self) -> dict:
@@ -394,9 +576,7 @@ class StudioBridge:
         NOTE: Polling may not work if PyWebView blocks concurrent calls.
         Test during implementation; fall back to static "Thinking..." if needed.
         """
-        return BridgeResponse(
-            success=True, data={"status": self._current_progress}
-        ).to_dict()
+        return BridgeResponse(success=True, data={"status": self._current_progress}).to_dict()
 
     def chat(self, message: str) -> dict:
         """Send a message to the Brand Advisor."""
@@ -409,25 +589,38 @@ class StudioBridge:
                     )
                     self._current_brand = active
                 else:
-                    return BridgeResponse(
-                        success=False, error="No brand selected"
-                    ).to_dict()
+                    return BridgeResponse(success=False, error="No brand selected").to_dict()
 
-            self._generated_images = []
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            # Snapshot generated assets before running (robust vs relying on progress hook details)
+            before = {a["path"] for a in list_brand_assets(slug, category="generated")}
+
             response = asyncio.run(self._advisor.chat(message))
 
-            # Convert generated images to base64
-            image_data_urls = []
-            for img_path in self._generated_images:
+            after = {a["path"] for a in list_brand_assets(slug, category="generated")}
+            new_paths = sorted(after - before)
+
+            # Convert new images to base64 data URLs (cap to avoid huge responses)
+            image_data_urls: list[str] = []
+            for img_path in new_paths[:4]:
                 try:
                     path = Path(img_path)
-                    if path.exists():
-                        content = path.read_bytes()
-                        encoded = base64.b64encode(content).decode("utf-8")
-                        mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}.get(
-                            path.suffix.lower().lstrip("."), "image/png"
-                        )
-                        image_data_urls.append(f"data:{mime};base64,{encoded}")
+                    if not path.exists():
+                        continue
+                    if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+                        continue
+                    content = path.read_bytes()
+                    encoded = base64.b64encode(content).decode("utf-8")
+                    mime = {
+                        ".png": "image/png",
+                        ".jpg": "image/jpeg",
+                        ".jpeg": "image/jpeg",
+                        ".webp": "image/webp",
+                    }.get(path.suffix.lower(), "image/png")
+                    image_data_urls.append(f"data:{mime};base64,{encoded}")
                 except Exception:
                     pass
 
@@ -442,7 +635,6 @@ class StudioBridge:
         try:
             if self._advisor:
                 self._advisor.clear_history()
-            self._generated_images = []
             return BridgeResponse(success=True).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
@@ -452,9 +644,7 @@ class StudioBridge:
         try:
             slug = self._current_brand or get_active_brand()
             if not slug:
-                return BridgeResponse(
-                    success=False, error="No brand selected"
-                ).to_dict()
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
 
             if self._advisor is None:
                 self._advisor = BrandAdvisor(
