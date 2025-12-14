@@ -226,19 +226,44 @@ cd src/sip_videogen/studio/frontend
 npm run build  # Should compile successfully
 ```
 
+### Task 2.5: Implement ChatPanel Components
+**Status**: Completed
+**Commit**: `56cbae9`
+
+Changes:
+- Updated ChatPanel to use useChat hook for chat state management
+- Created MessageList component with auto-scroll and ImageLightbox for image viewing
+- Created MessageInput component with auto-resize textarea
+- Render generated images inline with base64 data URLs
+- Added error display with Alert component
+- Support Enter to send, Shift+Enter for newline
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageList.tsx`
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageInput.tsx`
+
+Files modified:
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+npm run dev    # ChatPanel now shows welcome message, input works
+```
+
 ---
 
 ## Next Task
 
-### Task 2.5: Implement ChatPanel Components
-**Priority**: P0
-**Depends On**: Task 2.4 (completed)
+### Task 2.6: Add First-Run Setup Screen
+**Priority**: P1
+**Depends On**: Task 2.2 (completed)
 
 What To Do:
-- Update ChatPanel to use useChat hook
-- Create MessageList component with ImageLightbox
-- Create MessageInput component
-- Render generated images inline with base64 data URLs
+- Create ApiKeySetup component for entering API keys
+- Update App.tsx to gate the app behind setup screen when keys are missing
+- Show setup screen when API keys are not configured (PyWebView only)
 
 ---
 
