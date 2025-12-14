@@ -167,12 +167,9 @@ Before presenting logo:
 
 ## Saving Logo Assets
 
-After generating approved logo:
-
-```
-write_file("assets/logo/logo_primary.png", image_data)
-write_file("assets/logo/logo_icon.png", icon_data)  # if generated
-```
+After generating approved logos, note the file paths returned by `generate_image`
+(images are already saved under `assets/generated/`). Share those paths with the
+user instead of writing binary data with `write_file`.
 
 ## Logo Usage Notes
 

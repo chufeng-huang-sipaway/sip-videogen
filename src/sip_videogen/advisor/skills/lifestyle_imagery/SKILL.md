@@ -200,11 +200,8 @@ Before presenting lifestyle imagery:
 
 ## Saving Lifestyle Assets
 
-```
-write_file("assets/lifestyle/lifestyle_in_use.png", image_data)
-write_file("assets/lifestyle/lifestyle_flatlay.png", image_data)
-write_file("assets/lifestyle/lifestyle_environment.png", image_data)
-```
+`generate_image` saves images under `assets/generated/` and returns the path.
+Share those paths with the user instead of calling `write_file` on binary data.
 
 ## Series Considerations
 

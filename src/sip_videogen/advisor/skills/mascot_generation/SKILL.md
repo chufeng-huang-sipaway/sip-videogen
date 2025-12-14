@@ -144,16 +144,9 @@ Before presenting mascot:
 
 ## Saving Mascot Assets
 
-After generating approved mascot:
-
-```
-# Primary mascot
-write_file("assets/mascot/mascot_primary.png", image_data)
-
-# Alternate poses
-write_file("assets/mascot/mascot_action.png", image_data)
-write_file("assets/mascot/mascot_emotive.png", image_data)
-```
+After generating approved mascot assets, rely on the file paths returned by
+`generate_image` (images are already saved under `assets/generated/`). Share
+those paths with the user; do not attempt to write binary data via `write_file`.
 
 ## Example Conversation Flow
 

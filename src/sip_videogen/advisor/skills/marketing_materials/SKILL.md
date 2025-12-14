@@ -217,11 +217,9 @@ Before presenting marketing materials:
 
 ## Saving Marketing Assets
 
-```
-write_file("assets/marketing/marketing_landing.png", image_data)
-write_file("assets/marketing/marketing_social.png", image_data)
-write_file("assets/marketing/marketing_merch.png", image_data)
-```
+`generate_image` saves images under `assets/generated/` and returns the file path.
+Share those returned paths with the user; do not attempt to write binary data
+with `write_file`.
 
 ## Campaign Considerations
 

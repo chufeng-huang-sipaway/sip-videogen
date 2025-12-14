@@ -61,7 +61,28 @@
       "Bash(xargs -I {} sh -c 'echo \"\"\"\"=== {} ===\"\"\"\" && find {} -type f | head -20')",
       "Bash(python3 -m py_compile:*)",
       "Bash(python3:*)",
-      "Bash(/Users/huangcf/Library/Python/3.10/bin/twine upload dist/*)"
+      "Bash(/Users/huangcf/Library/Python/3.10/bin/twine upload dist/*)",
+      "Bash(/Users/huangcf/.local/bin/python3:*)",
+      "Bash(pipx list:*)",
+      "Bash(.venv/bin/python:*)",
+      "WebFetch(domain:blog.segmind.com)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen commit -m \"fix: Enable follow_redirects for video download\")",
+      "WebFetch(domain:www.datacamp.com)",
+      "Bash(git -C /Users/huangcf/Sip/sip-videogen ls-files src/sip_videogen/config/)",
+      "Bash(git -C:*)",
+      "Bash(README.md )",
+      "Bash(src/sip_videogen/cli.py )",
+      "Bash(src/sip_videogen/config/settings.py )",
+      "Bash(src/sip_videogen/config/user_preferences.py )",
+      "Bash(src/sip_videogen/generators/__init__.py )",
+      "Bash(src/sip_videogen/generators/base.py )",
+      "Bash(src/sip_videogen/generators/factory.py )",
+      "Bash(src/sip_videogen/generators/sora_generator.py )",
+      "Bash(tests/test_sora_generator.py)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(tree:*)"
     ]
   }
 }
