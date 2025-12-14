@@ -151,18 +151,44 @@ python3 -m py_compile src/sip_videogen/studio/bridge.py  # Should pass
 ruff check src/sip_videogen/studio/bridge.py             # Should pass
 ```
 
+### Task 2.2: Create JavaScript Bridge Wrapper
+**Status**: Completed
+**Commit**: `93336da`
+
+Changes:
+- Created typed TypeScript wrapper for PyWebView bridge API
+- Defined interfaces: BrandEntry, AssetNode, DocumentEntry, ApiKeyStatus, ChatResponse
+- Implemented isPyWebView() and waitForPyWebViewReady() helper functions
+- Created bridge object with methods for all Python bridge operations
+- Documents API: getDocuments, readDocument, deleteDocument, renameDocument, uploadDocument, openDocumentInFinder
+- Assets API: getAssets, getAssetThumbnail, deleteAsset, renameAsset, uploadAsset, openAssetInFinder
+- Chat API: chat, clearChat, getProgress, refreshBrandMemory
+- API keys: checkApiKeys, saveApiKeys
+- Brand management: getBrands, setBrand, getBrandInfo
+
+Files created:
+- `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - TypeScript bridge wrapper
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should compile successfully
+```
+
 ---
 
 ## Next Task
 
-### Task 2.2: Create JavaScript Bridge Wrapper
+### Task 2.3: Create BrandContext Provider
 **Priority**: P0
-**Depends On**: Task 2.1 (completed)
+**Depends On**: Task 2.2 (completed)
 
 What To Do:
-- Create typed TypeScript wrapper for the Python bridge in `src/lib/bridge.ts`
-- Define interfaces for BrandEntry, AssetNode, DocumentEntry, ApiKeyStatus, ChatResponse
-- Implement wrapper functions with proper error handling
+- Create React Context in `src/context/BrandContext.tsx` to share brand state
+- Implement BrandProvider component with brands, activeBrand, isLoading, error state
+- Export useBrand() hook for accessing context
+- Update main.tsx to wrap App with BrandProvider
+- Update BrandSelector.tsx to use useBrand() instead of local state
 
 ---
 
