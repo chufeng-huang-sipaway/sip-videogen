@@ -1,523 +1,79 @@
-# Brand Studio - Development Progress
+# PR Guide: Brand Studio UX Refactor
 
-## Task List Reference
-See `BRAND_STUDIO_TASKS.md` for the full task list.
+## Related Task List
+- **File**: `BRAND_STUDIO_INTERN_TASKS.md`
+- **Branch**: `refactor-skills`
 
 ## Completed Tasks
 
-### Task 1.1: Create Studio Python Package Structure
-**Status**: Completed (prior to this session)
+### Task 1.1: Set Up Tailwind Typography Plugin ✅
+**Commit**: 3a21cd5
 
-Files created:
-- `src/sip_videogen/studio/__init__.py` - Package init with version
-- `src/sip_videogen/studio/__main__.py` - Entry point for `python -m sip_videogen.studio`
-- `src/sip_videogen/studio/app.py` - PyWebView window setup
-- `src/sip_videogen/studio/bridge.py` - Python bridge class for JS
+**Changes**:
+- Installed `@tailwindcss/typography` package
+- Registered plugin in `src/index.css` using Tailwind v4 `@plugin` directive
 
-### Task 1.2: Initialize React + Vite + TypeScript Frontend
-**Status**: Completed
-**Commit**: `a5a20cb`
+**Files Modified**:
+- `src/sip_videogen/studio/frontend/package.json` - Added dependency
+- `src/sip_videogen/studio/frontend/package-lock.json` - Lock file updated
+- `src/sip_videogen/studio/frontend/src/index.css` - Added `@plugin "@tailwindcss/typography"`
 
-Changes:
-- Scaffolded React + TypeScript frontend using Vite
-- Configured path alias (`@/`) in `vite.config.ts` and `tsconfig.app.json`
-- Build output configured to `dist/` directory
-- Development server configured on port 5173
+**Verification**:
+- `npm run build` completes successfully
+- `prose` classes are now available for markdown styling
 
-Files created:
-- `src/sip_videogen/studio/frontend/` - Complete Vite React TypeScript project
+### Task 1.2: Add Markdown Rendering to Chat Messages ✅
+**Commit**: 9e6311e
 
-Verification:
+**Changes**:
+- Installed `react-markdown` and `remark-gfm` packages
+- Created `MarkdownContent.tsx` component with prose styling and GFM support
+- Updated `MessageList.tsx` to render assistant messages using MarkdownContent
+
+**Files Modified**:
+- `src/sip_videogen/studio/frontend/package.json` - Added react-markdown and remark-gfm dependencies
+- `src/sip_videogen/studio/frontend/package-lock.json` - Lock file updated
+
+**Files Created**:
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MarkdownContent.tsx` - New markdown rendering component
+
+**Files Updated**:
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageList.tsx` - Uses MarkdownContent for assistant messages
+
+**Verification**:
+- `npm run build` completes successfully
+- Agent responses now render with proper headings, bold text, lists, code blocks, and links
+
+### Task 1.3: Add Markdown Rendering to Document Preview ✅
+**Commit**: 6d7bcf8
+
+**Changes**:
+- Imported `MarkdownContent` component in `DocumentsList.tsx`
+- Conditionally render markdown files (`.md`) with `MarkdownContent`
+- Keep raw `<pre>` formatting for `.json`, `.yaml`, and other file types
+
+**Files Updated**:
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx` - Conditional markdown rendering in document preview dialog
+
+**Verification**:
+- `npm run build` completes successfully
+- Clicking a `.md` file in sidebar shows formatted markdown (headings, lists, etc.)
+- Clicking a `.json` file still shows raw JSON (not markdown rendered)
+
+## Next Task
+**Task 1.4**: Add "New Chat" Button
+
+## Testing Instructions
 ```bash
 cd src/sip_videogen/studio/frontend
-npm install
-npm run build  # Creates dist/
-npm run dev    # Starts dev server at http://localhost:5173
+npm run build  # Should complete without errors
+
+# Manual verification:
+# 1. Start the app, select a brand, send a message
+# 2. Ask: "Give me a bullet list of 3 logo ideas with **bold** keywords"
+# 3. Response should show properly formatted bullets with bold text
 ```
 
-### Task 1.3: Add PyWebView and Create Window
-**Status**: Completed (prior to this session)
-
-PyWebView integration in `app.py` with:
-- Development mode support (`STUDIO_DEV=1`)
-- Frontend URL resolution (dev server vs built dist)
-- Window configuration (1400x900, resizable, etc.)
-
-### Task 1.4: Add Tailwind CSS
-**Status**: Completed
-**Commit**: `4d92a31`
-
-Changes:
-- Installed Tailwind CSS v4 with `@tailwindcss/postcss` and `autoprefixer`
-- Created `postcss.config.js` for Tailwind v4 PostCSS integration
-- Updated `src/index.css` with `@import "tailwindcss"` and custom theme
-- Added custom colors: `sidebar-light` and `sidebar-dark` for glassmorphism
-- Added `.glass` utility class for backdrop blur effects
-- Updated `App.tsx` to demonstrate Tailwind styling is working
-- Removed default `App.css` (now using Tailwind utilities)
-
-Files created/modified:
-- `src/sip_videogen/studio/frontend/postcss.config.js` - PostCSS config
-- `src/sip_videogen/studio/frontend/src/index.css` - Tailwind imports and custom theme
-- `src/sip_videogen/studio/frontend/src/App.tsx` - Updated with Tailwind classes
-- Deleted: `src/sip_videogen/studio/frontend/src/App.css`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should build successfully with Tailwind styles
-npm run dev    # Should show styled "Brand Studio" page
-```
-
-### Task 1.5: Install and Configure shadcn/ui
-**Status**: Completed
-**Commit**: `0324327`
-
-Changes:
-- Installed lucide-react for icons
-- Installed Radix UI primitives for shadcn/ui components
-- Installed class-variance-authority, clsx, tailwind-merge for styling utilities
-- Created `src/lib/utils.ts` with `cn()` helper function
-- Created shadcn/ui components: button, input, scroll-area, dropdown-menu, context-menu, dialog, tooltip, separator, alert
-- Updated `src/index.css` with CSS variables for light/dark theme support
-- Updated `App.tsx` to demonstrate shadcn/ui components are working
-- Updated root `.gitignore` to allow frontend `src/lib/` directory
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/lib/utils.ts`
-- `src/sip_videogen/studio/frontend/src/components/ui/button.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/input.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/scroll-area.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/dropdown-menu.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/context-menu.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/dialog.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/tooltip.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/separator.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ui/alert.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Builds successfully
-npm run dev    # Shows shadcn/ui components demo
-```
-
-### Task 1.6: Create Basic Two-Panel Layout
-**Status**: Completed
-**Commit**: `bc36c76`
-
-Changes:
-- Created Sidebar component with glassmorphism styling
-- Created BrandSelector, DocumentsList, AssetTree placeholder components
-- Created ChatPanel component placeholder
-- Updated App.tsx with two-panel layout (Sidebar + ChatPanel)
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx`
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/BrandSelector.tsx`
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx`
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/AssetTree.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx`
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/App.tsx` - Two-panel layout
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Builds successfully
-npm run dev    # Shows two-panel layout with Sidebar + ChatPanel
-```
-
-### Task 2.1: Implement Python Bridge API
-**Status**: Completed
-**Commit**: `b9943b1`
-
-Changes:
-- Added document management methods: get_documents, read_document, open_document_in_finder, delete_document, rename_document, upload_document
-- Added ALLOWED_IMAGE_EXTS and ALLOWED_TEXT_EXTS constants for file validation
-- Refactored path safety helpers with _get_active_slug, _get_brand_dir, _resolve_in_dir, _resolve_assets_path, _resolve_docs_path
-- Improved asset validation with extension checks in all asset operations
-- Added proper thumbnail generation using PIL (256x256) for raster images
-- Improved chat() method with before/after asset snapshot for robust image detection
-- Added file type validation throughout all file operations
-
-Files modified:
-- `src/sip_videogen/studio/bridge.py` - Complete Python Bridge API implementation
-
-Verification:
-```bash
-python3 -m py_compile src/sip_videogen/studio/bridge.py  # Should pass
-ruff check src/sip_videogen/studio/bridge.py             # Should pass
-```
-
-### Task 2.2: Create JavaScript Bridge Wrapper
-**Status**: Completed
-**Commit**: `93336da`
-
-Changes:
-- Created typed TypeScript wrapper for PyWebView bridge API
-- Defined interfaces: BrandEntry, AssetNode, DocumentEntry, ApiKeyStatus, ChatResponse
-- Implemented isPyWebView() and waitForPyWebViewReady() helper functions
-- Created bridge object with methods for all Python bridge operations
-- Documents API: getDocuments, readDocument, deleteDocument, renameDocument, uploadDocument, openDocumentInFinder
-- Assets API: getAssets, getAssetThumbnail, deleteAsset, renameAsset, uploadAsset, openAssetInFinder
-- Chat API: chat, clearChat, getProgress, refreshBrandMemory
-- API keys: checkApiKeys, saveApiKeys
-- Brand management: getBrands, setBrand, getBrandInfo
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - TypeScript bridge wrapper
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-```
-
-### Task 2.3: Create BrandContext Provider
-**Status**: Completed
-**Commit**: `1125449`
-
-Changes:
-- Created `src/context/BrandContext.tsx` with BrandProvider and useBrand() hook
-- Centralized brand state management (brands, activeBrand, isLoading, error)
-- Implemented selectBrand() and refresh() functions for brand operations
-- Added mock data fallback for development mode (when not running in PyWebView)
-- Updated main.tsx to wrap App with BrandProvider
-- Updated BrandSelector.tsx to use useBrand() hook with full dropdown menu
-- Updated App.tsx to pass activeBrand to ChatPanel
-- Updated ChatPanel to accept brandSlug prop
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/context/BrandContext.tsx`
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/main.tsx`
-- `src/sip_videogen/studio/frontend/src/App.tsx`
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/BrandSelector.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # BrandSelector now shows loading state, then mock brands
-```
-
-### Task 2.4: Create useChat Hook
-**Status**: Completed
-**Commit**: `2086d66`
-
-Changes:
-- Created `src/hooks/useChat.ts` for chat state management
-- Implemented Message interface with id, role, content, images, timestamp, status, error
-- Added messages state with sendMessage and clearMessages functions
-- Implemented progress polling for PyWebView (with fallback if concurrent calls fail)
-- Added mock response support for development mode (non-PyWebView environment)
-- Messages auto-clear when brand changes
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/hooks/useChat.ts`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-```
-
-### Task 2.5: Implement ChatPanel Components
-**Status**: Completed
-**Commit**: `56cbae9`
-
-Changes:
-- Updated ChatPanel to use useChat hook for chat state management
-- Created MessageList component with auto-scroll and ImageLightbox for image viewing
-- Created MessageInput component with auto-resize textarea
-- Render generated images inline with base64 data URLs
-- Added error display with Alert component
-- Support Enter to send, Shift+Enter for newline
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageList.tsx`
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageInput.tsx`
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # ChatPanel now shows welcome message, input works
-```
-
-### Task 2.6: Add First-Run Setup Screen
-**Status**: Completed
-**Commit**: `e693152`
-
-Changes:
-- Created ApiKeySetup component for entering API keys on first run
-- Updated App.tsx to gate app behind setup screen when keys missing
-- Show setup screen only in PyWebView mode (not browser dev mode)
-- Keys stored in memory for session via bridge.saveApiKeys()
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/components/Setup/ApiKeySetup.tsx`
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/App.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # In browser, skips setup (dev mode)
-# In PyWebView with no keys, shows setup screen
-```
-
-### Task 3.1: Create useDocuments Hook
-**Status**: Completed
-**Commit**: `f7535e5`
-
-Changes:
-- Created useDocuments hook for listing and managing brand documents
-- Support CRUD operations: list, read, delete, rename, upload
-- Include mock data fallback for dev mode (non-PyWebView environment)
-- Auto-refresh when brandSlug changes
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/hooks/useDocuments.ts`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-```
-
-### Task 3.2: Implement DocumentsList Component
-**Status**: Completed
-**Commit**: `72632a0`
-
-Changes:
-- Implemented full DocumentsList component with drag-and-drop file upload
-- Added context menu with Preview, Reveal in Finder, Rename, Delete actions
-- Added document preview dialog for viewing file contents
-- Show file sizes on hover, loading state, and error handling
-- Filter uploads to allowed extensions (.md, .txt, .json, .yaml, .yml)
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # DocumentsList shows in sidebar with upload/preview features
-```
-
-### Task 3.3: Create useAssets Hook
-**Status**: Completed
-**Commit**: `8125ee0`
-
-Changes:
-- Created useAssets hook for managing asset tree state
-- Support CRUD operations: list, delete, rename, upload, get thumbnail
-- Include mock data fallback for dev mode (non-PyWebView environment)
-- Auto-refresh when brandSlug changes
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/hooks/useAssets.ts`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-```
-
-### Task 3.4: Implement AssetTree Component
-**Status**: Completed
-**Commit**: `9a1f08f`
-
-Changes:
-- Implemented full AssetTree component with folder expansion
-- Added AssetThumbnail component for loading image thumbnails via bridge API
-- Added TreeItem recursive component for folder hierarchy rendering
-- Added context menu with Reveal in Finder, Rename, Delete actions
-- Support drag-and-drop upload to assets/generated folder
-- Show file sizes on hover with formatSize helper
-- Added refresh and AI memory refresh buttons
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/AssetTree.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # AssetTree shows in sidebar with folder expansion and thumbnails
-```
-
-### Task 3.5: Add Drag-and-Drop Upload
-**Status**: Completed
-**Commit**: `c0f6d69`
-
-Changes:
-- Added error feedback for unsupported file types in DocumentsList and AssetTree
-- Implemented inline Alert component with 5-second auto-dismiss for upload errors
-- Added console logging for rejected/failed file uploads for debugging
-- DocumentsList: validates file extension against allowed list (.md, .txt, .json, .yaml, .yml)
-- AssetTree: validates both MIME type and extension for better image filtering
-- Both components now surface upload failures in UI instead of silently skipping
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx`
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/AssetTree.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # Drag unsupported file types to see error alerts
-```
-
-### Task 4.1: Implement Dark Mode
-**Status**: Completed
-**Commit**: `93cecce`
-
-Changes:
-- Created `useTheme` hook to detect system dark/light mode preference
-- Hook applies Tailwind's `dark` class to `<html>` element on mode change
-- Updated App.tsx to call useTheme on mount (before any conditional rendering)
-
-Files created:
-- `src/sip_videogen/studio/frontend/src/hooks/useTheme.ts`
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/App.tsx`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # Toggle macOS Appearance (System Settings → Appearance) to verify UI switches
-```
-
-### Task 4.2: Add Glassmorphism Styling
-**Status**: Completed
-**Commit**: `bdb3014`
-
-Changes:
-- Added `.glass-sidebar` CSS class with macOS-like frosted glass effect
-- Applied `saturate(180%) blur(20px)` backdrop filter for authentic look
-- Support dark mode with separate background opacity (rgba(30, 30, 30, 0.72))
-- Updated Sidebar component to use `glass-sidebar` class instead of `glass bg-sidebar-light dark:bg-sidebar-dark`
-
-Files modified:
-- `src/sip_videogen/studio/frontend/src/index.css` - Added `.glass-sidebar` and `.dark .glass-sidebar` CSS rules
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Updated className to use `glass-sidebar`
-
-Verification:
-```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should compile successfully
-npm run dev    # Sidebar should have frosted glass appearance in both light and dark modes
-```
-
-### Task 4.3: Create py2app Configuration
-**Status**: Completed
-**Commit**: `da9ddab`
-
-Changes:
-- Created `setup.py` with py2app configuration for macOS bundling
-- Configured bundle metadata (CFBundleName, CFBundleIdentifier, version 0.1.0)
-- Set NSHighResolutionCapable and NSRequiresAquaSystemAppearance for modern macOS
-- Bundled frontend dist/ in app Resources
-- Added workaround for pyproject.toml conflict (temporarily moves during build)
-- Support both --alias builds (development) and full builds (production)
-
-Files created:
-- `setup.py` - py2app setup script
-
-Verification:
-```bash
-# Build frontend first
-cd src/sip_videogen/studio/frontend && npm run build
-
-# Development build (fast, uses symlinks)
-python setup.py py2app --alias
-open "dist/Brand Studio.app"
-
-# Production build (standalone app)
-python setup.py py2app
-```
-
-### Task 4.4: Create DMG Installer
-**Status**: Completed
-**Commit**: `9227d42`
-
-Changes:
-- Created `scripts/build-dmg.sh` for building macOS DMG installer
-- Uses hdiutil for reliable DMG creation (avoids AppleScript timeouts with create-dmg)
-- Creates drag-to-Applications installer with /Applications symlink
-- Automatically calculates disk image size based on app bundle size
-
-Files created:
-- `scripts/build-dmg.sh` - Shell script for DMG creation
-
-Verification:
-```bash
-# Build frontend and app first
-cd src/sip_videogen/studio/frontend && npm run build
-cd - && python setup.py py2app --alias
-
-# Create DMG
-./scripts/build-dmg.sh
-# Output: dist/Brand-Studio-0.1.0.dmg
-
-# Test the DMG
-open dist/Brand-Studio-0.1.0.dmg
-# Drag Brand Studio to Applications folder
-```
-
----
-
-## All Tasks Completed
-
-All tasks in BRAND_STUDIO_TASKS.md have been implemented. The following verification steps should be performed on a clean machine or VM:
-
-- [ ] App launches without errors
-- [ ] Brand selector shows brands and switching works
-- [ ] Chat sends messages and receives responses
-- [ ] Generated images appear inline
-- [ ] Asset tree shows folders and images
-- [ ] Documents list shows files
-- [ ] Document upload + preview works
-- [ ] Drag-and-drop upload works
-- [ ] Delete/rename context menu works
-- [ ] "Refresh Memory" button works
-- [ ] Dark mode follows system
-
----
-
-## How to Run
-
-### Development Mode
-```bash
-# Terminal 1: Start frontend dev server
-cd src/sip_videogen/studio/frontend
-npm run dev
-
-# Terminal 2: Start PyWebView app
-STUDIO_DEV=1 python -m sip_videogen.studio
-```
-
-### Production Mode
-```bash
-# Build frontend
-cd src/sip_videogen/studio/frontend
-npm run build
-
-# Run app (uses built dist/)
-python -m sip_videogen.studio
-```
+## Notes
+- This PR implements the Brand Studio UX refactor tasks from BRAND_STUDIO_INTERN_TASKS.md
+- Tasks are being implemented sequentially
