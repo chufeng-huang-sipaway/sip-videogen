@@ -6,7 +6,7 @@ import { AssetTree } from './AssetTree'
 
 export function Sidebar() {
   return (
-    <aside className="w-72 h-screen flex flex-col glass bg-sidebar-light dark:bg-sidebar-dark border-r border-gray-200/50 dark:border-gray-700/50">
+    <aside className="w-72 h-screen flex flex-col glass-sidebar border-r border-gray-200/50 dark:border-gray-700/50">
       <div className="p-4 flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
           <span className="text-white text-sm font-bold">B</span>

@@ -82,3 +82,13 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
+
+.glass-sidebar {
+  background: rgba(246, 246, 246, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.dark .glass-sidebar {
+  background: rgba(30, 30, 30, 0.72);
+}
