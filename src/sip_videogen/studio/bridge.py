@@ -281,12 +281,24 @@ class StudioBridge:
         """
         from sip_videogen.agents.brand_director import develop_brand_with_output
 
+        print("\n" + "=" * 60)
+        print("[CREATE_BRAND] Starting brand creation...")
+        print(f"[CREATE_BRAND] Description length: {len(description)} chars")
+        print(f"[CREATE_BRAND] Images count: {len(images)}")
+        print(f"[CREATE_BRAND] Documents count: {len(documents)}")
+        for img in images:
+            print(f"[CREATE_BRAND]   Image: {img.get('filename', 'unknown')}")
+        for doc in documents:
+            print(f"[CREATE_BRAND]   Document: {doc.get('filename', 'unknown')}")
+        print("=" * 60)
+
         try:
             # Build concept from description and document contents
             concept_parts = []
 
             if description.strip():
                 concept_parts.append(f"## Brand Description\n\n{description.strip()}")
+                print("[CREATE_BRAND] Added description to concept")
 
             # Extract text from documents
             for doc in documents:
@@ -294,24 +306,29 @@ class StudioBridge:
                 data_b64 = doc.get("data", "")
                 try:
                     content = base64.b64decode(data_b64).decode("utf-8", errors="replace")
+                    print(f"[CREATE_BRAND] Extracted {len(content)} chars from {filename}")
                     # Limit document size (50KB ~= 25 pages)
                     if len(content) > 50 * 1024:
                         content = content[: 50 * 1024] + "\n...[truncated]"
+                        print("[CREATE_BRAND]   Truncated to 50KB")
                     concept_parts.append(f"## From: {filename}\n\n{content}")
-                except Exception:
-                    pass  # Skip unreadable documents
+                except Exception as e:
+                    print(f"[CREATE_BRAND] ERROR reading {filename}: {e}")
 
             if not concept_parts:
+                print("[CREATE_BRAND] ERROR: No concept parts - nothing to create from")
                 return BridgeResponse(
                     success=False,
                     error="Please provide a description or upload documents.",
                 ).to_dict()
 
             concept = "\n\n---\n\n".join(concept_parts)
+            print(f"[CREATE_BRAND] Combined concept length: {len(concept)} chars")
 
             # The AI has a 5000 character limit - truncate smartly if needed
             max_concept_len = 4800  # Leave some buffer
             if len(concept) > max_concept_len:
+                print(f"[CREATE_BRAND] Concept too long ({len(concept)}), truncating...")
                 # Prioritize the description, truncate document content
                 if description.strip():
                     desc_part = f"## Brand Description\n\n{description.strip()}"
@@ -324,24 +341,33 @@ class StudioBridge:
                         concept = desc_part[:max_concept_len]
                 else:
                     concept = concept[:max_concept_len] + "\n...[truncated]"
+                print(f"[CREATE_BRAND] Final concept length: {len(concept)} chars")
 
             # Report progress
             self._current_progress = "Creating brand identity..."
+            print("[CREATE_BRAND] Calling AI brand director...")
+            print("[CREATE_BRAND] This may take 1-2 minutes...")
 
             # Run brand development (async function)
             output = asyncio.run(develop_brand_with_output(concept))
             brand_identity = output.brand_identity
+            print(f"[CREATE_BRAND] AI completed! Brand name: {brand_identity.core.name}")
+            print(f"[CREATE_BRAND] Brand slug: {brand_identity.slug}")
 
             # Save the brand
             self._current_progress = "Saving brand..."
+            print("[CREATE_BRAND] Saving brand to storage...")
             storage_create_brand(brand_identity)
             slug = brand_identity.slug
+            print(f"[CREATE_BRAND] Brand saved successfully: {slug}")
 
             # Save uploaded images to the new brand's assets directory
             brand_dir = get_brand_dir(slug)
             assets_dir = brand_dir / "assets"
             docs_dir = brand_dir / "docs"
+            print(f"[CREATE_BRAND] Brand directory: {brand_dir}")
 
+            print(f"[CREATE_BRAND] Saving {len(images)} images...")
             for img in images:
                 filename = img.get("filename", "")
                 data_b64 = img.get("data", "")
@@ -350,6 +376,7 @@ class StudioBridge:
 
                 ext = Path(filename).suffix.lower()
                 if ext not in ALLOWED_IMAGE_EXTS:
+                    print(f"[CREATE_BRAND]   Skipping {filename} (unsupported ext)")
                     continue
 
                 # Determine category from filename or default to logo
@@ -360,8 +387,10 @@ class StudioBridge:
                 target_path = target_dir / filename
                 if not target_path.exists():
                     target_path.write_bytes(base64.b64decode(data_b64))
+                    print(f"[CREATE_BRAND]   Saved: {category}/{filename}")
 
             # Save uploaded documents to the brand's docs directory
+            print(f"[CREATE_BRAND] Saving {len(documents)} documents...")
             docs_dir.mkdir(parents=True, exist_ok=True)
             for doc in documents:
                 filename = doc.get("filename", "")
@@ -371,13 +400,19 @@ class StudioBridge:
 
                 ext = Path(filename).suffix.lower()
                 if ext not in ALLOWED_TEXT_EXTS:
+                    print(f"[CREATE_BRAND]   Skipping {filename} (unsupported ext)")
                     continue
 
                 target_path = docs_dir / filename
                 if not target_path.exists():
                     target_path.write_bytes(base64.b64decode(data_b64))
+                    print(f"[CREATE_BRAND]   Saved: docs/{filename}")
 
             self._current_progress = ""
+
+            print("[CREATE_BRAND] " + "=" * 40)
+            print(f"[CREATE_BRAND] SUCCESS! Brand '{brand_identity.core.name}' created")
+            print("[CREATE_BRAND] " + "=" * 40 + "\n")
 
             return BridgeResponse(
                 success=True,
@@ -385,8 +420,13 @@ class StudioBridge:
             ).to_dict()
 
         except ValueError as e:
+            print(f"[CREATE_BRAND] ValueError: {e}")
             return BridgeResponse(success=False, error=str(e)).to_dict()
         except Exception as e:
+            import traceback
+            print(f"[CREATE_BRAND] EXCEPTION: {type(e).__name__}: {e}")
+            print("[CREATE_BRAND] Traceback:")
+            traceback.print_exc()
             self._current_progress = ""
             return BridgeResponse(success=False, error=f"Failed to create brand: {e}").to_dict()
 

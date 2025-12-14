@@ -87,6 +87,7 @@ export function CreateBrandDialog({
 
   const handleCreate = async () => {
     setError(null)
+    console.log('[CreateBrand] Starting brand creation...')
 
     if (!description.trim() && files.length === 0) {
       setError('Please provide a description or upload files to describe your brand.')
@@ -94,6 +95,8 @@ export function CreateBrandDialog({
     }
 
     setIsCreating(true)
+    console.log(`[CreateBrand] Description: ${description.length} chars`)
+    console.log(`[CreateBrand] Files: ${files.length}`)
 
     try {
       // Convert files to base64
@@ -101,6 +104,7 @@ export function CreateBrandDialog({
       const documents: Array<{ filename: string; data: string }> = []
 
       for (const { file, type } of files) {
+        console.log(`[CreateBrand] Processing file: ${file.name} (${type})`)
         const data = await new Promise<string>((resolve) => {
           const reader = new FileReader()
           reader.onload = () => {
@@ -119,18 +123,28 @@ export function CreateBrandDialog({
         }
       }
 
+      console.log(`[CreateBrand] Prepared ${images.length} images, ${documents.length} documents`)
+      console.log('[CreateBrand] Calling bridge.createBrandFromMaterials...')
+
       if (isPyWebView()) {
         const result = await bridge.createBrandFromMaterials(description, images, documents)
+        console.log('[CreateBrand] Bridge returned:', result)
+        console.log(`[CreateBrand] New brand slug: ${result.slug}`)
         onCreated(result.slug)
         onOpenChange(false)
         // Reset state
         setDescription('')
         setFiles([])
+        console.log('[CreateBrand] Dialog closed, state reset')
+      } else {
+        console.log('[CreateBrand] Not in PyWebView, skipping bridge call')
       }
     } catch (err) {
+      console.error('[CreateBrand] ERROR:', err)
       setError(err instanceof Error ? err.message : 'Failed to create brand')
     } finally {
       setIsCreating(false)
+      console.log('[CreateBrand] Finished (isCreating=false)')
     }
   }
 
