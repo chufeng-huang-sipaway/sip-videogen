@@ -43,19 +43,45 @@ PyWebView integration in `app.py` with:
 - Frontend URL resolution (dev server vs built dist)
 - Window configuration (1400x900, resizable, etc.)
 
+### Task 1.4: Add Tailwind CSS
+**Status**: Completed
+**Commit**: `4d92a31`
+
+Changes:
+- Installed Tailwind CSS v4 with `@tailwindcss/postcss` and `autoprefixer`
+- Created `postcss.config.js` for Tailwind v4 PostCSS integration
+- Updated `src/index.css` with `@import "tailwindcss"` and custom theme
+- Added custom colors: `sidebar-light` and `sidebar-dark` for glassmorphism
+- Added `.glass` utility class for backdrop blur effects
+- Updated `App.tsx` to demonstrate Tailwind styling is working
+- Removed default `App.css` (now using Tailwind utilities)
+
+Files created/modified:
+- `src/sip_videogen/studio/frontend/postcss.config.js` - PostCSS config
+- `src/sip_videogen/studio/frontend/src/index.css` - Tailwind imports and custom theme
+- `src/sip_videogen/studio/frontend/src/App.tsx` - Updated with Tailwind classes
+- Deleted: `src/sip_videogen/studio/frontend/src/App.css`
+
+Verification:
+```bash
+cd src/sip_videogen/studio/frontend
+npm run build  # Should build successfully with Tailwind styles
+npm run dev    # Should show styled "Brand Studio" page
+```
+
 ---
 
 ## Next Task
 
-### Task 1.4: Add Tailwind CSS
+### Task 1.5: Install and Configure shadcn/ui
 **Priority**: P0
-**Depends On**: Task 1.2 (completed)
+**Depends On**: Task 1.4 (completed)
 
 Steps:
-1. Install tailwindcss, postcss, autoprefixer
-2. Run `npx tailwindcss init -p`
-3. Configure `tailwind.config.js`
-4. Update `src/index.css` with Tailwind directives
+1. Run `npx shadcn@latest init`
+2. Choose options: TypeScript=Yes, Style=Default, Base=Slate, CSS vars=Yes, RSC=No, Dir=src/components, Alias=@/
+3. Install components: button, input, scroll-area, dropdown-menu, context-menu, dialog, tooltip, separator, alert
+4. Install lucide-react for icons
 
 ---
 
