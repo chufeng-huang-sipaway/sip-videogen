@@ -60,8 +60,25 @@
 - Clicking a `.md` file in sidebar shows formatted markdown (headings, lists, etc.)
 - Clicking a `.json` file still shows raw JSON (not markdown rendered)
 
+### Task 1.4: Add "New Chat" Button ✅
+**Commit**: 9f2bd2f
+
+**Changes**:
+- Added header bar to ChatPanel with "Chat" label and "New Chat" button
+- Wired button to existing `clearMessages` function from useChat hook
+- Button is disabled when loading or when chat is empty
+
+**Files Updated**:
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx` - Added header with New Chat button
+
+**Verification**:
+- `npm run build` completes successfully
+- Have a conversation with a few messages
+- Click "New Chat" button - all messages should disappear
+- Button should be disabled when chat is empty or during loading
+
 ## Next Task
-**Task 1.4**: Add "New Chat" Button
+**Task 1.5**: Add Execution Trace (Agent Thinking Transparency)
 
 ## Testing Instructions
 ```bash
