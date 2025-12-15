@@ -17,6 +17,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     messages,
     isLoading,
     progress,
+    progressType,
+    loadedSkills,
     error,
     attachmentError,
     attachments,
@@ -171,6 +173,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <MessageList
           messages={messages}
           progress={progress}
+          progressType={progressType}
+          loadedSkills={loadedSkills}
           isLoading={isLoading}
           onInteractionSelect={(messageId, selection) => {
             resolveInteraction(messageId)

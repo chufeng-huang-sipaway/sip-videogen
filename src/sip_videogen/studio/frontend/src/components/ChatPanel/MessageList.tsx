@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Paperclip } from 'lucide-react'
+import { Paperclip } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { ActivityIndicator, type ActivityType } from '@/components/ui/activity-indicator'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
@@ -10,6 +11,8 @@ import { MemoryUpdateBadge } from './MemoryUpdateBadge'
 interface MessageListProps {
   messages: Message[]
   progress: string
+  progressType: ActivityType
+  loadedSkills: string[]
   isLoading: boolean
   onInteractionSelect: (messageId: string, selection: string) => void
 }
@@ -33,7 +36,7 @@ function ImageLightbox({ src }: { src: string }) {
   )
 }
 
-export function MessageList({ messages, progress, isLoading, onInteractionSelect }: MessageListProps) {
+export function MessageList({ messages, progress, progressType, loadedSkills, isLoading, onInteractionSelect }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -66,10 +69,11 @@ export function MessageList({ messages, progress, isLoading, onInteractionSelect
             }`}
           >
             {message.status === 'sending' ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">{message.content || progress || 'Thinking...'}</span>
-              </div>
+              <ActivityIndicator
+                type={progressType || 'thinking'}
+                message={message.content || progress || 'Thinking...'}
+                skills={loadedSkills}
+              />
             ) : message.role === 'assistant' ? (
               <MarkdownContent content={message.content} />
             ) : (

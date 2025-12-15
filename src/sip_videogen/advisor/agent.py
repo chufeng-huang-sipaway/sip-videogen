@@ -42,9 +42,17 @@ __all__ = ["BrandAdvisor", "AdvisorProgress", "ProgressCallback"]
 
 @dataclass
 class AdvisorProgress:
-    """Progress update from the advisor agent."""
+    """Progress update from the advisor agent.
 
-    event_type: str  # "thinking", "tool_start", "tool_end", "response"
+    Event types:
+        - "thinking": LLM is generating a response
+        - "tool_start": Agent started using a tool
+        - "tool_end": Tool call completed
+        - "skill_loaded": A skill was matched and loaded for the request
+        - "response": Agent completed responding
+    """
+
+    event_type: str  # "thinking", "tool_start", "tool_end", "skill_loaded", "response"
     message: str
     detail: str = ""
 
@@ -374,7 +382,18 @@ class BrandAdvisor:
         hooks = AdvisorHooks(callback=self.progress_callback)
 
         # Find relevant skills and inject their instructions
-        skills_context = self._get_relevant_skills_context(message)
+        skills_context, matched_skills = self._get_relevant_skills_context(message)
+
+        # Emit progress events for matched skills
+        for skill_name, skill_description in matched_skills:
+            if self.progress_callback:
+                self.progress_callback(
+                    AdvisorProgress(
+                        event_type="skill_loaded",
+                        message=f"Loading {skill_name} skill",
+                        detail=skill_description,
+                    )
+                )
 
         # Get conversation history
         history_text = ""
@@ -461,7 +480,18 @@ class BrandAdvisor:
         hooks = AdvisorHooks(callback=self.progress_callback)
 
         # Find relevant skills and inject their instructions
-        skills_context = self._get_relevant_skills_context(message)
+        skills_context, matched_skills = self._get_relevant_skills_context(message)
+
+        # Emit progress events for matched skills
+        for skill_name, skill_description in matched_skills:
+            if self.progress_callback:
+                self.progress_callback(
+                    AdvisorProgress(
+                        event_type="skill_loaded",
+                        message=f"Loading {skill_name} skill",
+                        detail=skill_description,
+                    )
+                )
 
         # Get conversation history
         history_text = ""
@@ -539,7 +569,9 @@ class BrandAdvisor:
         max_tokens = max_turns * 400
         return self._history_manager.get_formatted(max_tokens=max_tokens)
 
-    def _get_relevant_skills_context(self, message: str, max_skills: int = 2) -> str:
+    def _get_relevant_skills_context(
+        self, message: str, max_skills: int = 2
+    ) -> tuple[str, list[tuple[str, str]]]:
         """Find and format relevant skill instructions for the message.
 
         Args:
@@ -547,16 +579,20 @@ class BrandAdvisor:
             max_skills: Maximum number of skills to include (to limit context size).
 
         Returns:
-            Formatted skill instructions, or empty string if no matches.
+            Tuple of (formatted skill instructions, list of (skill_name, description) tuples).
+            Returns ("", []) if no matches.
         """
         skills_registry = get_skills_registry()
         relevant_skills = skills_registry.find_relevant_skills(message)
 
         if not relevant_skills:
-            return ""
+            return "", []
 
         # Limit to max_skills
         skills_to_use = relevant_skills[:max_skills]
+
+        # Collect skill info for progress reporting
+        matched_skills = [(skill.name, skill.description) for skill in skills_to_use]
 
         parts = ["## Relevant Skill Instructions\n"]
         parts.append(
@@ -568,7 +604,7 @@ class BrandAdvisor:
             parts.append(skill.instructions)
             parts.append("")
 
-        return "\n".join(parts)
+        return "\n".join(parts), matched_skills
 
     def clear_history(self) -> None:
         """Clear conversation history."""
