@@ -97,10 +97,29 @@ async def _impl_generate_image(
     prompt: str,
     aspect_ratio: str = "1:1",
     filename: str | None = None,
+    reference_image: str | None = None,
+    validate_identity: bool = False,
+    max_retries: int = 3,
 ) -> str:
-    """Implementation of generate_image tool."""
+    """Implementation of generate_image tool with optional reference-based generation.
+
+    Args:
+        prompt: Text description for image generation.
+        aspect_ratio: Image aspect ratio.
+        filename: Optional output filename (without extension).
+        reference_image: Optional path to reference image within brand directory.
+        validate_identity: When True with reference_image, validates that the
+            generated image preserves object identity from the reference.
+        max_retries: Maximum validation attempts (only used with validate_identity).
+
+    Returns:
+        Path to saved image, or error message.
+    """
+    import io
+
     from google import genai
     from google.genai import types
+    from PIL import Image as PILImage
 
     settings = get_settings()
     brand_slug = get_active_brand()
@@ -121,14 +140,54 @@ async def _impl_generate_image(
 
     output_path = output_dir / f"{filename}.png"
 
+    # Resolve and load reference image if provided
+    reference_image_bytes: bytes | None = None
+    if reference_image:
+        reference_path = _resolve_brand_path(reference_image)
+        if reference_path is None:
+            return f"Error: No active brand or invalid path: {reference_image}"
+        if not reference_path.exists():
+            return f"Error: Reference image not found: {reference_image}"
+        try:
+            reference_image_bytes = reference_path.read_bytes()
+            logger.info(
+                f"Loaded reference image: {reference_image} "
+                f"({len(reference_image_bytes)} bytes)"
+            )
+        except Exception as e:
+            return f"Error reading reference image: {e}"
+
     try:
         client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
 
-        logger.info(f"Generating image: {prompt[:100]}...")
+        # Use validation loop if enabled and reference provided
+        if validate_identity and reference_image_bytes:
+            from sip_videogen.advisor.validation import generate_with_validation
+
+            logger.info(f"Generating with validation (max {max_retries} retries)...")
+            return await generate_with_validation(
+                client=client,
+                prompt=prompt,
+                reference_image_bytes=reference_image_bytes,
+                output_dir=output_dir,
+                filename=filename,
+                aspect_ratio=aspect_ratio,
+                max_retries=max_retries,
+            )
+
+        # Standard generation (with or without reference)
+        if reference_image_bytes:
+            # Include reference image in contents
+            ref_pil = PILImage.open(io.BytesIO(reference_image_bytes))
+            contents = [prompt, ref_pil]
+            logger.info(f"Generating image with reference: {prompt[:100]}...")
+        else:
+            contents = prompt
+            logger.info(f"Generating image: {prompt[:100]}...")
 
         response = client.models.generate_content(
             model="gemini-3-pro-image-preview",
-            contents=prompt,
+            contents=contents,
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE"],
                 image_config=types.ImageConfig(
@@ -418,7 +477,8 @@ def propose_images(
 
     Args:
         question: The question (e.g., "Which logo do you prefer?")
-        image_paths: List of image file paths (relative to brand assets directory, e.g. "generated/foo.png")
+        image_paths: List of image file paths (relative to brand assets directory,
+            e.g. "generated/foo.png")
         labels: Optional short labels for each image (e.g., ["Modern", "Classic"])
 
     Returns:
@@ -430,8 +490,8 @@ def propose_images(
         return "Error: Please provide at least 2 images to choose from"
 
     # Normalize paths for the UI thumbnail API:
-    # - Frontend calls bridge.getAssetThumbnail(path), which expects paths like "generated/foo.png"
-    # - generate_image tool returns absolute paths; convert those to relative-to-assets when possible
+    # - Frontend calls bridge.getAssetThumbnail(path), expects "generated/foo.png"
+    # - generate_image returns absolute paths; convert to relative-to-assets
     brand_slug = get_active_brand()
     if brand_slug:
         assets_dir = (get_brand_dir(brand_slug) / "assets").resolve()
@@ -468,6 +528,9 @@ async def generate_image(
         "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"
     ] = "1:1",
     filename: str | None = None,
+    reference_image: str | None = None,
+    validate_identity: bool = False,
+    max_retries: int = 3,
 ) -> str:
     """Generate an image using Gemini 3.0 Pro.
 
@@ -484,11 +547,27 @@ async def generate_image(
             - "9:16" for stories, vertical content
         filename: Optional filename to save as (without extension).
             If not provided, uses a generated name.
+        reference_image: Optional path to a reference image within the brand directory.
+            When provided, the generated image will incorporate visual elements from
+            this reference to maintain consistency. Path should be relative to the
+            brand folder (e.g., "uploads/product.png", "assets/logo/main.png").
+        validate_identity: When True AND reference_image is provided, enables a
+            validation loop that ensures the generated image preserves the identity
+            of objects in the reference. Use when the user needs the EXACT SAME
+            object (their specific product, logo, etc.) to appear in the generated
+            image, not just something similar.
+        max_retries: Maximum attempts for the validation loop (default 3). Only
+            used when validate_identity is True. If validation fails after all
+            retries, returns the best attempt with a warning.
 
     Returns:
         Path to the saved image file, or error message if generation fails.
+        If validation was enabled but didn't pass, includes a warning about
+        potential differences from the reference.
     """
-    return await _impl_generate_image(prompt, aspect_ratio, filename)
+    return await _impl_generate_image(
+        prompt, aspect_ratio, filename, reference_image, validate_identity, max_retries
+    )
 
 
 @function_tool

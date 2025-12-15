@@ -102,7 +102,22 @@
       "Bash(src/sip_videogen/studio/frontend/src/components/Sidebar/BrandSelector.tsx )",
       "Bash(src/sip_videogen/studio/frontend/src/components/Brand/ )",
       "Bash(src/sip_videogen/studio/frontend/src/components/ui/dropzone.tsx )",
-      "Bash(src/sip_videogen/studio/frontend/src/components/ui/spinner.tsx)"
+      "Bash(src/sip_videogen/studio/frontend/src/components/ui/spinner.tsx)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(src/sip_videogen/studio/frontend/src/App.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageList.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Sidebar/BrandActions.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/ui/resize-handle.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/hooks/useAssets.ts )",
+      "Bash(src/sip_videogen/studio/frontend/src/hooks/useChat.ts )",
+      "Bash(src/sip_videogen/studio/frontend/src/hooks/useDocuments.ts)",
+      "Bash(src/sip_videogen/studio/updater.py )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Update/ )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/ui/progress.tsx )",
+      "Bash(scripts/build-release.sh:*)",
+      "Bash(scripts/install-brand-studio.sh:*)",
+      "Bash(README.md)"
     ]
   }
 }
