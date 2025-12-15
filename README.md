@@ -385,23 +385,76 @@ mypy src/
 ./scripts/publish.sh
 ```
 
-### Building Brand Studio Releases
+### Brand Studio Release Management
 
-Build and release a new version of the Brand Studio desktop app:
+Build and release new versions of the Brand Studio desktop app.
+
+#### Prerequisites
 
 ```bash
-# Build a new release (updates version, builds app, creates DMG)
-./scripts/build-release.sh 0.2.0
-
-# This will:
-# 1. Update version numbers in all files
-# 2. Build the React frontend
-# 3. Build the macOS .app bundle (py2app)
-# 4. Create the DMG installer
-# 5. Show instructions for creating a GitHub Release
+pip install pyinstaller   # macOS app bundling
+brew install npm          # Frontend build (if not installed)
 ```
 
-After building, create a GitHub Release and upload the DMG. Users will automatically see the update notification when they open Brand Studio.
+#### Building a Release
+
+```bash
+# Build a new release (interactive, prompts for confirmation)
+./scripts/build-release.sh 0.2.0
+
+# Or use current version from source
+./scripts/build-release.sh
+```
+
+The script will:
+1. Update version numbers in `src/sip_videogen/studio/__init__.py` and `BrandStudio.spec`
+2. Build the React frontend (`npm run build`)
+3. Build the macOS .app bundle using PyInstaller
+4. Create the DMG installer (`dist/Brand-Studio-X.Y.Z.dmg`)
+
+#### Publishing a Release
+
+After building, create a GitHub Release:
+
+```bash
+# Option 1: Using GitHub CLI (recommended)
+gh release create v0.2.0 dist/Brand-Studio-0.2.0.dmg \
+  --title "Brand Studio v0.2.0" \
+  --notes "## What's New
+- Feature X
+- Bug fix Y"
+
+# Option 2: Manual
+# 1. Go to https://github.com/chufeng-huang-sipaway/sip-videogen/releases/new
+# 2. Create tag: v0.2.0
+# 3. Upload: dist/Brand-Studio-0.2.0.dmg
+# 4. Add release notes
+# 5. Publish
+```
+
+#### How Auto-Update Works
+
+1. On app launch, Brand Studio checks the GitHub Releases API for newer versions
+2. If a newer version exists, users see an update notification modal
+3. Clicking "Update Now" downloads the DMG, installs the new app, and restarts
+4. Users can skip specific versions or disable auto-update checks in settings
+
+The update system uses the GitHub Releases API (`/repos/{owner}/{repo}/releases/latest`) to check for updates, so no additional infrastructure is needed.
+
+#### Version Numbering
+
+Follow semantic versioning: `MAJOR.MINOR.PATCH`
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backward compatible)
+- **PATCH**: Bug fixes
+
+#### Release Checklist
+
+- [ ] Test the app locally (`./scripts/studio-demo.sh`)
+- [ ] Run `./scripts/build-release.sh X.Y.Z`
+- [ ] Test the built DMG on a clean machine if possible
+- [ ] Create GitHub Release with DMG attached
+- [ ] Verify update notification appears in older version
 
 ## Cost Estimation
 
