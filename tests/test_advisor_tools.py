@@ -491,6 +491,30 @@ class TestListFiles:
 class TestLoadBrand:
     """Tests for _impl_load_brand function."""
 
+    def _create_mock_identity(self) -> MagicMock:
+        """Create a mock BrandIdentityFull for testing."""
+        mock_identity = MagicMock()
+        mock_identity.core.name = "Test Brand"
+        mock_identity.core.tagline = "Test tagline"
+        mock_identity.core.mission = "Test mission"
+        mock_identity.core.values = []
+        mock_identity.positioning.market_category = "Test Category"
+        mock_identity.positioning.unique_value_proposition = "Test UVP"
+        mock_identity.positioning.positioning_statement = None
+        mock_identity.voice.tone_attributes = ["friendly", "warm", "professional"]
+        mock_identity.voice.personality = "Friendly"
+        mock_identity.voice.key_messages = []
+        # Create mock colors with hex values
+        mock_color = MagicMock()
+        mock_color.name = "Brand Blue"
+        mock_color.hex = "#0066CC"
+        mock_identity.visual.primary_colors = [mock_color]
+        mock_identity.visual.style_keywords = ["modern", "clean", "minimal"]
+        mock_identity.visual.overall_aesthetic = None
+        mock_identity.audience.primary_summary = "Test audience"
+        mock_identity.audience.demographics = None
+        return mock_identity
+
     def test_load_brand_no_active_no_brands(self) -> None:
         """Test _impl_load_brand with no active brand and no brands available."""
         from sip_videogen.advisor.tools import _impl_load_brand
@@ -520,29 +544,42 @@ class TestLoadBrand:
 
         assert "Error: Brand not found" in result
 
-    def test_load_brand_includes_assets_section(self) -> None:
-        """Test that load_brand includes Available Assets section with per-category counts."""
+    def test_load_brand_summary_mode_default(self) -> None:
+        """Test that load_brand returns summary by default."""
         from sip_videogen.advisor.tools import _impl_load_brand
 
-        # Create mock identity
-        mock_identity = MagicMock()
-        mock_identity.core.name = "Test Brand"
-        mock_identity.core.tagline = "Test tagline"
-        mock_identity.core.mission = "Test mission"
-        mock_identity.core.values = []
-        mock_identity.positioning.market_category = "Test"
-        mock_identity.positioning.unique_value_proposition = "Test UVP"
-        mock_identity.positioning.positioning_statement = None
-        mock_identity.voice.tone_attributes = ["friendly"]
-        mock_identity.voice.personality = "Friendly"
-        mock_identity.voice.key_messages = []
-        mock_identity.visual.primary_colors = []
-        mock_identity.visual.style_keywords = []
-        mock_identity.visual.overall_aesthetic = None
-        mock_identity.audience.primary_summary = "Test audience"
-        mock_identity.audience.demographics = None
+        mock_identity = self._create_mock_identity()
+        mock_assets = [
+            {"category": "logo", "name": "primary", "path": "/test/logo/primary.png"},
+            {"category": "mascot", "name": "benny", "path": "/test/mascot/benny.png"},
+        ]
 
-        # Mock assets returned as list of dicts (the actual return type)
+        with (
+            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=mock_identity),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets),
+            patch("sip_videogen.brands.storage.set_active_brand"),
+        ):
+            result = _impl_load_brand(slug="test-brand")  # Default is summary
+
+        # Summary should include key info
+        assert "Test Brand" in result
+        assert "Test tagline" in result
+        assert "Test Category" in result
+        assert "friendly" in result.lower()  # Tone attributes
+        assert "Brand Blue" in result  # Primary color
+        assert "2 files" in result  # Asset count
+        # Summary should include hint for full details
+        assert "load_brand(detail_level='full')" in result
+        # Summary should NOT include full sections
+        assert "## Available Assets" not in result
+        assert "## Brand Voice" not in result
+
+    def test_load_brand_full_mode(self) -> None:
+        """Test that load_brand with detail_level='full' returns complete context."""
+        from sip_videogen.advisor.tools import _impl_load_brand
+
+        mock_identity = self._create_mock_identity()
         mock_assets = [
             {"category": "logo", "name": "primary", "path": "/test/logo/primary.png"},
             {"category": "logo", "name": "secondary", "path": "/test/logo/secondary.png"},
@@ -555,12 +592,35 @@ class TestLoadBrand:
             patch("sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets),
             patch("sip_videogen.brands.storage.set_active_brand"),
         ):
-            result = _impl_load_brand(slug="test-brand")
+            result = _impl_load_brand(slug="test-brand", detail_level="full")
 
-        # Check that assets section is present with per-category counts
+        # Full mode should include all sections
         assert "## Available Assets" in result
         assert "logo" in result.lower()
         assert "mascot" in result.lower()
+        # Full mode should NOT include hint for full details (already full)
+        assert "load_brand(detail_level='full')" not in result
+
+    def test_load_brand_summary_character_count(self) -> None:
+        """Test that summary mode returns approximately 500 chars."""
+        from sip_videogen.advisor.tools import _impl_load_brand
+
+        mock_identity = self._create_mock_identity()
+        mock_assets = [
+            {"category": "logo", "name": "primary", "path": "/test/logo/primary.png"},
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=mock_identity),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets),
+            patch("sip_videogen.brands.storage.set_active_brand"),
+        ):
+            result = _impl_load_brand(slug="test-brand", detail_level="summary")
+
+        # Summary should be concise
+        assert len(result) < 800  # Allow some margin
+        assert len(result) > 200  # But not too short
 
 
 class TestResolveBrandPath:
