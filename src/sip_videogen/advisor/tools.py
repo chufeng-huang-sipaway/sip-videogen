@@ -391,8 +391,21 @@ def _impl_list_files(path: str = "", limit: int = 20, offset: int = 0) -> str:
         return f"Error listing directory: {e}"
 
 
-def _impl_load_brand(slug: str | None = None) -> str:
-    """Implementation of load_brand tool."""
+def _impl_load_brand(
+    slug: str | None = None,
+    detail_level: Literal["summary", "full"] = "summary",
+) -> str:
+    """Implementation of load_brand tool.
+
+    Args:
+        slug: Brand slug to load. If not provided, uses active brand.
+        detail_level: Level of detail to return:
+            - "summary" (default): Quick overview (~500 chars)
+            - "full": Complete brand context (~2000 chars)
+
+    Returns:
+        Formatted brand context as markdown.
+    """
     from sip_videogen.brands.memory import list_brand_assets
     from sip_videogen.brands.storage import (
         list_brands,
@@ -426,7 +439,52 @@ def _impl_load_brand(slug: str | None = None) -> str:
     # Set as active brand
     set_active_brand(slug)
 
-    # Format brand context
+    # Get asset count for both modes
+    try:
+        assets = list_brand_assets(slug)
+        asset_count = len(assets)
+    except Exception:
+        assets = []
+        asset_count = 0
+
+    # SUMMARY MODE (default) - ~500 chars
+    if detail_level == "summary":
+        context_parts = []
+        context_parts.append(f"# Brand: {identity.core.name}")
+        context_parts.append(f"*{identity.core.tagline}*\n")
+        context_parts.append(f"**Category**: {identity.positioning.market_category}")
+
+        if identity.voice.tone_attributes:
+            context_parts.append(f"**Tone**: {', '.join(identity.voice.tone_attributes[:3])}")
+
+        # Primary colors only (max 3)
+        if identity.visual.primary_colors:
+            colors = ", ".join(
+                f"{c.name} ({c.hex})" for c in identity.visual.primary_colors[:3]
+            )
+            context_parts.append(f"**Colors**: {colors}")
+
+        # Style keywords (max 3)
+        if identity.visual.style_keywords:
+            context_parts.append(f"**Style**: {', '.join(identity.visual.style_keywords[:3])}")
+
+        # Audience one-liner
+        context_parts.append(f"**Audience**: {identity.audience.primary_summary}")
+
+        # Asset count
+        context_parts.append(f"**Assets**: {asset_count} files available")
+
+        # Hint for full details
+        context_parts.append("")
+        context_parts.append("---")
+        context_parts.append(
+            "For complete brand details including full visual identity, "
+            "voice guidelines, and positioning, use `load_brand(detail_level='full')`"
+        )
+
+        return "\n".join(context_parts)
+
+    # FULL MODE - existing behavior
     context_parts = []
 
     # Header
@@ -478,23 +536,19 @@ def _impl_load_brand(slug: str | None = None) -> str:
     context_parts.append("")
 
     # Assets - group by category
-    try:
-        assets = list_brand_assets(slug)
-        if assets:
-            # Group assets by category
-            by_category: dict[str, list[dict]] = {}
-            for asset in assets:
-                cat = asset.get("category", "other")
-                if cat not in by_category:
-                    by_category[cat] = []
-                by_category[cat].append(asset)
+    if assets:
+        # Group assets by category
+        by_category: dict[str, list[dict]] = {}
+        for asset in assets:
+            cat = asset.get("category", "other")
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(asset)
 
-            context_parts.append("## Available Assets")
-            for category, files in sorted(by_category.items()):
-                context_parts.append(f"- **{category}**: {len(files)} files")
-            context_parts.append("")
-    except Exception:
-        pass  # Assets listing is optional
+        context_parts.append("## Available Assets")
+        for category, files in sorted(by_category.items()):
+            context_parts.append(f"- **{category}**: {len(files)} files")
+        context_parts.append("")
 
     # Values
     if identity.core.values:
@@ -712,7 +766,10 @@ def list_files(path: str = "", limit: int = 20, offset: int = 0) -> str:
 
 
 @function_tool
-def load_brand(slug: str | None = None) -> str:
+def load_brand(
+    slug: str | None = None,
+    detail_level: Literal["summary", "full"] = "summary",
+) -> str:
     """Load brand identity and context.
 
     If no slug is provided, loads the currently active brand.
@@ -721,19 +778,19 @@ def load_brand(slug: str | None = None) -> str:
     Args:
         slug: Brand slug to load. If not provided, uses active brand.
             Available brands can be found in ~/.sip-videogen/brands/
+        detail_level: Level of detail to return:
+            - "summary" (default): Quick overview (~500 chars) with name,
+              tagline, category, tone, primary colors, and asset count.
+            - "full": Complete brand context (~2000 chars) including full
+              visual identity, voice guidelines, audience profile, and positioning.
 
     Returns:
-        Formatted brand context as markdown, including:
-        - Brand summary (name, tagline, category, tone)
-        - Visual identity (colors, typography, style)
-        - Voice guidelines (personality, messaging)
-        - Audience profile
-        - Positioning
-        - Available assets
+        Formatted brand context as markdown. Use "full" detail_level when
+        you need complete information for creative work.
 
         Or error message if brand not found.
     """
-    return _impl_load_brand(slug)
+    return _impl_load_brand(slug, detail_level)
 
 
 @function_tool
