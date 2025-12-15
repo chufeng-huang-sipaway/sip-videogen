@@ -83,7 +83,8 @@ class TestSystemPromptBuilder:
 
             prompt = _build_system_prompt(brand_slug=None)
 
-        assert "Brand Marketing Advisor" in prompt
+        # Prompt should load from advisor.md; ensure it contains a Brand header and skills
+        assert "# Brand" in prompt
         assert "## Available Skills" in prompt
         assert "skill1" in prompt
 
@@ -107,7 +108,7 @@ class TestSystemPromptBuilder:
 
             prompt = _build_system_prompt(brand_slug="test-brand")
 
-        assert "Brand Marketing Advisor" in prompt
+        # Should include brand context heading and brand name
         assert "## Current Brand Context" in prompt
         assert "Test Brand" in prompt
 
@@ -204,7 +205,7 @@ class TestBrandAdvisor:
             advisor = BrandAdvisor()
 
         assert advisor.brand_slug is None
-        assert advisor._conversation_history == []
+        assert advisor._history_manager.message_count == 0
 
     def test_init_with_brand(self) -> None:
         """Test initializing advisor with a brand."""
@@ -245,11 +246,11 @@ class TestBrandAdvisor:
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
             advisor = BrandAdvisor()
-            advisor._conversation_history = [{"role": "user", "content": "test"}]
+            advisor._history_manager.add("user", "test")
 
             advisor.clear_history()
 
-        assert advisor._conversation_history == []
+        assert advisor._history_manager.message_count == 0
 
     def test_format_history(self) -> None:
         """Test formatting conversation history."""
@@ -259,10 +260,8 @@ class TestBrandAdvisor:
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
             advisor = BrandAdvisor()
-            advisor._conversation_history = [
-                {"role": "user", "content": "Hello"},
-                {"role": "assistant", "content": "Hi there!"},
-            ]
+            advisor._history_manager.add("user", "Hello")
+            advisor._history_manager.add("assistant", "Hi there!")
 
             formatted = advisor._format_history()
 
@@ -287,8 +286,9 @@ class TestBrandAdvisor:
             response = await advisor.chat("Create a mascot")
 
         assert response == "I'm here to help with your brand!"
-        assert len(advisor._conversation_history) == 2
-        assert advisor._conversation_history[0]["content"] == "Create a mascot"
+        assert advisor._history_manager.message_count == 2
+        formatted = advisor._history_manager.get_formatted()
+        assert "User: Create a mascot" in formatted
 
     def test_agent_property(self) -> None:
         """Test accessing the underlying agent."""
@@ -314,14 +314,12 @@ class TestBrandAdvisor:
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
             advisor = BrandAdvisor()
-            advisor._conversation_history = [
-                {"role": "user", "content": "test message"},
-                {"role": "assistant", "content": "test response"},
-            ]
+            advisor._history_manager.add("user", "test message")
+            advisor._history_manager.add("assistant", "test response")
 
             advisor.set_brand("new-brand")
 
-        assert advisor._conversation_history == []
+        assert advisor._history_manager.message_count == 0
         assert advisor.brand_slug == "new-brand"
 
     def test_set_brand_preserve_history(self) -> None:
@@ -336,13 +334,11 @@ class TestBrandAdvisor:
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
             advisor = BrandAdvisor()
-            advisor._conversation_history = [
-                {"role": "user", "content": "test message"},
-            ]
+            advisor._history_manager.add("user", "test message")
 
             advisor.set_brand("new-brand", preserve_history=True)
 
-        assert len(advisor._conversation_history) == 1
+        assert advisor._history_manager.message_count == 1
 
     @pytest.mark.asyncio
     async def test_chat_injects_skill_instructions(self) -> None:
