@@ -11,10 +11,27 @@ def is_dev_mode() -> bool:
 
 
 def is_bundled_app() -> bool:
-    """Check if running as a py2app-bundled .app."""
-    # py2app sets __file__ to be inside the .app bundle
-    # The bundle structure is: .app/Contents/Resources/
+    """Check if running as a bundled .app (py2app or PyInstaller)."""
+    # Both py2app and PyInstaller set sys.frozen
     return getattr(sys, "frozen", False) or ".app/Contents" in __file__
+
+
+def get_bundle_dir() -> Path:
+    """Get the directory where bundled resources are located."""
+    if getattr(sys, "frozen", False):
+        # PyInstaller: resources are in _MEIPASS (onefile) or Resources folder (macOS bundle)
+        if hasattr(sys, "_MEIPASS"):
+            return Path(sys._MEIPASS)
+        # PyInstaller macOS bundle: resources in .app/Contents/Resources/
+        exe_path = Path(sys.executable)
+        # Check if we're in a .app bundle (exe is in MacOS folder)
+        if exe_path.parent.name == "MacOS":
+            resources_path = exe_path.parent.parent / "Resources"
+            if resources_path.exists():
+                return resources_path
+        # Fallback: resources near executable
+        return exe_path.parent
+    return Path(__file__).parent
 
 
 def get_frontend_url() -> str:
@@ -22,12 +39,18 @@ def get_frontend_url() -> str:
     if is_dev_mode():
         return "http://localhost:5173"
 
-    # Check for py2app bundle (resources in .app/Contents/Resources/dist/)
+    # Check for bundled app (PyInstaller or py2app)
     if is_bundled_app():
-        # Find the Resources directory in the bundle
+        bundle_dir = get_bundle_dir()
+
+        # PyInstaller: look in frontend/dist/ relative to bundle
+        dist_path = bundle_dir / "frontend" / "dist" / "index.html"
+        if dist_path.exists():
+            return str(dist_path)
+
+        # py2app: look in Resources/dist/
         # __file__ is typically: .app/Contents/Resources/lib/python3.x/sip_videogen/studio/app.py
         app_path = Path(__file__)
-        # Walk up to find Resources directory
         for parent in app_path.parents:
             if parent.name == "Resources":
                 dist_path = parent / "dist" / "index.html"
@@ -54,7 +77,7 @@ def main():
         print("Run: pip install pywebview>=5.0")
         sys.exit(1)
 
-    from .bridge import StudioBridge
+    from sip_videogen.studio.bridge import StudioBridge
 
     api = StudioBridge()
     frontend = get_frontend_url()

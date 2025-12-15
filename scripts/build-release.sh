@@ -5,7 +5,7 @@
 # This script:
 #   1. Updates version numbers in all relevant files
 #   2. Builds the frontend (React)
-#   3. Builds the macOS app (py2app)
+#   3. Builds the macOS app (PyInstaller)
 #   4. Creates the DMG installer
 #   5. Provides instructions for creating a GitHub Release
 #
@@ -61,8 +61,8 @@ check_prerequisites() {
         missing=1
     fi
 
-    if ! python -c "import py2app" &> /dev/null; then
-        echo_error "py2app is not installed. Run: pip install py2app"
+    if ! python -c "import PyInstaller" &> /dev/null; then
+        echo_error "PyInstaller is not installed. Run: pip install pyinstaller"
         missing=1
     fi
 
@@ -80,7 +80,7 @@ check_prerequisites() {
 
 # Get current version from studio/__init__.py
 get_current_version() {
-    grep -oP '__version__\s*=\s*"\K[^"]+' "$PROJECT_ROOT/src/sip_videogen/studio/__init__.py" || echo "0.1.0"
+    grep -o '__version__ = "[^"]*"' "$PROJECT_ROOT/src/sip_videogen/studio/__init__.py" | cut -d'"' -f2 || echo "0.1.0"
 }
 
 # Update version in all relevant files
@@ -89,24 +89,18 @@ update_version() {
     echo_step "Updating version to $version..."
 
     # Update studio/__init__.py
-    sed -i.bak "s/__version__\s*=\s*\"[^\"]*\"/__version__ = \"$version\"/" \
+    sed -i.bak "s/__version__[[:space:]]*=[[:space:]]*\"[^\"]*\"/__version__ = \"$version\"/" \
         "$PROJECT_ROOT/src/sip_videogen/studio/__init__.py"
     rm -f "$PROJECT_ROOT/src/sip_videogen/studio/__init__.py.bak"
     echo_success "Updated src/sip_videogen/studio/__init__.py"
 
-    # Update setup.py (py2app config)
-    sed -i.bak "s/CFBundleShortVersionString\": \"[^\"]*\"/CFBundleShortVersionString\": \"$version\"/" \
-        "$PROJECT_ROOT/setup.py"
-    sed -i.bak "s/CFBundleVersion\": \"[^\"]*\"/CFBundleVersion\": \"$version\"/" \
-        "$PROJECT_ROOT/setup.py"
-    rm -f "$PROJECT_ROOT/setup.py.bak"
-    echo_success "Updated setup.py"
-
-    # Update build-dmg.sh
-    sed -i.bak "s/VERSION=\"[^\"]*\"/VERSION=\"$version\"/" \
-        "$PROJECT_ROOT/scripts/build-dmg.sh"
-    rm -f "$PROJECT_ROOT/scripts/build-dmg.sh.bak"
-    echo_success "Updated scripts/build-dmg.sh"
+    # Update BrandStudio.spec (PyInstaller config)
+    sed -i.bak "s/'CFBundleVersion': '[^']*'/'CFBundleVersion': '$version'/" \
+        "$PROJECT_ROOT/BrandStudio.spec"
+    sed -i.bak "s/'CFBundleShortVersionString': '[^']*'/'CFBundleShortVersionString': '$version'/" \
+        "$PROJECT_ROOT/BrandStudio.spec"
+    rm -f "$PROJECT_ROOT/BrandStudio.spec.bak"
+    echo_success "Updated BrandStudio.spec"
 }
 
 # Build frontend
@@ -128,14 +122,14 @@ build_frontend() {
 
 # Build macOS app
 build_app() {
-    echo_step "Building macOS app with py2app..."
+    echo_step "Building macOS app with PyInstaller..."
     cd "$PROJECT_ROOT"
 
     # Clean previous build
     rm -rf dist build
 
-    # Build the app
-    python setup.py py2app
+    # Build the app using PyInstaller spec file
+    pyinstaller BrandStudio.spec --clean --noconfirm
 
     if [ ! -d "dist/$APP_NAME.app" ]; then
         echo_error "Failed to build $APP_NAME.app"
@@ -150,9 +144,32 @@ build_dmg() {
     local version="$1"
     echo_step "Creating DMG installer..."
 
-    "$SCRIPT_DIR/build-dmg.sh"
+    cd "$PROJECT_ROOT"
 
-    local dmg_path="$PROJECT_ROOT/dist/Brand-Studio-${version}.dmg"
+    # Clean up any existing DMG build artifacts
+    rm -rf dist/dmg-staging
+
+    # Create staging directory
+    mkdir -p dist/dmg-staging
+
+    # Copy app to staging
+    cp -R "dist/$APP_NAME.app" dist/dmg-staging/
+
+    # Create Applications symlink
+    ln -s /Applications dist/dmg-staging/Applications
+
+    # Create DMG
+    local dmg_path="dist/Brand-Studio-${version}.dmg"
+    hdiutil create \
+        -volname "Brand Studio" \
+        -srcfolder dist/dmg-staging \
+        -ov \
+        -format UDZO \
+        "$dmg_path"
+
+    # Clean up staging
+    rm -rf dist/dmg-staging
+
     if [ ! -f "$dmg_path" ]; then
         echo_error "Failed to create DMG"
         exit 1
