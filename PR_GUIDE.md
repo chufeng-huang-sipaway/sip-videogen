@@ -210,9 +210,34 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - Ruff check passes
 - Code formatted with ruff
 
-## Remaining Tasks
+### Task 9: Integrate Budget Guard into Agent ✅
+
+**Commit:** `b7b5640` - feat(advisor): Integrate context budget guard into agent
+
+**Changes:**
+- `src/sip_videogen/advisor/agent.py`:
+  - Added import for `ContextBudgetManager`
+  - Initialize `self._budget_manager = ContextBudgetManager()` in `__init__()`
+  - Updated `chat_with_metadata()` to:
+    - Get history text before budget check
+    - Call `self._budget_manager.check_and_trim()` with system prompt, skills, history, message
+    - Log warning when content is trimmed
+    - Log critical error if still over budget after trimming
+    - Log severe error if system prompt needs trimming (would require agent rebuild)
+    - Build prompt using trimmed skills and history (not system prompt)
+  - Updated `chat_stream()` with identical budget checking logic
+  - Both methods now use trimmed content for prompt building
+
+**Verification:**
+- All 62 tests pass (34 tools + 12 history + 16 budget)
+- Ruff check passes
+- Code formatted with ruff
+
+## All Tasks Complete! ✅
 
 ### Stage 1: Tool Result Summarization
+- [x] Task 1: Add pagination to `list_files()`
+- [x] Task 2: Add chunking to `read_file()`
 - [x] Task 3: Add summary mode to `load_brand()` tool
 - [x] Task 4: Update code that expects full load_brand output
 - [x] Task 5: Update existing tests for load_brand changes
@@ -223,7 +248,7 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 
 ### Stage 3: Context Budget Guard
 - [x] Task 8: Create context budget module
-- [ ] Task 9: Integrate budget guard into agent
+- [x] Task 9: Integrate budget guard into agent
 
 ## Testing
 
