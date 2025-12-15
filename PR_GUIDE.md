@@ -100,12 +100,31 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - 1 expected failure remains: `test_load_brand_includes_assets_section` (will be fixed in Task 5)
 - Ruff check passes (1 pre-existing line length warning on unrelated line)
 
+### Task 5: Update Existing Tests for load_brand Changes ✅
+
+**Commit:** `e887baf` - test(advisor): Update load_brand tests for summary mode default
+
+**Changes:**
+- `tests/test_advisor_tools.py`:
+  - Replaced `test_load_brand_includes_assets_section` with new tests:
+    - `test_load_brand_summary_mode_default`: verifies summary is default mode
+    - `test_load_brand_full_mode`: verifies full mode includes all sections
+    - `test_load_brand_summary_character_count`: verifies summary is ~500 chars
+  - Added `_create_mock_identity()` helper method to reduce test code duplication
+  - Summary mode tests verify: name, tagline, category, tone, colors, asset count
+  - Full mode tests verify: ## Available Assets section is present
+
+**Verification:**
+- All 34 tests pass
+- Ruff check passes
+- Code formatted with ruff
+
 ## Remaining Tasks
 
 ### Stage 1: Tool Result Summarization
 - [x] Task 3: Add summary mode to `load_brand()` tool
 - [x] Task 4: Update code that expects full load_brand output
-- [ ] Task 5: Update existing tests for load_brand changes
+- [x] Task 5: Update existing tests for load_brand changes
 
 ### Stage 2: Token-Aware History Management
 - [ ] Task 6: Create history manager module
