@@ -151,8 +151,7 @@ async def _impl_generate_image(
         try:
             reference_image_bytes = reference_path.read_bytes()
             logger.info(
-                f"Loaded reference image: {reference_image} "
-                f"({len(reference_image_bytes)} bytes)"
+                f"Loaded reference image: {reference_image} ({len(reference_image_bytes)} bytes)"
             )
         except Exception as e:
             return f"Error reading reference image: {e}"
@@ -262,8 +261,16 @@ def _impl_write_file(path: str, content: str) -> str:
         return f"Error writing file: {e}"
 
 
-def _impl_list_files(path: str = "") -> str:
-    """Implementation of list_files tool."""
+def _impl_list_files(path: str = "", limit: int = 20, offset: int = 0) -> str:
+    """Implementation of list_files tool with pagination support."""
+    # Parameter validation
+    if limit < 1:
+        limit = 20  # Reset to default
+    if limit > 100:
+        limit = 100  # Cap at maximum
+    if offset < 0:
+        offset = 0  # No negative offsets
+
     resolved = _resolve_brand_path(path) if path else None
 
     if resolved is None and path:
@@ -284,9 +291,20 @@ def _impl_list_files(path: str = "") -> str:
 
     try:
         items = sorted(resolved.iterdir())
+        total_count = len(items)
+
+        # Validate offset
+        if offset >= total_count and total_count > 0:
+            return (
+                f"Error: offset {offset} is past end of directory "
+                f"({total_count} items). Use offset 0-{total_count - 1}."
+            )
+
+        # Apply pagination
+        paginated_items = items[offset : offset + limit]
         lines = []
 
-        for item in items:
+        for item in paginated_items:
             if item.is_dir():
                 # Count items in directory
                 count = len(list(item.iterdir()))
@@ -295,11 +313,32 @@ def _impl_list_files(path: str = "") -> str:
                 size = item.stat().st_size
                 lines.append(f"  {item.name} ({size} bytes)")
 
-        if not lines:
+        if not lines and total_count == 0:
             return f"Directory is empty: {path or '/'}"
 
-        header = f"Contents of {path or '/'}:\n"
-        return header + "\n".join(lines)
+        # Build header with pagination info
+        start_idx = offset + 1
+        end_idx = min(offset + limit, total_count)
+        display_path = path or "/"
+        if total_count <= limit and offset == 0:
+            header = f"Contents of {display_path}:\n"
+        else:
+            header = (
+                f"Contents of {display_path} (showing {start_idx}-{end_idx} of {total_count}):\n"
+            )
+
+        result = header + "\n".join(lines)
+
+        # Add pagination hint if there are more items
+        if offset + limit < total_count:
+            next_offset = offset + limit
+            if path:
+                hint = f'\n\nUse list_files("{path}", offset={next_offset}) to see more.'
+            else:
+                hint = f"\n\nUse list_files(offset={next_offset}) to see more."
+            result += hint
+
+        return result
 
     except Exception as e:
         logger.error(f"Failed to list directory: {e}")
@@ -515,7 +554,7 @@ def propose_images(
         "type": "image_select",
         "question": question,
         "image_paths": image_paths,
-        "labels": labels or [f"Option {i+1}" for i in range(len(image_paths))],
+        "labels": labels or [f"Option {i + 1}" for i in range(len(image_paths))],
     }
 
     return f"[Presenting {len(image_paths)} images for user to select]"
@@ -524,9 +563,7 @@ def propose_images(
 @function_tool
 async def generate_image(
     prompt: str,
-    aspect_ratio: Literal[
-        "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"
-    ] = "1:1",
+    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"] = "1:1",
     filename: str | None = None,
     reference_image: str | None = None,
     validate_identity: bool = False,
@@ -605,17 +642,20 @@ def write_file(path: str, content: str) -> str:
 
 
 @function_tool
-def list_files(path: str = "") -> str:
+def list_files(path: str = "", limit: int = 20, offset: int = 0) -> str:
     """List files and directories in the brand directory.
 
     Args:
         path: Relative path within brand directory. Empty string for root.
             Examples: "", "assets/", "assets/logo/"
+        limit: Maximum number of items to return (1-100, default 20).
+        offset: Number of items to skip for pagination (default 0).
 
     Returns:
-        Formatted list of files and directories, or error message.
+        Formatted list of files and directories with pagination info,
+        or error message.
     """
-    return _impl_list_files(path)
+    return _impl_list_files(path, limit, offset)
 
 
 @function_tool

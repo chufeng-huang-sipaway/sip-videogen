@@ -19,10 +19,9 @@ class TestReadFile:
         test_file = brand_dir / "test.txt"
         test_file.write_text("Hello, World!")
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("test.txt")
 
@@ -37,10 +36,9 @@ class TestReadFile:
         test_file = brand_dir / "identity.json"
         test_file.write_text('{"name": "Test Brand"}')
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("identity.json")
 
@@ -55,10 +53,9 @@ class TestReadFile:
         test_file = brand_dir / "image.png"
         test_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("image.png")
 
@@ -72,10 +69,9 @@ class TestReadFile:
         brand_dir = tmp_path / "test-brand"
         brand_dir.mkdir()
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("nonexistent.txt")
 
@@ -101,10 +97,9 @@ class TestWriteFile:
         brand_dir = tmp_path / "test-brand"
         brand_dir.mkdir()
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_write_file("test.txt", "Hello, World!")
 
@@ -118,10 +113,9 @@ class TestWriteFile:
         brand_dir = tmp_path / "test-brand"
         brand_dir.mkdir()
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_write_file("subdir/deep/file.txt", "Content")
 
@@ -151,10 +145,9 @@ class TestListFiles:
         (brand_dir / "assets").mkdir()
         (brand_dir / "assets" / "logo.png").write_bytes(b"png")
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("")
 
@@ -171,10 +164,9 @@ class TestListFiles:
         (brand_dir / "assets" / "logo.png").write_bytes(b"png")
         (brand_dir / "assets" / "banner.jpg").write_bytes(b"jpg")
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("assets/")
 
@@ -188,14 +180,153 @@ class TestListFiles:
         brand_dir = tmp_path / "test-brand"
         (brand_dir / "empty").mkdir(parents=True)
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("empty/")
 
         assert "Directory is empty" in result
+
+    def test_list_files_pagination_default_limit(self, tmp_path: Path) -> None:
+        """Test that pagination shows 20 items by default."""
+        from sip_videogen.advisor.tools import _impl_list_files
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create 30 files
+        for i in range(30):
+            (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_list_files("")
+
+        # Should show pagination info
+        assert "showing 1-20 of 30" in result
+        # Should include hint for more
+        assert "offset=20" in result
+        # Should contain first 20 files (file_00 through file_19)
+        assert "file_00.txt" in result
+        assert "file_19.txt" in result
+        # Should NOT contain file_20
+        assert "file_20.txt" not in result
+
+    def test_list_files_pagination_with_offset(self, tmp_path: Path) -> None:
+        """Test pagination with offset parameter."""
+        from sip_videogen.advisor.tools import _impl_list_files
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create 30 files
+        for i in range(30):
+            (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_list_files("", offset=20)
+
+        # Should show pagination info for items 21-30
+        assert "showing 21-30 of 30" in result
+        # Should contain last 10 files
+        assert "file_20.txt" in result
+        assert "file_29.txt" in result
+        # Should NOT contain earlier files
+        assert "file_00.txt" not in result
+        # Should NOT have "see more" hint (we're at the end)
+        assert "offset=" not in result or "offset=20" not in result
+
+    def test_list_files_pagination_custom_limit(self, tmp_path: Path) -> None:
+        """Test pagination with custom limit parameter."""
+        from sip_videogen.advisor.tools import _impl_list_files
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create 15 files
+        for i in range(15):
+            (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_list_files("", limit=5)
+
+        # Should show 5 items
+        assert "showing 1-5 of 15" in result
+        assert "offset=5" in result
+
+    def test_list_files_pagination_offset_past_end(self, tmp_path: Path) -> None:
+        """Test that offset past end returns error."""
+        from sip_videogen.advisor.tools import _impl_list_files
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create 5 files
+        for i in range(5):
+            (brand_dir / f"file_{i}.txt").write_text(f"content {i}")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_list_files("", offset=100)
+
+        assert "Error" in result
+        assert "offset 100 is past end" in result
+        assert "5 items" in result
+
+    def test_list_files_pagination_invalid_params(self, tmp_path: Path) -> None:
+        """Test that invalid params are handled gracefully."""
+        from sip_videogen.advisor.tools import _impl_list_files
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create 25 files
+        for i in range(25):
+            (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            # Negative limit should use default (20)
+            result = _impl_list_files("", limit=-5)
+            assert "showing 1-20 of 25" in result
+
+            # Limit > 100 should be capped at 100
+            result = _impl_list_files("", limit=500)
+            assert "file_00.txt" in result  # Should still work
+
+            # Negative offset should be treated as 0
+            result = _impl_list_files("", offset=-10)
+            assert "file_00.txt" in result
+
+    def test_list_files_no_pagination_for_small_dirs(self, tmp_path: Path) -> None:
+        """Test that small directories don't show pagination info."""
+        from sip_videogen.advisor.tools import _impl_list_files
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create just 3 files
+        for i in range(3):
+            (brand_dir / f"file_{i}.txt").write_text(f"content {i}")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_list_files("")
+
+        # Should NOT show pagination info
+        assert "showing" not in result
+        assert "offset=" not in result
+        # Should just show contents
+        assert "Contents of /:" in result
 
 
 class TestLoadBrand:
@@ -205,11 +336,14 @@ class TestLoadBrand:
         """Test _impl_load_brand with no active brand and no brands available."""
         from sip_videogen.advisor.tools import _impl_load_brand
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None), patch(
-            "sip_videogen.advisor.tools.storage_load_brand", return_value=None
-        ), patch(
-            # list_brands is imported inside the function from sip_videogen.brands.storage
-            "sip_videogen.brands.storage.list_brands", return_value=[]
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value=None),
+            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=None),
+            patch(
+                # list_brands is imported inside the function from sip_videogen.brands.storage
+                "sip_videogen.brands.storage.list_brands",
+                return_value=[],
+            ),
         ):
             result = _impl_load_brand(slug=None)
 
@@ -219,10 +353,9 @@ class TestLoadBrand:
         """Test loading non-existent brand."""
         from sip_videogen.advisor.tools import _impl_load_brand
 
-        with patch(
-            "sip_videogen.advisor.tools.storage_load_brand", return_value=None
-        ), patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="nonexistent"
+        with (
+            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=None),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="nonexistent"),
         ):
             result = _impl_load_brand(slug="nonexistent")
 
@@ -257,14 +390,11 @@ class TestLoadBrand:
             {"category": "mascot", "name": "benny", "path": "/test/mascot/benny.png"},
         ]
 
-        with patch(
-            "sip_videogen.advisor.tools.storage_load_brand", return_value=mock_identity
-        ), patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets
-        ), patch(
-            "sip_videogen.brands.storage.set_active_brand"
+        with (
+            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=mock_identity),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets),
+            patch("sip_videogen.brands.storage.set_active_brand"),
         ):
             result = _impl_load_brand(slug="test-brand")
 
@@ -284,10 +414,9 @@ class TestResolveBrandPath:
         brand_dir = tmp_path / "test-brand"
         brand_dir.mkdir()
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _resolve_brand_path("assets/logo.png")
 
@@ -300,10 +429,9 @@ class TestResolveBrandPath:
         brand_dir = tmp_path / "test-brand"
         brand_dir.mkdir()
 
-        with patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
         ):
             result = _resolve_brand_path("../../../etc/passwd")
 
@@ -345,14 +473,12 @@ class TestGenerateImage:
         mock_settings = MagicMock()
         mock_settings.gemini_api_key = "test-key"
 
-        with patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings), patch(
-            "sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"
-        ), patch(
-            "sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir
-        ), patch(
-            "sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path
-        ), patch(
-            "google.genai.Client", return_value=mock_client
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("google.genai.Client", return_value=mock_client),
         ):
             result = await _impl_generate_image("A test image", aspect_ratio="1:1")
 
