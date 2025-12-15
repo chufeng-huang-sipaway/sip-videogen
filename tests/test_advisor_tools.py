@@ -86,6 +86,165 @@ class TestReadFile:
 
         assert "No active brand selected" in result
 
+    def test_read_large_file_chunked(self, tmp_path: Path) -> None:
+        """Test reading a large file returns first chunk with metadata."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "large.txt"
+        # Create a file with 5000 characters
+        content = "A" * 5000
+        test_file.write_text(content)
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_read_file("large.txt")
+
+        # Should return first chunk with metadata
+        assert "[Chunk 1/3]" in result
+        assert "(chars 1-2000 of 5000)" in result
+        assert 'read_file("large.txt", chunk=1)' in result
+
+    def test_read_file_second_chunk(self, tmp_path: Path) -> None:
+        """Test reading second chunk of a large file."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "large.txt"
+        # Create a file with 5000 characters (B's for first 2000, C's for next 2000, D's for rest)
+        content = "B" * 2000 + "C" * 2000 + "D" * 1000
+        test_file.write_text(content)
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_read_file("large.txt", chunk=1)
+
+        # Should return second chunk
+        assert "[Chunk 2/3]" in result
+        assert "(chars 2001-4000 of 5000)" in result
+        assert "C" * 100 in result  # Should contain C's
+        assert 'read_file("large.txt", chunk=2)' in result
+
+    def test_read_file_last_chunk(self, tmp_path: Path) -> None:
+        """Test reading last chunk doesn't show next chunk hint."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "large.txt"
+        content = "X" * 5000
+        test_file.write_text(content)
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_read_file("large.txt", chunk=2)
+
+        # Should be last chunk
+        assert "[Chunk 3/3]" in result
+        # Should NOT have hint for next chunk
+        assert "chunk=3" not in result
+
+    def test_read_file_invalid_chunk(self, tmp_path: Path) -> None:
+        """Test reading invalid chunk number returns error."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "large.txt"
+        test_file.write_text("X" * 5000)  # 3 chunks at 2000 per chunk
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_read_file("large.txt", chunk=10)
+
+        assert "Error: chunk 10 does not exist" in result
+        assert "File has 3 chunks (0-2)" in result
+
+    def test_read_file_negative_chunk(self, tmp_path: Path) -> None:
+        """Test reading with negative chunk returns error."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "test.txt"
+        test_file.write_text("Some content")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_read_file("test.txt", chunk=-1)
+
+        assert "Error: chunk must be >= 0" in result
+
+    def test_read_small_file_no_chunking(self, tmp_path: Path) -> None:
+        """Test small files are returned without chunking metadata."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "small.txt"
+        content = "Small content"
+        test_file.write_text(content)
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            result = _impl_read_file("small.txt")
+
+        # Should return content as-is without chunking metadata
+        assert result == "Small content"
+        assert "[Chunk" not in result
+
+    def test_read_file_custom_chunk_size(self, tmp_path: Path) -> None:
+        """Test reading with custom chunk size."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "test.txt"
+        test_file.write_text("X" * 1000)  # 1000 characters
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            # With chunk_size=500, should have 2 chunks
+            result = _impl_read_file("test.txt", chunk=0, chunk_size=500)
+
+        assert "[Chunk 1/2]" in result
+        assert "(chars 1-500 of 1000)" in result
+
+    def test_read_file_chunk_size_validation(self, tmp_path: Path) -> None:
+        """Test chunk_size is capped at min/max values."""
+        from sip_videogen.advisor.tools import _impl_read_file
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        test_file = brand_dir / "test.txt"
+        test_file.write_text("X" * 500)
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+        ):
+            # With chunk_size too small (< 100), should use 100
+            result = _impl_read_file("test.txt", chunk=0, chunk_size=10)
+
+        # File is 500 chars, with chunk_size=100, should have 5 chunks
+        assert "[Chunk 1/5]" in result
+
 
 class TestWriteFile:
     """Tests for _impl_write_file function."""

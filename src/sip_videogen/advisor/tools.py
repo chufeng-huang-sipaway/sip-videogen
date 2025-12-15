@@ -211,8 +211,25 @@ async def _impl_generate_image(
         return f"Error generating image: {str(e)}"
 
 
-def _impl_read_file(path: str) -> str:
-    """Implementation of read_file tool."""
+def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
+    """Implementation of read_file tool with chunking support.
+
+    Args:
+        path: Relative path within brand directory.
+        chunk: Chunk number to read (0-indexed, default 0).
+        chunk_size: Characters per chunk (100-10000, default 2000).
+
+    Returns:
+        File content (possibly chunked) or error message.
+    """
+    # Parameter validation
+    if chunk < 0:
+        return f"Error: chunk must be >= 0, got {chunk}"
+    if chunk_size < 100:
+        chunk_size = 100  # Minimum chunk size
+    if chunk_size > 10000:
+        chunk_size = 10000  # Maximum chunk size
+
     resolved = _resolve_brand_path(path)
 
     if resolved is None:
@@ -230,7 +247,36 @@ def _impl_read_file(path: str) -> str:
     if resolved.suffix.lower() in text_extensions:
         try:
             content = resolved.read_text(encoding="utf-8")
-            return content
+
+            # If small file, return as-is
+            if len(content) <= chunk_size:
+                return content
+
+            # Calculate chunks
+            total_chunks = (len(content) + chunk_size - 1) // chunk_size
+
+            # Validate chunk number
+            if chunk >= total_chunks:
+                return (
+                    f"Error: chunk {chunk} does not exist. "
+                    f"File has {total_chunks} chunks (0-{total_chunks - 1})."
+                )
+
+            start = chunk * chunk_size
+            end = min(start + chunk_size, len(content))
+            chunk_content = content[start:end]
+
+            # Add metadata header
+            total_len = len(content)
+            header = (
+                f"[Chunk {chunk + 1}/{total_chunks}] "
+                f"(chars {start + 1}-{end} of {total_len})\n\n"
+            )
+            footer = ""
+            if chunk < total_chunks - 1:
+                footer = f'\n\n---\nUse read_file("{path}", chunk={chunk + 1}) for next chunk.'
+
+            return header + chunk_content + footer
         except Exception as e:
             return f"Error reading file: {e}"
     else:
@@ -608,20 +654,27 @@ async def generate_image(
 
 
 @function_tool
-def read_file(path: str) -> str:
+def read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
     """Read a file from the brand directory.
 
     Args:
         path: Relative path within the brand directory.
             Examples: "identity.json", "assets/logo/logo_primary.png",
             "uploads/reference.jpg"
+        chunk: Chunk number to read (0-indexed, default 0).
+            For large files, content is split into chunks.
+        chunk_size: Characters per chunk (100-10000, default 2000).
+            Smaller values save context but require more calls.
 
     Returns:
         File contents as string (for text files), or
         confirmation that binary file exists (for images/binaries),
         or error message if file not found.
+
+        For large text files, returns the requested chunk with
+        metadata showing chunk position and hint for next chunk.
     """
-    return _impl_read_file(path)
+    return _impl_read_file(path, chunk, chunk_size)
 
 
 @function_tool
