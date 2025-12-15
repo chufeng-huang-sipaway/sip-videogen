@@ -79,11 +79,32 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - Ruff check passes
 - Summary mode: ~479 chars, Full mode: ~1018+ chars (verified)
 
+### Task 4: Update Code That Expects Full load_brand Output ✅
+
+**Commit:** `8d05235` - docs(advisor): Update references to reflect load_brand() default summary mode
+
+**Changes:**
+- `src/sip_videogen/advisor/prompts/advisor.md`:
+  - Updated line 30 tool description to clarify summary is default
+  - Updated Brand Context section (lines 137-144) to explain summary vs full modes
+
+- `src/sip_videogen/advisor/agent.py`:
+  - Updated default prompt tool description (line 264)
+  - Updated brand context hint (lines 231-234)
+
+- `src/sip_videogen/advisor/skills/brand_evolution/SKILL.md`:
+  - Updated prerequisite to use `load_brand(detail_level='full')` since evolution needs full context
+
+**Verification:**
+- 31/32 advisor tools tests pass (same as before)
+- 1 expected failure remains: `test_load_brand_includes_assets_section` (will be fixed in Task 5)
+- Ruff check passes (1 pre-existing line length warning on unrelated line)
+
 ## Remaining Tasks
 
 ### Stage 1: Tool Result Summarization
 - [x] Task 3: Add summary mode to `load_brand()` tool
-- [ ] Task 4: Update code that expects full load_brand output
+- [x] Task 4: Update code that expects full load_brand output
 - [ ] Task 5: Update existing tests for load_brand changes
 
 ### Stage 2: Token-Aware History Management
