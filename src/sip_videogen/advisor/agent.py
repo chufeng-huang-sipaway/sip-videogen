@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, AsyncIterator, Callable
 from agents import Agent, RunHooks, Runner, Tool
 from agents.run_context import RunContextWrapper
 
+from sip_videogen.advisor.context_budget import ContextBudgetManager
 from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.skills.registry import get_skills_registry
 from sip_videogen.advisor.tools import ADVISOR_TOOLS
@@ -333,6 +334,9 @@ class BrandAdvisor:
         # Track conversation history with token-aware management
         self._history_manager = ConversationHistoryManager(max_tokens=8000)
 
+        # Context budget manager for monitoring total token usage
+        self._budget_manager = ContextBudgetManager()
+
         logger.info(f"BrandAdvisor initialized for brand: {brand_slug or '(none)'}")
 
     @property
@@ -372,15 +376,46 @@ class BrandAdvisor:
         # Find relevant skills and inject their instructions
         skills_context = self._get_relevant_skills_context(message)
 
-        # Build prompt with conversation history and skills
-        prompt_parts = []
-
-        if skills_context:
-            prompt_parts.append(skills_context)
-
+        # Get conversation history
+        history_text = ""
         if self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=4000)
-            prompt_parts.append(history_text)
+
+        # Check budget and trim if needed
+        budget_result, trimmed_system, trimmed_skills, trimmed_history, _ = (
+            self._budget_manager.check_and_trim(
+                system_prompt=self._agent.instructions or "",
+                skills_context=skills_context,
+                history=history_text,
+                user_message=message,
+            )
+        )
+
+        if budget_result.trimmed:
+            logger.warning(f"Context trimmed: {budget_result.warning_message}")
+
+        if budget_result.is_over_budget:
+            logger.error(
+                f"CRITICAL: Still over budget after trimming: "
+                f"{budget_result.total_tokens}/{budget_result.budget_limit} tokens. "
+                f"Consider reducing system prompt size."
+            )
+
+        # Log severe warning if system prompt was trimmed (would need agent rebuild)
+        if "trimmed system prompt" in (budget_result.warning_message or ""):
+            logger.error(
+                "System prompt was trimmed! This indicates the base prompt is too large. "
+                "Consider reducing prompt size or brand context."
+            )
+
+        # Build prompt with trimmed parts (but NOT trimmed_system - would require Agent rebuild)
+        prompt_parts = []
+
+        if trimmed_skills:
+            prompt_parts.append(trimmed_skills)
+
+        if trimmed_history:
+            prompt_parts.append(trimmed_history)
 
         prompt_parts.append(f"User: {message}")
         full_prompt = "\n\n".join(prompt_parts)
@@ -428,15 +463,46 @@ class BrandAdvisor:
         # Find relevant skills and inject their instructions
         skills_context = self._get_relevant_skills_context(message)
 
-        # Build prompt with conversation history and skills
-        prompt_parts = []
-
-        if skills_context:
-            prompt_parts.append(skills_context)
-
+        # Get conversation history
+        history_text = ""
         if self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=4000)
-            prompt_parts.append(history_text)
+
+        # Check budget and trim if needed
+        budget_result, trimmed_system, trimmed_skills, trimmed_history, _ = (
+            self._budget_manager.check_and_trim(
+                system_prompt=self._agent.instructions or "",
+                skills_context=skills_context,
+                history=history_text,
+                user_message=message,
+            )
+        )
+
+        if budget_result.trimmed:
+            logger.warning(f"Context trimmed: {budget_result.warning_message}")
+
+        if budget_result.is_over_budget:
+            logger.error(
+                f"CRITICAL: Still over budget after trimming: "
+                f"{budget_result.total_tokens}/{budget_result.budget_limit} tokens. "
+                f"Consider reducing system prompt size."
+            )
+
+        # Log severe warning if system prompt was trimmed (would need agent rebuild)
+        if "trimmed system prompt" in (budget_result.warning_message or ""):
+            logger.error(
+                "System prompt was trimmed! This indicates the base prompt is too large. "
+                "Consider reducing prompt size or brand context."
+            )
+
+        # Build prompt with trimmed parts (but NOT trimmed_system - would require Agent rebuild)
+        prompt_parts = []
+
+        if trimmed_skills:
+            prompt_parts.append(trimmed_skills)
+
+        if trimmed_history:
+            prompt_parts.append(trimmed_history)
 
         prompt_parts.append(f"User: {message}")
         full_prompt = "\n\n".join(prompt_parts)
