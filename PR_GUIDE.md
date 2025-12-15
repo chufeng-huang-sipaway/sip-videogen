@@ -178,6 +178,38 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - Ruff check passes
 - Code formatted with ruff
 
+### Task 8: Create Context Budget Module ✅
+
+**Commit:** `0548b2a` - feat(advisor): Add context budget management module
+
+**Changes:**
+- `src/sip_videogen/advisor/context_budget.py` (new file):
+  - Created `ContextBudget` dataclass for GPT-5.1 (272K context):
+    - Default 16K reserved for response, 8K for tools
+    - `available_for_content` property calculates usable space
+  - Created `BudgetCheckResult` dataclass for trim operation results
+  - Created `ContextBudgetManager` class with:
+    - Conservative token estimation (CJK, emoji aware)
+    - Auto-trim when over budget with priority:
+      1. Skills context (lowest priority, trimmed first)
+      2. History
+      3. System prompt (last resort)
+    - `check_and_trim()` method returns trimmed content + result
+
+- `tests/test_context_budget.py` (new file):
+  - 16 comprehensive tests covering:
+    - Budget default values and calculations
+    - Trim priority order (skills → history → system)
+    - Token estimation (basic, CJK, emoji, mixed)
+    - Edge cases (empty inputs, user message never trimmed)
+    - BudgetCheckResult validation
+
+**Verification:**
+- All 16 context budget tests pass
+- All 62 advisor-related tests pass (34 tools + 12 history + 16 budget)
+- Ruff check passes
+- Code formatted with ruff
+
 ## Remaining Tasks
 
 ### Stage 1: Tool Result Summarization
@@ -190,7 +222,7 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - [x] Task 7: Integrate history manager into agent
 
 ### Stage 3: Context Budget Guard
-- [ ] Task 8: Create context budget module
+- [x] Task 8: Create context budget module
 - [ ] Task 9: Integrate budget guard into agent
 
 ## Testing
