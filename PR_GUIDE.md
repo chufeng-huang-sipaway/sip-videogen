@@ -119,6 +119,43 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - Ruff check passes
 - Code formatted with ruff
 
+### Task 6: Create History Manager Module ✅
+
+**Commit:** `d2f0f56` - feat(advisor): Add token-aware conversation history manager
+
+**Changes:**
+- `src/sip_videogen/advisor/history_manager.py` (new file):
+  - Created `Message` dataclass for storing conversation messages with role, content, timestamp
+  - Created `ConversationHistoryManager` class with:
+    - Token budget tracking (default: 8000 tokens)
+    - Conservative token estimation for CJK and emoji text
+    - Automatic history compaction when over budget
+    - Message summarization to preserve context while staying within limits
+    - `add()` method for adding messages
+    - `get_formatted()` method for retrieving formatted history
+    - `clear()` method for clearing history
+
+- `tests/test_history_manager.py` (new file):
+  - 12 comprehensive tests covering:
+    - Basic message addition
+    - Formatted output generation
+    - Compaction behavior
+    - Clear functionality
+    - CJK token estimation
+    - Emoji token estimation
+    - Minimum max_tokens enforcement
+    - Summary inclusion after compaction
+    - Custom token limit in get_formatted
+    - Mixed content token estimation
+    - Empty history behavior
+    - Message role formatting
+
+**Verification:**
+- All 12 history manager tests pass
+- All 46 advisor-related tests pass
+- Ruff check passes
+- Code formatted with ruff
+
 ## Remaining Tasks
 
 ### Stage 1: Tool Result Summarization
@@ -127,7 +164,7 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - [x] Task 5: Update existing tests for load_brand changes
 
 ### Stage 2: Token-Aware History Management
-- [ ] Task 6: Create history manager module
+- [x] Task 6: Create history manager module
 - [ ] Task 7: Integrate history manager into agent
 
 ### Stage 3: Context Budget Guard
