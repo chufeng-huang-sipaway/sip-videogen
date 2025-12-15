@@ -76,6 +76,12 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
     if (node.type !== 'image') return
     e.dataTransfer.setData('application/x-brand-asset', node.path)
     e.dataTransfer.setData('text/plain', node.path)
+    e.dataTransfer.effectAllowed = 'copy'
+    // Set a custom drag image for better feedback
+    const dragEl = e.currentTarget as HTMLElement
+    if (dragEl) {
+      e.dataTransfer.setDragImage(dragEl, 20, 20)
+    }
   }
 
   return (
@@ -83,11 +89,14 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className="flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group"
+            className={`flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 group ${
+              node.type === 'image' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+            }`}
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
             onClick={handleClick}
             draggable={node.type === 'image'}
             onDragStart={handleDragStart}
+            title={node.type === 'image' ? 'Drag to chat or click to preview' : undefined}
           >
             {node.type === 'folder' ? (
               hasChildren ? (
@@ -168,7 +177,7 @@ export function AssetTree() {
   const handlePreview = useCallback(async (path: string) => {
     if (!isPyWebView()) return
     try {
-      const dataUrl = await bridge.getAssetThumbnail(path)
+      const dataUrl = await bridge.getAssetFull(path)
       setPreviewImage(dataUrl)
     } catch (err) {
       console.error('Failed to load preview:', err)

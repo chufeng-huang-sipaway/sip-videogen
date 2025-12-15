@@ -1,9 +1,9 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, Paperclip, Plus, X } from 'lucide-react'
+import { AlertCircle, Paperclip, Plus, X, Upload } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
@@ -29,8 +29,13 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setAttachmentError,
   } = useChat(brandSlug)
 
+  // Track drag state for both files and internal assets
+  const [isInternalDragOver, setIsInternalDragOver] = useState(false)
+
   const handleDrop = useCallback(
     (accepted: File[], rejections: FileRejection[], event: DropEvent) => {
+      setIsInternalDragOver(false)
+
       if (!brandSlug) {
         setAttachmentError('Select a brand before attaching files.')
         return
@@ -59,6 +64,42 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     [addAttachmentReference, addFilesAsAttachments, brandSlug, setAttachmentError]
   )
 
+  // Handle native drag events for internal asset drags (not detected by react-dropzone)
+  const handleNativeDragOver = useCallback((e: React.DragEvent) => {
+    // Check if this is an internal asset drag
+    if (e.dataTransfer.types.includes('application/x-brand-asset')) {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsInternalDragOver(true)
+    }
+  }, [])
+
+  const handleNativeDragLeave = useCallback((e: React.DragEvent) => {
+    // Only reset if leaving the container entirely
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX
+    const y = e.clientY
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsInternalDragOver(false)
+    }
+  }, [])
+
+  const handleNativeDrop = useCallback((e: React.DragEvent) => {
+    const assetPath = e.dataTransfer.getData('application/x-brand-asset')
+    if (assetPath && assetPath.trim()) {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsInternalDragOver(false)
+
+      if (!brandSlug) {
+        setAttachmentError('Select a brand before attaching files.')
+        return
+      }
+
+      addAttachmentReference(assetPath.trim())
+    }
+  }, [addAttachmentReference, brandSlug, setAttachmentError])
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     noClick: true,
     noKeyboard: true,
@@ -71,12 +112,29 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     onDrop: handleDrop,
   })
 
+  // Show overlay when either react-dropzone detects drag OR internal asset drag
+  const showDragOverlay = isDragActive || isInternalDragOver
+
   return (
     <main
       {...getRootProps()}
-      className={`flex-1 flex flex-col h-screen bg-white dark:bg-gray-900 ${isDragActive ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
+      onDragOver={handleNativeDragOver}
+      onDragLeave={handleNativeDragLeave}
+      onDrop={handleNativeDrop}
+      className="flex-1 flex flex-col h-screen bg-white dark:bg-gray-900 relative"
     >
       <input {...getInputProps()} />
+
+      {/* Prominent drag overlay */}
+      {showDragOverlay && (
+        <div className="absolute inset-0 z-50 bg-blue-500/20 backdrop-blur-[2px] border-4 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
+          <div className="bg-blue-500 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
+            <Upload className="h-6 w-6" />
+            <span className="text-lg font-medium">Drop files here to attach</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
         <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Chat</span>
         <Button

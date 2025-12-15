@@ -765,6 +765,42 @@ class StudioBridge:
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
+    def get_asset_full(self, relative_path: str) -> dict:
+        """Get base64-encoded full-resolution image for an asset."""
+        try:
+            resolved, error = self._resolve_assets_path(relative_path)
+            if error:
+                return BridgeResponse(success=False, error=error).to_dict()
+
+            if not resolved.exists():
+                return BridgeResponse(success=False, error="Asset not found").to_dict()
+
+            suffix = resolved.suffix.lower()
+            if suffix not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
+            # Read full file and return as data URL
+            content = resolved.read_bytes()
+            encoded = base64.b64encode(content).decode("utf-8")
+
+            # Determine MIME type
+            mime_types = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+                ".svg": "image/svg+xml",
+            }
+            mime = mime_types.get(suffix, "image/png")
+
+            return BridgeResponse(
+                success=True,
+                data={"dataUrl": f"data:{mime};base64,{encoded}"},
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
     def open_asset_in_finder(self, relative_path: str) -> dict:
         """Open an asset in Finder."""
         import subprocess
