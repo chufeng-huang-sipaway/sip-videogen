@@ -1,493 +1,203 @@
-# sip-videogen
+# Brand Studio
 
-CLI tool that transforms vague video ideas into complete videos using an AI agent team.
+A macOS desktop app for creating and managing brand identities with AI assistance.
 
-## How It Works
+## What It Does
 
-```
-User Idea → AI Agent Script Team → Reference Images → Video Clips → Final Video
-```
+Brand Studio helps you develop complete brand identities through conversation with an AI Brand Advisor. Upload reference materials, describe your vision, and the AI creates:
 
-1. You provide a video idea (e.g., "A cat astronaut explores Mars")
-2. AI agents collaborate to write a script with scenes and shared visual elements
-3. Reference images are generated for visual consistency (characters, props, environments)
-4. Video clips are generated for each scene using VEO 3.1 via Gemini API (8 seconds per clip)
-5. Clips are assembled into a final video with background music via FFmpeg
+- **Brand Strategy** - Mission, values, positioning, target audience
+- **Visual Identity** - Color palette, typography, imagery guidelines
+- **Brand Voice** - Tone, messaging, communication style
+- **Asset Library** - Organized storage for logos, marketing materials, documents
 
 ## Installation
 
-### Option 1: Install from PyPI (Recommended)
-
-```bash
-# Install pipx if you don't have it
-pip install pipx
-
-# Install sip-videogen
-pipx install sip-videogen
-
-# Run - first time will prompt for configuration
-sipvid
-```
-
-On first run, you'll be prompted to paste your configuration. Just paste the entire config block and press Enter twice.
-
-### Option 2: Run from Source
-
-```bash
-# Clone the repo
-git clone https://github.com/chufeng-huang-sipaway/sip-videogen.git
-cd sip-videogen
-
-# Copy and fill in your API keys
-cp .env.example .env
-
-# Run (installs everything automatically on first run)
-./start.sh
-```
-
-## Prerequisites
-
-- Python 3.11+ (`brew install python@3.11` on macOS)
-- FFmpeg (`brew install ffmpeg` on macOS)
-
-### API Keys Required
-
-Get these API keys:
-
-| Key | Required | Where to get it |
-|-----|----------|-----------------|
-| `OPENAI_API_KEY` | Yes | [OpenAI Platform](https://platform.openai.com/api-keys) - Also enables Sora video generation |
-| `GEMINI_API_KEY` | Yes | [Google AI Studio](https://aistudio.google.com/apikey) |
-| `GOOGLE_CLOUD_PROJECT` | Optional | [Google Cloud Console](https://console.cloud.google.com) - Only needed for Lyria background music |
-| `KLING_ACCESS_KEY` | Optional | [Kling AI](https://app.klingai.com/global/dev/api-key) - Alternative video generator |
-| `KLING_SECRET_KEY` | Optional | Required if using Kling |
-
-## Configuration
-
-### First-Time Setup
-
-On first run, `sipvid` will prompt you to configure your environment. You can either:
-
-1. **Paste a config block** (recommended) - Paste all your keys at once:
-   ```
-   OPENAI_API_KEY=sk-...
-   GEMINI_API_KEY=AIza...
-   ```
-
-2. **Enter keys individually** - Follow the interactive prompts
-
-Configuration is stored in `~/.sip-videogen/.env` and works from any directory.
-
-### Managing Configuration
-
-```bash
-sipvid config          # Interactive config editor
-sipvid config --show   # Show current configuration status
-sipvid config --reset  # Replace config with a new config block
-```
-
-## Usage
-
-### Interactive Menu
-
-```bash
-sipvid
-```
-
-This launches a simplified interactive menu:
-
-```
-? Use arrow keys to navigate, Enter to select:
-❯ Generate Video     Create a new video from your idea
-  View History       See previous generations
-  More Options...    Settings, resume, and other tools
-  Exit
-```
-
-### Director's Pitch Workflow
-
-When you select "Generate Video", you'll experience a streamlined creative workflow:
-
-1. **Enter your idea** - Describe your video concept
-2. **Select duration** - Choose from 15s, 30s, 45s, or 60s
-3. **Review the pitch** - The AI presents a "Director's Pitch" with:
-   - Title and logline
-   - Tone and visual style
-   - Key elements and scene breakdown
-4. **Approve or refine** - Accept the pitch, provide feedback for revision, or cancel
-5. **Generate** - Once approved, full video generation begins
-
-The AI agent team decides the optimal scene count based on your story's complexity.
-
-### View History
-
-Access all your previous video generations from the main menu:
-- See title, date, duration, and completion status
-- Resume or regenerate from any previous script
-- Open output folders directly
-
-### Direct Commands
-
-```bash
-# Generate a video (uses interactive pitch flow)
-sipvid generate "A cat astronaut explores Mars"
-
-# Regenerate videos from an existing run (reuse saved script + images)
-sipvid resume output/sip_20251210_123855_e9a845e4
-
-# Generate with specific number of scenes
-sipvid generate "Epic space battle" --scenes 5
-
-# Dry run (script only, no video generation)
-sipvid generate "Underwater adventure" --dry-run
-
-# Skip cost confirmation
-sipvid generate "Robot dance party" --yes
-
-# Check configuration status
-sipvid status
-```
-
-### Brand Studio
-
-Create and manage persistent brands with an AI-powered brand development team:
-
-```bash
-sipvid brands
-```
-
-**Brand Studio features:**
-
-- **Create brands** - Describe your concept, AI agents develop complete brand identity
-- **Evolve brands** - Refine visual identity, voice, audience, or positioning over time
-- **Generate assets** - Create brand kit assets using your saved brand's style
-- **Manage brands** - Set active brand, view details, delete brands
-
-**How brand creation works:**
-
-1. **Describe your concept** - Product category, target audience, differentiators, tone
-2. **AI team develops identity** - Brand Director orchestrates specialist agents:
-   - Brand Strategist (positioning, audience, values)
-   - Visual Designer (colors, typography, imagery)
-   - Brand Voice Writer (tone, messaging, copy)
-   - Brand Guardian (consistency validation)
-3. **Review and approve** - See the complete brand identity before saving
-4. **Brand is saved** - Stored at `~/.sip-videogen/brands/` for future use
-
-### Brand Kit Generation
-
-Generate a complete brand design library:
-
-```bash
-# Use a saved brand (recommended)
-sipvid brandkit --brand my-brand-slug
-
-# Or create a one-shot brand from concept
-sipvid brandkit "A skincare product brand with a tropical, organic feel"
-```
-
-When using a saved brand, assets are generated using your brand's established colors, style, and visual identity - ensuring consistency across all outputs.
-
-**How it works:**
-
-1. **Select or describe brand** - Use saved brand or provide a new concept
-2. **Review the brief** - AI analyzes your concept and creates a brand brief
-3. **Choose a direction** - Select from 3 creative directions with different palettes and styles
-4. **Approve the logo** - Review and approve the generated logo before continuing
-5. **Generate assets** - All other assets use your approved logo for visual consistency
-
-**Logo approval with feedback loop:**
-
-When the logo is generated, you can:
-- **Click the file link** to open it directly from the terminal
-- **Auto-open for preview** - Option to launch in your system's image viewer
-- **Provide feedback** - If you don't like the logo, describe what to improve (colors, style, layout)
-- **Iterate** - The AI regenerates the logo based on your feedback (up to 3 attempts)
-
-**Generated assets include:**
-
-| Category | Assets |
-|----------|--------|
-| Logo | Primary brand logo (used as reference for all other assets) |
-| Packaging | Hero shot, alternate colorway |
-| Lifestyle | In-use photo, flatlay, environment |
-| Mascot | Primary and alternate poses |
-| Marketing | Landing page, recipe card, merch, pop-up stand, meme |
-
-The logo you approve becomes the visual anchor - it's passed as a reference image to Gemini when generating packaging and marketing assets, ensuring consistent branding across all outputs.
-
-## Brand Studio Desktop App
-
-A native macOS desktop application for managing brand identities with an AI-powered Brand Advisor.
-
-### Installation
-
-**Option 1: Terminal (Recommended)**
-
-```bash
-curl -sSL https://raw.githubusercontent.com/chufeng-huang-sipaway/sip-videogen/main/scripts/install-brand-studio.sh | bash
-```
-
-**Option 2: Download DMG**
+### Option 1: Download DMG (Recommended)
 
 1. Go to [GitHub Releases](https://github.com/chufeng-huang-sipaway/sip-videogen/releases)
 2. Download `Brand-Studio-X.Y.Z.dmg`
 3. Open the DMG and drag Brand Studio to Applications
 
-### Features
-
-- **Brand Management** - Create, view, and manage multiple brand identities
-- **AI Brand Advisor** - Chat with an AI that understands your brand's voice, values, and visual identity
-- **Asset Library** - Organize brand assets (logos, images, marketing materials)
-- **Document Storage** - Keep brand guidelines and reference documents
-- **Auto Updates** - Get notified when new versions are available
-
-### First-Time Setup
-
-1. Launch Brand Studio from Applications
-2. Enter your API keys (OpenAI and Gemini)
-3. Create your first brand or import existing materials
-
-### Auto-Update
-
-Brand Studio automatically checks for updates on launch. When a new version is available:
-
-```
-┌─────────────────────────────────────┐
-│  Update Available                   │
-│                                     │
-│  Version 0.2.0 is ready!            │
-│                                     │
-│  What's new:                        │
-│  • New feature X                    │
-│  • Bug fixes                        │
-│                                     │
-│  [Skip]  [Later]  [Update Now]      │
-└─────────────────────────────────────┘
-```
-
-Click **Update Now** to download and install automatically. The app will restart with the new version.
-
-## Automatic Updates (CLI)
-
-The tool automatically checks for updates on each run. When a new version is available, you'll see a notification:
-
-```
-┌─────────────────────────────────────────────────┐
-│  Update available!                              │
-│  Current version: 0.1.0                         │
-│  Latest version:  0.2.0                         │
-│  Run: sipvid update                             │
-└─────────────────────────────────────────────────┘
-```
-
-Update commands:
+### Option 2: Terminal Install
 
 ```bash
-sipvid update         # Check and install updates
-sipvid update --check # Only check, don't install
+curl -sSL https://raw.githubusercontent.com/chufeng-huang-sipaway/sip-videogen/main/scripts/install-brand-studio.sh | bash
 ```
 
-## Architecture
+## First-Time Setup
 
-The tool uses a hub-and-spoke agent pattern with specialized teams:
+1. Launch Brand Studio from Applications
+2. Enter your API keys when prompted:
+   - **OpenAI API Key** - [Get one here](https://platform.openai.com/api-keys)
+   - **Gemini API Key** - [Get one here](https://aistudio.google.com/apikey)
+3. Create your first brand
 
-**Video Generation Team:**
-- **Showrunner** (orchestrator) - Coordinates the script development process
-  - **Screenwriter** - Creates scene breakdown with professional cinematography
-  - **Production Designer** - Identifies shared visual elements for consistency
-  - **Continuity Supervisor** - Validates consistency and optimizes prompts
-  - **Music Director** - Designs complementary background music
+## Usage
 
-**Brand Development Team:**
-- **Brand Director** (orchestrator) - Coordinates the brand identity process
-  - **Brand Strategist** - Develops positioning, audience profile, and values
-  - **Visual Designer** - Creates color palette, typography, and imagery direction
-  - **Brand Voice Writer** - Establishes tone, messaging guidelines, and copy
-  - **Brand Guardian** - Validates consistency across all brand elements
+### Creating a Brand
 
-### VEO 3.1 Prompt Optimization
+1. Click **New Brand** in the sidebar
+2. Optionally upload reference materials:
+   - Images (logos, packaging, mood boards)
+   - Documents (brand guidelines, briefs)
+3. Describe your brand concept
+4. The AI Brand Director team develops your complete identity
 
-Prompts are structured following [Google's VEO 3.1 best practices](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1):
+### Managing Brands
 
-- **Prompt stack (global → elements → shots)** keeps critical anchors short:
-  - Global: tone + visual_style fragments (palette, light, camera vibe, treatment)
-  - Entity cards: one line per shared element (role descriptor + 2–3 anchors)
-  - Shots: timestamped micro-prompts `[00:00-00:04] 4s medium static on reporter asking question at snowy city curb; crowd 6-8 crosses behind; bright overcast; flow: no pauses`
-- **Professional camera terminology**: dolly, tracking, crane shots with depth of field control
-- **Dialogue integration**: Quotes and speaker attribution for natural delivery
-- **Audio design**: `Ambient:` and `SFX:` prefixes for precise sound control
-- **Continuity anchors**: per-shot “flow: keep motion continuous, no pauses” with explicit exits/entrances and persistent props/splatter when needed
+- **Switch brands** - Use the dropdown in the sidebar
+- **View brand info** - See name, tagline, and category
+- **Delete brands** - Click the trash icon (with confirmation)
 
-This same structured stack is used for Kling prompts (trimmed to the 2.5k character limit) to preserve detail without overloading the model.
+### AI Brand Advisor
 
-### Clip Duration & Clip Patterns
+Chat with an AI that understands your brand's voice, values, and visual identity:
 
-When using reference images for visual consistency (standard workflow), VEO generates **fixed 8-second clips**. To create rhythm and shot variety within this duration, the system uses **clip patterns** - pre-defined shot duration combinations that guarantee the math always works:
+- Ask for copy suggestions in your brand voice
+- Request asset generation (uses Gemini)
+- Get feedback on brand consistency
+- Refine your brand identity over time
 
-| Pattern | Name | Best For |
-|---------|------|----------|
-| `[8]` | Single continuous | Establishing shots, emotional moments |
-| `[6, 2]` | Long + quick | Build-up with quick ending beat |
-| `[2, 6]` | Quick + long | Hook attention, then develop |
-| `[4, 4]` | Two equal | Action-reaction, call-response |
-| `[4, 2, 2]` | Medium + two quick | Building intensity |
-| `[2, 4, 2]` | Sandwich | Bookended emphasis |
-| `[2, 2, 4]` | Two quick + medium | Quick start, sustained finish |
-| `[2, 2, 2, 2]` | Four quick | Montage, high energy, rapid cuts |
+**Attachments**: Drag and drop files into the chat, or click the attachment button to reference assets or documents.
 
-The **Showrunner** selects patterns for each scene based on pacing needs, and the **Screenwriter** creates matching `sub_shots` using timestamp prompting:
+### Asset Library
+
+Organize your brand materials by category:
+- `logo/` - Brand logos and variations
+- `packaging/` - Product packaging designs
+- `lifestyle/` - Lifestyle and mood imagery
+- `mascot/` - Brand mascot variations
+- `marketing/` - Marketing materials
+- `generated/` - AI-generated assets
+
+Upload, rename, or delete assets directly in the sidebar.
+
+### Documents
+
+Store brand-related documents:
+- Brand guidelines (`.md`, `.txt`)
+- Strategy briefs (`.json`, `.yaml`)
+- Reference materials
+
+## Auto-Updates
+
+Brand Studio checks for updates on launch. When a new version is available, click **Update Now** to download and install automatically.
+
+## Data Storage
+
+All brand data is stored locally at `~/.sip-videogen/brands/`:
 
 ```
-[00:00-00:02] Wide establishing shot of the food truck
-[00:02-00:04] Medium shot, the vendor prepares ingredients
-[00:04-00:06] Close-up of sizzling grill
-[00:06-00:08] Medium shot, vendor plates the food
+~/.sip-videogen/brands/
+├── index.json           # Brand registry
+├── my-brand/
+│   ├── identity.json    # Brand summary
+│   ├── identity_full.json
+│   ├── assets/
+│   └── docs/
 ```
 
-This creates dynamic multi-shot sequences within a single clip, similar to professional editing - while ensuring shots never split across clips.
-
-### Seamless Scene Flow
-
-Video clips are generated in parallel for speed, but the system ensures smooth transitions:
-
-- **Flow Context**: Each clip receives position-aware instructions (first/middle/last) to avoid awkward pauses
-- **Scene Continuity**: Screenwriter creates scenes that flow seamlessly:
-  - First scene: May open naturally, must end with action in progress
-  - Middle scenes: Must begin AND end mid-action (no pauses)
-  - Last scene: Must begin mid-action, may conclude naturally
+---
 
 ## Development
 
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- npm
+
+### Running from Source
+
 ```bash
-# Install dev dependencies
+# Clone and setup
+git clone https://github.com/chufeng-huang-sipaway/sip-videogen.git
+cd sip-videogen
 pip install -e ".[dev]"
 
-# Run tests
-python -m pytest
+# Build frontend
+cd src/sip_videogen/studio/frontend
+npm install
+npm run build
+cd ../../../..
 
-# Run specific test
-python -m pytest tests/test_models.py -v
-
-# Lint and format
-ruff check .
-ruff format .
-
-# Type check
-mypy src/
+# Run
+python -m sip_videogen.studio
 ```
 
-### Publishing New Versions (CLI)
+### Development Mode
+
+Use Vite dev server for hot reloading:
 
 ```bash
-# 1. Bump version in pyproject.toml
-# 2. Run publish script
-./scripts/publish.sh
+# Terminal 1: Frontend dev server
+cd src/sip_videogen/studio/frontend
+npm run dev
+
+# Terminal 2: App with dev mode
+STUDIO_DEV=1 python -m sip_videogen.studio
 ```
 
-### Brand Studio Release Management
-
-Build and release new versions of the Brand Studio desktop app.
-
-#### Prerequisites
+Or use the launcher script:
 
 ```bash
-pip install pyinstaller   # macOS app bundling
-brew install npm          # Frontend build (if not installed)
+./scripts/studio-demo.sh
 ```
 
-#### Building a Release
+### Testing & Linting
 
 ```bash
-# Build a new release (interactive, prompts for confirmation)
-./scripts/build-release.sh 0.2.0
-
-# Or use current version from source
-./scripts/build-release.sh
+python -m pytest           # Run tests
+ruff check .               # Lint
+ruff format .              # Format
+mypy src/                  # Type check
 ```
 
-The script will:
-1. Update version numbers in `src/sip_videogen/studio/__init__.py` and `BrandStudio.spec`
-2. Build the React frontend (`npm run build`)
-3. Build the macOS .app bundle using PyInstaller
-4. Create the DMG installer (`dist/Brand-Studio-X.Y.Z.dmg`)
-
-#### Publishing a Release
-
-After building, create a GitHub Release:
+### Building a Release
 
 ```bash
-# Option 1: Using GitHub CLI (recommended)
-gh release create v0.2.0 dist/Brand-Studio-0.2.0.dmg \
-  --title "Brand Studio v0.2.0" \
-  --notes "## What's New
-- Feature X
-- Bug fix Y"
+# Build DMG
+./scripts/build-release.sh 0.3.0
 
-# Option 2: Manual
-# 1. Go to https://github.com/chufeng-huang-sipaway/sip-videogen/releases/new
-# 2. Create tag: v0.2.0
-# 3. Upload: dist/Brand-Studio-0.2.0.dmg
-# 4. Add release notes
-# 5. Publish
+# Publish to GitHub
+gh release create v0.3.0 dist/Brand-Studio-0.3.0.dmg \
+  --title "Brand Studio v0.3.0" \
+  --notes "Release notes here"
 ```
 
-#### How Auto-Update Works
+---
 
-1. On app launch, Brand Studio checks the GitHub Releases API for newer versions
-2. If a newer version exists, users see an update notification modal
-3. Clicking "Update Now" downloads the DMG, installs the new app, and restarts
-4. Users can skip specific versions or disable auto-update checks in settings
+## Legacy: Video Generation CLI
 
-The update system uses the GitHub Releases API (`/repos/{owner}/{repo}/releases/latest`) to check for updates, so no additional infrastructure is needed.
+The repository also includes a CLI tool for AI-powered video generation. This feature is maintained but not actively developed.
 
-#### Version Numbering
+### Quick Start
 
-Follow semantic versioning: `MAJOR.MINOR.PATCH`
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes
+```bash
+# Install
+pipx install sip-videogen
 
-#### Release Checklist
+# Run
+sipvid
+```
 
-- [ ] Test the app locally (`./scripts/studio-demo.sh`)
-- [ ] Run `./scripts/build-release.sh X.Y.Z`
-- [ ] Test the built DMG on a clean machine if possible
-- [ ] Create GitHub Release with DMG attached
-- [ ] Verify update notification appears in older version
+### Features
 
-## Cost Estimation
+- AI script writing with visual consistency
+- Video generation via VEO 3.1, Kling, or Sora
+- Reference image generation for character/prop consistency
+- FFmpeg assembly with background music
 
-Before generating videos, the tool displays estimated costs:
-- Gemini image generation: ~$0.13-0.24 per image
-- VEO video generation: Check current [Gemini API pricing](https://ai.google.dev/pricing)
+### Configuration
 
-Use `--yes` to skip the cost confirmation prompt.
+Required API keys for video generation:
 
-## Video Providers
+| Key | Purpose |
+|-----|---------|
+| `OPENAI_API_KEY` | Script generation |
+| `GEMINI_API_KEY` | Image & video generation |
+| `GOOGLE_CLOUD_PROJECT` | GCS storage (optional) |
+| `SIP_GCS_BUCKET_NAME` | Video storage (optional) |
 
-The tool supports multiple video generation providers:
-
-| Provider | Description | Durations | Reference Images |
-|----------|-------------|-----------|------------------|
-| **VEO** (default) | Google's VEO 3.1 via Gemini API | 4, 6, 8s | Up to 3 per clip |
-| **Kling** | Kling AI video generation | 5, 10s | 1 (requires GCS) |
-| **Sora** | OpenAI's Sora 2 video generation | 4, 8, 12s | 1 (first frame) |
-
-### Sora Configuration
-
-Sora uses your existing `OPENAI_API_KEY`. Configure model and resolution in Settings:
-
-| Model | Description |
-|-------|-------------|
-| `sora-2` (default) | Faster, lower cost |
-| `sora-2-pro` | Higher quality output |
-
-| Resolution | Landscape | Portrait |
-|------------|-----------|----------|
-| 720p | 1280x720 | 720x1280 |
-| 1080p | 1792x1024 | 1024x1792 |
-
-**Note**: Sora API requires organization verification at [platform.openai.com](https://platform.openai.com).
-
-Switch providers in the Settings menu or set a default in your preferences.
+See `sipvid status` for configuration details.
