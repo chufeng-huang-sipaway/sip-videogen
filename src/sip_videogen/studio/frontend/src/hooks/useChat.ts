@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType } from '@/lib/bridge'
 
 export interface Message {
   id: string
@@ -54,6 +54,8 @@ export function useChat(brandSlug: string | null) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState('')
+  const [progressType, setProgressType] = useState<ActivityEventType>('')
+  const [loadedSkills, setLoadedSkills] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
@@ -202,8 +204,15 @@ export function useChat(brandSlug: string | null) {
     if (isPyWebView()) {
       progressInterval.current = setInterval(async () => {
         try {
-          const status = await bridge.getProgress()
-          if (status) setProgress(status)
+          const progressStatus = await bridge.getProgress()
+          if (progressStatus.status) {
+            setProgress(progressStatus.status)
+            setProgressType(progressStatus.type || '')
+          }
+          // Always update skills (they accumulate during the request)
+          if (progressStatus.skills && progressStatus.skills.length > 0) {
+            setLoadedSkills(progressStatus.skills)
+          }
         } catch {
           // Ignore - concurrent calls may fail in PyWebView
         }
@@ -259,6 +268,8 @@ export function useChat(brandSlug: string | null) {
         progressInterval.current = null
       }
       setProgress('')
+      setProgressType('')
+      setLoadedSkills([])
       setIsLoading(false)
     }
   }, [brandSlug, isLoading])
@@ -275,6 +286,8 @@ export function useChat(brandSlug: string | null) {
     messages,
     isLoading,
     progress,
+    progressType,
+    loadedSkills,
     error,
     attachmentError,
     attachments,

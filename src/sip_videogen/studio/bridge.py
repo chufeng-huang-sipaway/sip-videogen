@@ -80,6 +80,8 @@ class StudioBridge:
         self._advisor: BrandAdvisor | None = None
         self._current_brand: str | None = None
         self._current_progress: str = ""
+        self._current_progress_type: str = ""
+        self._matched_skills: list[str] = []  # Track skills loaded for current request
         self._execution_trace: list[dict] = []
         self._window = None
 
@@ -930,25 +932,47 @@ class StudioBridge:
             "detail": progress.detail or "",
         }
         self._execution_trace.append(event)
+
+        # Track skill_loaded events separately so they persist through fast overwrites
+        if progress.event_type == "skill_loaded":
+            # Extract skill name from message like "Loading lifestyle-imagery skill"
+            skill_name = progress.message.replace("Loading ", "").replace(" skill", "")
+            if skill_name not in self._matched_skills:
+                self._matched_skills.append(skill_name)
+
         if progress.event_type == "tool_end":
             self._current_progress = ""
+            self._current_progress_type = ""
         else:
             self._current_progress = progress.message
+            self._current_progress_type = progress.event_type
 
     def get_progress(self) -> dict:
         """Get current operation progress.
 
+        Returns:
+            dict with status (message), type (event_type), and skills (matched skill names).
+            Event types: "thinking", "tool_start", "tool_end", "skill_loaded"
+
         NOTE: Polling may not work if PyWebView blocks concurrent calls.
         Test during implementation; fall back to static "Thinking..." if needed.
         """
-        return BridgeResponse(success=True, data={"status": self._current_progress}).to_dict()
+        return BridgeResponse(
+            success=True,
+            data={
+                "status": self._current_progress,
+                "type": self._current_progress_type,
+                "skills": self._matched_skills,
+            },
+        ).to_dict()
 
     def chat(self, message: str, attachments: list[dict] | None = None) -> dict:
         """Send a message to the Brand Advisor."""
         import time
 
-        # Reset execution trace for this turn
+        # Reset execution trace and matched skills for this turn
         self._execution_trace = []
+        self._matched_skills = []
 
         try:
             if self._advisor is None:

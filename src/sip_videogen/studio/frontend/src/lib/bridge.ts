@@ -4,11 +4,19 @@ interface BridgeResponse<T> {
   error?: string
 }
 
+export type ActivityEventType = 'thinking' | 'tool_start' | 'tool_end' | 'skill_loaded' | ''
+
 export interface ExecutionEvent {
-  type: 'thinking' | 'tool_start' | 'tool_end'
+  type: ActivityEventType
   timestamp: number
   message: string
   detail: string
+}
+
+export interface ProgressStatus {
+  status: string
+  type: ActivityEventType
+  skills: string[]
 }
 
 export interface BrandEntry {
@@ -128,7 +136,7 @@ interface PyWebViewAPI {
   delete_asset(path: string): Promise<BridgeResponse<void>>
   rename_asset(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
   upload_asset(filename: string, data: string, category: string): Promise<BridgeResponse<{ path: string }>>
-  get_progress(): Promise<BridgeResponse<{ status: string }>>
+  get_progress(): Promise<BridgeResponse<ProgressStatus>>
   chat(message: string, attachments?: ChatAttachment[]): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
@@ -209,7 +217,7 @@ export const bridge = {
   deleteAsset: (p: string) => callBridge(() => window.pywebview!.api.delete_asset(p)),
   renameAsset: async (p: string, n: string) => (await callBridge(() => window.pywebview!.api.rename_asset(p, n))).newPath,
   uploadAsset: async (f: string, d: string, c: string) => (await callBridge(() => window.pywebview!.api.upload_asset(f, d, c))).path,
-  getProgress: async () => (await callBridge(() => window.pywebview!.api.get_progress())).status,
+  getProgress: async () => await callBridge(() => window.pywebview!.api.get_progress()),
   chat: (m: string, attachments?: ChatAttachment[]) => callBridge(() => window.pywebview!.api.chat(m, attachments || [])),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
   refreshBrandMemory: () => callBridge(() => window.pywebview!.api.refresh_brand_memory()),

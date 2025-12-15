@@ -392,14 +392,16 @@ class TestBrandAdvisor:
             mock_registry.return_value.find_relevant_skills.return_value = [mock_skill]
 
             advisor = BrandAdvisor()
-            context = advisor._get_relevant_skills_context("I want a mascot")
+            context, matched_skills = advisor._get_relevant_skills_context("I want a mascot")
 
         assert "## Relevant Skill Instructions" in context
         assert "mascot-generation" in context
         assert "Mascot Generation" in context
+        assert len(matched_skills) == 1
+        assert matched_skills[0] == ("mascot-generation", "Create mascots")
 
     def test_get_relevant_skills_context_no_matches(self) -> None:
-        """Test that _get_relevant_skills_context returns empty string when no skills match."""
+        """Test that _get_relevant_skills_context returns empty tuple when no skills match."""
         with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
             "sip_videogen.advisor.agent.get_skills_registry"
         ) as mock_registry:
@@ -407,6 +409,7 @@ class TestBrandAdvisor:
             mock_registry.return_value.find_relevant_skills.return_value = []
 
             advisor = BrandAdvisor()
-            context = advisor._get_relevant_skills_context("Hello, how are you?")
+            context, matched_skills = advisor._get_relevant_skills_context("Hello, how are you?")
 
         assert context == ""
+        assert matched_skills == []
