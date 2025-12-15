@@ -156,6 +156,28 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 - Ruff check passes
 - Code formatted with ruff
 
+### Task 7: Integrate History Manager into Agent ✅
+
+**Commit:** `fec1a78` - feat(advisor): Integrate token-aware history manager into agent
+
+**Changes:**
+- `src/sip_videogen/advisor/agent.py`:
+  - Added import for `ConversationHistoryManager`
+  - Replaced `self._conversation_history: list[dict]` with `self._history_manager = ConversationHistoryManager(max_tokens=8000)`
+  - Updated `set_brand()` to use `self._history_manager.clear()` instead of resetting list
+  - Updated `chat_with_metadata()` to:
+    - Check `self._history_manager.message_count > 0` instead of checking list
+    - Use `self._history_manager.get_formatted(max_tokens=4000)` for history
+    - Use `self._history_manager.add()` to add messages (auto-compacts)
+  - Updated `chat_stream()` with same changes as `chat_with_metadata()`
+  - Updated `_format_history()` to delegate to history manager's `get_formatted()`
+  - Updated `clear_history()` to use `self._history_manager.clear()`
+
+**Verification:**
+- All 46 tests pass (12 history manager + 34 advisor tools)
+- Ruff check passes
+- Code formatted with ruff
+
 ## Remaining Tasks
 
 ### Stage 1: Tool Result Summarization
@@ -165,7 +187,7 @@ See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 
 ### Stage 2: Token-Aware History Management
 - [x] Task 6: Create history manager module
-- [ ] Task 7: Integrate history manager into agent
+- [x] Task 7: Integrate history manager into agent
 
 ### Stage 3: Context Budget Guard
 - [ ] Task 8: Create context budget module
