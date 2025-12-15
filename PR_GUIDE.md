@@ -1,96 +1,276 @@
-# PR Guide: Brand Studio UX Refactor
+# PR Guide: Brand Studio Agent Context Efficiency
 
-## Related Task List
-- **File**: `BRAND_STUDIO_INTERN_TASKS.md`
-- **Branch**: `refactor-skills`
+## Overview
+
+This PR implements context efficiency improvements for the Brand Studio advisor agent. The goal is to reduce context window consumption by AI agents through pagination, chunking, and summarization of tool outputs.
+
+## Task List Reference
+
+See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
 
 ## Completed Tasks
 
-### Task 1.1: Set Up Tailwind Typography Plugin ✅
-**Commit**: 3a21cd5
+### Task 1: Add Pagination to `list_files()` ✅
 
-**Changes**:
-- Installed `@tailwindcss/typography` package
-- Registered plugin in `src/index.css` using Tailwind v4 `@plugin` directive
+**Commit:** `c80f631` - feat(advisor): Add pagination to list_files() tool
 
-**Files Modified**:
-- `src/sip_videogen/studio/frontend/package.json` - Added dependency
-- `src/sip_videogen/studio/frontend/package-lock.json` - Lock file updated
-- `src/sip_videogen/studio/frontend/src/index.css` - Added `@plugin "@tailwindcss/typography"`
+**Changes:**
+- `src/sip_videogen/advisor/tools.py`:
+  - Added `limit` and `offset` parameters to `_impl_list_files()`
+  - Default limit: 20 items, max: 100 items
+  - Shows pagination info (e.g., "showing 1-20 of 85")
+  - Adds hint for next page when more items available
+  - Validates parameters: resets negative values, caps limit at 100
+  - Returns error when offset is past end of directory
 
-**Verification**:
-- `npm run build` completes successfully
-- `prose` classes are now available for markdown styling
+- `tests/test_advisor_tools.py`:
+  - Added 6 new tests for pagination functionality
+  - Tests cover: default limit, offset, custom limit, offset past end, invalid params, small dirs
 
-### Task 1.2: Add Markdown Rendering to Chat Messages ✅
-**Commit**: 9e6311e
+**Verification:**
+- All 24 tests pass
+- Ruff check passes
+- Code formatted with ruff
 
-**Changes**:
-- Installed `react-markdown` and `remark-gfm` packages
-- Created `MarkdownContent.tsx` component with prose styling and GFM support
-- Updated `MessageList.tsx` to render assistant messages using MarkdownContent
+### Task 2: Add Chunking to `read_file()` ✅
 
-**Files Modified**:
-- `src/sip_videogen/studio/frontend/package.json` - Added react-markdown and remark-gfm dependencies
-- `src/sip_videogen/studio/frontend/package-lock.json` - Lock file updated
+**Commit:** `2c369e2` - feat(advisor): Add chunking to read_file() tool
 
-**Files Created**:
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MarkdownContent.tsx` - New markdown rendering component
+**Changes:**
+- `src/sip_videogen/advisor/tools.py`:
+  - Added `chunk` and `chunk_size` parameters to `_impl_read_file()`
+  - Default chunk_size: 2000 chars, min: 100, max: 10000
+  - Small files (< chunk_size) returned as-is without metadata
+  - Large files return requested chunk with position info (e.g., "[Chunk 1/3] (chars 1-2000 of 5000)")
+  - Includes hint for reading next chunk when more available
+  - Validates chunk parameter: error for negative or out of range
 
-**Files Updated**:
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageList.tsx` - Uses MarkdownContent for assistant messages
+- `tests/test_advisor_tools.py`:
+  - Added 8 new tests for chunking functionality:
+    - `test_read_large_file_chunked`
+    - `test_read_file_second_chunk`
+    - `test_read_file_last_chunk`
+    - `test_read_file_invalid_chunk`
+    - `test_read_file_negative_chunk`
+    - `test_read_small_file_no_chunking`
+    - `test_read_file_custom_chunk_size`
+    - `test_read_file_chunk_size_validation`
 
-**Verification**:
-- `npm run build` completes successfully
-- Agent responses now render with proper headings, bold text, lists, code blocks, and links
+**Verification:**
+- All 32 tests pass
+- Ruff check passes
+- Code formatted with ruff
 
-### Task 1.3: Add Markdown Rendering to Document Preview ✅
-**Commit**: 6d7bcf8
+### Task 3: Add Summary Mode to `load_brand()` ✅
 
-**Changes**:
-- Imported `MarkdownContent` component in `DocumentsList.tsx`
-- Conditionally render markdown files (`.md`) with `MarkdownContent`
-- Keep raw `<pre>` formatting for `.json`, `.yaml`, and other file types
+**Commit:** `1075be8` - feat(advisor): Add summary mode to load_brand() tool
 
-**Files Updated**:
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx` - Conditional markdown rendering in document preview dialog
+**Changes:**
+- `src/sip_videogen/advisor/tools.py`:
+  - Added `detail_level: Literal["summary", "full"]` parameter (default: "summary")
+  - Summary mode (~500 chars): name, tagline, category, tone, colors (max 3), style (max 3), audience, asset count
+  - Full mode (~2000 chars): preserves existing complete output
+  - Summary includes hint: "use `load_brand(detail_level='full')` for complete details"
+  - Updated both `_impl_load_brand()` and wrapper `load_brand()` functions
 
-**Verification**:
-- `npm run build` completes successfully
-- Clicking a `.md` file in sidebar shows formatted markdown (headings, lists, etc.)
-- Clicking a `.json` file still shows raw JSON (not markdown rendered)
+**Verification:**
+- 31/32 advisor tools tests pass
+- 1 expected failure: `test_load_brand_includes_assets_section` (will be fixed in Task 5)
+- Ruff check passes
+- Summary mode: ~479 chars, Full mode: ~1018+ chars (verified)
 
-### Task 1.4: Add "New Chat" Button ✅
-**Commit**: 9f2bd2f
+### Task 4: Update Code That Expects Full load_brand Output ✅
 
-**Changes**:
-- Added header bar to ChatPanel with "Chat" label and "New Chat" button
-- Wired button to existing `clearMessages` function from useChat hook
-- Button is disabled when loading or when chat is empty
+**Commit:** `8d05235` - docs(advisor): Update references to reflect load_brand() default summary mode
 
-**Files Updated**:
-- `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx` - Added header with New Chat button
+**Changes:**
+- `src/sip_videogen/advisor/prompts/advisor.md`:
+  - Updated line 30 tool description to clarify summary is default
+  - Updated Brand Context section (lines 137-144) to explain summary vs full modes
 
-**Verification**:
-- `npm run build` completes successfully
-- Have a conversation with a few messages
-- Click "New Chat" button - all messages should disappear
-- Button should be disabled when chat is empty or during loading
+- `src/sip_videogen/advisor/agent.py`:
+  - Updated default prompt tool description (line 264)
+  - Updated brand context hint (lines 231-234)
 
-## Next Task
-**Task 1.5**: Add Execution Trace (Agent Thinking Transparency)
+- `src/sip_videogen/advisor/skills/brand_evolution/SKILL.md`:
+  - Updated prerequisite to use `load_brand(detail_level='full')` since evolution needs full context
 
-## Testing Instructions
+**Verification:**
+- 31/32 advisor tools tests pass (same as before)
+- 1 expected failure remains: `test_load_brand_includes_assets_section` (will be fixed in Task 5)
+- Ruff check passes (1 pre-existing line length warning on unrelated line)
+
+### Task 5: Update Existing Tests for load_brand Changes ✅
+
+**Commit:** `e887baf` - test(advisor): Update load_brand tests for summary mode default
+
+**Changes:**
+- `tests/test_advisor_tools.py`:
+  - Replaced `test_load_brand_includes_assets_section` with new tests:
+    - `test_load_brand_summary_mode_default`: verifies summary is default mode
+    - `test_load_brand_full_mode`: verifies full mode includes all sections
+    - `test_load_brand_summary_character_count`: verifies summary is ~500 chars
+  - Added `_create_mock_identity()` helper method to reduce test code duplication
+  - Summary mode tests verify: name, tagline, category, tone, colors, asset count
+  - Full mode tests verify: ## Available Assets section is present
+
+**Verification:**
+- All 34 tests pass
+- Ruff check passes
+- Code formatted with ruff
+
+### Task 6: Create History Manager Module ✅
+
+**Commit:** `d2f0f56` - feat(advisor): Add token-aware conversation history manager
+
+**Changes:**
+- `src/sip_videogen/advisor/history_manager.py` (new file):
+  - Created `Message` dataclass for storing conversation messages with role, content, timestamp
+  - Created `ConversationHistoryManager` class with:
+    - Token budget tracking (default: 8000 tokens)
+    - Conservative token estimation for CJK and emoji text
+    - Automatic history compaction when over budget
+    - Message summarization to preserve context while staying within limits
+    - `add()` method for adding messages
+    - `get_formatted()` method for retrieving formatted history
+    - `clear()` method for clearing history
+
+- `tests/test_history_manager.py` (new file):
+  - 12 comprehensive tests covering:
+    - Basic message addition
+    - Formatted output generation
+    - Compaction behavior
+    - Clear functionality
+    - CJK token estimation
+    - Emoji token estimation
+    - Minimum max_tokens enforcement
+    - Summary inclusion after compaction
+    - Custom token limit in get_formatted
+    - Mixed content token estimation
+    - Empty history behavior
+    - Message role formatting
+
+**Verification:**
+- All 12 history manager tests pass
+- All 46 advisor-related tests pass
+- Ruff check passes
+- Code formatted with ruff
+
+### Task 7: Integrate History Manager into Agent ✅
+
+**Commit:** `fec1a78` - feat(advisor): Integrate token-aware history manager into agent
+
+**Changes:**
+- `src/sip_videogen/advisor/agent.py`:
+  - Added import for `ConversationHistoryManager`
+  - Replaced `self._conversation_history: list[dict]` with `self._history_manager = ConversationHistoryManager(max_tokens=8000)`
+  - Updated `set_brand()` to use `self._history_manager.clear()` instead of resetting list
+  - Updated `chat_with_metadata()` to:
+    - Check `self._history_manager.message_count > 0` instead of checking list
+    - Use `self._history_manager.get_formatted(max_tokens=4000)` for history
+    - Use `self._history_manager.add()` to add messages (auto-compacts)
+  - Updated `chat_stream()` with same changes as `chat_with_metadata()`
+  - Updated `_format_history()` to delegate to history manager's `get_formatted()`
+  - Updated `clear_history()` to use `self._history_manager.clear()`
+
+**Verification:**
+- All 46 tests pass (12 history manager + 34 advisor tools)
+- Ruff check passes
+- Code formatted with ruff
+
+### Task 8: Create Context Budget Module ✅
+
+**Commit:** `0548b2a` - feat(advisor): Add context budget management module
+
+**Changes:**
+- `src/sip_videogen/advisor/context_budget.py` (new file):
+  - Created `ContextBudget` dataclass for GPT-5.1 (272K context):
+    - Default 16K reserved for response, 8K for tools
+    - `available_for_content` property calculates usable space
+  - Created `BudgetCheckResult` dataclass for trim operation results
+  - Created `ContextBudgetManager` class with:
+    - Conservative token estimation (CJK, emoji aware)
+    - Auto-trim when over budget with priority:
+      1. Skills context (lowest priority, trimmed first)
+      2. History
+      3. System prompt (last resort)
+    - `check_and_trim()` method returns trimmed content + result
+
+- `tests/test_context_budget.py` (new file):
+  - 16 comprehensive tests covering:
+    - Budget default values and calculations
+    - Trim priority order (skills → history → system)
+    - Token estimation (basic, CJK, emoji, mixed)
+    - Edge cases (empty inputs, user message never trimmed)
+    - BudgetCheckResult validation
+
+**Verification:**
+- All 16 context budget tests pass
+- All 62 advisor-related tests pass (34 tools + 12 history + 16 budget)
+- Ruff check passes
+- Code formatted with ruff
+
+### Task 9: Integrate Budget Guard into Agent ✅
+
+**Commit:** `b7b5640` - feat(advisor): Integrate context budget guard into agent
+
+**Changes:**
+- `src/sip_videogen/advisor/agent.py`:
+  - Added import for `ContextBudgetManager`
+  - Initialize `self._budget_manager = ContextBudgetManager()` in `__init__()`
+  - Updated `chat_with_metadata()` to:
+    - Get history text before budget check
+    - Call `self._budget_manager.check_and_trim()` with system prompt, skills, history, message
+    - Log warning when content is trimmed
+    - Log critical error if still over budget after trimming
+    - Log severe error if system prompt needs trimming (would require agent rebuild)
+    - Build prompt using trimmed skills and history (not system prompt)
+  - Updated `chat_stream()` with identical budget checking logic
+  - Both methods now use trimmed content for prompt building
+
+**Verification:**
+- All 62 tests pass (34 tools + 12 history + 16 budget)
+- Ruff check passes
+- Code formatted with ruff
+
+## All Tasks Complete! ✅
+
+### Stage 1: Tool Result Summarization
+- [x] Task 1: Add pagination to `list_files()`
+- [x] Task 2: Add chunking to `read_file()`
+- [x] Task 3: Add summary mode to `load_brand()` tool
+- [x] Task 4: Update code that expects full load_brand output
+- [x] Task 5: Update existing tests for load_brand changes
+
+### Stage 2: Token-Aware History Management
+- [x] Task 6: Create history manager module
+- [x] Task 7: Integrate history manager into agent
+
+### Stage 3: Context Budget Guard
+- [x] Task 8: Create context budget module
+- [x] Task 9: Integrate budget guard into agent
+
+## Testing
+
 ```bash
-cd src/sip_videogen/studio/frontend
-npm run build  # Should complete without errors
+# Run all advisor tools tests
+python -m pytest tests/test_advisor_tools.py -v
 
-# Manual verification:
-# 1. Start the app, select a brand, send a message
-# 2. Ask: "Give me a bullet list of 3 logo ideas with **bold** keywords"
-# 3. Response should show properly formatted bullets with bold text
+# Run specific pagination tests
+python -m pytest tests/test_advisor_tools.py -k "pagination" -v
+
+# Run linting
+ruff check src/sip_videogen/advisor/tools.py
 ```
 
 ## Notes
-- This PR implements the Brand Studio UX refactor tasks from BRAND_STUDIO_INTERN_TASKS.md
-- Tasks are being implemented sequentially
+
+- The `list_files()` tool now returns paginated results by default (20 items)
+- Small directories (<= 20 items) do not show pagination info
+- The agent can use `offset` parameter to navigate through large directories
+- The `read_file()` tool now chunks large files (> 2000 chars) by default
+- Small files are returned as-is without chunking metadata
+- The agent can use `chunk` parameter to navigate through large files
+- The `load_brand()` tool now returns summary by default (~500 chars)
+- Use `detail_level='full'` for complete brand context (~2000 chars)
+- Summary mode reduces context consumption by ~75% for routine brand loads

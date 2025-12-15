@@ -151,8 +151,7 @@ async def _impl_generate_image(
         try:
             reference_image_bytes = reference_path.read_bytes()
             logger.info(
-                f"Loaded reference image: {reference_image} "
-                f"({len(reference_image_bytes)} bytes)"
+                f"Loaded reference image: {reference_image} ({len(reference_image_bytes)} bytes)"
             )
         except Exception as e:
             return f"Error reading reference image: {e}"
@@ -212,8 +211,25 @@ async def _impl_generate_image(
         return f"Error generating image: {str(e)}"
 
 
-def _impl_read_file(path: str) -> str:
-    """Implementation of read_file tool."""
+def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
+    """Implementation of read_file tool with chunking support.
+
+    Args:
+        path: Relative path within brand directory.
+        chunk: Chunk number to read (0-indexed, default 0).
+        chunk_size: Characters per chunk (100-10000, default 2000).
+
+    Returns:
+        File content (possibly chunked) or error message.
+    """
+    # Parameter validation
+    if chunk < 0:
+        return f"Error: chunk must be >= 0, got {chunk}"
+    if chunk_size < 100:
+        chunk_size = 100  # Minimum chunk size
+    if chunk_size > 10000:
+        chunk_size = 10000  # Maximum chunk size
+
     resolved = _resolve_brand_path(path)
 
     if resolved is None:
@@ -231,7 +247,36 @@ def _impl_read_file(path: str) -> str:
     if resolved.suffix.lower() in text_extensions:
         try:
             content = resolved.read_text(encoding="utf-8")
-            return content
+
+            # If small file, return as-is
+            if len(content) <= chunk_size:
+                return content
+
+            # Calculate chunks
+            total_chunks = (len(content) + chunk_size - 1) // chunk_size
+
+            # Validate chunk number
+            if chunk >= total_chunks:
+                return (
+                    f"Error: chunk {chunk} does not exist. "
+                    f"File has {total_chunks} chunks (0-{total_chunks - 1})."
+                )
+
+            start = chunk * chunk_size
+            end = min(start + chunk_size, len(content))
+            chunk_content = content[start:end]
+
+            # Add metadata header
+            total_len = len(content)
+            header = (
+                f"[Chunk {chunk + 1}/{total_chunks}] "
+                f"(chars {start + 1}-{end} of {total_len})\n\n"
+            )
+            footer = ""
+            if chunk < total_chunks - 1:
+                footer = f'\n\n---\nUse read_file("{path}", chunk={chunk + 1}) for next chunk.'
+
+            return header + chunk_content + footer
         except Exception as e:
             return f"Error reading file: {e}"
     else:
@@ -262,8 +307,16 @@ def _impl_write_file(path: str, content: str) -> str:
         return f"Error writing file: {e}"
 
 
-def _impl_list_files(path: str = "") -> str:
-    """Implementation of list_files tool."""
+def _impl_list_files(path: str = "", limit: int = 20, offset: int = 0) -> str:
+    """Implementation of list_files tool with pagination support."""
+    # Parameter validation
+    if limit < 1:
+        limit = 20  # Reset to default
+    if limit > 100:
+        limit = 100  # Cap at maximum
+    if offset < 0:
+        offset = 0  # No negative offsets
+
     resolved = _resolve_brand_path(path) if path else None
 
     if resolved is None and path:
@@ -284,9 +337,20 @@ def _impl_list_files(path: str = "") -> str:
 
     try:
         items = sorted(resolved.iterdir())
+        total_count = len(items)
+
+        # Validate offset
+        if offset >= total_count and total_count > 0:
+            return (
+                f"Error: offset {offset} is past end of directory "
+                f"({total_count} items). Use offset 0-{total_count - 1}."
+            )
+
+        # Apply pagination
+        paginated_items = items[offset : offset + limit]
         lines = []
 
-        for item in items:
+        for item in paginated_items:
             if item.is_dir():
                 # Count items in directory
                 count = len(list(item.iterdir()))
@@ -295,19 +359,53 @@ def _impl_list_files(path: str = "") -> str:
                 size = item.stat().st_size
                 lines.append(f"  {item.name} ({size} bytes)")
 
-        if not lines:
+        if not lines and total_count == 0:
             return f"Directory is empty: {path or '/'}"
 
-        header = f"Contents of {path or '/'}:\n"
-        return header + "\n".join(lines)
+        # Build header with pagination info
+        start_idx = offset + 1
+        end_idx = min(offset + limit, total_count)
+        display_path = path or "/"
+        if total_count <= limit and offset == 0:
+            header = f"Contents of {display_path}:\n"
+        else:
+            header = (
+                f"Contents of {display_path} (showing {start_idx}-{end_idx} of {total_count}):\n"
+            )
+
+        result = header + "\n".join(lines)
+
+        # Add pagination hint if there are more items
+        if offset + limit < total_count:
+            next_offset = offset + limit
+            if path:
+                hint = f'\n\nUse list_files("{path}", offset={next_offset}) to see more.'
+            else:
+                hint = f"\n\nUse list_files(offset={next_offset}) to see more."
+            result += hint
+
+        return result
 
     except Exception as e:
         logger.error(f"Failed to list directory: {e}")
         return f"Error listing directory: {e}"
 
 
-def _impl_load_brand(slug: str | None = None) -> str:
-    """Implementation of load_brand tool."""
+def _impl_load_brand(
+    slug: str | None = None,
+    detail_level: Literal["summary", "full"] = "summary",
+) -> str:
+    """Implementation of load_brand tool.
+
+    Args:
+        slug: Brand slug to load. If not provided, uses active brand.
+        detail_level: Level of detail to return:
+            - "summary" (default): Quick overview (~500 chars)
+            - "full": Complete brand context (~2000 chars)
+
+    Returns:
+        Formatted brand context as markdown.
+    """
     from sip_videogen.brands.memory import list_brand_assets
     from sip_videogen.brands.storage import (
         list_brands,
@@ -341,7 +439,52 @@ def _impl_load_brand(slug: str | None = None) -> str:
     # Set as active brand
     set_active_brand(slug)
 
-    # Format brand context
+    # Get asset count for both modes
+    try:
+        assets = list_brand_assets(slug)
+        asset_count = len(assets)
+    except Exception:
+        assets = []
+        asset_count = 0
+
+    # SUMMARY MODE (default) - ~500 chars
+    if detail_level == "summary":
+        context_parts = []
+        context_parts.append(f"# Brand: {identity.core.name}")
+        context_parts.append(f"*{identity.core.tagline}*\n")
+        context_parts.append(f"**Category**: {identity.positioning.market_category}")
+
+        if identity.voice.tone_attributes:
+            context_parts.append(f"**Tone**: {', '.join(identity.voice.tone_attributes[:3])}")
+
+        # Primary colors only (max 3)
+        if identity.visual.primary_colors:
+            colors = ", ".join(
+                f"{c.name} ({c.hex})" for c in identity.visual.primary_colors[:3]
+            )
+            context_parts.append(f"**Colors**: {colors}")
+
+        # Style keywords (max 3)
+        if identity.visual.style_keywords:
+            context_parts.append(f"**Style**: {', '.join(identity.visual.style_keywords[:3])}")
+
+        # Audience one-liner
+        context_parts.append(f"**Audience**: {identity.audience.primary_summary}")
+
+        # Asset count
+        context_parts.append(f"**Assets**: {asset_count} files available")
+
+        # Hint for full details
+        context_parts.append("")
+        context_parts.append("---")
+        context_parts.append(
+            "For complete brand details including full visual identity, "
+            "voice guidelines, and positioning, use `load_brand(detail_level='full')`"
+        )
+
+        return "\n".join(context_parts)
+
+    # FULL MODE - existing behavior
     context_parts = []
 
     # Header
@@ -393,23 +536,19 @@ def _impl_load_brand(slug: str | None = None) -> str:
     context_parts.append("")
 
     # Assets - group by category
-    try:
-        assets = list_brand_assets(slug)
-        if assets:
-            # Group assets by category
-            by_category: dict[str, list[dict]] = {}
-            for asset in assets:
-                cat = asset.get("category", "other")
-                if cat not in by_category:
-                    by_category[cat] = []
-                by_category[cat].append(asset)
+    if assets:
+        # Group assets by category
+        by_category: dict[str, list[dict]] = {}
+        for asset in assets:
+            cat = asset.get("category", "other")
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(asset)
 
-            context_parts.append("## Available Assets")
-            for category, files in sorted(by_category.items()):
-                context_parts.append(f"- **{category}**: {len(files)} files")
-            context_parts.append("")
-    except Exception:
-        pass  # Assets listing is optional
+        context_parts.append("## Available Assets")
+        for category, files in sorted(by_category.items()):
+            context_parts.append(f"- **{category}**: {len(files)} files")
+        context_parts.append("")
 
     # Values
     if identity.core.values:
@@ -515,7 +654,7 @@ def propose_images(
         "type": "image_select",
         "question": question,
         "image_paths": image_paths,
-        "labels": labels or [f"Option {i+1}" for i in range(len(image_paths))],
+        "labels": labels or [f"Option {i + 1}" for i in range(len(image_paths))],
     }
 
     return f"[Presenting {len(image_paths)} images for user to select]"
@@ -524,9 +663,7 @@ def propose_images(
 @function_tool
 async def generate_image(
     prompt: str,
-    aspect_ratio: Literal[
-        "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"
-    ] = "1:1",
+    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"] = "1:1",
     filename: str | None = None,
     reference_image: str | None = None,
     validate_identity: bool = False,
@@ -571,20 +708,27 @@ async def generate_image(
 
 
 @function_tool
-def read_file(path: str) -> str:
+def read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
     """Read a file from the brand directory.
 
     Args:
         path: Relative path within the brand directory.
             Examples: "identity.json", "assets/logo/logo_primary.png",
             "uploads/reference.jpg"
+        chunk: Chunk number to read (0-indexed, default 0).
+            For large files, content is split into chunks.
+        chunk_size: Characters per chunk (100-10000, default 2000).
+            Smaller values save context but require more calls.
 
     Returns:
         File contents as string (for text files), or
         confirmation that binary file exists (for images/binaries),
         or error message if file not found.
+
+        For large text files, returns the requested chunk with
+        metadata showing chunk position and hint for next chunk.
     """
-    return _impl_read_file(path)
+    return _impl_read_file(path, chunk, chunk_size)
 
 
 @function_tool
@@ -605,21 +749,27 @@ def write_file(path: str, content: str) -> str:
 
 
 @function_tool
-def list_files(path: str = "") -> str:
+def list_files(path: str = "", limit: int = 20, offset: int = 0) -> str:
     """List files and directories in the brand directory.
 
     Args:
         path: Relative path within brand directory. Empty string for root.
             Examples: "", "assets/", "assets/logo/"
+        limit: Maximum number of items to return (1-100, default 20).
+        offset: Number of items to skip for pagination (default 0).
 
     Returns:
-        Formatted list of files and directories, or error message.
+        Formatted list of files and directories with pagination info,
+        or error message.
     """
-    return _impl_list_files(path)
+    return _impl_list_files(path, limit, offset)
 
 
 @function_tool
-def load_brand(slug: str | None = None) -> str:
+def load_brand(
+    slug: str | None = None,
+    detail_level: Literal["summary", "full"] = "summary",
+) -> str:
     """Load brand identity and context.
 
     If no slug is provided, loads the currently active brand.
@@ -628,19 +778,19 @@ def load_brand(slug: str | None = None) -> str:
     Args:
         slug: Brand slug to load. If not provided, uses active brand.
             Available brands can be found in ~/.sip-videogen/brands/
+        detail_level: Level of detail to return:
+            - "summary" (default): Quick overview (~500 chars) with name,
+              tagline, category, tone, primary colors, and asset count.
+            - "full": Complete brand context (~2000 chars) including full
+              visual identity, voice guidelines, audience profile, and positioning.
 
     Returns:
-        Formatted brand context as markdown, including:
-        - Brand summary (name, tagline, category, tone)
-        - Visual identity (colors, typography, style)
-        - Voice guidelines (personality, messaging)
-        - Audience profile
-        - Positioning
-        - Available assets
+        Formatted brand context as markdown. Use "full" detail_level when
+        you need complete information for creative work.
 
         Or error message if brand not found.
     """
-    return _impl_load_brand(slug)
+    return _impl_load_brand(slug, detail_level)
 
 
 @function_tool

@@ -36,7 +36,7 @@ identity rather than creating something entirely new.
 
 Before evolving a brand:
 
-1. **Load current brand**: Call `load_brand()` to get full current identity
+1. **Load current brand**: Call `load_brand(detail_level='full')` to get complete current identity
 2. **Review all aspects**: Understand what exists before changing
 3. **Check assets**: Use `list_files("assets/")` to see what's been generated
 4. **Clarify scope**: What specifically needs to change?
