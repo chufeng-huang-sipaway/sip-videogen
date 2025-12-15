@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronRight, ChevronDown, Folder, Image, RefreshCw, Brain, X } from 'lucide-react'
+import { ChevronRight, ChevronDown, Folder, Image, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -161,7 +161,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
 
 export function AssetTree() {
   const { activeBrand } = useBrand()
-  const { tree, isLoading, error, refresh, deleteAsset, renameAsset, uploadAsset, refreshMemory } = useAssets(activeBrand)
+  const { tree, isLoading, error, refresh, deleteAsset, renameAsset, uploadAsset } = useAssets(activeBrand)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -260,32 +260,9 @@ export function AssetTree() {
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Assets
-        </h3>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={refresh}
-            disabled={isLoading}
-            title="Refresh"
-          >
-            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={refreshMemory}
-            title="Refresh AI Memory"
-          >
-            <Brain className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
+      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        Assets
+      </h3>
 
       {uploadError && (
         <Alert variant="destructive" className="py-2 px-3">

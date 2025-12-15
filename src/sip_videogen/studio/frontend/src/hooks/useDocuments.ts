@@ -80,6 +80,15 @@ export function useDocuments(brandSlug: string | null) {
     refresh()
   }, [refresh])
 
+  // Auto-refresh when window gains focus (user switches back to app)
+  useEffect(() => {
+    const handleFocus = () => {
+      refresh()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [refresh])
+
   return {
     documents,
     isLoading,

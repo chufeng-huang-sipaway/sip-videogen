@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileText, RefreshCw, Upload, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { FileText, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -41,8 +41,6 @@ export function DocumentsList() {
       return () => clearTimeout(timer)
     }
   }, [uploadError])
-
-  const acceptExts = useMemo(() => Array.from(ALLOWED_DOC_EXTS).join(','), [])
 
   const openPreview = useCallback(async (path: string) => {
     setPreviewPath(path)
@@ -107,43 +105,9 @@ export function DocumentsList() {
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Documents
-        </h3>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={refresh}
-            disabled={isLoading}
-            title="Refresh"
-          >
-            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-          <label className="inline-flex">
-            <Button variant="ghost" size="icon" className="h-6 w-6" title="Upload" asChild>
-              <span>
-                <Upload className="h-3 w-3" />
-              </span>
-            </Button>
-            <input
-              type="file"
-              className="hidden"
-              multiple
-              accept={acceptExts}
-              onChange={async (e) => {
-                if (!e.target.files || !isPyWebView()) return
-                for (const f of Array.from(e.target.files)) {
-                  await uploadDocument(f)
-                }
-                e.target.value = ''
-              }}
-            />
-          </label>
-        </div>
-      </div>
+      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        Documents
+      </h3>
 
       {uploadError && (
         <Alert variant="destructive" className="py-2 px-3">

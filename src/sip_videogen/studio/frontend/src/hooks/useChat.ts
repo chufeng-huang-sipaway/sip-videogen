@@ -114,12 +114,26 @@ export function useChat(brandSlug: string | null) {
     }
   }, [])
 
-  const addAttachmentReference = useCallback((path: string, name?: string) => {
+  const addAttachmentReference = useCallback(async (path: string, name?: string) => {
+    const fileName = name || path.split('/').pop() || path
+    const ext = getExt(fileName).toLowerCase()
+    const isImage = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext)
+
+    let preview: string | undefined
+    if (isImage && isPyWebView()) {
+      try {
+        preview = await bridge.getAssetThumbnail(path)
+      } catch {
+        // Fallback to no preview if thumbnail load fails
+      }
+    }
+
     setAttachments(prev => [
       ...prev,
       {
         id: generateId(),
-        name: name || path.split('/').pop() || path,
+        name: fileName,
+        preview,
         path,
         source: 'asset',
       },

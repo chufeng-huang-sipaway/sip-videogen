@@ -102,6 +102,15 @@ export function useAssets(brandSlug: string | null) {
     refresh()
   }, [refresh])
 
+  // Auto-refresh when window gains focus (user switches back to app)
+  useEffect(() => {
+    const handleFocus = () => {
+      refresh()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [refresh])
+
   return {
     tree,
     isLoading,
