@@ -1098,3 +1098,208 @@ class StudioBridge:
             ).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    # =========================================================================
+    # App Updates
+    # =========================================================================
+
+    def get_app_version(self) -> dict:
+        """Get the current app version."""
+        from sip_videogen.studio import __version__
+        from sip_videogen.studio.updater import is_bundled_app
+
+        return BridgeResponse(
+            success=True,
+            data={
+                "version": __version__,
+                "is_bundled": is_bundled_app(),
+            },
+        ).to_dict()
+
+    def check_for_updates(self) -> dict:
+        """Check if a newer version is available on GitHub Releases.
+
+        Returns update info if available, or null if already up to date.
+        """
+        from sip_videogen.studio.updater import (
+            check_for_updates as do_check,
+        )
+        from sip_videogen.studio.updater import (
+            get_current_version,
+            mark_update_checked,
+        )
+
+        try:
+            update_info = asyncio.run(do_check())
+            mark_update_checked()
+
+            if update_info is None:
+                return BridgeResponse(
+                    success=True,
+                    data={
+                        "has_update": False,
+                        "current_version": get_current_version(),
+                    },
+                ).to_dict()
+
+            return BridgeResponse(
+                success=True,
+                data={
+                    "has_update": True,
+                    "current_version": get_current_version(),
+                    "new_version": update_info.version,
+                    "changelog": update_info.changelog,
+                    "release_url": update_info.release_url,
+                    "download_url": update_info.download_url,
+                    "file_size": update_info.file_size,
+                },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def download_and_install_update(self, download_url: str, version: str) -> dict:
+        """Download and install an update.
+
+        This starts the download, then triggers the install process which will:
+        1. Download the DMG with progress updates
+        2. Quit this app
+        3. Install the new version
+        4. Relaunch the app
+
+        Args:
+            download_url: URL to download the DMG from.
+            version: Version string for the update.
+
+        Returns:
+            Success response. The app will quit shortly after to complete installation.
+        """
+        import sys
+
+        from sip_videogen.studio.updater import (
+            DownloadProgress,
+            UpdateInfo,
+            download_update,
+            install_update,
+            is_bundled_app,
+        )
+
+        try:
+            # Can only update bundled apps
+            if not is_bundled_app():
+                return BridgeResponse(
+                    success=False,
+                    error="Updates only work when running as a bundled .app. "
+                    "For development, use git pull instead.",
+                ).to_dict()
+
+            # Store progress for polling
+            self._update_progress = {"status": "downloading", "percent": 0}
+
+            def on_progress(progress: DownloadProgress) -> None:
+                self._update_progress = {
+                    "status": "downloading",
+                    "percent": progress.percent,
+                    "downloaded": progress.downloaded_bytes,
+                    "total": progress.total_bytes,
+                }
+
+            # Create minimal UpdateInfo for download
+            update_info = UpdateInfo(
+                version=version,
+                download_url=download_url,
+                changelog="",
+                release_url="",
+                file_size=0,
+            )
+
+            # Download the update
+            dmg_path = asyncio.run(download_update(update_info, on_progress))
+
+            if not dmg_path or not dmg_path.exists():
+                self._update_progress = {"status": "error", "error": "Download failed"}
+                return BridgeResponse(
+                    success=False, error="Failed to download update"
+                ).to_dict()
+
+            self._update_progress = {"status": "installing", "percent": 100}
+
+            # Start the install process
+            if not install_update(dmg_path):
+                self._update_progress = {"status": "error", "error": "Install failed"}
+                return BridgeResponse(
+                    success=False, error="Failed to start update installation"
+                ).to_dict()
+
+            self._update_progress = {"status": "restarting", "percent": 100}
+
+            # Schedule app quit (give time for response to be sent)
+            def quit_app():
+                import time
+
+                time.sleep(1)
+                if self._window:
+                    self._window.destroy()
+                sys.exit(0)
+
+            import threading
+
+            threading.Thread(target=quit_app, daemon=True).start()
+
+            return BridgeResponse(
+                success=True,
+                data={"message": "Update downloaded. Restarting to install..."},
+            ).to_dict()
+
+        except Exception as e:
+            self._update_progress = {"status": "error", "error": str(e)}
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_update_progress(self) -> dict:
+        """Get the current update download/install progress.
+
+        Returns progress info with status and percent.
+        """
+        progress = getattr(self, "_update_progress", None)
+        if progress is None:
+            return BridgeResponse(
+                success=True, data={"status": "idle", "percent": 0}
+            ).to_dict()
+        return BridgeResponse(success=True, data=progress).to_dict()
+
+    def skip_update_version(self, version: str) -> dict:
+        """Skip a specific version (don't prompt for this version again).
+
+        Args:
+            version: Version string to skip.
+        """
+        from sip_videogen.studio.updater import save_update_settings
+
+        try:
+            save_update_settings(skipped_version=version)
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_update_settings(self) -> dict:
+        """Get update-related settings."""
+        from sip_videogen.studio.updater import get_update_settings
+
+        try:
+            settings = get_update_settings()
+            return BridgeResponse(success=True, data=settings).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def set_update_check_on_startup(self, enabled: bool) -> dict:
+        """Enable or disable automatic update checks on startup.
+
+        Args:
+            enabled: Whether to check for updates on startup.
+        """
+        from sip_videogen.studio.updater import save_update_settings
+
+        try:
+            save_update_settings(check_on_startup=enabled)
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()

@@ -216,7 +216,59 @@ When the logo is generated, you can:
 
 The logo you approve becomes the visual anchor - it's passed as a reference image to Gemini when generating packaging and marketing assets, ensuring consistent branding across all outputs.
 
-## Automatic Updates
+## Brand Studio Desktop App
+
+A native macOS desktop application for managing brand identities with an AI-powered Brand Advisor.
+
+### Installation
+
+**Option 1: Terminal (Recommended)**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/chufeng-huang-sipaway/sip-videogen/main/scripts/install-brand-studio.sh | bash
+```
+
+**Option 2: Download DMG**
+
+1. Go to [GitHub Releases](https://github.com/chufeng-huang-sipaway/sip-videogen/releases)
+2. Download `Brand-Studio-X.Y.Z.dmg`
+3. Open the DMG and drag Brand Studio to Applications
+
+### Features
+
+- **Brand Management** - Create, view, and manage multiple brand identities
+- **AI Brand Advisor** - Chat with an AI that understands your brand's voice, values, and visual identity
+- **Asset Library** - Organize brand assets (logos, images, marketing materials)
+- **Document Storage** - Keep brand guidelines and reference documents
+- **Auto Updates** - Get notified when new versions are available
+
+### First-Time Setup
+
+1. Launch Brand Studio from Applications
+2. Enter your API keys (OpenAI and Gemini)
+3. Create your first brand or import existing materials
+
+### Auto-Update
+
+Brand Studio automatically checks for updates on launch. When a new version is available:
+
+```
+┌─────────────────────────────────────┐
+│  Update Available                   │
+│                                     │
+│  Version 0.2.0 is ready!            │
+│                                     │
+│  What's new:                        │
+│  • New feature X                    │
+│  • Bug fixes                        │
+│                                     │
+│  [Skip]  [Later]  [Update Now]      │
+└─────────────────────────────────────┘
+```
+
+Click **Update Now** to download and install automatically. The app will restart with the new version.
+
+## Automatic Updates (CLI)
 
 The tool automatically checks for updates on each run. When a new version is available, you'll see a notification:
 
@@ -325,13 +377,31 @@ ruff format .
 mypy src/
 ```
 
-### Publishing New Versions
+### Publishing New Versions (CLI)
 
 ```bash
 # 1. Bump version in pyproject.toml
 # 2. Run publish script
 ./scripts/publish.sh
 ```
+
+### Building Brand Studio Releases
+
+Build and release a new version of the Brand Studio desktop app:
+
+```bash
+# Build a new release (updates version, builds app, creates DMG)
+./scripts/build-release.sh 0.2.0
+
+# This will:
+# 1. Update version numbers in all files
+# 2. Build the React frontend
+# 3. Build the macOS .app bundle (py2app)
+# 4. Create the DMG installer
+# 5. Show instructions for creating a GitHub Release
+```
+
+After building, create a GitHub Release and upload the DMG. Users will automatically see the update notification when they open Brand Studio.
 
 ## Cost Estimation
 

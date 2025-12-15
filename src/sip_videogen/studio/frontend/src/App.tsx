@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { ChatPanel } from '@/components/ChatPanel'
 import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
+import { UpdateModal } from '@/components/Update'
 import { ResizeHandle } from '@/components/ui/resize-handle'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
+import type { UpdateCheckResult } from '@/lib/bridge'
 import { useTheme } from '@/hooks/useTheme'
 
 const SIDEBAR_MIN_WIDTH = 200
@@ -16,6 +18,7 @@ function App() {
   useTheme()
   const { activeBrand } = useBrand()
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY)
     return saved ? parseInt(saved, 10) : SIDEBAR_DEFAULT_WIDTH
@@ -31,6 +34,43 @@ function App() {
   const handleResizeEnd = useCallback(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
   }, [sidebarWidth])
+
+  const handleSkipVersion = useCallback(async (version: string) => {
+    try {
+      await bridge.skipUpdateVersion(version)
+    } catch {
+      // Ignore errors
+    }
+  }, [])
+
+  // Check for updates on startup
+  useEffect(() => {
+    async function checkUpdates() {
+      try {
+        const ready = await waitForPyWebViewReady()
+        if (!ready) return
+
+        // Get settings to check if we should check for updates
+        const settings = await bridge.getUpdateSettings()
+        if (!settings.check_on_startup) return
+
+        // Check for updates
+        const result = await bridge.checkForUpdates()
+        if (result.has_update && result.new_version && result.download_url) {
+          // Don't show if user skipped this version
+          if (settings.skipped_version === result.new_version) return
+
+          setUpdateInfo(result)
+        }
+      } catch {
+        // Silently ignore update check errors
+      }
+    }
+
+    // Delay update check slightly to not block initial load
+    const timer = setTimeout(checkUpdates, 2000)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     async function run() {
@@ -58,6 +98,15 @@ function App() {
       <Sidebar width={sidebarWidth} />
       <ResizeHandle onResize={handleResize} onResizeEnd={handleResizeEnd} />
       <ChatPanel brandSlug={activeBrand} />
+
+      {/* Update notification modal */}
+      {updateInfo && (
+        <UpdateModal
+          updateInfo={updateInfo}
+          onClose={() => setUpdateInfo(null)}
+          onSkipVersion={handleSkipVersion}
+        />
+      )}
     </div>
   )
 }

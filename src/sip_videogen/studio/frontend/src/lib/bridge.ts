@@ -69,6 +69,36 @@ interface ChatResponse {
   memory_update?: { message: string } | null
 }
 
+// Update system types
+export interface AppVersionInfo {
+  version: string
+  is_bundled: boolean
+}
+
+export interface UpdateCheckResult {
+  has_update: boolean
+  current_version: string
+  new_version?: string
+  changelog?: string
+  release_url?: string
+  download_url?: string
+  file_size?: number
+}
+
+export interface UpdateProgress {
+  status: 'idle' | 'downloading' | 'installing' | 'restarting' | 'error'
+  percent: number
+  downloaded?: number
+  total?: number
+  error?: string
+}
+
+export interface UpdateSettings {
+  check_on_startup: boolean
+  last_check?: number
+  skipped_version?: string
+}
+
 interface PyWebViewAPI {
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
   save_api_keys(openai: string, gemini: string): Promise<BridgeResponse<void>>
@@ -102,6 +132,15 @@ interface PyWebViewAPI {
   chat(message: string, attachments?: ChatAttachment[]): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
+
+  // App updates
+  get_app_version(): Promise<BridgeResponse<AppVersionInfo>>
+  check_for_updates(): Promise<BridgeResponse<UpdateCheckResult>>
+  download_and_install_update(download_url: string, version: string): Promise<BridgeResponse<{ message: string }>>
+  get_update_progress(): Promise<BridgeResponse<UpdateProgress>>
+  skip_update_version(version: string): Promise<BridgeResponse<void>>
+  get_update_settings(): Promise<BridgeResponse<UpdateSettings>>
+  set_update_check_on_startup(enabled: boolean): Promise<BridgeResponse<void>>
 }
 
 declare global {
@@ -174,4 +213,15 @@ export const bridge = {
   chat: (m: string, attachments?: ChatAttachment[]) => callBridge(() => window.pywebview!.api.chat(m, attachments || [])),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
   refreshBrandMemory: () => callBridge(() => window.pywebview!.api.refresh_brand_memory()),
+
+  // App updates
+  getAppVersion: () => callBridge(() => window.pywebview!.api.get_app_version()),
+  checkForUpdates: () => callBridge(() => window.pywebview!.api.check_for_updates()),
+  downloadAndInstallUpdate: (url: string, version: string) =>
+    callBridge(() => window.pywebview!.api.download_and_install_update(url, version)),
+  getUpdateProgress: () => callBridge(() => window.pywebview!.api.get_update_progress()),
+  skipUpdateVersion: (version: string) => callBridge(() => window.pywebview!.api.skip_update_version(version)),
+  getUpdateSettings: () => callBridge(() => window.pywebview!.api.get_update_settings()),
+  setUpdateCheckOnStartup: (enabled: boolean) =>
+    callBridge(() => window.pywebview!.api.set_update_check_on_startup(enabled)),
 }
