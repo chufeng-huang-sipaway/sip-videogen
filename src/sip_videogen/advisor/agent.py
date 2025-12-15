@@ -228,7 +228,10 @@ def _format_brand_context(slug: str, identity: "BrandIdentityFull") -> str:
         pass
 
     parts.append("")
-    parts.append("Use `load_brand()` to get full context or `list_files()` to browse assets.")
+    parts.append(
+        "Use `load_brand()` for a quick summary, or `load_brand(detail_level='full')` "
+        "for complete context. Use `list_files()` to browse assets."
+    )
 
     return "\n".join(parts)
 
@@ -258,7 +261,7 @@ You have 5 core tools:
 2. **read_file** - Read files from the brand directory
 3. **write_file** - Write/update files in the brand directory
 4. **list_files** - Browse the brand directory structure
-5. **load_brand** - Load full brand identity and context
+5. **load_brand** - Load brand identity (summary by default; use `detail_level='full'` for full)
 
 ## Your Approach
 
@@ -494,7 +497,9 @@ class BrandAdvisor:
         skills_to_use = relevant_skills[:max_skills]
 
         parts = ["## Relevant Skill Instructions\n"]
-        parts.append("The following skills are relevant to this request. Follow their guidelines:\n")
+        parts.append(
+            "The following skills are relevant to this request. Follow their guidelines:\n"
+        )
 
         for skill in skills_to_use:
             parts.append(f"### {skill.name}\n")

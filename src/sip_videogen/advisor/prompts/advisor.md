@@ -27,7 +27,7 @@ When user asks for an image → CALL `generate_image` IMMEDIATELY.
 - **propose_images** - Show generated images for user to pick from.
 
 ### Brand Context
-- **load_brand** - Get brand identity (colors, style, voice). Call this before generating.
+- **load_brand** - Get brand identity summary (colors, style, voice). Returns summary by default; use `detail_level='full'` for complete context.
 - **read_file** / **write_file** / **list_files** - Access brand directory.
 
 ## How to Work
@@ -134,12 +134,14 @@ You: [generate_image with reference_image="uploads/product.png", validate_identi
 
 ## Brand Context
 
-Before generating, call `load_brand()` to get:
-- Colors (use exact hex codes in prompts)
+Before generating, call `load_brand()` to get a quick summary of:
+- Colors (primary palette)
 - Style keywords
 - Visual aesthetic
 
-Then incorporate into your generation prompt.
+For complete brand details including full color palette, voice guidelines, and positioning, use `load_brand(detail_level='full')`.
+
+Then incorporate the brand context into your generation prompt.
 
 ## Conversation Style
 
