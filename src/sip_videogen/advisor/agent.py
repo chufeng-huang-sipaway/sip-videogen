@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, AsyncIterator, Callable
 from agents import Agent, RunHooks, Runner, Tool
 from agents.run_context import RunContextWrapper
 
+from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.skills.registry import get_skills_registry
 from sip_videogen.advisor.tools import ADVISOR_TOOLS
 from sip_videogen.brands.memory import list_brand_assets
@@ -329,8 +330,8 @@ class BrandAdvisor:
             tools=ADVISOR_TOOLS,
         )
 
-        # Track conversation history for context
-        self._conversation_history: list[dict] = []
+        # Track conversation history with token-aware management
+        self._history_manager = ConversationHistoryManager(max_tokens=8000)
 
         logger.info(f"BrandAdvisor initialized for brand: {brand_slug or '(none)'}")
 
@@ -352,8 +353,7 @@ class BrandAdvisor:
 
         # Clear history to prevent cross-brand contamination
         if not preserve_history:
-            self._conversation_history = []
-            logger.debug("Conversation history cleared on brand switch")
+            self._history_manager.clear()
 
         # Rebuild system prompt with new brand context
         self._agent = Agent(
@@ -378,9 +378,9 @@ class BrandAdvisor:
         if skills_context:
             prompt_parts.append(skills_context)
 
-        if self._conversation_history:
-            context_messages = self._format_history()
-            prompt_parts.append(context_messages)
+        if self._history_manager.message_count > 0:
+            history_text = self._history_manager.get_formatted(max_tokens=4000)
+            prompt_parts.append(history_text)
 
         prompt_parts.append(f"User: {message}")
         full_prompt = "\n\n".join(prompt_parts)
@@ -395,13 +395,9 @@ class BrandAdvisor:
             else:
                 response_text = str(response)
 
-            # Update conversation history
-            self._conversation_history.append({"role": "user", "content": message})
-            self._conversation_history.append({"role": "assistant", "content": response_text})
-
-            # Keep history manageable (last 20 turns)
-            if len(self._conversation_history) > 40:
-                self._conversation_history = self._conversation_history[-40:]
+            # Update conversation history (manager handles compaction automatically)
+            self._history_manager.add("user", message)
+            self._history_manager.add("assistant", response_text)
 
             return {
                 "response": response_text,
@@ -438,9 +434,9 @@ class BrandAdvisor:
         if skills_context:
             prompt_parts.append(skills_context)
 
-        if self._conversation_history:
-            context_messages = self._format_history()
-            prompt_parts.append(context_messages)
+        if self._history_manager.message_count > 0:
+            history_text = self._history_manager.get_formatted(max_tokens=4000)
+            prompt_parts.append(history_text)
 
         prompt_parts.append(f"User: {message}")
         full_prompt = "\n\n".join(prompt_parts)
@@ -455,27 +451,27 @@ class BrandAdvisor:
                     response_chunks.append(chunk.text)
                     yield chunk.text
 
-            # Update history after stream completes
+            # Update history after stream completes (manager handles compaction)
             full_response = "".join(response_chunks)
-            self._conversation_history.append({"role": "user", "content": message})
-            self._conversation_history.append({"role": "assistant", "content": full_response})
-
-            # Keep history manageable
-            if len(self._conversation_history) > 40:
-                self._conversation_history = self._conversation_history[-40:]
+            self._history_manager.add("user", message)
+            self._history_manager.add("assistant", full_response)
 
         except Exception as e:
             logger.error(f"Stream chat failed: {e}")
             raise
 
-    def _format_history(self) -> str:
-        """Format conversation history for context."""
-        lines = []
-        for msg in self._conversation_history[-10:]:  # Last 5 turns
-            role = "User" if msg["role"] == "user" else "Assistant"
-            content = msg["content"][:500]  # Truncate long messages
-            lines.append(f"{role}: {content}")
-        return "\n\n".join(lines)
+    def _format_history(self, max_turns: int = 10) -> str:
+        """Format conversation history for prompt.
+
+        Args:
+            max_turns: Maximum conversation turns to include.
+
+        Returns:
+            Formatted history string.
+        """
+        # Estimate ~400 tokens per turn (user + assistant)
+        max_tokens = max_turns * 400
+        return self._history_manager.get_formatted(max_tokens=max_tokens)
 
     def _get_relevant_skills_context(self, message: str, max_skills: int = 2) -> str:
         """Find and format relevant skill instructions for the message.
@@ -510,8 +506,7 @@ class BrandAdvisor:
 
     def clear_history(self) -> None:
         """Clear conversation history."""
-        self._conversation_history = []
-        logger.debug("Conversation history cleared")
+        self._history_manager.clear()
 
 
 # =============================================================================
