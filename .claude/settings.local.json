@@ -82,7 +82,27 @@
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(wc:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(npm run build:*)",
+      "Bash(src/sip_videogen/brands/memory.py )",
+      "Bash(src/sip_videogen/studio/app.py )",
+      "Bash(src/sip_videogen/studio/bridge.py )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Setup/ApiKeySetup.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Sidebar/AssetTree.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Sidebar/DocumentsList.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/ui/button.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/context/BrandContext.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/lib/bridge.ts )",
+      "Bash(scripts/studio-demo.sh:*)",
+      "mcp__shadcn__getComponents",
+      "mcp__shadcn__getComponent",
+      "Bash(npm install:*)",
+      "Bash(src/sip_videogen/studio/frontend/package.json )",
+      "Bash(src/sip_videogen/studio/frontend/package-lock.json )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Sidebar/BrandSelector.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/Brand/ )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/ui/dropzone.tsx )",
+      "Bash(src/sip_videogen/studio/frontend/src/components/ui/spinner.tsx)"
     ]
   }
 }

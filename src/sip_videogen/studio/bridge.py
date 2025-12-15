@@ -80,6 +80,7 @@ class StudioBridge:
         self._advisor: BrandAdvisor | None = None
         self._current_brand: str | None = None
         self._current_progress: str = ""
+        self._execution_trace: list[dict] = []
         self._window = None
 
     # =========================================================================
@@ -884,15 +885,19 @@ class StudioBridge:
 
     def _progress_callback(self, progress: AdvisorProgress) -> None:
         """Called by BrandAdvisor during execution."""
-        if progress.event_type == "thinking":
-            self._current_progress = "Thinking..."
-        elif progress.event_type == "tool_start":
-            if "generate_image" in progress.message.lower():
-                self._current_progress = "Generating image..."
-            else:
-                self._current_progress = progress.message
-        elif progress.event_type == "tool_end":
+        import time
+
+        event = {
+            "type": progress.event_type,
+            "timestamp": int(time.time() * 1000),
+            "message": progress.message,
+            "detail": progress.detail or "",
+        }
+        self._execution_trace.append(event)
+        if progress.event_type == "tool_end":
             self._current_progress = ""
+        else:
+            self._current_progress = progress.message
 
     def get_progress(self) -> dict:
         """Get current operation progress.
@@ -902,8 +907,13 @@ class StudioBridge:
         """
         return BridgeResponse(success=True, data={"status": self._current_progress}).to_dict()
 
-    def chat(self, message: str) -> dict:
+    def chat(self, message: str, attachments: list[dict] | None = None) -> dict:
         """Send a message to the Brand Advisor."""
+        import time
+
+        # Reset execution trace for this turn
+        self._execution_trace = []
+
         try:
             if self._advisor is None:
                 active = get_active_brand()
@@ -919,10 +929,65 @@ class StudioBridge:
             if not slug:
                 return BridgeResponse(success=False, error="No brand selected").to_dict()
 
+            brand_dir = get_brand_dir(slug)
+            attachment_notes: list[str] = []
+            prepared_message = message.strip() or "Please review the attached files."
+            max_attachment_bytes = 8 * 1024 * 1024  # 8 MB cap per file
+
+            if attachments:
+                upload_dir = brand_dir / "uploads"
+                upload_dir.mkdir(parents=True, exist_ok=True)
+
+                for idx, attachment in enumerate(attachments):
+                    if not isinstance(attachment, dict):
+                        continue
+                    name = attachment.get("name") or f"attachment-{idx+1}"
+                    safe_name = Path(name).name or f"attachment-{idx+1}"
+                    rel_path: str | None = None
+
+                    data_b64 = attachment.get("data")
+                    ref_path = attachment.get("path")
+
+                    if data_b64:
+                        try:
+                            content = base64.b64decode(data_b64)
+                            if len(content) > max_attachment_bytes:
+                                attachment_notes.append(f"- {safe_name} skipped (too large)")
+                                continue
+                            suffix = Path(safe_name).suffix
+                            if suffix and suffix.lower() not in (ALLOWED_IMAGE_EXTS | ALLOWED_TEXT_EXTS):
+                                continue
+                            unique_name = f"{Path(safe_name).stem}-{int(time.time() * 1000)}{suffix}"
+                            target = upload_dir / unique_name
+                            target.write_bytes(content)
+                            rel_path = target.relative_to(brand_dir).as_posix()
+                            safe_name = unique_name
+                        except Exception:
+                            continue
+                    elif ref_path:
+                        resolved, error = self._resolve_assets_path(ref_path)
+                        if error:
+                            resolved, error = self._resolve_docs_path(ref_path)
+                        if not error and resolved and resolved.exists():
+                            rel_path = resolved.relative_to(brand_dir).as_posix()
+                            safe_name = resolved.name
+
+                    if rel_path:
+                        attachment_notes.append(f"- {safe_name} (path: {rel_path})")
+
+            if attachment_notes:
+                prepared_message = (
+                    f"{prepared_message}\n\nAttachments provided "
+                    f"(paths are relative to the brand folder):\n" + "\n".join(attachment_notes)
+                ).strip()
+
             # Snapshot generated assets before running (robust vs relying on progress hook details)
             before = {a["path"] for a in list_brand_assets(slug, category="generated")}
 
-            response = asyncio.run(self._advisor.chat(message))
+            result = asyncio.run(self._advisor.chat_with_metadata(prepared_message))
+            response = result["response"]
+            interaction = result.get("interaction")
+            memory_update = result.get("memory_update")
 
             after = {a["path"] for a in list_brand_assets(slug, category="generated")}
             new_paths = sorted(after - before)
@@ -949,16 +1014,31 @@ class StudioBridge:
                     pass
 
             return BridgeResponse(
-                success=True, data={"response": response, "images": image_data_urls}
+                success=True,
+                data={
+                    "response": response,
+                    "images": image_data_urls,
+                    "execution_trace": self._execution_trace,
+                    "interaction": interaction,
+                    "memory_update": memory_update,
+                },
             ).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
+        finally:
+            self._current_progress = ""
 
     def clear_chat(self) -> dict:
         """Clear conversation history."""
         try:
             if self._advisor:
-                self._advisor.clear_history()
+                slug = self._get_active_slug()
+                if slug:
+                    self._advisor.set_brand(slug, preserve_history=False)
+                else:
+                    self._advisor.clear_history()
+            self._current_progress = ""
+            self._execution_trace = []
             return BridgeResponse(success=True).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()

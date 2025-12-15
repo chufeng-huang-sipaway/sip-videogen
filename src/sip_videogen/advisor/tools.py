@@ -64,6 +64,31 @@ def _resolve_brand_path(relative_path: str) -> Path | None:
 
 
 # =============================================================================
+# Interaction + Memory State (captured via hooks)
+# =============================================================================
+
+# Stored between tool calls and cleared when hooks read them
+_pending_interaction: dict | None = None
+_pending_memory_update: dict | None = None
+
+
+def get_pending_interaction() -> dict | None:
+    """Get and clear any pending interaction."""
+    global _pending_interaction
+    result = _pending_interaction
+    _pending_interaction = None
+    return result
+
+
+def get_pending_memory_update() -> dict | None:
+    """Get and clear any pending memory update."""
+    global _pending_memory_update
+    result = _pending_memory_update
+    _pending_memory_update = None
+    return result
+
+
+# =============================================================================
 # Implementation Functions (for testing)
 # =============================================================================
 
@@ -343,6 +368,100 @@ def _impl_load_brand(slug: str | None = None) -> str:
 
 
 @function_tool
+def propose_choices(
+    question: str,
+    choices: list[str],
+    allow_custom: bool = False,
+) -> str:
+    """Present a multiple-choice question to the user with clickable options.
+
+    Use this tool when you want the user to select from specific options.
+    The user will see clickable buttons in the UI. Their selection will be
+    returned as the next message in the conversation.
+
+    Args:
+        question: The question to ask (e.g., "Which logo style do you prefer?")
+        choices: List of 2-5 choices to present as buttons
+        allow_custom: If True, show an input field for custom response
+
+    Returns:
+        Confirmation that choices are being presented.
+    """
+    global _pending_interaction
+
+    if len(choices) < 2:
+        return "Error: Please provide at least 2 choices"
+    if len(choices) > 5:
+        choices = choices[:5]
+
+    _pending_interaction = {
+        "type": "choices",
+        "question": question,
+        "choices": choices,
+        "allow_custom": allow_custom,
+    }
+
+    # Return text for the agent to include in its response
+    return f"[Presenting choices to user: {question}]"
+
+
+@function_tool
+def propose_images(
+    question: str,
+    image_paths: list[str],
+    labels: list[str] | None = None,
+) -> str:
+    """Present images for the user to select from.
+
+    Use this after generating multiple images when you want the user
+    to pick their favorite. Images will be shown as clickable cards.
+
+    Args:
+        question: The question (e.g., "Which logo do you prefer?")
+        image_paths: List of image file paths (relative to brand assets directory, e.g. "generated/foo.png")
+        labels: Optional short labels for each image (e.g., ["Modern", "Classic"])
+
+    Returns:
+        Confirmation that image selection is being presented.
+    """
+    global _pending_interaction
+
+    if len(image_paths) < 2:
+        return "Error: Please provide at least 2 images to choose from"
+
+    # Normalize paths for the UI thumbnail API:
+    # - Frontend calls bridge.getAssetThumbnail(path), which expects paths like "generated/foo.png"
+    # - generate_image tool returns absolute paths; convert those to relative-to-assets when possible
+    brand_slug = get_active_brand()
+    if brand_slug:
+        assets_dir = (get_brand_dir(brand_slug) / "assets").resolve()
+        normalized: list[str] = []
+        for p in image_paths:
+            try:
+                candidate = Path(p)
+                if candidate.is_absolute():
+                    rel = candidate.resolve().relative_to(assets_dir)
+                    normalized.append(rel.as_posix())
+                else:
+                    normalized.append(p)
+            except Exception:
+                # Skip paths outside assets/ (PyWebView bridge will reject them anyway)
+                continue
+        image_paths = normalized
+        if len(image_paths) < 2:
+            return "Error: Please provide at least 2 images within the brand assets folder"
+
+    _pending_interaction = {
+        "type": "image_select",
+        "question": question,
+        "image_paths": image_paths,
+        "labels": labels or [f"Option {i+1}" for i in range(len(image_paths))],
+    }
+
+    return f"[Presenting {len(image_paths)} images for user to select]"
+
+
+@function_tool
 async def generate_image(
     prompt: str,
     aspect_ratio: Literal[
@@ -445,6 +564,57 @@ def load_brand(slug: str | None = None) -> str:
     return _impl_load_brand(slug)
 
 
+@function_tool
+def update_memory(
+    key: str,
+    value: str,
+    display_message: str,
+) -> str:
+    """Record a user preference or learning for future reference.
+
+    Use this when the user expresses a preference, gives feedback,
+    or makes a decision that should be remembered for future interactions.
+
+    Examples:
+    - User says "I prefer minimalist designs" → remember style preference
+    - User says "Don't use red" → remember color restriction
+    - User picks a direction → remember that preference
+
+    Args:
+        key: Short identifier (e.g., "style_preference", "color_avoid")
+        value: The actual preference/learning to store
+        display_message: User-friendly confirmation (e.g., "Noted: You prefer minimalist designs")
+
+    Returns:
+        Confirmation of memory update.
+    """
+    global _pending_memory_update
+    import json
+    from datetime import datetime
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "No active brand - cannot save memory"
+
+    memory_path = get_brand_dir(brand_slug) / "memory.json"
+    memory = {}
+    if memory_path.exists():
+        try:
+            memory = json.loads(memory_path.read_text())
+        except json.JSONDecodeError:
+            memory = {}
+
+    memory[key] = {
+        "value": value,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+
+    memory_path.write_text(json.dumps(memory, indent=2))
+    _pending_memory_update = {"message": display_message}
+
+    return f"Memory updated: {key}"
+
+
 # =============================================================================
 # Tool List for Agent
 # =============================================================================
@@ -456,4 +626,7 @@ ADVISOR_TOOLS = [
     write_file,
     list_files,
     load_brand,
+    propose_choices,
+    propose_images,
+    update_memory,
 ]

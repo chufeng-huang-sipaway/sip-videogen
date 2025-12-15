@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBrand } from '@/context/BrandContext'
 import { useAssets } from '@/hooks/useAssets'
 import { bridge, isPyWebView, type AssetNode } from '@/lib/bridge'
+import { ImageViewer } from '../ui/image-viewer'
 
 const ALLOWED_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'])
 
@@ -55,10 +56,11 @@ interface TreeItemProps {
   depth?: number
   onDelete: (path: string) => void
   onRename: (path: string) => void
-  onOpen: (path: string) => void
+  onPreview: (path: string) => void
+  onReveal: (path: string) => void
 }
 
-function TreeItem({ node, depth = 0, onDelete, onRename, onOpen }: TreeItemProps) {
+function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: TreeItemProps) {
   const [isOpen, setIsOpen] = useState(depth === 0)
   const hasChildren = node.type === 'folder' && node.children && node.children.length > 0
 
@@ -66,18 +68,26 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onOpen }: TreeItemProps
     if (node.type === 'folder') {
       setIsOpen(!isOpen)
     } else if (node.type === 'image') {
-      onOpen(node.path)
+      onPreview(node.path)
     }
+  }
+
+  const handleDragStart = (e: React.DragEvent) => {
+    if (node.type !== 'image') return
+    e.dataTransfer.setData('application/x-brand-asset', node.path)
+    e.dataTransfer.setData('text/plain', node.path)
   }
 
   return (
     <div>
       <ContextMenu>
-        <ContextMenuTrigger>
+        <ContextMenuTrigger asChild>
           <div
             className="flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group"
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
             onClick={handleClick}
+            draggable={node.type === 'image'}
+            onDragStart={handleDragStart}
           >
             {node.type === 'folder' ? (
               hasChildren ? (
@@ -106,7 +116,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onOpen }: TreeItemProps
         <ContextMenuContent>
           {node.type === 'image' && (
             <>
-              <ContextMenuItem onClick={() => onOpen(node.path)}>
+              <ContextMenuItem onClick={() => onReveal(node.path)}>
                 Reveal in Finder
               </ContextMenuItem>
               <ContextMenuSeparator />
@@ -132,7 +142,8 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onOpen }: TreeItemProps
           depth={depth + 1}
           onDelete={onDelete}
           onRename={onRename}
-          onOpen={onOpen}
+          onPreview={onPreview}
+          onReveal={onReveal}
         />
       ))}
     </div>
@@ -144,6 +155,7 @@ export function AssetTree() {
   const { tree, isLoading, error, refresh, deleteAsset, renameAsset, uploadAsset, refreshMemory } = useAssets(activeBrand)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   // Auto-clear upload error after 5 seconds
   useEffect(() => {
@@ -153,7 +165,17 @@ export function AssetTree() {
     }
   }, [uploadError])
 
-  const handleOpen = useCallback(async (path: string) => {
+  const handlePreview = useCallback(async (path: string) => {
+    if (!isPyWebView()) return
+    try {
+      const dataUrl = await bridge.getAssetThumbnail(path)
+      setPreviewImage(dataUrl)
+    } catch (err) {
+      console.error('Failed to load preview:', err)
+    }
+  }, [])
+
+  const handleReveal = useCallback(async (path: string) => {
     if (isPyWebView()) {
       await bridge.openAssetInFinder(path)
     }
@@ -284,11 +306,13 @@ export function AssetTree() {
               node={node}
               onDelete={handleDelete}
               onRename={handleRename}
-              onOpen={handleOpen}
+              onPreview={handlePreview}
+              onReveal={handleReveal}
             />
           ))}
         </div>
       )}
+      <ImageViewer src={previewImage} onClose={() => setPreviewImage(null)} />
     </div>
   )
 }

@@ -19,6 +19,7 @@ from sip_videogen.advisor.tools import ADVISOR_TOOLS
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import (
     get_active_brand,
+    get_brand_dir,
     load_brand,
     set_active_brand,
 )
@@ -54,12 +55,17 @@ class AdvisorHooks(RunHooks):
 
     def __init__(self, callback: ProgressCallback | None = None):
         self.callback = callback
+        self.captured_interaction: dict | None = None
+        self.captured_memory_update: dict | None = None
         self._tool_descriptions = {
             "generate_image": "Generating image with Gemini",
             "read_file": "Reading file",
             "write_file": "Writing file",
             "list_files": "Listing directory contents",
             "load_brand": "Loading brand context",
+            "propose_choices": "Presenting options to the user",
+            "propose_images": "Showing images for selection",
+            "update_memory": "Recording a preference",
         }
 
     def _report(self, progress: AdvisorProgress) -> None:
@@ -84,7 +90,23 @@ class AdvisorHooks(RunHooks):
         self, context: RunContextWrapper, agent: Agent, tool: Tool, result: str
     ) -> None:
         """Called when a tool call completes."""
+        from sip_videogen.advisor.tools import (
+            get_pending_interaction,
+            get_pending_memory_update,
+        )
+
         tool_name = tool.name
+
+        if tool_name in ("propose_choices", "propose_images"):
+            interaction = get_pending_interaction()
+            if interaction:
+                self.captured_interaction = interaction
+
+        if tool_name == "update_memory":
+            mem_update = get_pending_memory_update()
+            if mem_update:
+                self.captured_memory_update = mem_update
+
         result_preview = str(result)[:100] + "..." if len(str(result)) > 100 else str(result)
         self._report(
             AdvisorProgress(
@@ -131,16 +153,33 @@ def _build_system_prompt(brand_slug: str | None = None) -> str:
 
     # Add brand context if available
     brand_section = ""
+    memory_section = ""
     if brand_slug:
         identity = load_brand(brand_slug)
         if identity:
             brand_section = _format_brand_context(brand_slug, identity)
+
+        memory_path = get_brand_dir(brand_slug) / "memory.json"
+        if memory_path.exists():
+            try:
+                import json
+
+                memory = json.loads(memory_path.read_text())
+                if memory:
+                    memory_lines = ["## Remembered Preferences", ""]
+                    for key, data in memory.items():
+                        memory_lines.append(f"- **{key}**: {data.get('value', '')}")
+                    memory_section = "\n".join(memory_lines)
+            except (json.JSONDecodeError, KeyError):
+                pass
 
     return f"""{base_prompt}
 
 {skills_section}
 
 {brand_section}
+
+{memory_section}
 """.strip()
 
 
@@ -323,15 +362,8 @@ class BrandAdvisor:
 
         logger.info(f"Switched to brand: {slug}")
 
-    async def chat(self, message: str) -> str:
-        """Send a message and get a response.
-
-        Args:
-            message: User message to process.
-
-        Returns:
-            Agent's response text.
-        """
+    async def chat_with_metadata(self, message: str) -> dict:
+        """Send a message and get a response plus UI metadata."""
         hooks = AdvisorHooks(callback=self.progress_callback)
 
         # Find relevant skills and inject their instructions
@@ -368,11 +400,20 @@ class BrandAdvisor:
             if len(self._conversation_history) > 40:
                 self._conversation_history = self._conversation_history[-40:]
 
-            return response_text
+            return {
+                "response": response_text,
+                "interaction": hooks.captured_interaction,
+                "memory_update": hooks.captured_memory_update,
+            }
 
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             raise
+
+    async def chat(self, message: str) -> str:
+        """Send a message and get a response."""
+        result = await self.chat_with_metadata(message)
+        return result["response"]
 
     async def chat_stream(self, message: str) -> AsyncIterator[str]:
         """Send a message and stream the response.

@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Paperclip } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
+import { ExecutionTrace } from './ExecutionTrace'
+import { InteractionRenderer } from './InteractionRenderer'
+import { MemoryUpdateBadge } from './MemoryUpdateBadge'
 
 interface MessageListProps {
   messages: Message[]
   progress: string
+  isLoading: boolean
+  onInteractionSelect: (messageId: string, selection: string) => void
 }
 
 function ImageLightbox({ src }: { src: string }) {
@@ -28,7 +33,7 @@ function ImageLightbox({ src }: { src: string }) {
   )
 }
 
-export function MessageList({ messages, progress }: MessageListProps) {
+export function MessageList({ messages, progress, isLoading, onInteractionSelect }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -71,6 +76,26 @@ export function MessageList({ messages, progress }: MessageListProps) {
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
             )}
 
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {message.attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-700/50 px-2 py-1"
+                  >
+                    {att.preview ? (
+                      <img src={att.preview} alt={att.name} className="h-10 w-10 rounded object-cover" />
+                    ) : (
+                      <Paperclip className="h-4 w-4 text-gray-500" />
+                    )}
+                    <div className="text-xs text-gray-700 dark:text-gray-200 max-w-[160px] truncate">
+                      {att.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {message.images.length > 0 && (
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {message.images.map((img, i) => (
@@ -78,6 +103,24 @@ export function MessageList({ messages, progress }: MessageListProps) {
                 ))}
               </div>
             )}
+
+            {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (
+              <ExecutionTrace events={message.executionTrace} />
+            )}
+
+            {message.memoryUpdate && (
+              <MemoryUpdateBadge message={message.memoryUpdate.message} />
+            )}
+
+            {message.role === 'assistant' &&
+              message.interaction &&
+              !message.interactionResolved && (
+                <InteractionRenderer
+                  interaction={message.interaction}
+                  onSelect={(selection) => onInteractionSelect(message.id, selection)}
+                  disabled={isLoading}
+                />
+              )}
 
             {message.status === 'error' && (
               <p className="text-xs text-red-500 mt-2">{message.error}</p>

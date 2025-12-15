@@ -6,9 +6,10 @@ interface MessageInputProps {
   disabled?: boolean
   placeholder?: string
   onSend: (text: string) => void
+  canSendWithoutText?: boolean
 }
 
-export function MessageInput({ disabled, placeholder, onSend }: MessageInputProps) {
+export function MessageInput({ disabled, placeholder, onSend, canSendWithoutText = false }: MessageInputProps) {
   const [message, setMessage] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -21,7 +22,8 @@ export function MessageInput({ disabled, placeholder, onSend }: MessageInputProp
 
   const submit = () => {
     const text = message.trim()
-    if (!text || disabled) return
+    if (!text && !canSendWithoutText) return
+    if (disabled) return
     onSend(text)
     setMessage('')
   }
@@ -48,7 +50,7 @@ export function MessageInput({ disabled, placeholder, onSend }: MessageInputProp
           type="button"
           size="icon"
           onClick={submit}
-          disabled={disabled || !message.trim()}
+          disabled={disabled || (!message.trim() && !canSendWithoutText)}
         >
           <Send className="h-4 w-4" />
         </Button>

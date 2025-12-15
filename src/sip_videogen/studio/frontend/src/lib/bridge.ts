@@ -4,6 +4,13 @@ interface BridgeResponse<T> {
   error?: string
 }
 
+export interface ExecutionEvent {
+  type: 'thinking' | 'tool_start' | 'tool_end'
+  timestamp: number
+  message: string
+  detail: string
+}
+
 export interface BrandEntry {
   slug: string
   name: string
@@ -30,9 +37,36 @@ interface ApiKeyStatus {
   all_configured: boolean
 }
 
+export interface ChoiceInteraction {
+  type: 'choices'
+  question: string
+  choices: string[]
+  allow_custom: boolean
+}
+
+export interface ImageSelectInteraction {
+  type: 'image_select'
+  question: string
+  image_paths: string[]
+  labels: string[]
+}
+
+export type Interaction = ChoiceInteraction | ImageSelectInteraction
+
+export interface ChatAttachment {
+  name: string
+  data?: string
+  path?: string
+  mime?: string
+  source?: 'upload' | 'asset'
+}
+
 interface ChatResponse {
   response: string
   images: string[]
+  execution_trace: ExecutionEvent[]
+  interaction?: Interaction | null
+  memory_update?: { message: string } | null
 }
 
 interface PyWebViewAPI {
@@ -64,7 +98,7 @@ interface PyWebViewAPI {
   rename_asset(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
   upload_asset(filename: string, data: string, category: string): Promise<BridgeResponse<{ path: string }>>
   get_progress(): Promise<BridgeResponse<{ status: string }>>
-  chat(message: string): Promise<BridgeResponse<ChatResponse>>
+  chat(message: string, attachments?: ChatAttachment[]): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
 }
@@ -135,7 +169,7 @@ export const bridge = {
   renameAsset: async (p: string, n: string) => (await callBridge(() => window.pywebview!.api.rename_asset(p, n))).newPath,
   uploadAsset: async (f: string, d: string, c: string) => (await callBridge(() => window.pywebview!.api.upload_asset(f, d, c))).path,
   getProgress: async () => (await callBridge(() => window.pywebview!.api.get_progress())).status,
-  chat: (m: string) => callBridge(() => window.pywebview!.api.chat(m)),
+  chat: (m: string, attachments?: ChatAttachment[]) => callBridge(() => window.pywebview!.api.chat(m, attachments || [])),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
   refreshBrandMemory: () => callBridge(() => window.pywebview!.api.refresh_brand_memory()),
 }
