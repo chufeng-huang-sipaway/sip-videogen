@@ -1,0 +1,31 @@
+#!/bin/bash
+# Brand Studio - Quick launcher for development
+#
+# Usage:
+#   ./studio        Run the app (uses built frontend)
+#   ./studio dev    Run with hot-reload (frontend dev server)
+#   ./studio build  Build frontend then run
+
+cd "$(dirname "$0")"
+
+if [ ! -f ".venv/bin/python" ]; then
+    echo "Setting up virtual environment..."
+    python3 -m venv .venv
+    .venv/bin/pip install -e ".[dev]" -q
+fi
+
+case "${1:-}" in
+    dev)
+        echo "Starting Brand Studio (dev mode)..."
+        STUDIO_DEV=1 .venv/bin/python -m sip_videogen.studio
+        ;;
+    build)
+        echo "Building frontend..."
+        (cd src/sip_videogen/studio/frontend && npm run build)
+        echo "Starting Brand Studio..."
+        .venv/bin/python -m sip_videogen.studio
+        ;;
+    *)
+        .venv/bin/python -m sip_videogen.studio
+        ;;
+esac
