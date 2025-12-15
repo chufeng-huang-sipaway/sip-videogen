@@ -27,8 +27,8 @@ from sip_videogen.brands.models import (
 )
 from sip_videogen.brands.storage import create_brand
 from sip_videogen.brands.tools import (
-    browse_brand_assets,
-    fetch_brand_detail,
+    _impl_browse_brand_assets as browse_brand_assets,
+    _impl_fetch_brand_detail as fetch_brand_detail,
     get_brand_context,
     set_brand_context,
 )
@@ -96,6 +96,8 @@ def brand_with_assets(temp_brands_dir: Path, sample_brand_identity: BrandIdentit
     (brand_dir / "assets" / "logo" / "secondary-logo.jpg").write_bytes(b"fake jpg")
     (brand_dir / "assets" / "marketing" / "banner.webp").write_bytes(b"fake webp")
     (brand_dir / "assets" / "lifestyle" / "hero-shot.jpeg").write_bytes(b"fake jpeg")
+    (brand_dir / "assets" / "generated").mkdir(parents=True, exist_ok=True)
+    (brand_dir / "assets" / "generated" / "concept.png").write_bytes(b"fake png")
     # Non-image file should be ignored
     (brand_dir / "assets" / "logo" / "readme.txt").write_text("ignore this")
 
@@ -236,9 +238,9 @@ class TestListBrandAssets:
         """Test that all assets are returned without category filter."""
         assets = list_brand_assets("test-brand")
 
-        assert len(assets) == 4  # 2 logos + 1 marketing + 1 lifestyle
+        assert len(assets) == 5  # 2 logos + 1 marketing + 1 lifestyle + 1 generated
         categories = {a["category"] for a in assets}
-        assert categories == {"logo", "marketing", "lifestyle"}
+        assert categories == {"logo", "marketing", "lifestyle", "generated"}
 
     def test_filters_by_category(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test that category filter works correctly."""
@@ -264,6 +266,13 @@ class TestListBrandAssets:
 
         filenames = [a["filename"] for a in assets]
         assert "readme.txt" not in filenames
+
+    def test_filters_generated_category(self, brand_with_assets: BrandIdentityFull) -> None:
+        """Test that generated assets category is supported."""
+        assets = list_brand_assets("test-brand", category="generated")
+
+        assert len(assets) == 1
+        assert assets[0]["category"] == "generated"
 
     def test_empty_category_returns_empty(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test that filtering by empty category returns empty list."""
@@ -363,7 +372,7 @@ class TestBrowseBrandAssetsTool:
 
         data = json.loads(result)
         assert isinstance(data, list)
-        assert len(data) == 4
+        assert len(data) == 5  # logo(2) + marketing(1) + lifestyle(1) + generated(1)
 
     def test_filters_by_category(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test that category filter works."""

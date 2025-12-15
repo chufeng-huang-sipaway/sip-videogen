@@ -148,17 +148,49 @@ sipvid generate "Robot dance party" --yes
 sipvid status
 ```
 
-### Brand Kit Generation
+### Brand Studio
 
-Generate a complete brand design library from a simple concept:
+Create and manage persistent brands with an AI-powered brand development team:
 
 ```bash
+sipvid brands
+```
+
+**Brand Studio features:**
+
+- **Create brands** - Describe your concept, AI agents develop complete brand identity
+- **Evolve brands** - Refine visual identity, voice, audience, or positioning over time
+- **Generate assets** - Create brand kit assets using your saved brand's style
+- **Manage brands** - Set active brand, view details, delete brands
+
+**How brand creation works:**
+
+1. **Describe your concept** - Product category, target audience, differentiators, tone
+2. **AI team develops identity** - Brand Director orchestrates specialist agents:
+   - Brand Strategist (positioning, audience, values)
+   - Visual Designer (colors, typography, imagery)
+   - Brand Voice Writer (tone, messaging, copy)
+   - Brand Guardian (consistency validation)
+3. **Review and approve** - See the complete brand identity before saving
+4. **Brand is saved** - Stored at `~/.sip-videogen/brands/` for future use
+
+### Brand Kit Generation
+
+Generate a complete brand design library:
+
+```bash
+# Use a saved brand (recommended)
+sipvid brandkit --brand my-brand-slug
+
+# Or create a one-shot brand from concept
 sipvid brandkit "A skincare product brand with a tropical, organic feel"
 ```
 
+When using a saved brand, assets are generated using your brand's established colors, style, and visual identity - ensuring consistency across all outputs.
+
 **How it works:**
 
-1. **Describe your brand** - Provide a concept (product type, style, audience)
+1. **Select or describe brand** - Use saved brand or provide a new concept
 2. **Review the brief** - AI analyzes your concept and creates a brand brief
 3. **Choose a direction** - Select from 3 creative directions with different palettes and styles
 4. **Approve the logo** - Review and approve the generated logo before continuing
@@ -184,7 +216,59 @@ When the logo is generated, you can:
 
 The logo you approve becomes the visual anchor - it's passed as a reference image to Gemini when generating packaging and marketing assets, ensuring consistent branding across all outputs.
 
-## Automatic Updates
+## Brand Studio Desktop App
+
+A native macOS desktop application for managing brand identities with an AI-powered Brand Advisor.
+
+### Installation
+
+**Option 1: Terminal (Recommended)**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/chufeng-huang-sipaway/sip-videogen/main/scripts/install-brand-studio.sh | bash
+```
+
+**Option 2: Download DMG**
+
+1. Go to [GitHub Releases](https://github.com/chufeng-huang-sipaway/sip-videogen/releases)
+2. Download `Brand-Studio-X.Y.Z.dmg`
+3. Open the DMG and drag Brand Studio to Applications
+
+### Features
+
+- **Brand Management** - Create, view, and manage multiple brand identities
+- **AI Brand Advisor** - Chat with an AI that understands your brand's voice, values, and visual identity
+- **Asset Library** - Organize brand assets (logos, images, marketing materials)
+- **Document Storage** - Keep brand guidelines and reference documents
+- **Auto Updates** - Get notified when new versions are available
+
+### First-Time Setup
+
+1. Launch Brand Studio from Applications
+2. Enter your API keys (OpenAI and Gemini)
+3. Create your first brand or import existing materials
+
+### Auto-Update
+
+Brand Studio automatically checks for updates on launch. When a new version is available:
+
+```
+┌─────────────────────────────────────┐
+│  Update Available                   │
+│                                     │
+│  Version 0.2.0 is ready!            │
+│                                     │
+│  What's new:                        │
+│  • New feature X                    │
+│  • Bug fixes                        │
+│                                     │
+│  [Skip]  [Later]  [Update Now]      │
+└─────────────────────────────────────┘
+```
+
+Click **Update Now** to download and install automatically. The app will restart with the new version.
+
+## Automatic Updates (CLI)
 
 The tool automatically checks for updates on each run. When a new version is available, you'll see a notification:
 
@@ -206,13 +290,21 @@ sipvid update --check # Only check, don't install
 
 ## Architecture
 
-The tool uses a hub-and-spoke agent pattern:
+The tool uses a hub-and-spoke agent pattern with specialized teams:
 
+**Video Generation Team:**
 - **Showrunner** (orchestrator) - Coordinates the script development process
   - **Screenwriter** - Creates scene breakdown with professional cinematography
   - **Production Designer** - Identifies shared visual elements for consistency
   - **Continuity Supervisor** - Validates consistency and optimizes prompts
   - **Music Director** - Designs complementary background music
+
+**Brand Development Team:**
+- **Brand Director** (orchestrator) - Coordinates the brand identity process
+  - **Brand Strategist** - Develops positioning, audience profile, and values
+  - **Visual Designer** - Creates color palette, typography, and imagery direction
+  - **Brand Voice Writer** - Establishes tone, messaging guidelines, and copy
+  - **Brand Guardian** - Validates consistency across all brand elements
 
 ### VEO 3.1 Prompt Optimization
 
@@ -285,13 +377,31 @@ ruff format .
 mypy src/
 ```
 
-### Publishing New Versions
+### Publishing New Versions (CLI)
 
 ```bash
 # 1. Bump version in pyproject.toml
 # 2. Run publish script
 ./scripts/publish.sh
 ```
+
+### Building Brand Studio Releases
+
+Build and release a new version of the Brand Studio desktop app:
+
+```bash
+# Build a new release (updates version, builds app, creates DMG)
+./scripts/build-release.sh 0.2.0
+
+# This will:
+# 1. Update version numbers in all files
+# 2. Build the React frontend
+# 3. Build the macOS .app bundle (py2app)
+# 4. Create the DMG installer
+# 5. Show instructions for creating a GitHub Release
+```
+
+After building, create a GitHub Release and upload the DMG. Users will automatically see the update notification when they open Brand Studio.
 
 ## Cost Estimation
 

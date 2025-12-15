@@ -17,10 +17,10 @@ import platform
 import shutil
 import subprocess
 import sys
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
-import threading
 
 import questionary
 import typer
@@ -28,7 +28,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from rich.prompt import IntPrompt, Prompt
+from rich.prompt import Prompt
 from rich.table import Table
 
 from .agents import (
@@ -39,13 +39,22 @@ from .agents import (
     generate_directors_pitch,
     plan_brand_kit,
 )
+from .agents.tools import ImageProductionManager
+from .assembler import FFmpegAssembler, FFmpegError
 from .brand_kit import (
     build_brand_asset_prompts,
     build_brand_asset_prompts_from_brand,
     generate_brand_assets,
 )
-from .agents.tools import ImageProductionManager
-from .assembler import FFmpegAssembler, FFmpegError
+from .brands import (
+    delete_brand,
+    get_active_brand,
+    get_brand_dir,
+    list_brands,
+    load_brand_summary,
+    set_active_brand,
+    update_brand_summary_stats,
+)
 from .config.costs import estimate_pre_generation_costs
 from .config.logging import get_logger, setup_logging
 from .config.settings import get_settings
@@ -64,8 +73,13 @@ from .generators import (
     VideoGeneratorFactory,
     VideoProvider,
 )
+from .generators.nano_banana_generator import NanoBananaImageGenerator
 from .models import (
     AssetType,
+    BrandAssetResult,
+    BrandDirection,
+    BrandKitPackage,
+    BrandKitPlan,
     DirectorsPitch,
     GeneratedAsset,
     GeneratedMusic,
@@ -74,24 +88,11 @@ from .models import (
     MusicMood,
     ProductionPackage,
     VideoScript,
-    BrandAssetResult,
-    BrandDirection,
-    BrandKitPackage,
-    BrandKitPlan,
 )
-from .generators.nano_banana_generator import NanoBananaImageGenerator
 from .utils.updater import (
     check_for_update,
     get_current_version,
     prompt_for_update,
-)
-from .brands import (
-    delete_brand,
-    get_active_brand,
-    get_brand_dir,
-    list_brands,
-    load_brand_summary,
-    set_active_brand,
 )
 
 app = typer.Typer(
@@ -292,7 +293,7 @@ def _generate_brand_assets_with_progress(
             progress.stop()
 
             # Display with clickable file link (Rich OSC 8 hyperlinks)
-            console.print(f"\n[bold green]Logo generated:[/bold green]")
+            console.print("\n[bold green]Logo generated:[/bold green]")
             console.print(f"  [link=file://{logo_path}]{logo_path}[/link]")
             console.print("[dim]Review the logo before continuing with other assets.[/dim]")
 
@@ -522,7 +523,7 @@ def _run_brand_kit_generation_from_brand(
     manifest_path = _save_brand_kit_package(package, run_dir)
 
     # Update brand summary stats
-    _update_brand_summary_stats(slug)
+    update_brand_summary_stats(slug)
 
     console.print(
         Panel(
@@ -536,38 +537,6 @@ def _run_brand_kit_generation_from_brand(
     )
 
     return package
-
-
-def _update_brand_summary_stats(slug: str) -> None:
-    """Update asset_count and last_generation in brand summary.
-
-    Call this after generating assets to keep summary stats current.
-    """
-    brand_dir = get_brand_dir(slug)
-    summary_path = brand_dir / "identity.json"
-
-    if not summary_path.exists():
-        return
-
-    # Count assets
-    assets_dir = brand_dir / "assets"
-    asset_count = 0
-    if assets_dir.exists():
-        for category in ["logo", "packaging", "lifestyle", "mascot", "marketing"]:
-            cat_dir = assets_dir / category
-            if cat_dir.exists():
-                asset_count += sum(
-                    1
-                    for f in cat_dir.iterdir()
-                    if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
-                )
-
-    # Load, update, save summary
-    summary = load_brand_summary(slug)
-    if summary:
-        summary.asset_count = asset_count
-        summary.last_generation = datetime.utcnow().isoformat()
-        summary_path.write_text(summary.model_dump_json(indent=2))
 
 
 def _prompt_for_brand() -> str | None:
@@ -1971,10 +1940,9 @@ def _display_brand_detail(slug: str) -> str | None:
         - None: User cancelled (Ctrl+C)
     """
     from .brands import (
-        load_brand_summary,
-        list_brand_assets,
         get_active_brand,
-        set_active_brand,
+        list_brand_assets,
+        load_brand_summary,
     )
 
     summary = load_brand_summary(slug)
@@ -2140,16 +2108,7 @@ def _create_brand_flow() -> str | None:
         "  • Desired tone/personality\n"
     )
 
-    concept = questionary.text(
-        "Brand concept:",
-        multiline=True,
-        instruction="(Press Enter twice or Ctrl+D when done)",
-        style=questionary.Style([
-            ("qmark", "fg:cyan bold"),
-            ("question", "fg:white bold"),
-            ("answer", "fg:green"),
-        ]),
-    ).ask()
+    concept = Prompt.ask("[bold]Brand concept[/bold]")
 
     if not concept or not concept.strip():
         console.print("[yellow]No concept provided. Going back.[/yellow]")
@@ -2400,7 +2359,7 @@ def _evolve_brand_flow(slug: str) -> str | None:
         BrandDevelopmentError,
         develop_brand_with_output,
     )
-    from .brands import load_brand, load_brand_summary, save_brand
+    from .brands import load_brand_summary, save_brand
 
     # Load current brand state
     summary = load_brand_summary(slug)
@@ -2509,16 +2468,7 @@ def _evolve_brand_flow(slug: str) -> str | None:
     console.print(f"[dim]{aspect_guidance[aspect_choice]}[/dim]")
 
     # Get evolution request from user
-    evolution_request = questionary.text(
-        "Evolution request:",
-        multiline=True,
-        instruction="(Press Enter twice or Ctrl+D when done)",
-        style=questionary.Style([
-            ("qmark", "fg:cyan bold"),
-            ("question", "fg:white bold"),
-            ("answer", "fg:green"),
-        ]),
-    ).ask()
+    evolution_request = Prompt.ask("[bold]Evolution request[/bold]")
 
     if not evolution_request or not evolution_request.strip():
         console.print("[yellow]No changes requested. Going back.[/yellow]")
@@ -2874,6 +2824,163 @@ def brand(
     console.print("\n[bold cyan]Exiting Brand Studio[/bold cyan]\n")
 
 
+# =============================================================================
+# Brand Advisor - Conversational Interface
+# =============================================================================
+
+
+def _run_advisor_sync(coro):
+    """Run an async coroutine synchronously for the advisor.
+
+    Uses asyncio.run() which properly creates and manages an event loop.
+    """
+    return asyncio.run(coro)
+
+
+def _advisor_chat_loop(advisor) -> None:
+    """Run the conversational chat loop with the advisor.
+
+    Args:
+        advisor: BrandAdvisor instance.
+    """
+    from rich.markdown import Markdown
+
+    console.print("\n[dim]Type your message and press Enter. Type 'exit' or 'quit' to leave.[/dim]")
+    console.print("[dim]Commands: /brand <slug> to switch brands, /clear to reset conversation[/dim]\n")
+
+    while True:
+        try:
+            # Get user input
+            user_input = Prompt.ask("[bold cyan]You[/bold cyan]")
+
+            if not user_input.strip():
+                continue
+
+            # Handle exit
+            if user_input.strip().lower() in ("exit", "quit", "/exit", "/quit"):
+                console.print("\n[dim]Goodbye![/dim]")
+                break
+
+            # Handle commands
+            if user_input.startswith("/"):
+                parts = user_input.split(maxsplit=1)
+                cmd = parts[0].lower()
+
+                if cmd == "/clear":
+                    advisor.clear_history()
+                    console.print("[dim]Conversation history cleared.[/dim]\n")
+                    continue
+
+                if cmd == "/brand":
+                    if len(parts) < 2:
+                        # List available brands
+                        brands = list_brands()
+                        if not brands:
+                            console.print("[yellow]No brands found.[/yellow]")
+                        else:
+                            console.print("[dim]Available brands:[/dim]")
+                            for b in brands[:10]:
+                                active = " (active)" if b.slug == advisor.brand_slug else ""
+                                console.print(f"  {b.slug}: {b.name}{active}")
+                    else:
+                        new_slug = parts[1].strip()
+                        try:
+                            advisor.set_brand(new_slug)
+                            summary = load_brand_summary(new_slug)
+                            brand_name = summary.name if summary else new_slug
+                            console.print(f"[green]Switched to brand: {brand_name}[/green]")
+                            console.print("[dim]Conversation history cleared.[/dim]\n")
+                        except Exception as e:
+                            console.print(f"[red]Failed to switch brand: {e}[/red]")
+                    continue
+
+                if cmd == "/help":
+                    console.print(
+                        "\n[bold]Available commands:[/bold]\n"
+                        "  /brand           List available brands\n"
+                        "  /brand <slug>    Switch to a different brand\n"
+                        "  /clear           Clear conversation history\n"
+                        "  /help            Show this help message\n"
+                        "  exit, quit       Exit the advisor\n"
+                    )
+                    continue
+
+                console.print(f"[yellow]Unknown command: {cmd}. Type /help for help.[/yellow]")
+                continue
+
+            # Send message to advisor
+            console.print()
+            with console.status("[cyan]Thinking...[/cyan]", spinner="dots"):
+                try:
+                    response = _run_advisor_sync(advisor.chat(user_input))
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/red]\n")
+                    continue
+
+            # Display response
+            console.print("[bold magenta]Advisor[/bold magenta]")
+            console.print(Markdown(response))
+            console.print()
+
+        except KeyboardInterrupt:
+            console.print("\n[dim]Use 'exit' to leave.[/dim]")
+            continue
+        except EOFError:
+            console.print("\n[dim]Goodbye![/dim]")
+            break
+
+
+@app.command()
+def advisor(
+    brand_slug: str | None = typer.Option(
+        None,
+        "--brand",
+        "-b",
+        help="Brand slug to work with (uses active brand if not specified)",
+    ),
+) -> None:
+    """Chat with the Brand Marketing Advisor.
+
+    Start a conversational session with an AI advisor that helps you build,
+    evolve, and manage your brand identity. The advisor can:
+
+    - Create logos, mascots, and marketing materials
+    - Develop brand strategy and positioning
+    - Generate lifestyle imagery aligned with your brand
+    - Answer questions about your brand
+
+    The advisor uses your active brand's context for informed decisions.
+    """
+    from .advisor.agent import BrandAdvisor
+
+    console.print(BANNER)
+    console.print("[bold cyan]Brand Marketing Advisor[/bold cyan]\n")
+
+    # Resolve brand
+    slug = brand_slug or get_active_brand()
+
+    if slug:
+        summary = load_brand_summary(slug)
+        if summary:
+            console.print(f"[dim]Working with brand:[/dim] [bold]{summary.name}[/bold]\n")
+        else:
+            console.print(f"[dim]Working with brand:[/dim] [bold]{slug}[/bold]\n")
+    else:
+        console.print("[dim]No active brand. The advisor can help you create one![/dim]\n")
+
+    # Create advisor instance
+    try:
+        brand_advisor = BrandAdvisor(brand_slug=slug)
+    except Exception as e:
+        console.print(f"[red]Failed to initialize advisor: {e}[/red]")
+        raise typer.Exit(1)
+
+    # Run chat loop
+    _advisor_chat_loop(brand_advisor)
+
+    console.print("\n[bold cyan]Exiting Brand Advisor[/bold cyan]\n")
+
+
 def _show_menu() -> str:
     """Display the simplified main menu with primary actions."""
     console.print(BANNER)
@@ -2881,7 +2988,24 @@ def _show_menu() -> str:
     # Show version
     version = get_current_version()
     console.print(f"[dim]v{version}[/dim]")
+
+    # Show active brand status (used by Brand Kit generation)
+    active_slug = get_active_brand()
+    if active_slug:
+        active_summary = load_brand_summary(active_slug)
+        active_name = active_summary.name if active_summary else active_slug
+        console.print(
+            f"[dim]Active brand:[/dim] [bold]{active_name}[/bold] [dim]({active_slug})[/dim]"
+        )
+    else:
+        console.print("[dim]Active brand:[/dim] [yellow]None[/yellow]")
     console.print()
+
+    brandkit_title = (
+        "Brand Kit          Generate brand kit assets"
+        if not active_slug
+        else "Brand Kit          Generate brand kit assets (uses your active brand by default)"
+    )
 
     choices = [
         questionary.Choice(
@@ -2889,8 +3013,16 @@ def _show_menu() -> str:
             value="generate",
         ),
         questionary.Choice(
-            title="Brand Kit          Generate a brand design library",
+            title=brandkit_title,
             value="brandkit",
+        ),
+        questionary.Choice(
+            title="Brand Studio       Create, evolve, and manage brands",
+            value="brand_studio",
+        ),
+        questionary.Choice(
+            title="Brand Advisor      Chat with AI to build your brand",
+            value="brand_advisor",
         ),
         questionary.Choice(
             title="View History       See previous generations",
@@ -2919,6 +3051,126 @@ def _show_menu() -> str:
     ).ask()
 
     return result or "exit"  # Default to exit if None (Ctrl+C)
+
+
+def _show_brandkit_menu() -> str:
+    """Show a brand-aware Brand Kit menu.
+
+    Returns:
+        One of: "active", "choose", "create", "concept", "back"
+    """
+    active_slug = get_active_brand()
+    active_summary = load_brand_summary(active_slug) if active_slug else None
+    has_saved_brands = bool(list_brands())
+
+    console.print("\n[bold cyan]Brand Kit[/bold cyan]")
+    if active_summary:
+        console.print(f"[dim]Active brand:[/dim] {active_summary.name} [dim]({active_slug})[/dim]\n")
+    else:
+        console.print("[dim]Active brand:[/dim] None\n")
+
+    choices: list[questionary.Choice] = []
+
+    if active_summary:
+        choices.append(
+            questionary.Choice(
+                title=f"Use Active Brand     Generate assets for {active_summary.name}",
+                value="active",
+            )
+        )
+
+    if has_saved_brands:
+        choices.append(
+            questionary.Choice(
+                title="Choose Brand         Pick a saved brand",
+                value="choose",
+            )
+        )
+
+    choices.append(
+        questionary.Choice(
+            title="Create New Brand     Develop and save a new brand",
+            value="create",
+        )
+    )
+    choices.append(
+        questionary.Choice(
+            title="One-shot Concept     Generate without saving a brand",
+            value="concept",
+        )
+    )
+    choices.append(
+        questionary.Choice(
+            title="Back",
+            value="back",
+        )
+    )
+
+    result = questionary.select(
+        "How would you like to generate your Brand Kit?",
+        choices=choices,
+        style=questionary.Style([
+            ("qmark", "fg:cyan bold"),
+            ("question", "fg:white bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan bold"),
+            ("selected", "fg:green"),
+        ]),
+    ).ask()
+
+    return result or "back"
+
+
+def _run_brandkit_from_menu() -> None:
+    """Entry point for brand kit generation from the interactive menu."""
+    action = _show_brandkit_menu()
+    if action == "back":
+        return
+
+    if action == "active":
+        slug = get_active_brand()
+        if not slug:
+            console.print("[yellow]No active brand set.[/yellow]")
+            return
+        _run_brand_kit_generation_from_brand(slug)
+        return
+
+    if action == "choose":
+        selected_slug = _prompt_for_brand()
+        if not selected_slug:
+            return
+
+        # Offer to set as active for future runs
+        set_active = questionary.confirm(
+            "Set this as your active brand?",
+            default=True,
+        ).ask()
+        if set_active:
+            try:
+                set_active_brand(selected_slug)
+            except Exception as e:
+                console.print(f"[yellow]Could not set active brand: {e}[/yellow]")
+
+        _run_brand_kit_generation_from_brand(selected_slug)
+        return
+
+    if action == "create":
+        created_slug = _create_brand_flow()
+        if not created_slug or created_slug == "back":
+            return
+
+        generate_now = questionary.confirm(
+            "Generate brand kit assets now?",
+            default=True,
+        ).ask()
+        if generate_now:
+            _run_brand_kit_generation_from_brand(created_slug)
+        return
+
+    # One-shot concept-based flow
+    concept = Prompt.ask("[bold]Describe the brand you have in mind[/bold]")
+    if concept and concept.strip():
+        _run_brand_kit_generation(concept.strip())
 
 
 def _show_more_options_menu() -> str:
@@ -3962,9 +4214,28 @@ def menu() -> None:
 
             elif choice == "brandkit":
                 try:
-                    concept = Prompt.ask("[bold]Describe the brand you have in mind[/bold]")
-                    if concept and concept.strip():
-                        _run_brand_kit_generation(concept)
+                    _run_brandkit_from_menu()
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/red]")
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "brand_studio":
+                try:
+                    _brand_studio_loop()
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/red]")
+                Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
+
+            elif choice == "brand_advisor":
+                try:
+                    from .advisor.agent import BrandAdvisor
+                    slug = get_active_brand()
+                    brand_advisor = BrandAdvisor(brand_slug=slug)
+                    if slug:
+                        summary = load_brand_summary(slug)
+                        if summary:
+                            console.print(f"\n[dim]Working with brand:[/dim] [bold]{summary.name}[/bold]")
+                    _advisor_chat_loop(brand_advisor)
                 except Exception as e:
                     console.print(f"[red]Error: {e}[/red]")
                 Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
