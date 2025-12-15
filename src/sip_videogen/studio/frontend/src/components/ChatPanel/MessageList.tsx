@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Paperclip } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { ActivityIndicator, type ActivityType } from '@/components/ui/activity-indicator'
@@ -7,6 +7,7 @@ import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
 import { InteractionRenderer } from './InteractionRenderer'
 import { MemoryUpdateBadge } from './MemoryUpdateBadge'
+import { ChatImageGallery } from './ChatImageGallery'
 
 interface MessageListProps {
   messages: Message[]
@@ -15,25 +16,6 @@ interface MessageListProps {
   loadedSkills: string[]
   isLoading: boolean
   onInteractionSelect: (messageId: string, selection: string) => void
-}
-
-function ImageLightbox({ src }: { src: string }) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <img
-          src={src}
-          alt=""
-          className="rounded-lg cursor-pointer hover:opacity-90 transition max-h-48 object-cover"
-        />
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl">
-        <img src={src} alt="" className="w-full h-auto" />
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 export function MessageList({ messages, progress, progressType, loadedSkills, isLoading, onInteractionSelect }: MessageListProps) {
@@ -100,8 +82,8 @@ export function MessageList({ messages, progress, progressType, loadedSkills, is
                           </div>
                         </div>
                       </DialogTrigger>
-                      <DialogContent className="max-w-4xl">
-                        <img src={att.preview} alt={att.name} className="w-full h-auto" />
+                      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90">
+                        <img src={att.preview} alt={att.name} className="w-full h-auto max-h-[80vh] object-contain" />
                       </DialogContent>
                     </Dialog>
                   ) : (
@@ -122,11 +104,7 @@ export function MessageList({ messages, progress, progressType, loadedSkills, is
             )}
 
             {message.images.length > 0 && (
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {message.images.map((img, i) => (
-                  <ImageLightbox key={i} src={img} />
-                ))}
-              </div>
+              <ChatImageGallery images={message.images} />
             )}
 
             {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (
