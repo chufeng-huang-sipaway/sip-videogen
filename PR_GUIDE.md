@@ -214,6 +214,26 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 3: Remove Brand Kit Workflow (Task 3)
+
+**Commit:** `58bd701` - chore: Delete brand_kit models and remove migration imports (Phase 3, Task 3)
+
+**Changes:**
+- Deleted `src/sip_videogen/models/brand_kit.py` (Brand Kit data models)
+- Updated `src/sip_videogen/models/__init__.py`:
+  - Removed brand_kit imports and exports (BrandAssetCategory, BrandAssetPrompt, BrandAssetResult, BrandDirection, BrandKitBrief, BrandKitPackage, BrandKitPlan)
+- Updated `src/sip_videogen/brands/__init__.py`:
+  - Removed migration imports (required to keep Brand Studio working since migration.py imported from brand_kit.py)
+  - Removed migration exports from `__all__`
+- Deleted `tests/test_brands_migration.py` (tested now-broken migration functionality)
+
+**Note:** `brands/migration.py` still exists but is no longer imported. It will be fully deleted in the next task.
+
+**Verification:**
+- `python -m pytest`: 444 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -238,10 +258,11 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Update test_brand_integration.py to remove brand_kit imports
 - [x] Delete brand-kit-only agents (brand_designer.py) if unused
 - [x] Update agents/__init__.py to remove Brand Kit planner exports
-- [ ] Delete brand-kit-only models (models/brand_kit.py) if unused
-- [ ] Delete migration.py if not needed
-- [ ] Remove Brand Kit exports from models/__init__.py
-- [ ] Delete remaining brand-kit model tests
+- [x] Delete brand-kit-only models (models/brand_kit.py) if unused
+- [x] Remove Brand Kit exports from models/__init__.py
+- [x] Update brands/__init__.py to remove migration imports
+- [x] Delete test_brands_migration.py
+- [ ] Delete migration.py file
 - [ ] Delete NanoBananaImageGenerator if unused
 
 ### Phase 4: Final Hardening
