@@ -704,3 +704,210 @@ class TestGenerateImage:
         # Should have called save on the image
         mock_image.save.assert_called_once()
         assert "test-brand" in result or "image_" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with product_slug auto-loads product's primary image."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+        from sip_videogen.brands.models import ProductFull
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create product image directory and file
+        product_images_dir = brand_dir / "products" / "night-cream" / "images"
+        product_images_dir.mkdir(parents=True)
+        primary_image_path = product_images_dir / "main.png"
+        primary_image_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)  # Fake PNG
+
+        # Create mock product
+        mock_product = ProductFull(
+            slug="night-cream",
+            name="Night Cream",
+            description="A luxurious night cream",
+            images=["products/night-cream/images/main.png"],
+            primary_image="products/night-cream/images/main.png",
+            attributes=[],
+        )
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        # Mock generate_with_validation since validate_identity=True is auto-enabled
+        expected_output = str(brand_dir / "assets" / "generated" / "image.png")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.validation.generate_with_validation",
+                return_value=expected_output,
+            ) as mock_validation,
+            patch("google.genai.Client") as mock_genai_client,
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot featuring the night cream",
+                aspect_ratio="1:1",
+                product_slug="night-cream",
+            )
+
+        # Should have called generate_with_validation (validate_identity auto-enabled)
+        mock_validation.assert_called_once()
+        call_kwargs = mock_validation.call_args.kwargs
+        # Verify reference_image_bytes was passed (loaded from product)
+        assert call_kwargs["reference_image_bytes"] is not None
+        assert len(call_kwargs["reference_image_bytes"]) > 0
+        assert result == expected_output
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_not_found(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with non-existent product returns error."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                product_slug="nonexistent-product",
+            )
+
+        assert "Error: Product not found" in result
+        assert "nonexistent-product" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_no_primary_image(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with product having no primary image."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+        from sip_videogen.brands.models import ProductFull
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        # Create mock product with no primary image
+        mock_product = ProductFull(
+            slug="night-cream",
+            name="Night Cream",
+            description="A luxurious night cream",
+            images=[],
+            primary_image="",  # No primary image
+            attributes=[],
+        )
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                product_slug="night-cream",
+            )
+
+        # Should proceed without reference (content is just the prompt string)
+        call_args = mock_client.models.generate_content.call_args
+        contents = call_args[1]["contents"]
+        # Without reference image, contents should be just the prompt string
+        assert contents == "A lifestyle shot"
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_no_active_brand(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with product_slug but no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value=None),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                product_slug="night-cream",
+            )
+
+        assert "Error: No active brand" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_reference_image_takes_precedence(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that explicit reference_image takes precedence over product_slug."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        # Create explicit reference image
+        explicit_ref_dir = brand_dir / "assets" / "references"
+        explicit_ref_dir.mkdir(parents=True)
+        explicit_ref_path = explicit_ref_dir / "custom.png"
+        explicit_ref_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 50)
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product") as mock_load_product,
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                reference_image="assets/references/custom.png",
+                product_slug="night-cream",  # Should be ignored
+            )
+
+        # load_product should NOT be called because explicit reference_image is provided
+        mock_load_product.assert_not_called()

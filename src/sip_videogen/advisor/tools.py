@@ -22,6 +22,7 @@ from sip_videogen.brands.storage import (
     get_active_brand,
     get_brand_dir,
     get_brands_dir,
+    load_product,
 )
 from sip_videogen.brands.storage import (
     load_brand as storage_load_brand,
@@ -98,6 +99,7 @@ async def _impl_generate_image(
     aspect_ratio: str = "1:1",
     filename: str | None = None,
     reference_image: str | None = None,
+    product_slug: str | None = None,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -108,6 +110,7 @@ async def _impl_generate_image(
         aspect_ratio: Image aspect ratio.
         filename: Optional output filename (without extension).
         reference_image: Optional path to reference image within brand directory.
+        product_slug: Optional product slug - auto-loads product's primary image as reference.
         validate_identity: When True with reference_image, validates that the
             generated image preserves object identity from the reference.
         max_retries: Maximum validation attempts (only used with validate_identity).
@@ -139,6 +142,25 @@ async def _impl_generate_image(
         filename = f"image_{int(time.time())}"
 
     output_path = output_dir / f"{filename}.png"
+
+    # Auto-load product's primary image as reference if product_slug provided
+    if product_slug and not reference_image:
+        if not brand_slug:
+            return "Error: No active brand - cannot load product"
+        product = load_product(brand_slug, product_slug)
+        if product is None:
+            return f"Error: Product not found: {product_slug}"
+        if product.primary_image:
+            # primary_image is brand-relative (e.g., "products/night-cream/images/main.png")
+            # Pass directly - _resolve_brand_path will handle it
+            reference_image = product.primary_image
+            # Enable identity validation for product consistency
+            validate_identity = True
+            logger.info(
+                f"Using product '{product_slug}' primary image as reference: {reference_image}"
+            )
+        else:
+            logger.warning(f"Product '{product_slug}' has no primary image")
 
     # Resolve and load reference image if provided
     reference_image_bytes: bytes | None = None
@@ -269,8 +291,7 @@ def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
             # Add metadata header
             total_len = len(content)
             header = (
-                f"[Chunk {chunk + 1}/{total_chunks}] "
-                f"(chars {start + 1}-{end} of {total_len})\n\n"
+                f"[Chunk {chunk + 1}/{total_chunks}] (chars {start + 1}-{end} of {total_len})\n\n"
             )
             footer = ""
             if chunk < total_chunks - 1:
@@ -459,9 +480,7 @@ def _impl_load_brand(
 
         # Primary colors only (max 3)
         if identity.visual.primary_colors:
-            colors = ", ".join(
-                f"{c.name} ({c.hex})" for c in identity.visual.primary_colors[:3]
-            )
+            colors = ", ".join(f"{c.name} ({c.hex})" for c in identity.visual.primary_colors[:3])
             context_parts.append(f"**Colors**: {colors}")
 
         # Style keywords (max 3)
@@ -666,6 +685,7 @@ async def generate_image(
     aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"] = "1:1",
     filename: str | None = None,
     reference_image: str | None = None,
+    product_slug: str | None = None,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -688,11 +708,15 @@ async def generate_image(
             When provided, the generated image will incorporate visual elements from
             this reference to maintain consistency. Path should be relative to the
             brand folder (e.g., "uploads/product.png", "assets/logo/main.png").
+        product_slug: Optional product slug. When provided without reference_image,
+            automatically loads the product's primary image as reference and enables
+            identity validation. Use this when generating images featuring a specific
+            product - the product's actual appearance will be preserved.
         validate_identity: When True AND reference_image is provided, enables a
             validation loop that ensures the generated image preserves the identity
             of objects in the reference. Use when the user needs the EXACT SAME
             object (their specific product, logo, etc.) to appear in the generated
-            image, not just something similar.
+            image, not just something similar. Auto-enabled when using product_slug.
         max_retries: Maximum attempts for the validation loop (default 3). Only
             used when validate_identity is True. If validation fails after all
             retries, returns the best attempt with a warning.
@@ -703,7 +727,13 @@ async def generate_image(
         potential differences from the reference.
     """
     return await _impl_generate_image(
-        prompt, aspect_ratio, filename, reference_image, validate_identity, max_retries
+        prompt,
+        aspect_ratio,
+        filename,
+        reference_image,
+        product_slug,
+        validate_identity,
+        max_retries,
     )
 
 

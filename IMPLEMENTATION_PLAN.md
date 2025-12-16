@@ -303,7 +303,7 @@ def chat_with_metadata(
 
 ### Phase 3.6: Product Image Routing in generate_image (CRITICAL)
 **File:** `src/sip_videogen/advisor/tools.py`
-**Status:** Not Started
+**Status:** Complete
 
 **Problem:** Products have reference images but we need to wire them into `generate_image()`. The existing `reference_image` parameter uses `_resolve_brand_path` (line 40) which only accepts brand-relative paths.
 
@@ -342,10 +342,10 @@ def generate_image(
 4. `_resolve_brand_path` (line 40) resolves to absolute for actual file access
 
 **Success Criteria:**
-- [ ] `generate_image(product_slug="night-cream")` uses product's primary image
-- [ ] `validate_identity=True` auto-enabled when using product reference
-- [ ] Existing `reference_image` parameter still works
-- [ ] All paths remain brand-relative until `_resolve_brand_path` resolves them
+- [x] `generate_image(product_slug="night-cream")` uses product's primary image
+- [x] `validate_identity=True` auto-enabled when using product reference
+- [x] Existing `reference_image` parameter still works
+- [x] All paths remain brand-relative until `_resolve_brand_path` resolves them
 
 ---
 
