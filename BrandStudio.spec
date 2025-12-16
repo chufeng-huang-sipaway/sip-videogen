@@ -27,25 +27,46 @@ prompts_datas = []
 prompts_dir = SRC / 'agents' / 'prompts'
 if prompts_dir.exists():
     for prompt_file in prompts_dir.glob('*.md'):
-        prompts_datas.append((str(prompt_file), 'prompts'))
+        # Preserve package-relative path so runtime code can load via Path(__file__).parent / "prompts"
+        prompts_datas.append((str(prompt_file), os.path.join('sip_videogen', 'agents', 'prompts')))
 
 # Collect brand agent prompts
 brand_prompts_dir = SRC / 'brands' / 'prompts'
 if brand_prompts_dir.exists():
     for prompt_file in brand_prompts_dir.glob('*.md'):
-        prompts_datas.append((str(prompt_file), 'brand_prompts'))
+        prompts_datas.append((str(prompt_file), os.path.join('sip_videogen', 'brands', 'prompts')))
 
 # Collect advisor prompts
 advisor_prompts_dir = SRC / 'advisor' / 'prompts'
 if advisor_prompts_dir.exists():
     for prompt_file in advisor_prompts_dir.glob('*.md'):
-        prompts_datas.append((str(prompt_file), 'advisor_prompts'))
+        # Preserve package-relative path so runtime code can load via Path(__file__).parent / "prompts"
+        prompts_datas.append((str(prompt_file), os.path.join('sip_videogen', 'advisor', 'prompts')))
+
+# Collect advisor skills (SKILL.md + any adjacent files) into package-relative path.
+# These are required for Brand Studio's advisor skill-loading in the bundled .app.
+advisor_skills_dir = SRC / 'advisor' / 'skills'
+advisor_skills_datas = []
+if advisor_skills_dir.exists():
+    for root, dirs, files in os.walk(advisor_skills_dir):
+        for file in files:
+            # Only bundle non-code skill resources (e.g., SKILL.md). Python modules are packaged separately.
+            if not file.lower().endswith(".md"):
+                continue
+            src_path = os.path.join(root, file)
+            rel_dir = os.path.relpath(root, advisor_skills_dir)
+            dst_dir = (
+                os.path.join('sip_videogen', 'advisor', 'skills', rel_dir)
+                if rel_dir != '.'
+                else os.path.join('sip_videogen', 'advisor', 'skills')
+            )
+            advisor_skills_datas.append((src_path, dst_dir))
 
 a = Analysis(
     [str(STUDIO / 'app.py')],
     pathex=[str(ROOT / 'src')],
     binaries=[],
-    datas=frontend_datas + prompts_datas,
+    datas=frontend_datas + prompts_datas + advisor_skills_datas,
     hiddenimports=[
         'sip_videogen',
         'sip_videogen.studio',
@@ -54,8 +75,9 @@ a = Analysis(
         'sip_videogen.brands',
         'sip_videogen.brands.storage',
         'sip_videogen.brands.models',
-        'sip_videogen.brands.director',
         'sip_videogen.brands.memory',
+        'sip_videogen.brands.context',
+        'sip_videogen.brands.tools',
         'sip_videogen.advisor',
         'sip_videogen.advisor.tools',
         'sip_videogen.config',

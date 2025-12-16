@@ -8,10 +8,6 @@ from sip_videogen.agents.continuity_supervisor import (
     continuity_supervisor_agent,
     validate_and_optimize,
 )
-from sip_videogen.agents.brand_designer import (
-    brand_designer_agent,
-    plan_brand_kit,
-)
 from sip_videogen.agents.image_reviewer import (
     image_reviewer_agent,
     review_image,
@@ -47,9 +43,6 @@ __all__ = [
     # Continuity Supervisor
     "continuity_supervisor_agent",
     "validate_and_optimize",
-    # Brand Kit
-    "brand_designer_agent",
-    "plan_brand_kit",
     # Image Reviewer
     "image_reviewer_agent",
     "review_image",

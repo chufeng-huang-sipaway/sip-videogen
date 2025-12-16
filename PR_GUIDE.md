@@ -1,276 +1,365 @@
-# PR Guide: Brand Studio Agent Context Efficiency
+# PR Guide: Legacy Cleanup - Remove CLI, Keep Video Infrastructure
 
 ## Overview
 
-This PR implements context efficiency improvements for the Brand Studio advisor agent. The goal is to reduce context window consumption by AI agents through pagination, chunking, and summarization of tool outputs.
+This PR removes the legacy CLI tool and Brand Kit workflow while preserving the video generation infrastructure for future use. The goal is to focus the repo on Brand Studio + Brand Advisor.
 
 ## Task List Reference
 
-See `TODO_CONTEXT_EFFICIENCY.md` for the complete task list.
+See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 
 ## Completed Tasks
 
-### Task 1: Add Pagination to `list_files()` ✅
+### Phase 0: Baseline & Inventory
 
-**Commit:** `c80f631` - feat(advisor): Add pagination to list_files() tool
-
-**Changes:**
-- `src/sip_videogen/advisor/tools.py`:
-  - Added `limit` and `offset` parameters to `_impl_list_files()`
-  - Default limit: 20 items, max: 100 items
-  - Shows pagination info (e.g., "showing 1-20 of 85")
-  - Adds hint for next page when more items available
-  - Validates parameters: resets negative values, caps limit at 100
-  - Returns error when offset is past end of directory
-
-- `tests/test_advisor_tools.py`:
-  - Added 6 new tests for pagination functionality
-  - Tests cover: default limit, offset, custom limit, offset past end, invalid params, small dirs
-
-**Verification:**
-- All 24 tests pass
-- Ruff check passes
-- Code formatted with ruff
-
-### Task 2: Add Chunking to `read_file()` ✅
-
-**Commit:** `2c369e2` - feat(advisor): Add chunking to read_file() tool
+**Commit:** `d375359` - chore: Complete Phase 0 baseline & inventory for legacy cleanup
 
 **Changes:**
-- `src/sip_videogen/advisor/tools.py`:
-  - Added `chunk` and `chunk_size` parameters to `_impl_read_file()`
-  - Default chunk_size: 2000 chars, min: 100, max: 10000
-  - Small files (< chunk_size) returned as-is without metadata
-  - Large files return requested chunk with position info (e.g., "[Chunk 1/3] (chars 1-2000 of 5000)")
-  - Includes hint for reading next chunk when more available
-  - Validates chunk parameter: error for negative or out of range
-
-- `tests/test_advisor_tools.py`:
-  - Added 8 new tests for chunking functionality:
-    - `test_read_large_file_chunked`
-    - `test_read_file_second_chunk`
-    - `test_read_file_last_chunk`
-    - `test_read_file_invalid_chunk`
-    - `test_read_file_negative_chunk`
-    - `test_read_small_file_no_chunking`
-    - `test_read_file_custom_chunk_size`
-    - `test_read_file_chunk_size_validation`
+- Created branch `cleanup/remove-cli-keep-video-infra`
+- Ran baseline checks:
+  - `python -m pytest`: 505 passed (20 failures + 43 errors are pre-existing audio test issues)
+  - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- Inventoried files to be removed:
+  - `src/sip_videogen/cli.py` (Typer + questionary) - 150KB
+  - `src/sip_videogen/__main__.py` (runs CLI)
+  - `start.sh` (CLI launcher)
+  - `src/sip_videogen/utils/updater.py` (pipx update flow)
+  - `src/sip_videogen/brand_kit/` (workflow.py)
+  - `src/sip_videogen/config/setup.py` (CLI wizard)
+  - Docs referencing pipx/CLI in README.md, scripts/publish.sh
 
 **Verification:**
-- All 32 tests pass
-- Ruff check passes
-- Code formatted with ruff
+- Brand Studio import smoke test passes
+- pytest baseline established (505 passing tests)
 
-### Task 3: Add Summary Mode to `load_brand()` ✅
+### Phase 1: Extract Video Backend API (Task 1)
 
-**Commit:** `1075be8` - feat(advisor): Add summary mode to load_brand() tool
+**Commit:** `7711995` - feat: Add video backend API module (Phase 1, Task 1)
 
 **Changes:**
-- `src/sip_videogen/advisor/tools.py`:
-  - Added `detail_level: Literal["summary", "full"]` parameter (default: "summary")
-  - Summary mode (~500 chars): name, tagline, category, tone, colors (max 3), style (max 3), audience, asset count
-  - Full mode (~2000 chars): preserves existing complete output
-  - Summary includes hint: "use `load_brand(detail_level='full')` for complete details"
-  - Updated both `_impl_load_brand()` and wrapper `load_brand()` functions
+- Created `src/sip_videogen/video/__init__.py` - module exports
+- Created `src/sip_videogen/video/pipeline.py` - non-interactive pipeline API
+
+**New API:**
+- `VideoPipeline` class for full control over generation
+- `PipelineConfig` dataclass for configuration
+- `PipelineResult` dataclass for structured output
+- `generate_video()` convenience function
+
+**Pipeline Stages:**
+1. Script development via Showrunner agent team
+2. Reference image generation with quality review
+3. Video clip generation via provider (VEO, Kling, Sora)
+4. Optional background music generation
+5. Final assembly via FFmpeg
 
 **Verification:**
-- 31/32 advisor tools tests pass
-- 1 expected failure: `test_load_brand_includes_assets_section` (will be fixed in Task 5)
-- Ruff check passes
-- Summary mode: ~479 chars, Full mode: ~1018+ chars (verified)
+- `python -c "from sip_videogen.video import VideoPipeline"` passes
+- Brand Studio import smoke test passes
 
-### Task 4: Update Code That Expects Full load_brand Output ✅
+### Phase 1: Extract Video Backend API (Task 2)
 
-**Commit:** `8d05235` - docs(advisor): Update references to reflect load_brand() default summary mode
+**Commit:** `ff5a00b` - test: Add unit tests for video pipeline API (Phase 1, Task 2)
 
 **Changes:**
-- `src/sip_videogen/advisor/prompts/advisor.md`:
-  - Updated line 30 tool description to clarify summary is default
-  - Updated Brand Context section (lines 137-144) to explain summary vs full modes
+- Created `tests/test_video_pipeline.py` with 18 comprehensive unit tests
 
-- `src/sip_videogen/advisor/agent.py`:
-  - Updated default prompt tool description (line 264)
-  - Updated brand context hint (lines 231-234)
-
-- `src/sip_videogen/advisor/skills/brand_evolution/SKILL.md`:
-  - Updated prerequisite to use `load_brand(detail_level='full')` since evolution needs full context
+**Test Coverage:**
+- `TestPipelineConfig` - validates default and custom configuration values
+- `TestPipelineResult` - validates result dataclass fields
+- `TestVideoPipeline` - core pipeline functionality:
+  - Initialization and progress callback registration
+  - Project ID generation format
+  - Dry run mode (script only, no video)
+  - Using existing script vs developing new
+  - Custom project ID support
+  - PipelineError on script development failure
+- `TestVideoPipelineFullRun` - happy path test with mocked stages
+- `TestVideoGeneratorFactoryIntegration` - provider selection:
+  - VEO provider via explicit config
+  - Kling provider via explicit config
+  - Sora provider via UserPreferences fallback
+- `TestGenerateVideoConvenience` - convenience function wrapper
+- `TestPipelineError` - exception behavior
 
 **Verification:**
-- 31/32 advisor tools tests pass (same as before)
-- 1 expected failure remains: `test_load_brand_includes_assets_section` (will be fixed in Task 5)
-- Ruff check passes (1 pre-existing line length warning on unrelated line)
+- `python -m pytest`: 523 passed (18 new tests added)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 
-### Task 5: Update Existing Tests for load_brand Changes ✅
+### Phase 2: Remove CLI Product Surface (Task 1)
 
-**Commit:** `e887baf` - test(advisor): Update load_brand tests for summary mode default
+**Commit:** `82fe504` - chore: Remove CLI script entries from pyproject.toml (Phase 2, Task 1)
 
 **Changes:**
-- `tests/test_advisor_tools.py`:
-  - Replaced `test_load_brand_includes_assets_section` with new tests:
-    - `test_load_brand_summary_mode_default`: verifies summary is default mode
-    - `test_load_brand_full_mode`: verifies full mode includes all sections
-    - `test_load_brand_summary_character_count`: verifies summary is ~500 chars
-  - Added `_create_mock_identity()` helper method to reduce test code duplication
-  - Summary mode tests verify: name, tagline, category, tone, colors, asset count
-  - Full mode tests verify: ## Available Assets section is present
+- Removed `[project.scripts]` section from `pyproject.toml`:
+  - `sip-videogen = "sip_videogen.cli:app"`
+  - `sipvid = "sip_videogen.cli:app"`
 
 **Verification:**
-- All 34 tests pass
-- Ruff check passes
-- Code formatted with ruff
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
-### Task 6: Create History Manager Module ✅
+### Phase 2: Remove CLI Product Surface (Task 2)
 
-**Commit:** `d2f0f56` - feat(advisor): Add token-aware conversation history manager
+**Commit:** `78944fb` - chore: Delete __main__.py CLI entrypoint (Phase 2, Task 2)
 
 **Changes:**
-- `src/sip_videogen/advisor/history_manager.py` (new file):
-  - Created `Message` dataclass for storing conversation messages with role, content, timestamp
-  - Created `ConversationHistoryManager` class with:
-    - Token budget tracking (default: 8000 tokens)
-    - Conservative token estimation for CJK and emoji text
-    - Automatic history compaction when over budget
-    - Message summarization to preserve context while staying within limits
-    - `add()` method for adding messages
-    - `get_formatted()` method for retrieving formatted history
-    - `clear()` method for clearing history
-
-- `tests/test_history_manager.py` (new file):
-  - 12 comprehensive tests covering:
-    - Basic message addition
-    - Formatted output generation
-    - Compaction behavior
-    - Clear functionality
-    - CJK token estimation
-    - Emoji token estimation
-    - Minimum max_tokens enforcement
-    - Summary inclusion after compaction
-    - Custom token limit in get_formatted
-    - Mixed content token estimation
-    - Empty history behavior
-    - Message role formatting
+- Deleted `src/sip_videogen/__main__.py`
+  - This file only contained CLI entrypoint code (`from sip_videogen.cli import app`)
+  - Removed the ability to run CLI via `python -m sip_videogen`
 
 **Verification:**
-- All 12 history manager tests pass
-- All 46 advisor-related tests pass
-- Ruff check passes
-- Code formatted with ruff
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
-### Task 7: Integrate History Manager into Agent ✅
+### Phase 2: Remove CLI Product Surface (Task 3)
 
-**Commit:** `fec1a78` - feat(advisor): Integrate token-aware history manager into agent
+**Commit:** `e438ea5` - chore: Delete cli.py and start.sh (Phase 2, Task 3)
 
 **Changes:**
-- `src/sip_videogen/advisor/agent.py`:
-  - Added import for `ConversationHistoryManager`
-  - Replaced `self._conversation_history: list[dict]` with `self._history_manager = ConversationHistoryManager(max_tokens=8000)`
-  - Updated `set_brand()` to use `self._history_manager.clear()` instead of resetting list
-  - Updated `chat_with_metadata()` to:
-    - Check `self._history_manager.message_count > 0` instead of checking list
-    - Use `self._history_manager.get_formatted(max_tokens=4000)` for history
-    - Use `self._history_manager.add()` to add messages (auto-compacts)
-  - Updated `chat_stream()` with same changes as `chat_with_metadata()`
-  - Updated `_format_history()` to delegate to history manager's `get_formatted()`
-  - Updated `clear_history()` to use `self._history_manager.clear()`
+- Deleted `src/sip_videogen/cli.py` (150KB Typer CLI application)
+- Deleted `start.sh` (CLI launcher script)
 
 **Verification:**
-- All 46 tests pass (12 history manager + 34 advisor tools)
-- Ruff check passes
-- Code formatted with ruff
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
-### Task 8: Create Context Budget Module ✅
+### Phase 2: Remove CLI Product Surface (Task 4)
 
-**Commit:** `0548b2a` - feat(advisor): Add context budget management module
+**Commit:** `dedb666` - chore: Delete CLI-only config wizard setup.py (Phase 2, Task 4)
 
 **Changes:**
-- `src/sip_videogen/advisor/context_budget.py` (new file):
-  - Created `ContextBudget` dataclass for GPT-5.1 (272K context):
-    - Default 16K reserved for response, 8K for tools
-    - `available_for_content` property calculates usable space
-  - Created `BudgetCheckResult` dataclass for trim operation results
-  - Created `ContextBudgetManager` class with:
-    - Conservative token estimation (CJK, emoji aware)
-    - Auto-trim when over budget with priority:
-      1. Skills context (lowest priority, trimmed first)
-      2. History
-      3. System prompt (last resort)
-    - `check_and_trim()` method returns trimmed content + result
-
-- `tests/test_context_budget.py` (new file):
-  - 16 comprehensive tests covering:
-    - Budget default values and calculations
-    - Trim priority order (skills → history → system)
-    - Token estimation (basic, CJK, emoji, mixed)
-    - Edge cases (empty inputs, user message never trimmed)
-    - BudgetCheckResult validation
+- Deleted `src/sip_videogen/config/setup.py`
+  - Interactive CLI setup wizard that used questionary to configure API keys
+  - Brand Studio handles API key management via `studio/bridge.py`, so this is no longer needed
 
 **Verification:**
-- All 16 context budget tests pass
-- All 62 advisor-related tests pass (34 tools + 12 history + 16 budget)
-- Ruff check passes
-- Code formatted with ruff
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
-### Task 9: Integrate Budget Guard into Agent ✅
+### Phase 2: Remove CLI Product Surface (Task 5)
 
-**Commit:** `b7b5640` - feat(advisor): Integrate context budget guard into agent
+**Commit:** `cfa80b0` - chore: Delete utils/ directory with pipx updater (Phase 2, Task 5)
 
 **Changes:**
-- `src/sip_videogen/advisor/agent.py`:
-  - Added import for `ContextBudgetManager`
-  - Initialize `self._budget_manager = ContextBudgetManager()` in `__init__()`
-  - Updated `chat_with_metadata()` to:
-    - Get history text before budget check
-    - Call `self._budget_manager.check_and_trim()` with system prompt, skills, history, message
-    - Log warning when content is trimmed
-    - Log critical error if still over budget after trimming
-    - Log severe error if system prompt needs trimming (would require agent rebuild)
-    - Build prompt using trimmed skills and history (not system prompt)
-  - Updated `chat_stream()` with identical budget checking logic
-  - Both methods now use trimmed content for prompt building
+- Deleted `src/sip_videogen/utils/__init__.py`
+- Deleted `src/sip_videogen/utils/updater.py`
+  - pipx CLI update flow implementation
+  - utils/ was CLI-only and not used by Brand Studio or video infrastructure
 
 **Verification:**
-- All 62 tests pass (34 tools + 12 history + 16 budget)
-- Ruff check passes
-- Code formatted with ruff
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
-## All Tasks Complete! ✅
+### Phase 2: Remove CLI Product Surface (Task 6)
 
-### Stage 1: Tool Result Summarization
-- [x] Task 1: Add pagination to `list_files()`
-- [x] Task 2: Add chunking to `read_file()`
-- [x] Task 3: Add summary mode to `load_brand()` tool
-- [x] Task 4: Update code that expects full load_brand output
-- [x] Task 5: Update existing tests for load_brand changes
+**Commit:** `40d04ba` - chore: Remove CLI deps and tests (Phase 2, Task 6)
 
-### Stage 2: Token-Aware History Management
-- [x] Task 6: Create history manager module
-- [x] Task 7: Integrate history manager into agent
+**Changes:**
+- Removed `typer[all]` and `questionary` from `pyproject.toml` dependencies
+- Deleted `tests/test_cli.py` (tested deleted cli.py)
+- Deleted `tests/test_setup.py` (tested deleted config/setup.py)
+- Deleted `tests/test_updater.py` (tested deleted utils/updater.py)
 
-### Stage 3: Context Budget Guard
-- [x] Task 8: Create context budget module
-- [x] Task 9: Integrate budget guard into agent
+**Verification:**
+- `python -m pytest`: 474 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 2: Remove CLI Product Surface (Task 7)
+
+**Commit:** `0f417a9` - docs: Remove CLI/pipx references, add video backend docs (Phase 2, Task 7)
+
+**Changes:**
+- Removed "Legacy: Video Generation CLI" section from README.md
+- Replaced with "Video Generation Backend (Internal)" section showing API usage
+- Updated scripts/publish.sh to remove pipx reference and note CLI removal
+- README now only documents Brand Studio and internal video API
+
+**Verification:**
+- `python -m pytest`: 474 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 3: Remove Brand Kit Workflow (Task 1)
+
+**Commit:** `c1aaad0` - chore: Delete brand_kit/ directory and update tests (Phase 3, Task 1)
+
+**Changes:**
+- Deleted `src/sip_videogen/brand_kit/` directory (including `__init__.py` and `workflow.py`)
+- Updated `tests/test_brand_integration.py`:
+  - Removed imports from `sip_videogen.brand_kit.workflow`
+  - Removed test classes/methods that depended on brand_kit functions
+  - Rewrote tests to verify brand storage directly instead of using brand_kit workflow
+  - Kept brand-only workflow coverage intact (18 tests retained)
+
+**Verification:**
+- `python -m pytest`: 463 passed (14 failures are pre-existing issues unrelated to this change)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 3: Remove Brand Kit Workflow (Task 2)
+
+**Commit:** `93e477e` - chore: Delete brand_designer agent and prompt (Phase 3, Task 2)
+
+**Changes:**
+- Deleted `src/sip_videogen/agents/brand_designer.py` (Brand Kit planning agent)
+- Deleted `src/sip_videogen/agents/prompts/brand_designer.md` (agent prompt file)
+- Updated `src/sip_videogen/agents/__init__.py`:
+  - Removed `brand_designer_agent` and `plan_brand_kit` imports
+  - Removed from `__all__` exports
+
+**Verification:**
+- `python -m pytest`: 463 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 3: Remove Brand Kit Workflow (Task 3)
+
+**Commit:** `58bd701` - chore: Delete brand_kit models and remove migration imports (Phase 3, Task 3)
+
+**Changes:**
+- Deleted `src/sip_videogen/models/brand_kit.py` (Brand Kit data models)
+- Updated `src/sip_videogen/models/__init__.py`:
+  - Removed brand_kit imports and exports (BrandAssetCategory, BrandAssetPrompt, BrandAssetResult, BrandDirection, BrandKitBrief, BrandKitPackage, BrandKitPlan)
+- Updated `src/sip_videogen/brands/__init__.py`:
+  - Removed migration imports (required to keep Brand Studio working since migration.py imported from brand_kit.py)
+  - Removed migration exports from `__all__`
+- Deleted `tests/test_brands_migration.py` (tested now-broken migration functionality)
+
+**Verification:**
+- `python -m pytest`: 444 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 3: Remove Brand Kit Workflow (Task 4)
+
+**Commit:** `5df6f3e` - chore: Delete brands/migration.py (Phase 3, Task 4)
+
+**Changes:**
+- Deleted `src/sip_videogen/brands/migration.py`
+  - Brand Kit migration module that converted legacy `brand_kit.json` to new brand format
+  - Module depended on deleted `models/brand_kit.py` and was no longer importable
+  - Migration imports were already removed from `brands/__init__.py` in Task 3
+
+**Verification:**
+- `python -m pytest`: 444 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 3: Remove Brand Kit Workflow (Task 5)
+
+**Commit:** `4034180` - chore: Delete NanoBananaImageGenerator (Phase 3, Task 5)
+
+**Changes:**
+- Deleted `src/sip_videogen/generators/nano_banana_generator.py`
+  - Nano Banana Pro image generator was only used by Brand Kit workflow
+  - Wrapper around Google's Gemini image generation API
+- Updated `src/sip_videogen/generators/__init__.py`:
+  - Removed `NanoBananaImageGenerator` import
+  - Removed `NanoBananaImageGenerator` from `__all__` exports
+
+**Verification:**
+- `python -m pytest`: 444 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 4: Final Hardening (Task 1)
+
+**Commit:** `8f6980f` - test: Add video backend smoke tests (Phase 4, Task 1)
+
+**Changes:**
+- Created `tests/test_video_backend_smoke.py` with 16 smoke tests:
+  - `TestVideoBackendImports`: Verify all video backend modules are importable
+    - Video pipeline module (VideoPipeline, PipelineConfig, etc.)
+    - Generator module (VEO, Kling, Sora generators)
+    - Assembler module (FFmpegAssembler)
+    - Video-related models (VideoScript, GeneratedAsset, etc.)
+  - `TestVideoGeneratorFactorySmoke`: Factory instantiation with mocked credentials
+    - VEO generator creation
+    - Kling generator creation
+    - Sora generator creation
+    - Factory method existence checks
+  - `TestVideoPipelineSmoke`: Pipeline class instantiation
+    - Pipeline config dataclass
+    - Pipeline result dataclass
+  - `TestVideoProviderEnum`: Provider enum values
+
+**Verification:**
+- `python -m pytest`: 460 passed (16 new tests, 14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 4: Final Hardening (Task 2)
+
+**Commit:** `50a17f5` - chore: Fix BrandStudio.spec hidden imports, verify packaging (Phase 4, Task 2)
+
+**Changes:**
+- Fixed `BrandStudio.spec` hidden imports:
+  - Removed non-existent `sip_videogen.brands.director` reference
+  - Added actual brand modules: `context`, `tools`
+- Verified pyinstaller packaging:
+  - `pyinstaller BrandStudio.spec --noconfirm` completes successfully
+  - `Brand Studio.app` created in `dist/`
+  - All required frontend dist + prompts included
+
+**Verification:**
+- `python -m pytest`: 460 passed (14 failures + 43 errors are pre-existing issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+- `pyinstaller BrandStudio.spec`: builds successfully, no errors
+
+## Remaining Tasks
+
+### Phase 1: Extract Video Backend API
+- [x] Create `src/sip_videogen/video/__init__.py` and `pipeline.py`
+- [x] Move orchestration logic from cli.py to new API
+- [x] Add unit tests for new API (mock external calls)
+- [x] Run verification (pytest + smoke tests)
+
+### Phase 2: Remove CLI Product Surface ✅ COMPLETE
+- [x] Remove `[project.scripts]` entries from pyproject.toml
+- [x] Delete `src/sip_videogen/__main__.py`
+- [x] Delete CLI files (cli.py, start.sh)
+- [x] Delete config/setup.py
+- [x] Delete utils/ directory
+- [x] Remove typer/questionary dependencies
+- [x] Delete CLI-dependent tests (test_cli.py, test_setup.py, test_updater.py)
+- [x] Documentation cleanup (README.md, scripts/publish.sh)
+- [x] Manual verification: `python -m sip_videogen.studio` launches in dev
+
+### Phase 3: Remove Brand Kit Workflow ✅ COMPLETE
+- [x] Delete brand_kit/ directory
+- [x] Update test_brand_integration.py to remove brand_kit imports
+- [x] Delete brand-kit-only agents (brand_designer.py) if unused
+- [x] Update agents/__init__.py to remove Brand Kit planner exports
+- [x] Delete brand-kit-only models (models/brand_kit.py) if unused
+- [x] Remove Brand Kit exports from models/__init__.py
+- [x] Update brands/__init__.py to remove migration imports
+- [x] Delete test_brands_migration.py
+- [x] Delete migration.py file
+- [x] Delete NanoBananaImageGenerator if unused
+
+### Phase 4: Final Hardening
+- [x] Add video backend smoke test
+- [x] Confirm Brand Studio packaging works
+- [ ] Update README with "Video Generation Backend" section (already done in Phase 2)
 
 ## Testing
 
 ```bash
-# Run all advisor tools tests
-python -m pytest tests/test_advisor_tools.py -v
+# Run all tests
+source .venv/bin/activate && python -m pytest
 
-# Run specific pagination tests
-python -m pytest tests/test_advisor_tools.py -k "pagination" -v
+# Brand Studio smoke test
+python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"
 
-# Run linting
-ruff check src/sip_videogen/advisor/tools.py
+# Launch Brand Studio (dev)
+python -m sip_videogen.studio
 ```
 
 ## Notes
 
-- The `list_files()` tool now returns paginated results by default (20 items)
-- Small directories (<= 20 items) do not show pagination info
-- The agent can use `offset` parameter to navigate through large directories
-- The `read_file()` tool now chunks large files (> 2000 chars) by default
-- Small files are returned as-is without chunking metadata
-- The agent can use `chunk` parameter to navigate through large files
-- The `load_brand()` tool now returns summary by default (~500 chars)
-- Use `detail_level='full'` for complete brand context (~2000 chars)
-- Summary mode reduces context consumption by ~75% for routine brand loads
+- Pre-existing test failures in `tests/test_video_generator_audio.py` are not related to this cleanup
+- Video infrastructure (generators, assembler, models) must remain stable and importable
+- Brand Studio must not be affected by any changes

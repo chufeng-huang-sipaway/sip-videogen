@@ -168,36 +168,47 @@ gh release create v0.3.0 dist/Brand-Studio-0.3.0.dmg \
 
 ---
 
-## Legacy: Video Generation CLI
+## Video Generation Backend (Internal)
 
-The repository also includes a CLI tool for AI-powered video generation. This feature is maintained but not actively developed.
+The repository includes video generation infrastructure that can be used programmatically. The CLI tool has been removed, but the backend API remains available for integration.
 
-### Quick Start
+### API Usage
 
-```bash
-# Install
-pipx install sip-videogen
+```python
+import asyncio
 
-# Run
-sipvid
+from sip_videogen.generators.base import VideoProvider
+from sip_videogen.video import PipelineConfig, VideoPipeline
+
+async def main() -> None:
+    config = PipelineConfig(
+        idea="A cat playing piano in a jazz club",
+        num_scenes=3,
+        dry_run=True,  # Script only (no images/videos/assembly)
+        provider=VideoProvider.VEO,  # or VideoProvider.KLING / VideoProvider.SORA
+    )
+
+    pipeline = VideoPipeline(config)
+    result = await pipeline.run()
+    print(result.script.title)
+
+asyncio.run(main())
 ```
 
-### Features
+### Available Components
 
-- AI script writing with visual consistency
-- Video generation via VEO 3.1, Kling, or Sora
-- Reference image generation for character/prop consistency
-- FFmpeg assembly with background music
+- `sip_videogen.video.VideoPipeline` - Full video generation pipeline
+- `sip_videogen.video.generate_video` - Convenience wrapper
+- `sip_videogen.generators.VideoGeneratorFactory` - Provider selection (VEO, Kling, Sora)
+- `sip_videogen.assembler.FFmpegAssembler` - Video clip assembly
+- `sip_videogen.models.*` - Script, asset, and scene models
 
-### Configuration
-
-Required API keys for video generation:
+### Required Configuration
 
 | Key | Purpose |
 |-----|---------|
-| `OPENAI_API_KEY` | Script generation |
-| `GEMINI_API_KEY` | Image & video generation |
-| `GOOGLE_CLOUD_PROJECT` | GCS storage (optional) |
-| `SIP_GCS_BUCKET_NAME` | Video storage (optional) |
-
-See `sipvid status` for configuration details.
+| `OPENAI_API_KEY` | Script generation (and Sora provider) |
+| `GEMINI_API_KEY` | Reference image + VEO video generation |
+| `KLING_ACCESS_KEY` | Kling provider |
+| `KLING_SECRET_KEY` | Kling provider |
+| `GOOGLE_CLOUD_PROJECT` | Optional (music generation) |
