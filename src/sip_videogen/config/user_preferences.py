@@ -11,7 +11,7 @@ import json
 import logging
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from sip_videogen.generators.base import VideoProvider
 
@@ -49,6 +49,10 @@ class SoraPreferences(BaseModel):
 
 class UserPreferences(BaseModel):
     """User preferences stored in ~/.sip-videogen/config.json."""
+
+    # Brand Studio also stores API keys and other settings in the same config file.
+    # We must tolerate extra keys on load and preserve them on save.
+    model_config = ConfigDict(extra="ignore")
 
     default_video_provider: VideoProvider = Field(
         default=VideoProvider.VEO,
@@ -104,7 +108,20 @@ class UserPreferences(BaseModel):
         config_path = self.get_config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        config_path.write_text(self.model_dump_json(indent=2))
+        # Merge into existing config to avoid overwriting Brand Studio settings
+        # (e.g., api_keys, update preferences) stored in the same file.
+        existing: dict = {}
+        if config_path.exists():
+            try:
+                raw = json.loads(config_path.read_text())
+                if isinstance(raw, dict):
+                    existing = raw
+            except json.JSONDecodeError:
+                existing = {}
+
+        merged = dict(existing)
+        merged.update(self.model_dump(mode="json"))
+        config_path.write_text(json.dumps(merged, indent=2))
         logger.info("Saved user preferences to %s", config_path)
 
     @classmethod

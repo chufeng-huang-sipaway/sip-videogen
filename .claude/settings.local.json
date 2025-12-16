@@ -117,7 +117,12 @@
       "Bash(src/sip_videogen/studio/frontend/src/components/ui/progress.tsx )",
       "Bash(scripts/build-release.sh:*)",
       "Bash(scripts/install-brand-studio.sh:*)",
-      "Bash(README.md)"
+      "Bash(README.md)",
+      "Bash(pyinstaller:*)",
+      "Bash(open \"Brand Studio.app\")",
+      "Bash(log show:*)",
+      "Bash(unzip:*)",
+      "Bash(pkill:*)"
     ]
   }
 }
