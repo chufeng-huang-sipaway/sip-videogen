@@ -39,6 +39,63 @@ export interface DocumentEntry {
   size: number
 }
 
+// Product types
+export interface ProductAttribute {
+  key: string
+  value: string
+  category: string
+}
+
+export interface ProductEntry {
+  slug: string
+  name: string
+  description: string
+  primary_image: string
+  attribute_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductFull {
+  slug: string
+  name: string
+  description: string
+  images: string[]
+  primary_image: string
+  attributes: ProductAttribute[]
+  created_at: string
+  updated_at: string
+}
+
+// Project types
+export type ProjectStatus = 'active' | 'archived'
+
+export interface ProjectEntry {
+  slug: string
+  name: string
+  status: ProjectStatus
+  asset_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectFull {
+  slug: string
+  name: string
+  status: ProjectStatus
+  instructions: string
+  assets: string[]
+  asset_count: number
+  created_at: string
+  updated_at: string
+}
+
+// Chat context types
+export interface ChatContext {
+  project_slug?: string | null
+  attached_products?: string[]
+}
+
 interface ApiKeyStatus {
   openai: boolean
   gemini: boolean
@@ -137,9 +194,56 @@ interface PyWebViewAPI {
   rename_asset(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
   upload_asset(filename: string, data: string, category: string): Promise<BridgeResponse<{ path: string }>>
   get_progress(): Promise<BridgeResponse<ProgressStatus>>
-  chat(message: string, attachments?: ChatAttachment[]): Promise<BridgeResponse<ChatResponse>>
+  chat(
+    message: string,
+    attachments?: ChatAttachment[],
+    project_slug?: string | null,
+    attached_products?: string[]
+  ): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
+
+  // Product methods
+  get_products(brand_slug?: string): Promise<BridgeResponse<{ products: ProductEntry[] }>>
+  get_product(product_slug: string): Promise<BridgeResponse<ProductFull>>
+  create_product(
+    name: string,
+    description: string,
+    images?: Array<{ filename: string; data: string }>,
+    attributes?: Array<{ key: string; value: string; category: string }>
+  ): Promise<BridgeResponse<{ slug: string }>>
+  update_product(
+    product_slug: string,
+    name?: string,
+    description?: string,
+    attributes?: Array<{ key: string; value: string; category: string }>
+  ): Promise<BridgeResponse<{ slug: string; name: string; description: string }>>
+  delete_product(product_slug: string): Promise<BridgeResponse<void>>
+  get_product_images(product_slug: string): Promise<BridgeResponse<{ images: string[] }>>
+  upload_product_image(
+    product_slug: string,
+    filename: string,
+    data_base64: string
+  ): Promise<BridgeResponse<{ path: string }>>
+  delete_product_image(product_slug: string, filename: string): Promise<BridgeResponse<void>>
+  set_primary_product_image(product_slug: string, filename: string): Promise<BridgeResponse<void>>
+  get_product_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  get_product_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+
+  // Project methods
+  get_projects(brand_slug?: string): Promise<BridgeResponse<{ projects: ProjectEntry[]; active_project: string | null }>>
+  get_project(project_slug: string): Promise<BridgeResponse<ProjectFull>>
+  create_project(name: string, instructions?: string): Promise<BridgeResponse<{ slug: string }>>
+  update_project(
+    project_slug: string,
+    name?: string,
+    instructions?: string,
+    status?: string
+  ): Promise<BridgeResponse<{ slug: string; name: string; status: string }>>
+  delete_project(project_slug: string): Promise<BridgeResponse<void>>
+  set_active_project(project_slug: string | null): Promise<BridgeResponse<{ active_project: string | null }>>
+  get_active_project(): Promise<BridgeResponse<{ active_project: string | null }>>
+  get_project_assets(project_slug: string): Promise<BridgeResponse<{ assets: string[] }>>
 
   // App updates
   get_app_version(): Promise<BridgeResponse<AppVersionInfo>>
@@ -218,9 +322,65 @@ export const bridge = {
   renameAsset: async (p: string, n: string) => (await callBridge(() => window.pywebview!.api.rename_asset(p, n))).newPath,
   uploadAsset: async (f: string, d: string, c: string) => (await callBridge(() => window.pywebview!.api.upload_asset(f, d, c))).path,
   getProgress: async () => await callBridge(() => window.pywebview!.api.get_progress()),
-  chat: (m: string, attachments?: ChatAttachment[]) => callBridge(() => window.pywebview!.api.chat(m, attachments || [])),
+  chat: (m: string, attachments?: ChatAttachment[], context?: ChatContext) =>
+    callBridge(() =>
+      window.pywebview!.api.chat(
+        m,
+        attachments || [],
+        context?.project_slug,
+        context?.attached_products
+      )
+    ),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
   refreshBrandMemory: () => callBridge(() => window.pywebview!.api.refresh_brand_memory()),
+
+  // Products
+  getProducts: async (brandSlug?: string) =>
+    (await callBridge(() => window.pywebview!.api.get_products(brandSlug))).products,
+  getProduct: (productSlug: string) => callBridge(() => window.pywebview!.api.get_product(productSlug)),
+  createProduct: async (
+    name: string,
+    description: string,
+    images?: Array<{ filename: string; data: string }>,
+    attributes?: Array<{ key: string; value: string; category: string }>
+  ) => (await callBridge(() => window.pywebview!.api.create_product(name, description, images, attributes))).slug,
+  updateProduct: (
+    productSlug: string,
+    name?: string,
+    description?: string,
+    attributes?: Array<{ key: string; value: string; category: string }>
+  ) => callBridge(() => window.pywebview!.api.update_product(productSlug, name, description, attributes)),
+  deleteProduct: (productSlug: string) => callBridge(() => window.pywebview!.api.delete_product(productSlug)),
+  getProductImages: async (productSlug: string) =>
+    (await callBridge(() => window.pywebview!.api.get_product_images(productSlug))).images,
+  uploadProductImage: async (productSlug: string, filename: string, dataBase64: string) =>
+    (await callBridge(() => window.pywebview!.api.upload_product_image(productSlug, filename, dataBase64))).path,
+  deleteProductImage: (productSlug: string, filename: string) =>
+    callBridge(() => window.pywebview!.api.delete_product_image(productSlug, filename)),
+  setPrimaryProductImage: (productSlug: string, filename: string) =>
+    callBridge(() => window.pywebview!.api.set_primary_product_image(productSlug, filename)),
+  getProductImageThumbnail: async (path: string) =>
+    (await callBridge(() => window.pywebview!.api.get_product_image_thumbnail(path))).dataUrl,
+  getProductImageFull: async (path: string) =>
+    (await callBridge(() => window.pywebview!.api.get_product_image_full(path))).dataUrl,
+
+  // Projects
+  getProjects: async (brandSlug?: string) => {
+    const result = await callBridge(() => window.pywebview!.api.get_projects(brandSlug))
+    return { projects: result.projects, activeProject: result.active_project }
+  },
+  getProject: (projectSlug: string) => callBridge(() => window.pywebview!.api.get_project(projectSlug)),
+  createProject: async (name: string, instructions?: string) =>
+    (await callBridge(() => window.pywebview!.api.create_project(name, instructions))).slug,
+  updateProject: (projectSlug: string, name?: string, instructions?: string, status?: string) =>
+    callBridge(() => window.pywebview!.api.update_project(projectSlug, name, instructions, status)),
+  deleteProject: (projectSlug: string) => callBridge(() => window.pywebview!.api.delete_project(projectSlug)),
+  setActiveProject: async (projectSlug: string | null) =>
+    (await callBridge(() => window.pywebview!.api.set_active_project(projectSlug))).active_project,
+  getActiveProject: async () =>
+    (await callBridge(() => window.pywebview!.api.get_active_project())).active_project,
+  getProjectAssets: async (projectSlug: string) =>
+    (await callBridge(() => window.pywebview!.api.get_project_assets(projectSlug))).assets,
 
   // App updates
   getAppVersion: () => callBridge(() => window.pywebview!.api.get_app_version()),

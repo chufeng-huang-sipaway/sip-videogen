@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext } from '@/lib/bridge'
 
 export interface Message {
   id: string
@@ -152,7 +152,7 @@ export function useChat(brandSlug: string | null) {
     ))
   }, [])
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, context?: ChatContext) => {
     const hasAttachments = attachmentsRef.current.length > 0
     if (!content.trim() && !hasAttachments) return
     if (isLoading || !brandSlug) return
@@ -238,7 +238,7 @@ export function useChat(brandSlug: string | null) {
         return
       }
 
-      const result = await bridge.chat(finalContent, payloadAttachments)
+      const result = await bridge.chat(finalContent, payloadAttachments, context)
       setMessages(prev => prev.map(m =>
         m.id === assistantId
           ? {
