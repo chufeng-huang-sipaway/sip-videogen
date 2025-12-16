@@ -174,9 +174,9 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 
 - [x] Add/keep a lightweight developer-facing "video backend smoke test":
   - [x] A unit test that imports `sip_videogen.video.pipeline` and instantiates a generator via `VideoGeneratorFactory` (mocked credentials).
-- [ ] Confirm Brand Studio packaging remains functional:
-  - [ ] `BrandStudio.spec` still includes required frontend dist + prompts
-  - [ ] `pyinstaller BrandStudio.spec` works (or confirm your existing release process)
+- [x] Confirm Brand Studio packaging remains functional:
+  - [x] `BrandStudio.spec` still includes required frontend dist + prompts
+  - [x] `pyinstaller BrandStudio.spec` works (or confirm your existing release process)
 - [ ] Ensure “video infra retained” is visible:
   - [ ] Add a short README section like “Video Generation Backend (internal)” describing the new library entrypoint and noting that the CLI was removed intentionally.
 
