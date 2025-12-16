@@ -12,7 +12,6 @@ from sip_videogen.generators.image_generator import (
     ImageGenerationError,
     ImageGenerator,
 )
-from sip_videogen.generators.nano_banana_generator import NanoBananaImageGenerator
 from sip_videogen.generators.kling_generator import (
     KlingConfig,
     KlingGenerationResult,
@@ -59,7 +58,6 @@ __all__ = [
     # Image generation
     "ImageGenerationError",
     "ImageGenerator",
-    "NanoBananaImageGenerator",
     # Music generation
     "MusicGenerationError",
     "MusicGenerator",
