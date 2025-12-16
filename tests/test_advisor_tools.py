@@ -1124,3 +1124,458 @@ class TestGenerateOutputFilename:
         hash1 = filename1.split("_")[-1]
         hash2 = filename2.split("_")[-1]
         assert hash1 != hash2
+
+
+class TestListProducts:
+    """Tests for _impl_list_products function."""
+
+    def test_list_products_no_active_brand(self) -> None:
+        """Test list_products with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_list_products
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_list_products()
+
+        assert "Error: No active brand selected" in result
+
+    def test_list_products_empty(self) -> None:
+        """Test list_products with no products returns helpful message."""
+        from sip_videogen.advisor.tools import _impl_list_products
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_products", return_value=[]),
+        ):
+            result = _impl_list_products()
+
+        assert "No products found" in result
+        assert "test-brand" in result
+
+    def test_list_products_with_products(self) -> None:
+        """Test list_products returns formatted product list."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_products
+        from sip_videogen.brands.models import ProductSummary
+
+        mock_products = [
+            ProductSummary(
+                slug="night-cream",
+                name="Night Cream",
+                description="A luxurious night cream for deep hydration.",
+                primary_image="products/night-cream/images/main.png",
+                attribute_count=5,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+            ProductSummary(
+                slug="day-serum",
+                name="Day Serum",
+                description="Lightweight serum for daytime protection.",
+                primary_image="",
+                attribute_count=0,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_products", return_value=mock_products),
+        ):
+            result = _impl_list_products()
+
+        assert "Products for brand 'test-brand'" in result
+        assert "**Night Cream**" in result
+        assert "`night-cream`" in result
+        assert "5 attributes" in result
+        assert "primary image:" in result
+        assert "**Day Serum**" in result
+        assert "get_product_detail" in result
+
+    def test_list_products_truncates_long_description(self) -> None:
+        """Test list_products truncates long descriptions."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_products
+        from sip_videogen.brands.models import ProductSummary
+
+        mock_products = [
+            ProductSummary(
+                slug="verbose-product",
+                name="Verbose Product",
+                description="A" * 200,  # Very long description
+                primary_image="",
+                attribute_count=0,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_products", return_value=mock_products),
+        ):
+            result = _impl_list_products()
+
+        # Should truncate and add ellipsis
+        assert "..." in result
+        assert "A" * 200 not in result
+
+
+class TestListProjects:
+    """Tests for _impl_list_projects function."""
+
+    def test_list_projects_no_active_brand(self) -> None:
+        """Test list_projects with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_list_projects
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_list_projects()
+
+        assert "Error: No active brand selected" in result
+
+    def test_list_projects_empty(self) -> None:
+        """Test list_projects with no projects returns helpful message."""
+        from sip_videogen.advisor.tools import _impl_list_projects
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=[]),
+        ):
+            result = _impl_list_projects()
+
+        assert "No projects found" in result
+        assert "test-brand" in result
+
+    def test_list_projects_with_projects(self) -> None:
+        """Test list_projects returns formatted project list."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_projects
+        from sip_videogen.brands.models import ProjectStatus, ProjectSummary
+
+        mock_projects = [
+            ProjectSummary(
+                slug="christmas-campaign",
+                name="Christmas Campaign",
+                status=ProjectStatus.ACTIVE,
+                asset_count=12,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+            ProjectSummary(
+                slug="summer-sale",
+                name="Summer Sale",
+                status=ProjectStatus.ARCHIVED,
+                asset_count=8,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=mock_projects),
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+        ):
+            result = _impl_list_projects()
+
+        assert "Projects for brand 'test-brand'" in result
+        assert "**Christmas Campaign**" in result
+        assert "`christmas-campaign`" in result
+        assert "[active]" in result
+        assert "12 assets" in result
+        assert "**Summer Sale**" in result
+        assert "[archived]" in result
+        assert "get_project_detail" in result
+
+    def test_list_projects_shows_active_marker(self) -> None:
+        """Test list_projects shows active marker for active project."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_projects
+        from sip_videogen.brands.models import ProjectStatus, ProjectSummary
+
+        mock_projects = [
+            ProjectSummary(
+                slug="christmas-campaign",
+                name="Christmas Campaign",
+                status=ProjectStatus.ACTIVE,
+                asset_count=12,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=mock_projects),
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+        ):
+            result = _impl_list_projects()
+
+        assert "ACTIVE" in result
+
+
+class TestGetProductDetail:
+    """Tests for _impl_get_product_detail function."""
+
+    def test_get_product_detail_no_active_brand(self) -> None:
+        """Test get_product_detail with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_get_product_detail
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_get_product_detail("night-cream")
+
+        assert "Error: No active brand selected" in result
+
+    def test_get_product_detail_not_found(self) -> None:
+        """Test get_product_detail with non-existent product returns error."""
+        from sip_videogen.advisor.tools import _impl_get_product_detail
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_product_full", return_value=None),
+        ):
+            result = _impl_get_product_detail("nonexistent")
+
+        assert "Error: Product 'nonexistent' not found" in result
+        assert "test-brand" in result
+
+    def test_get_product_detail_returns_formatted_output(self) -> None:
+        """Test get_product_detail returns properly formatted markdown."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_product_detail
+        from sip_videogen.brands.models import ProductAttribute, ProductFull
+
+        mock_product = ProductFull(
+            slug="night-cream",
+            name="Night Cream",
+            description="A luxurious night cream for deep hydration and skin repair.",
+            images=[
+                "products/night-cream/images/main.png",
+                "products/night-cream/images/side.png",
+            ],
+            primary_image="products/night-cream/images/main.png",
+            attributes=[
+                ProductAttribute(key="size", value="50ml", category="measurements"),
+                ProductAttribute(key="texture", value="rich cream", category="texture"),
+            ],
+            created_at=datetime(2024, 1, 15, 10, 30),
+            updated_at=datetime(2024, 3, 20, 14, 45),
+        )
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_product_full", return_value=mock_product),
+        ):
+            result = _impl_get_product_detail("night-cream")
+
+        # Check header
+        assert "# Product: Night Cream" in result
+        assert "`night-cream`" in result
+
+        # Check description section
+        assert "## Description" in result
+        assert "luxurious night cream" in result
+
+        # Check attributes section
+        assert "## Attributes" in result
+        assert "**size** (measurements): 50ml" in result
+        assert "**texture** (texture): rich cream" in result
+
+        # Check images section
+        assert "## Images" in result
+        assert "products/night-cream/images/main.png" in result
+        assert "PRIMARY" in result
+
+        # Check metadata
+        assert "## Metadata" in result
+        assert "Created:" in result
+        assert "Updated:" in result
+
+
+class TestGetProjectDetail:
+    """Tests for _impl_get_project_detail function."""
+
+    def test_get_project_detail_no_active_brand(self) -> None:
+        """Test get_project_detail with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_get_project_detail("christmas-campaign")
+
+        assert "Error: No active brand selected" in result
+
+    def test_get_project_detail_not_found(self) -> None:
+        """Test get_project_detail with non-existent project returns error."""
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=None),
+        ):
+            result = _impl_get_project_detail("nonexistent")
+
+        assert "Error: Project 'nonexistent' not found" in result
+        assert "test-brand" in result
+
+    def test_get_project_detail_returns_formatted_output(self) -> None:
+        """Test get_project_detail returns properly formatted markdown."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="christmas-campaign",
+            name="Christmas Campaign",
+            status=ProjectStatus.ACTIVE,
+            instructions="## Holiday Guidelines\n- Use festive colors\n- Include holiday imagery",
+            created_at=datetime(2024, 11, 1, 9, 0),
+            updated_at=datetime(2024, 11, 15, 16, 30),
+        )
+
+        mock_assets = [
+            "generated/christmas-campaign__20241115_120000_abc123.png",
+            "generated/christmas-campaign__20241115_130000_def456.png",
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+            patch(
+                "sip_videogen.brands.storage.list_project_assets",
+                return_value=mock_assets,
+            ),
+        ):
+            result = _impl_get_project_detail("christmas-campaign")
+
+        # Check header
+        assert "# Project: Christmas Campaign" in result
+        assert "`christmas-campaign`" in result
+
+        # Check status with active marker
+        assert "**Status**: active" in result
+        assert "ACTIVE" in result
+
+        # Check instructions section
+        assert "## Instructions" in result
+        assert "Holiday Guidelines" in result
+        assert "festive colors" in result
+
+        # Check assets section
+        assert "## Generated Assets" in result
+        assert "2 generated assets" in result
+
+        # Check metadata
+        assert "## Metadata" in result
+        assert "Created:" in result
+        assert "Updated:" in result
+
+    def test_get_project_detail_no_instructions(self) -> None:
+        """Test get_project_detail with empty instructions shows placeholder."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="quick-project",
+            name="Quick Project",
+            status=ProjectStatus.ACTIVE,
+            instructions="",  # Empty instructions
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            patch("sip_videogen.brands.storage.get_active_project", return_value=None),
+            patch("sip_videogen.brands.storage.list_project_assets", return_value=[]),
+        ):
+            result = _impl_get_project_detail("quick-project")
+
+        assert "*No instructions set.*" in result
+
+    def test_get_project_detail_inactive_project(self) -> None:
+        """Test get_project_detail for inactive project has no active marker."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="summer-sale",
+            name="Summer Sale",
+            status=ProjectStatus.ARCHIVED,
+            instructions="Summer promotion guidelines.",
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            # Different active project
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+            patch("sip_videogen.brands.storage.list_project_assets", return_value=[]),
+        ):
+            result = _impl_get_project_detail("summer-sale")
+
+        # Should show archived status without ACTIVE marker
+        assert "archived" in result
+        # The line with status should NOT have ACTIVE marker
+        status_line = [line for line in result.split("\n") if "**Status**" in line][0]
+        assert "ACTIVE" not in status_line
+
+    def test_get_project_detail_truncates_many_assets(self) -> None:
+        """Test get_project_detail only shows first 10 assets."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="prolific-project",
+            name="Prolific Project",
+            status=ProjectStatus.ACTIVE,
+            instructions="Instructions.",
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+
+        # Create 15 mock assets
+        mock_assets = [f"generated/prolific-project__{i:04d}.png" for i in range(15)]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            patch("sip_videogen.brands.storage.get_active_project", return_value=None),
+            patch(
+                "sip_videogen.brands.storage.list_project_assets",
+                return_value=mock_assets,
+            ),
+        ):
+            result = _impl_get_project_detail("prolific-project")
+
+        # Should show 15 assets
+        assert "15 generated assets" in result
+        # Should indicate more assets
+        assert "...and 5 more" in result

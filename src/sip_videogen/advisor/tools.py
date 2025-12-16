@@ -1,11 +1,20 @@
 """Universal tools for Brand Marketing Advisor.
 
-These are the 5 basic tools available to the advisor agent:
+Core tools available to the advisor agent:
 1. generate_image - Create images via Gemini 3.0 Pro
 2. read_file - Read files from brand directory
 3. write_file - Write files to brand directory
 4. list_files - List files in brand directory
 5. load_brand - Load brand identity and context
+6. propose_choices - Present choices to user
+7. propose_images - Present images for selection
+8. update_memory - Store user preferences
+
+Product and Project exploration tools:
+9. list_products - List all products for the active brand
+10. list_projects - List all projects/campaigns for the active brand
+11. get_product_detail - Get detailed product information
+12. get_project_detail - Get detailed project information
 
 Tool functions are defined as pure functions (prefixed with _impl_) for testing,
 then wrapped with @function_tool for agent use.
@@ -24,6 +33,12 @@ from sip_videogen.brands.storage import (
     get_brand_dir,
     get_brands_dir,
     load_product,
+)
+from sip_videogen.brands.storage import (
+    list_products as storage_list_products,
+)
+from sip_videogen.brands.storage import (
+    list_projects as storage_list_projects,
 )
 from sip_videogen.brands.storage import (
     load_brand as storage_load_brand,
@@ -619,6 +634,186 @@ def _impl_load_brand(
     return "\n".join(context_parts)
 
 
+def _impl_list_products() -> str:
+    """Implementation of list_products tool.
+
+    Returns:
+        Formatted list of products for the active brand.
+    """
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    products = storage_list_products(brand_slug)
+
+    if not products:
+        return f"No products found for brand '{brand_slug}'. Use the bridge to create products."
+
+    lines = [f"Products for brand '{brand_slug}':\n"]
+    for product in products:
+        primary = f" (primary image: {product.primary_image})" if product.primary_image else ""
+        attrs = f", {product.attribute_count} attributes" if product.attribute_count > 0 else ""
+        lines.append(f"- **{product.name}** (`{product.slug}`){attrs}{primary}")
+        if product.description:
+            # Truncate long descriptions
+            desc = product.description
+            if len(desc) > 100:
+                desc = desc[:100] + "..."
+            lines.append(f"  {desc}")
+
+    lines.append("")
+    lines.append("---")
+    lines.append("Use `get_product_detail(product_slug)` for full product information.")
+
+    return "\n".join(lines)
+
+
+def _impl_list_projects() -> str:
+    """Implementation of list_projects tool.
+
+    Returns:
+        Formatted list of projects for the active brand.
+    """
+    from sip_videogen.brands.storage import get_active_project as storage_get_active_project
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    projects = storage_list_projects(brand_slug)
+    active_project = storage_get_active_project(brand_slug)
+
+    if not projects:
+        return f"No projects found for brand '{brand_slug}'. Use the bridge to create projects."
+
+    lines = [f"Projects for brand '{brand_slug}':\n"]
+    for project in projects:
+        active_marker = " ★ ACTIVE" if project.slug == active_project else ""
+        status_badge = f"[{project.status.value}]"
+        assets = f", {project.asset_count} assets" if project.asset_count > 0 else ""
+        line = f"- **{project.name}** (`{project.slug}`) {status_badge}{assets}{active_marker}"
+        lines.append(line)
+
+    lines.append("")
+    lines.append("---")
+    lines.append(
+        "Use `get_project_detail(project_slug)` for full project info including instructions."
+    )
+
+    return "\n".join(lines)
+
+
+def _impl_get_product_detail(product_slug: str) -> str:
+    """Implementation of get_product_detail tool.
+
+    Args:
+        product_slug: Product identifier.
+
+    Returns:
+        Formatted product detail as markdown.
+    """
+    from sip_videogen.brands.memory import get_product_full
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    product = get_product_full(brand_slug, product_slug)
+    if product is None:
+        return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+
+    lines = [f"# Product: {product.name}"]
+    lines.append(f"*Slug: `{product.slug}`*\n")
+
+    # Description
+    if product.description:
+        lines.append("## Description")
+        lines.append(product.description)
+        lines.append("")
+
+    # Attributes
+    if product.attributes:
+        lines.append("## Attributes")
+        for attr in product.attributes:
+            lines.append(f"- **{attr.key}** ({attr.category}): {attr.value}")
+        lines.append("")
+
+    # Images
+    if product.images:
+        lines.append("## Images")
+        for img in product.images:
+            primary_marker = " ★ PRIMARY" if img == product.primary_image else ""
+            lines.append(f"- `{img}`{primary_marker}")
+        lines.append("")
+
+    # Timestamps
+    lines.append("## Metadata")
+    lines.append(f"- Created: {product.created_at.strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"- Updated: {product.updated_at.strftime('%Y-%m-%d %H:%M')}")
+
+    return "\n".join(lines)
+
+
+def _impl_get_project_detail(project_slug: str) -> str:
+    """Implementation of get_project_detail tool.
+
+    Args:
+        project_slug: Project identifier.
+
+    Returns:
+        Formatted project detail as markdown.
+    """
+    from sip_videogen.brands.memory import get_project_full
+    from sip_videogen.brands.storage import get_active_project as storage_get_active_project
+    from sip_videogen.brands.storage import list_project_assets
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    project = get_project_full(brand_slug, project_slug)
+    if project is None:
+        return f"Error: Project '{project_slug}' not found in brand '{brand_slug}'."
+
+    active_project = storage_get_active_project(brand_slug)
+    is_active = project.slug == active_project
+
+    lines = [f"# Project: {project.name}"]
+    lines.append(f"*Slug: `{project.slug}`*\n")
+
+    # Status
+    active_marker = " ★ ACTIVE" if is_active else ""
+    lines.append(f"**Status**: {project.status.value}{active_marker}\n")
+
+    # Instructions
+    if project.instructions:
+        lines.append("## Instructions")
+        lines.append(project.instructions)
+        lines.append("")
+    else:
+        lines.append("## Instructions")
+        lines.append("*No instructions set.*")
+        lines.append("")
+
+    # Assets
+    assets = list_project_assets(brand_slug, project_slug)
+    if assets:
+        lines.append("## Generated Assets")
+        lines.append(f"This project has {len(assets)} generated assets:")
+        for asset in assets[:10]:  # Show first 10
+            lines.append(f"- `{asset}`")
+        if len(assets) > 10:
+            lines.append(f"- *...and {len(assets) - 10} more*")
+        lines.append("")
+
+    # Timestamps
+    lines.append("## Metadata")
+    lines.append(f"- Created: {project.created_at.strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"- Updated: {project.updated_at.strftime('%Y-%m-%d %H:%M')}")
+
+    return "\n".join(lines)
+
+
 # =============================================================================
 # Wrapped Tools for Agent (with @function_tool decorator)
 # =============================================================================
@@ -864,6 +1059,98 @@ def load_brand(
 
 
 @function_tool
+def list_products() -> str:
+    """List all products for the active brand.
+
+    Returns a formatted list of products with their names, slugs, attribute counts,
+    and primary images. Use this to explore available products before getting details
+    or using them in image generation.
+
+    Products can be used with generate_image(product_slug="...") to automatically
+    use their primary image as a reference for consistent generation.
+
+    Returns:
+        Formatted markdown list of products, or error message if no brand is active.
+
+    Example output:
+        Products for brand 'coffee-co':
+
+        - **Night Cream** (`night-cream`), 5 attributes
+          A luxurious night cream for deep hydration...
+        - **Day Serum** (`day-serum`), 3 attributes
+          Lightweight serum for daytime protection...
+    """
+    return _impl_list_products()
+
+
+@function_tool
+def list_projects() -> str:
+    """List all projects/campaigns for the active brand.
+
+    Returns a formatted list of projects with their names, slugs, status,
+    and asset counts. Active projects are marked with a star.
+
+    When a project is active, generated images are automatically tagged with
+    that project's slug for organization and filtering.
+
+    Returns:
+        Formatted markdown list of projects, or error message if no brand is active.
+
+    Example output:
+        Projects for brand 'coffee-co':
+
+        - **Christmas Campaign** (`christmas-campaign`) [active], 12 assets ★ ACTIVE
+        - **Summer Sale** (`summer-sale`) [archived], 8 assets
+    """
+    return _impl_list_projects()
+
+
+@function_tool
+def get_product_detail(product_slug: str) -> str:
+    """Get detailed information about a specific product.
+
+    Use this when you need more information than what's provided by list_products,
+    such as full descriptions, all attributes, or complete image lists.
+
+    Args:
+        product_slug: The product's slug identifier (e.g., "night-cream").
+
+    Returns:
+        Formatted markdown with:
+        - Product name and slug
+        - Full description
+        - All attributes (key, category, value)
+        - All images with primary marker
+        - Creation and update timestamps
+
+        Or error message if product not found.
+    """
+    return _impl_get_product_detail(product_slug)
+
+
+@function_tool
+def get_project_detail(project_slug: str) -> str:
+    """Get detailed information about a specific project/campaign.
+
+    Use this when you need the project's instructions or want to see
+    what assets have been generated for it.
+
+    Args:
+        project_slug: The project's slug identifier (e.g., "christmas-campaign").
+
+    Returns:
+        Formatted markdown with:
+        - Project name, slug, and status (with active marker if applicable)
+        - Full instructions markdown
+        - List of generated assets (first 10)
+        - Creation and update timestamps
+
+        Or error message if project not found.
+    """
+    return _impl_get_project_detail(project_slug)
+
+
+@function_tool
 def update_memory(
     key: str,
     value: str,
@@ -928,4 +1215,9 @@ ADVISOR_TOOLS = [
     propose_choices,
     propose_images,
     update_memory,
+    # Product and Project exploration tools
+    list_products,
+    list_projects,
+    get_product_detail,
+    get_project_detail,
 ]

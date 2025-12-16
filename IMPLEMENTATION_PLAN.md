@@ -410,7 +410,7 @@ def list_project_assets(brand_slug: str, project_slug: str) -> list[str]:
 
 ### Phase 4: Agent Tools
 **File:** `src/sip_videogen/advisor/tools.py`
-**Status:** Not Started
+**Status:** Complete
 
 Add new tools (simplified - per-turn injection handles most cases):
 
@@ -435,9 +435,9 @@ def get_project_detail(project_slug: str) -> str:
 **Note:** Context injection handles automatic loading. These tools are for explicit exploration.
 
 **Success Criteria:**
-- [ ] Tools implemented and registered
-- [ ] Tools return brand-relative paths
-- [ ] Integration tests pass
+- [x] Tools implemented and registered
+- [x] Tools return brand-relative paths
+- [x] Integration tests pass
 
 ---
 
