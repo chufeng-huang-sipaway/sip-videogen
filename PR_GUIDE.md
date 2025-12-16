@@ -151,6 +151,21 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 2: Remove CLI Product Surface (Task 6)
+
+**Commit:** `40d04ba` - chore: Remove CLI deps and tests (Phase 2, Task 6)
+
+**Changes:**
+- Removed `typer[all]` and `questionary` from `pyproject.toml` dependencies
+- Deleted `tests/test_cli.py` (tested deleted cli.py)
+- Deleted `tests/test_setup.py` (tested deleted config/setup.py)
+- Deleted `tests/test_updater.py` (tested deleted utils/updater.py)
+
+**Verification:**
+- `python -m pytest`: 474 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -165,8 +180,9 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Delete CLI files (cli.py, start.sh)
 - [x] Delete config/setup.py
 - [x] Delete utils/ directory
-- [ ] Remove typer/questionary dependencies
-- [ ] Update tests and documentation
+- [x] Remove typer/questionary dependencies
+- [x] Delete CLI-dependent tests (test_cli.py, test_setup.py, test_updater.py)
+- [ ] Documentation cleanup (README.md, scripts/publish.sh)
 
 ### Phase 3: Remove Brand Kit Workflow
 - [ ] Delete brand_kit/ directory

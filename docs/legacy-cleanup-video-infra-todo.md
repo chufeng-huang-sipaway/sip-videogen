@@ -129,13 +129,13 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
   - [x] Delete `src/sip_videogen/config/setup.py`
 - [x] Delete pipx updater / CLI-only updater package:
   - [x] Delete `src/sip_videogen/utils/` (including `src/sip_videogen/utils/__init__.py` + `src/sip_videogen/utils/updater.py`)
-- [ ] Remove CLI-only dependencies from `pyproject.toml` after confirming no other usage:
-  - [ ] `typer[all]`
-  - [ ] `questionary`
-- [ ] Remove/update tests that depend on the CLI:
-  - [ ] Delete or rewrite `tests/test_cli.py` (should not exist after CLI removal)
-  - [ ] Delete or rewrite `tests/test_setup.py` (tests `sip_videogen.config.setup`)
-  - [ ] Delete or rewrite `tests/test_updater.py` (tests `sip_videogen.utils.updater` / pipx flow)
+- [x] Remove CLI-only dependencies from `pyproject.toml` after confirming no other usage:
+  - [x] `typer[all]`
+  - [x] `questionary`
+- [x] Remove/update tests that depend on the CLI:
+  - [x] Delete or rewrite `tests/test_cli.py` (should not exist after CLI removal)
+  - [x] Delete or rewrite `tests/test_setup.py` (tests `sip_videogen.config.setup`)
+  - [x] Delete or rewrite `tests/test_updater.py` (tests `sip_videogen.utils.updater` / pipx flow)
 - [ ] Documentation cleanup:
   - [ ] Remove pipx install/run instructions from `README.md` (keep Brand Studio instructions)
   - [ ] Update `scripts/publish.sh` (remove pipx references or archive the script)
