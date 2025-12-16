@@ -70,7 +70,7 @@ like `generated/<filename>.png` so existing frontend image loading works without
 
 ### Phase 1: Data Models
 **File:** `src/sip_videogen/brands/models.py`
-**Status:** Not Started
+**Status:** Complete
 
 Add new models following existing patterns:
 
@@ -137,10 +137,10 @@ class ProjectIndex(BaseModel):
 ```
 
 **Success Criteria:**
-- [ ] All Pydantic models defined with proper Field descriptions
-- [ ] Models follow existing BrandSummary/BrandIdentityFull patterns
-- [ ] to_summary() methods work correctly
-- [ ] All image paths are brand-relative (not absolute, not product-relative)
+- [x] All Pydantic models defined with proper Field descriptions
+- [x] Models follow existing BrandSummary/BrandIdentityFull patterns
+- [x] to_summary() methods work correctly
+- [x] All image paths are brand-relative (not absolute, not product-relative)
 
 ---
 
