@@ -1,12 +1,17 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, Paperclip, Plus, X, Upload } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
+import { useProducts } from '@/context/ProductContext'
+import { useProjects } from '@/context/ProjectContext'
+import type { ProjectFull } from '@/lib/bridge'
 import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
+import { AttachedProducts } from './AttachedProducts'
+import { ProjectBanner } from './ProjectBanner'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -30,6 +35,32 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     removeAttachment,
     setAttachmentError,
   } = useChat(brandSlug)
+
+  const {
+    products,
+    attachedProducts,
+    attachProduct,
+    detachProduct,
+    clearAttachments,
+  } = useProducts()
+
+  const {
+    projects,
+    activeProject,
+    setActiveProject,
+    getProject,
+  } = useProjects()
+
+  // Track loaded project details for banner
+  const [projectFull, setProjectFull] = useState<ProjectFull | null>(null)
+
+  // Find the active project entry
+  const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
+
+  // Reset projectFull when activeProject changes
+  useEffect(() => {
+    setProjectFull(null)
+  }, [activeProject])
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
@@ -68,8 +99,11 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   // Handle native drag events for internal asset drags (not detected by react-dropzone)
   const handleNativeDragOver = useCallback((e: React.DragEvent) => {
-    // Check if this is an internal asset drag
-    if (e.dataTransfer.types.includes('application/x-brand-asset')) {
+    // Check if this is an internal asset or product drag
+    if (
+      e.dataTransfer.types.includes('application/x-brand-asset') ||
+      e.dataTransfer.types.includes('application/x-brand-product')
+    ) {
       e.preventDefault()
       e.stopPropagation()
       setIsInternalDragOver(true)
@@ -87,11 +121,28 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   }, [])
 
   const handleNativeDrop = useCallback((e: React.DragEvent) => {
+    setIsInternalDragOver(false)
+
+    // Check for product drag first
+    const productSlug = e.dataTransfer.getData('application/x-brand-product')
+    if (productSlug && productSlug.trim()) {
+      e.preventDefault()
+      e.stopPropagation()
+
+      if (!brandSlug) {
+        setAttachmentError('Select a brand before attaching products.')
+        return
+      }
+
+      attachProduct(productSlug.trim())
+      return
+    }
+
+    // Check for asset drag
     const assetPath = e.dataTransfer.getData('application/x-brand-asset')
     if (assetPath && assetPath.trim()) {
       e.preventDefault()
       e.stopPropagation()
-      setIsInternalDragOver(false)
 
       if (!brandSlug) {
         setAttachmentError('Select a brand before attaching files.')
@@ -100,7 +151,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       addAttachmentReference(assetPath.trim())
     }
-  }, [addAttachmentReference, brandSlug, setAttachmentError])
+  }, [addAttachmentReference, attachProduct, brandSlug, setAttachmentError])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     noClick: true,
@@ -142,7 +193,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={clearMessages}
+          onClick={() => {
+            clearMessages()
+            clearAttachments() // Clear attached products on New Chat
+          }}
           disabled={isLoading || messages.length === 0}
           className="text-gray-500 hover:text-gray-700"
         >
@@ -150,6 +204,18 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           New Chat
         </Button>
       </div>
+
+      {/* Project banner */}
+      <ProjectBanner
+        project={activeProjectEntry}
+        projectFull={projectFull}
+        onClearProject={() => setActiveProject(null)}
+        onLoadProjectDetails={async (slug) => {
+          const full = await getProject(slug)
+          setProjectFull(full)
+          return full
+        }}
+      />
 
       {error && (
         <div className="p-4">
@@ -182,6 +248,13 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           }}
         />
       </ScrollArea>
+
+      {/* Attached products display */}
+      <AttachedProducts
+        products={products}
+        attachedSlugs={attachedProducts}
+        onDetach={detachProduct}
+      />
 
       {attachments.length > 0 && (
         <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
@@ -220,7 +293,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <MessageInput
           disabled={isLoading || !brandSlug}
           placeholder={brandSlug ? 'Ask me to create something...' : 'Select a brand first...'}
-          onSend={(text) => sendMessage(text)}
+          onSend={(text) =>
+            sendMessage(text, {
+              project_slug: activeProject,
+              attached_products: attachedProducts.length > 0 ? attachedProducts : undefined,
+            })
+          }
           canSendWithoutText={attachments.length > 0}
         />
       </div>
