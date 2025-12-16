@@ -117,10 +117,10 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 
 **Objective**: Remove CLI entrypoints and interactive flows while keeping underlying modules.
 
-- [ ] Packaging cleanup:
-  - [ ] Remove `[project.scripts]` entries from `pyproject.toml`:
-    - [ ] `sip-videogen = "sip_videogen.cli:app"`
-    - [ ] `sipvid = "sip_videogen.cli:app"`
+- [x] Packaging cleanup:
+  - [x] Remove `[project.scripts]` entries from `pyproject.toml`:
+    - [x] `sip-videogen = "sip_videogen.cli:app"`
+    - [x] `sipvid = "sip_videogen.cli:app"`
   - [ ] Remove `src/sip_videogen/__main__.py` (or repurpose to a helpful message; simplest is delete).
 - [ ] Delete legacy CLI files:
   - [ ] Delete `src/sip_videogen/cli.py`
