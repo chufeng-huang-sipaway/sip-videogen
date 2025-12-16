@@ -316,10 +316,46 @@ Added TypeScript interfaces and React contexts for products and projects:
 - Attachments cleared when brand changes
 - Mock data provided for dev mode (not running in PyWebView)
 
-## Remaining Tasks
+### Phase 7: Sidebar Restructure ✅
+**Files**: `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx`, `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/*.tsx`, `src/sip_videogen/studio/frontend/src/components/ui/accordion.tsx`
 
-### Phase 7: Sidebar Restructure
-- Accordion-based organization by memory scope
+Restructured sidebar with accordion-based organization by memory scope:
+
+**New Dependencies:**
+- Added `@radix-ui/react-accordion` to package.json
+
+**New UI Component:**
+- `accordion.tsx`: Radix UI accordion wrapper following shadcn pattern with proper animations
+
+**New Section Components:**
+- `BrandSection.tsx`: Wraps existing DocumentsList and AssetTree components
+- `ProductsSection.tsx`: Displays product list with:
+  - Product cards showing thumbnail, name, description
+  - Drag-to-chat support (drag products to attach to conversation)
+  - Attached products highlighted with star indicator
+  - Context menu for attach/detach/delete operations
+  - Create new product via + button
+- `ProjectsSection.tsx`: Displays project list with:
+  - Project cards showing name, status, asset count
+  - Click to set/clear active project
+  - Active project highlighted with green styling and checkmark
+  - Archived projects shown with reduced opacity
+  - Context menu for set active/archive/delete operations
+  - Create new project via + button
+
+**Sidebar Restructure:**
+- Three accordion sections: Brand, Products, Projects
+- All sections expanded by default
+- Organized by memory scope instead of file type
+- Clean separation of concerns in section components
+
+**Key Design Decisions:**
+- Products are draggable using `application/x-brand-product` data transfer type
+- Product thumbnails loaded via `bridge.getProductImageThumbnail()` for `products/` paths
+- Projects sorted with active status first, then alphabetically
+- Error handling with auto-dismissing alerts (5 second timeout)
+
+## Remaining Tasks
 
 ### Phase 8: Chat Integration
 - Attached products display
@@ -343,3 +379,4 @@ Added TypeScript interfaces and React contexts for products and projects:
 - `ddf88b6`: feat(tools): Add product and project exploration tools for agent
 - `94c8ea6`: feat(bridge): Add product and project API methods
 - `715faff`: feat(frontend): Add Product and Project types and contexts
+- `fcbe656`: feat(sidebar): Restructure sidebar with accordion layout for memory scopes

@@ -571,7 +571,7 @@ interface ChatContext {
 ---
 
 ### Phase 7: Sidebar Restructure
-**Status:** Not Started
+**Status:** Complete
 
 **Dependency:** Add `@radix-ui/react-accordion` to frontend dependencies.
 
@@ -617,11 +617,11 @@ interface ChatContext {
 ```
 
 **Success Criteria:**
-- [ ] `@radix-ui/react-accordion` added to package.json
-- [ ] Sidebar organized by memory scope (not file type)
-- [ ] Accordion sections expand/collapse
-- [ ] Products draggable (reuse existing drag pattern from AssetTree)
-- [ ] Projects show active state
+- [x] `@radix-ui/react-accordion` added to package.json
+- [x] Sidebar organized by memory scope (not file type)
+- [x] Accordion sections expand/collapse
+- [x] Products draggable (reuse existing drag pattern from AssetTree)
+- [x] Projects show active state
 
 ---
 
