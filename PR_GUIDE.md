@@ -271,12 +271,52 @@ Added comprehensive Bridge API for products and projects:
 - No server-side state for attached products (frontend owns this state)
 - Slug generation from name using regex normalization
 
-## Remaining Tasks
+### Phase 6: Frontend Types & Contexts ✅
+**Files**: `src/sip_videogen/studio/frontend/src/lib/bridge.ts`, `src/sip_videogen/studio/frontend/src/context/ProductContext.tsx`, `src/sip_videogen/studio/frontend/src/context/ProjectContext.tsx`, `src/sip_videogen/studio/frontend/src/hooks/useChat.ts`
 
-### Phase 6: Frontend Types & Contexts
-**Files**: Frontend TypeScript files
-- Add TypeScript interfaces
-- ProductContext and ProjectContext
+Added TypeScript interfaces and React contexts for products and projects:
+
+**TypeScript Interfaces (bridge.ts):**
+- `ProductAttribute`: Key-value-category triplet for product properties
+- `ProductEntry`: L0 summary for product list display
+- `ProductFull`: L1 complete product data with images and attributes
+- `ProjectEntry`: L0 summary for project list display (with status)
+- `ProjectFull`: L1 complete project data with instructions and assets
+- `ChatContext`: Context object for passing `project_slug` and `attached_products` to chat
+
+**Bridge Wrapper Functions:**
+- Product CRUD: `getProducts`, `getProduct`, `createProduct`, `updateProduct`, `deleteProduct`
+- Product images: `getProductImages`, `uploadProductImage`, `deleteProductImage`, `setPrimaryProductImage`, `getProductImageThumbnail`, `getProductImageFull`
+- Project CRUD: `getProjects`, `getProject`, `createProject`, `updateProject`, `deleteProject`
+- Project state: `setActiveProject`, `getActiveProject`, `getProjectAssets`
+- Updated `chat()` to accept optional `ChatContext` parameter
+
+**ProductContext (ProductContext.tsx):**
+- `products`: List of ProductEntry from backend
+- `attachedProducts`: Frontend-only state for products attached to chat (not persisted)
+- `attachProduct(slug)` / `detachProduct(slug)` / `clearAttachments()`: Manage attachments
+- `createProduct`, `updateProduct`, `deleteProduct`: CRUD operations
+- `getProduct`, `getProductImages`, `uploadProductImage`, `deleteProductImage`, `setPrimaryProductImage`: Product detail operations
+
+**ProjectContext (ProjectContext.tsx):**
+- `projects`: List of ProjectEntry from backend
+- `activeProject`: Persisted server-side via bridge.setActiveProject()
+- `setActiveProject(slug | null)`: Set or clear active project
+- `createProject`, `updateProject`, `deleteProject`: CRUD operations
+- `getProject`, `getProjectAssets`: Project detail operations
+
+**useChat Updates:**
+- `sendMessage(content, context?)` now accepts optional `ChatContext`
+- Passes context to `bridge.chat()` for per-turn injection
+
+**Key Design Decisions:**
+- `attachedProducts` is frontend-only state, passed with each chat() call (stateless API)
+- `activeProject` is persisted server-side, loaded on context initialization
+- Both contexts depend on `BrandContext` and refresh when brand changes
+- Attachments cleared when brand changes
+- Mock data provided for dev mode (not running in PyWebView)
+
+## Remaining Tasks
 
 ### Phase 7: Sidebar Restructure
 - Accordion-based organization by memory scope
@@ -302,3 +342,4 @@ Added comprehensive Bridge API for products and projects:
 - `2cc0285`: feat(tools): Add project asset tagging via filename prefix
 - `ddf88b6`: feat(tools): Add product and project exploration tools for agent
 - `94c8ea6`: feat(bridge): Add product and project API methods
+- `715faff`: feat(frontend): Add Product and Project types and contexts
