@@ -137,6 +137,20 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 2: Remove CLI Product Surface (Task 5)
+
+**Commit:** `cfa80b0` - chore: Delete utils/ directory with pipx updater (Phase 2, Task 5)
+
+**Changes:**
+- Deleted `src/sip_videogen/utils/__init__.py`
+- Deleted `src/sip_videogen/utils/updater.py`
+  - pipx CLI update flow implementation
+  - utils/ was CLI-only and not used by Brand Studio or video infrastructure
+
+**Verification:**
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -150,7 +164,7 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Delete `src/sip_videogen/__main__.py`
 - [x] Delete CLI files (cli.py, start.sh)
 - [x] Delete config/setup.py
-- [ ] Delete utils/ directory
+- [x] Delete utils/ directory
 - [ ] Remove typer/questionary dependencies
 - [ ] Update tests and documentation
 
