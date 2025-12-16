@@ -4,11 +4,20 @@ This module defines the hierarchical brand identity models:
 - BrandSummary: L0 layer, always in agent context (~500 tokens)
 - BrandIdentityFull: L1 layer, loaded on demand
 - Supporting models for visual identity, voice, audience, positioning
+
+Product models:
+- ProductSummary: L0 layer for product list display
+- ProductFull: L1 layer with full product details
+
+Project models:
+- ProjectSummary: L0 layer for project list display
+- ProjectFull: L1 layer with project instructions
 """
 
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import List
 
 from pydantic import BaseModel, Field
@@ -369,16 +378,10 @@ class BrandIdentityFull(BaseModel):
             name=self.core.name,
             tagline=self.core.tagline,
             category=self.positioning.market_category or "Uncategorized",
-            tone=(
-                ", ".join(self.voice.tone_attributes[:3])
-                if self.voice.tone_attributes
-                else ""
-            ),
+            tone=(", ".join(self.voice.tone_attributes[:3]) if self.voice.tone_attributes else ""),
             primary_colors=[c.hex for c in self.visual.primary_colors[:3]],
             visual_style=(
-                self.visual.overall_aesthetic[:200]
-                if self.visual.overall_aesthetic
-                else ""
+                self.visual.overall_aesthetic[:200] if self.visual.overall_aesthetic else ""
             ),
             audience_summary=self.audience.primary_summary,
         )
@@ -445,3 +448,255 @@ class BrandIndex(BaseModel):
             self.active_brand = None
 
         return len(self.brands) < original_len
+
+
+# =============================================================================
+# Product Models
+# =============================================================================
+
+
+class ProductAttribute(BaseModel):
+    """Single attribute of a product.
+
+    Attributes can describe physical properties, use cases, or any
+    product-specific characteristic.
+    """
+
+    key: str = Field(description="Attribute name, e.g., 'dimensions', 'material'")
+    value: str = Field(description="Attribute value")
+    category: str = Field(
+        default="general",
+        description="Attribute category: 'measurements', 'texture', 'use_case', etc.",
+    )
+
+
+class ProductSummary(BaseModel):
+    """Compact product summary - L0 layer for quick loading.
+
+    Used for product list display and context building.
+    """
+
+    slug: str = Field(description="URL-safe identifier, e.g., 'night-cream'")
+    name: str = Field(description="Product name, e.g., 'Restorative Night Cream'")
+    description: str = Field(
+        description="English product description (i18n deferred)",
+    )
+    primary_image: str = Field(
+        default="",
+        description=(
+            "Brand-relative path to primary image, e.g., 'products/night-cream/images/main.png'"
+        ),
+    )
+    attribute_count: int = Field(
+        default=0,
+        description="Number of attributes for quick reference",
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the product was created",
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the product was last updated",
+    )
+
+
+class ProductFull(BaseModel):
+    """Complete product details - L1 layer loaded on demand.
+
+    Contains all product information including images and attributes.
+    All image paths are brand-relative (e.g., 'products/slug/images/file.png').
+    """
+
+    slug: str = Field(description="URL-safe identifier")
+    name: str = Field(description="Product name")
+    description: str = Field(
+        description="English product description (i18n deferred)",
+    )
+    images: List[str] = Field(
+        default_factory=list,
+        description="Brand-relative paths to all product images",
+    )
+    primary_image: str = Field(
+        default="",
+        description="Brand-relative path to primary image (must be in images list)",
+    )
+    attributes: List[ProductAttribute] = Field(
+        default_factory=list,
+        description="Product attributes (dimensions, materials, etc.)",
+    )
+    # DEFERRED: visual_keywords, avoid_keywords
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the product was created",
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the product was last updated",
+    )
+
+    def to_summary(self) -> ProductSummary:
+        """Extract a ProductSummary from this full product.
+
+        Used when saving a product to generate the L0 layer.
+        """
+        return ProductSummary(
+            slug=self.slug,
+            name=self.name,
+            description=self.description,
+            primary_image=self.primary_image,
+            attribute_count=len(self.attributes),
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
+
+
+class ProductIndex(BaseModel):
+    """Registry of all products for a brand.
+
+    Stored at ~/.sip-videogen/brands/{brand-slug}/products/index.json
+    """
+
+    version: str = Field(default="1.0", description="Index format version")
+    products: List[ProductSummary] = Field(
+        default_factory=list,
+        description="List of product summaries",
+    )
+
+    def get_product(self, slug: str) -> ProductSummary | None:
+        """Find a product by slug."""
+        for product in self.products:
+            if product.slug == slug:
+                return product
+        return None
+
+    def add_product(self, entry: ProductSummary) -> None:
+        """Add or update a product in the index."""
+        self.products = [p for p in self.products if p.slug != entry.slug]
+        self.products.append(entry)
+
+    def remove_product(self, slug: str) -> bool:
+        """Remove a product from the index. Returns True if found and removed."""
+        original_len = len(self.products)
+        self.products = [p for p in self.products if p.slug != slug]
+        return len(self.products) < original_len
+
+
+# =============================================================================
+# Project/Campaign Models
+# =============================================================================
+
+
+class ProjectStatus(str, Enum):
+    """Project lifecycle status."""
+
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class ProjectSummary(BaseModel):
+    """Compact project summary - L0 layer for quick loading.
+
+    Used for project list display.
+    """
+
+    slug: str = Field(description="URL-safe identifier, e.g., 'christmas-campaign'")
+    name: str = Field(description="Project name, e.g., 'Christmas 2024 Campaign'")
+    status: ProjectStatus = Field(
+        default=ProjectStatus.ACTIVE,
+        description="Project status: active or archived",
+    )
+    asset_count: int = Field(
+        default=0,
+        description="Number of generated assets (from prefix search)",
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the project was created",
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the project was last updated",
+    )
+
+
+class ProjectFull(BaseModel):
+    """Complete project details - L1 layer loaded on demand.
+
+    Contains project instructions and metadata.
+    Generated assets are tracked via filename prefix in assets/generated/.
+    """
+
+    slug: str = Field(description="URL-safe identifier")
+    name: str = Field(description="Project name")
+    status: ProjectStatus = Field(
+        default=ProjectStatus.ACTIVE,
+        description="Project status: active or archived",
+    )
+    instructions: str = Field(
+        default="",
+        description="Markdown instructions - campaign rules, guidelines, etc.",
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the project was created",
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the project was last updated",
+    )
+
+    def to_summary(self, asset_count: int = 0) -> ProjectSummary:
+        """Extract a ProjectSummary from this full project.
+
+        Used when saving a project to generate the L0 layer.
+        asset_count must be provided as it requires filesystem access.
+        """
+        return ProjectSummary(
+            slug=self.slug,
+            name=self.name,
+            status=self.status,
+            asset_count=asset_count,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
+
+
+class ProjectIndex(BaseModel):
+    """Registry of all projects for a brand.
+
+    Stored at ~/.sip-videogen/brands/{brand-slug}/projects/index.json
+    """
+
+    version: str = Field(default="1.0", description="Index format version")
+    projects: List[ProjectSummary] = Field(
+        default_factory=list,
+        description="List of project summaries",
+    )
+    active_project: str | None = Field(
+        default=None,
+        description="Slug of the currently active project",
+    )
+
+    def get_project(self, slug: str) -> ProjectSummary | None:
+        """Find a project by slug."""
+        for project in self.projects:
+            if project.slug == slug:
+                return project
+        return None
+
+    def add_project(self, entry: ProjectSummary) -> None:
+        """Add or update a project in the index."""
+        self.projects = [p for p in self.projects if p.slug != entry.slug]
+        self.projects.append(entry)
+
+    def remove_project(self, slug: str) -> bool:
+        """Remove a project from the index. Returns True if found and removed."""
+        original_len = len(self.projects)
+        self.projects = [p for p in self.projects if p.slug != slug]
+
+        # Clear active if it was the removed project
+        if self.active_project == slug:
+            self.active_project = None
+
+        return len(self.projects) < original_len
