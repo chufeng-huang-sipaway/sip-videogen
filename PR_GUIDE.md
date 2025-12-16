@@ -181,6 +181,23 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 3: Remove Brand Kit Workflow (Task 1)
+
+**Commit:** `c1aaad0` - chore: Delete brand_kit/ directory and update tests (Phase 3, Task 1)
+
+**Changes:**
+- Deleted `src/sip_videogen/brand_kit/` directory (including `__init__.py` and `workflow.py`)
+- Updated `tests/test_brand_integration.py`:
+  - Removed imports from `sip_videogen.brand_kit.workflow`
+  - Removed test classes/methods that depended on brand_kit functions
+  - Rewrote tests to verify brand storage directly instead of using brand_kit workflow
+  - Kept brand-only workflow coverage intact (18 tests retained)
+
+**Verification:**
+- `python -m pytest`: 463 passed (14 failures are pre-existing issues unrelated to this change)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -198,14 +215,17 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Remove typer/questionary dependencies
 - [x] Delete CLI-dependent tests (test_cli.py, test_setup.py, test_updater.py)
 - [x] Documentation cleanup (README.md, scripts/publish.sh)
-- [ ] Manual verification: `python -m sip_videogen.studio` launches in dev
+- [x] Manual verification: `python -m sip_videogen.studio` launches in dev
 
 ### Phase 3: Remove Brand Kit Workflow
-- [ ] Delete brand_kit/ directory
+- [x] Delete brand_kit/ directory
+- [x] Update test_brand_integration.py to remove brand_kit imports
+- [ ] Delete brand-kit-only agents (brand_designer.py) if unused
+- [ ] Delete brand-kit-only models (models/brand_kit.py) if unused
 - [ ] Delete migration.py if not needed
-- [ ] Remove Brand Kit exports/imports
+- [ ] Remove Brand Kit exports/imports from models/__init__.py and agents/__init__.py
+- [ ] Delete remaining brand-kit model tests
 - [ ] Delete NanoBananaImageGenerator if unused
-- [ ] Update tests
 
 ### Phase 4: Final Hardening
 - [ ] Add video backend smoke test
