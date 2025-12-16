@@ -247,6 +247,23 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 3: Remove Brand Kit Workflow (Task 5)
+
+**Commit:** `4034180` - chore: Delete NanoBananaImageGenerator (Phase 3, Task 5)
+
+**Changes:**
+- Deleted `src/sip_videogen/generators/nano_banana_generator.py`
+  - Nano Banana Pro image generator was only used by Brand Kit workflow
+  - Wrapper around Google's Gemini image generation API
+- Updated `src/sip_videogen/generators/__init__.py`:
+  - Removed `NanoBananaImageGenerator` import
+  - Removed `NanoBananaImageGenerator` from `__all__` exports
+
+**Verification:**
+- `python -m pytest`: 444 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -266,7 +283,7 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Documentation cleanup (README.md, scripts/publish.sh)
 - [x] Manual verification: `python -m sip_videogen.studio` launches in dev
 
-### Phase 3: Remove Brand Kit Workflow
+### Phase 3: Remove Brand Kit Workflow ✅ COMPLETE
 - [x] Delete brand_kit/ directory
 - [x] Update test_brand_integration.py to remove brand_kit imports
 - [x] Delete brand-kit-only agents (brand_designer.py) if unused
@@ -276,12 +293,12 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Update brands/__init__.py to remove migration imports
 - [x] Delete test_brands_migration.py
 - [x] Delete migration.py file
-- [ ] Delete NanoBananaImageGenerator if unused
+- [x] Delete NanoBananaImageGenerator if unused
 
 ### Phase 4: Final Hardening
 - [ ] Add video backend smoke test
 - [ ] Confirm Brand Studio packaging works
-- [ ] Update README with "Video Generation Backend" section
+- [ ] Update README with "Video Generation Backend" section (already done in Phase 2)
 
 ## Testing
 

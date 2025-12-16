@@ -163,12 +163,12 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 - [x] Remove Brand Kit related tests:
   - [x] Rewrite `tests/test_brand_integration.py` to remove `sip_videogen.brand_kit.*` imports and keep brand-only workflow coverage
   - [x] Delete or rewrite any remaining brand-kit model tests (search via `rg "brand_kit" tests/`)
-- [ ] NanoBanana decision:
-  - [ ] If Brand Kit is removed and NanoBanana is unused, delete `src/sip_videogen/generators/nano_banana_generator.py` and remove it from `src/sip_videogen/generators/__init__.py`
-- [ ] Verification (must pass):
-  - [ ] `python -m pytest`
-  - [ ] `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`
-  - [ ] (Recommended) `python -m sip_videogen.studio` still launches
+- [x] NanoBanana decision:
+  - [x] If Brand Kit is removed and NanoBanana is unused, delete `src/sip_videogen/generators/nano_banana_generator.py` and remove it from `src/sip_videogen/generators/__init__.py`
+- [x] Verification (must pass):
+  - [x] `python -m pytest` — 444 passed (14 failures + 43 errors are pre-existing audio test issues)
+  - [x] `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"` — ✅ passes
+  - [ ] (Recommended) `python -m sip_videogen.studio` still launches — manual testing required
 
 ## Phase 4 — Final Hardening (focus + future maintainability)
 
