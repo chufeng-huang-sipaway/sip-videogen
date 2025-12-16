@@ -57,13 +57,42 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "from sip_videogen.video import VideoPipeline"` passes
 - Brand Studio import smoke test passes
 
+### Phase 1: Extract Video Backend API (Task 2)
+
+**Commit:** `ff5a00b` - test: Add unit tests for video pipeline API (Phase 1, Task 2)
+
+**Changes:**
+- Created `tests/test_video_pipeline.py` with 18 comprehensive unit tests
+
+**Test Coverage:**
+- `TestPipelineConfig` - validates default and custom configuration values
+- `TestPipelineResult` - validates result dataclass fields
+- `TestVideoPipeline` - core pipeline functionality:
+  - Initialization and progress callback registration
+  - Project ID generation format
+  - Dry run mode (script only, no video)
+  - Using existing script vs developing new
+  - Custom project ID support
+  - PipelineError on script development failure
+- `TestVideoPipelineFullRun` - happy path test with mocked stages
+- `TestVideoGeneratorFactoryIntegration` - provider selection:
+  - VEO provider via explicit config
+  - Kling provider via explicit config
+  - Sora provider via UserPreferences fallback
+- `TestGenerateVideoConvenience` - convenience function wrapper
+- `TestPipelineError` - exception behavior
+
+**Verification:**
+- `python -m pytest`: 523 passed (18 new tests added)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
 - [x] Create `src/sip_videogen/video/__init__.py` and `pipeline.py`
 - [x] Move orchestration logic from cli.py to new API
-- [ ] Add unit tests for new API (mock external calls)
-- [ ] Run verification (pytest + smoke tests)
+- [x] Add unit tests for new API (mock external calls)
+- [x] Run verification (pytest + smoke tests)
 
 ### Phase 2: Remove CLI Product Surface
 - [ ] Remove `[project.scripts]` entries from pyproject.toml
