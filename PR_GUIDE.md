@@ -355,12 +355,47 @@ Restructured sidebar with accordion-based organization by memory scope:
 - Projects sorted with active status first, then alphabetically
 - Error handling with auto-dismissing alerts (5 second timeout)
 
+### Phase 8: Chat Integration ✅
+**Files**: `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx`, `src/sip_videogen/studio/frontend/src/components/ChatPanel/AttachedProducts.tsx`, `src/sip_videogen/studio/frontend/src/components/ChatPanel/ProjectBanner.tsx`
+
+Integrated products and projects into the chat panel:
+
+**New Components:**
+- `AttachedProducts.tsx`: Displays attached products above the chat input area
+  - Shows product thumbnails via `bridge.getProductImageThumbnail()`
+  - Purple-themed styling to distinguish from file attachments
+  - Each product has a remove (X) button to detach
+  - Handles graceful fallback for products not found in list
+- `ProjectBanner.tsx`: Shows active project at top of chat area
+  - Green-themed styling to indicate active project context
+  - Expandable to show project instructions
+  - Loads full project details on first expansion
+  - X button to clear active project
+
+**ChatPanel Updates:**
+- Imports and uses `useProducts` and `useProjects` contexts
+- Handles product drag-drop using `application/x-brand-product` data transfer type
+- Displays `ProjectBanner` below header when project is active
+- Displays `AttachedProducts` above message input when products are attached
+- Passes context to `sendMessage()`:
+  - `project_slug`: Current active project
+  - `attached_products`: List of attached product slugs
+- New Chat button clears attached products (but keeps active project)
+- Resets projectFull state when activeProject changes
+
+**Drag-Drop Enhancement:**
+- `handleNativeDragOver`: Now detects both `application/x-brand-asset` and `application/x-brand-product`
+- `handleNativeDrop`: Checks for product drag first, calls `attachProduct()`, then falls back to asset handling
+
+**Key Design Decisions:**
+- Product attachments display separately from file attachments (different styling, different location)
+- Project banner is always visible when project is active (not collapsible to always remind user of context)
+- Context passed with every chat message for per-turn injection
+- New Chat clears product attachments but preserves active project (project is more persistent setting)
+
 ## Remaining Tasks
 
-### Phase 8: Chat Integration
-- Attached products display
-- Project banner
-- Context passing in chat calls
+None - all phases complete!
 
 ## Testing Notes
 - All 94 storage tests pass: `python -m pytest tests/test_brands_storage.py -v`
@@ -380,3 +415,4 @@ Restructured sidebar with accordion-based organization by memory scope:
 - `94c8ea6`: feat(bridge): Add product and project API methods
 - `715faff`: feat(frontend): Add Product and Project types and contexts
 - `fcbe656`: feat(sidebar): Restructure sidebar with accordion layout for memory scopes
+- `881676a`: feat(chat): Integrate products and projects into chat panel

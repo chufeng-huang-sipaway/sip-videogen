@@ -626,7 +626,7 @@ interface ChatContext {
 ---
 
 ### Phase 8: Chat Integration
-**Status:** Not Started
+**Status:** Complete
 
 **Files:**
 - `src/sip_videogen/studio/frontend/src/components/ChatPanel/AttachedProducts.tsx` - New
@@ -663,12 +663,12 @@ const handleNewChat = () => {
 ```
 
 **Success Criteria:**
-- [ ] Attached products display above input (thumbnail + name + remove button)
-- [ ] Project banner shows when project active (click to view instructions)
-- [ ] Drag-drop reuses existing pipeline pattern
-- [ ] `chat()` passes context parameters to bridge
-- [ ] New Chat clears attached products but keeps active project
-- [ ] Agent receives correct context (verified via chat)
+- [x] Attached products display above input (thumbnail + name + remove button)
+- [x] Project banner shows when project active (click to view instructions)
+- [x] Drag-drop reuses existing pipeline pattern
+- [x] `chat()` passes context parameters to bridge
+- [x] New Chat clears attached products but keeps active project
+- [x] Agent receives correct context (verified via chat)
 
 ---
 
