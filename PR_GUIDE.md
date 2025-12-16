@@ -66,13 +66,49 @@ Added CRUD functions following existing brand storage patterns:
   - Active project management
   - Project asset counting and listing
 
-## Remaining Tasks
-
-### Phase 3: Memory & Context Layer
+### Phase 3: Memory & Context Layer ✅
 **Files**: `src/sip_videogen/brands/memory.py`, `src/sip_videogen/brands/context.py`
-- Memory access functions
-- Context builders for agent prompts
-- HierarchicalContextBuilder for per-turn injection
+
+**Memory Access Functions (memory.py):**
+- `get_product_summary(brand_slug, product_slug)`: Get L0 product summary
+- `get_product_detail(brand_slug, product_slug)`: Get L1 product JSON for agents
+- `get_product_full(brand_slug, product_slug)`: Get full ProductFull object
+- `get_product_images_for_generation(brand_slug, product_slug)`: Get brand-relative image paths
+- `get_project_summary(brand_slug, project_slug)`: Get L0 project summary
+- `get_project_detail(brand_slug, project_slug)`: Get L1 project JSON for agents
+- `get_project_full(brand_slug, project_slug)`: Get full ProjectFull object
+- `get_project_instructions(brand_slug, project_slug)`: Get instructions markdown
+
+**Context Builders (context.py):**
+- `ProductContextBuilder`: Builds formatted product context including:
+  - Product name, slug, description
+  - Attributes list
+  - Reference images with primary marker
+- `ProjectContextBuilder`: Builds formatted project context including:
+  - Project name, slug, status
+  - Instructions markdown
+- `HierarchicalContextBuilder`: Combines project + products for per-turn injection
+  - Project context comes first (more global)
+  - Attached products section follows
+  - Graceful degradation: silently skips missing products/projects
+- Convenience functions: `build_product_context()`, `build_project_context()`, `build_turn_context()`
+
+**Key Design Decisions:**
+- All image paths remain brand-relative throughout
+- `HierarchicalContextBuilder` builds per-turn context (NOT system prompt)
+- Missing products/projects are silently skipped for graceful degradation
+- Project context appears before product context in combined output
+
+**Tests Added:**
+- 41 new tests in `tests/test_brands_memory.py` covering:
+  - Product memory functions (summary, detail, images, full)
+  - Project memory functions (summary, instructions, detail, full)
+  - ProductContextBuilder (raises for nonexistent, builds correct output)
+  - ProjectContextBuilder (raises for nonexistent, includes instructions)
+  - HierarchicalContextBuilder (empty without context, includes both, ordering, graceful skip)
+  - Convenience functions (build_product_context, build_project_context, build_turn_context)
+
+## Remaining Tasks
 
 ### Phase 3.5: Per-Turn Context Injection
 **File**: `src/sip_videogen/advisor/agent.py`
@@ -109,9 +145,11 @@ Added CRUD functions following existing brand storage patterns:
 - Context passing in chat calls
 
 ## Testing Notes
-- All 94 storage tests pass
-- Run `python -m pytest tests/test_brands_storage.py -v` to verify
+- All 94 storage tests pass: `python -m pytest tests/test_brands_storage.py -v`
+- All 81 memory/context tests pass: `python -m pytest tests/test_brands_memory.py -v`
+- Total: 175 tests for brands module
 
 ## Commits
 - `61e558a`: feat(models): Add Product and Project models for hierarchical memory system
 - `9fe3b1f`: feat(storage): Add Product and Project storage layer functions
+- `bd581b0`: feat(memory): Add Product and Project memory and context layer functions

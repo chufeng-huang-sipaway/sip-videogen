@@ -181,7 +181,7 @@ Add CRUD functions following existing brand patterns:
 
 ### Phase 3: Memory & Context Layer
 **Files:** `src/sip_videogen/brands/memory.py`, `src/sip_videogen/brands/context.py`
-**Status:** Not Started
+**Status:** Complete
 
 **Memory Access (memory.py):**
 - `get_product_summary(brand_slug, product_slug)`
@@ -221,10 +221,10 @@ class HierarchicalContextBuilder:
 ```
 
 **Success Criteria:**
-- [ ] Memory access functions return correct data
-- [ ] Context builders format output correctly
-- [ ] HierarchicalContextBuilder builds per-turn context (not system prompt)
-- [ ] All image paths in context are brand-relative
+- [x] Memory access functions return correct data
+- [x] Context builders format output correctly
+- [x] HierarchicalContextBuilder builds per-turn context (not system prompt)
+- [x] All image paths in context are brand-relative
 
 ---
 
