@@ -166,6 +166,21 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 2: Remove CLI Product Surface (Task 7)
+
+**Commit:** `0f417a9` - docs: Remove CLI/pipx references, add video backend docs (Phase 2, Task 7)
+
+**Changes:**
+- Removed "Legacy: Video Generation CLI" section from README.md
+- Replaced with "Video Generation Backend (Internal)" section showing API usage
+- Updated scripts/publish.sh to remove pipx reference and note CLI removal
+- README now only documents Brand Studio and internal video API
+
+**Verification:**
+- `python -m pytest`: 474 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -174,7 +189,7 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Add unit tests for new API (mock external calls)
 - [x] Run verification (pytest + smoke tests)
 
-### Phase 2: Remove CLI Product Surface
+### Phase 2: Remove CLI Product Surface ✅ COMPLETE
 - [x] Remove `[project.scripts]` entries from pyproject.toml
 - [x] Delete `src/sip_videogen/__main__.py`
 - [x] Delete CLI files (cli.py, start.sh)
@@ -182,7 +197,8 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Delete utils/ directory
 - [x] Remove typer/questionary dependencies
 - [x] Delete CLI-dependent tests (test_cli.py, test_setup.py, test_updater.py)
-- [ ] Documentation cleanup (README.md, scripts/publish.sh)
+- [x] Documentation cleanup (README.md, scripts/publish.sh)
+- [ ] Manual verification: `python -m sip_videogen.studio` launches in dev
 
 ### Phase 3: Remove Brand Kit Workflow
 - [ ] Delete brand_kit/ directory

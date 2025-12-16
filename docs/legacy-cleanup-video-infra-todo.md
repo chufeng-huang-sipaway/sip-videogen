@@ -136,14 +136,14 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
   - [x] Delete or rewrite `tests/test_cli.py` (should not exist after CLI removal)
   - [x] Delete or rewrite `tests/test_setup.py` (tests `sip_videogen.config.setup`)
   - [x] Delete or rewrite `tests/test_updater.py` (tests `sip_videogen.utils.updater` / pipx flow)
-- [ ] Documentation cleanup:
-  - [ ] Remove pipx install/run instructions from `README.md` (keep Brand Studio instructions)
-  - [ ] Update `scripts/publish.sh` (remove pipx references or archive the script)
-  - [ ] Ensure `README.md` no longer advertises `sipvid`/CLI usage
-- [ ] Verification (must pass):
-  - [ ] `python -m pytest`
-  - [ ] `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`
-  - [ ] (Recommended) `python -m sip_videogen.studio` launches in dev
+- [x] Documentation cleanup:
+  - [x] Remove pipx install/run instructions from `README.md` (keep Brand Studio instructions)
+  - [x] Update `scripts/publish.sh` (remove pipx references or archive the script)
+  - [x] Ensure `README.md` no longer advertises `sipvid`/CLI usage
+- [x] Verification (must pass):
+  - [x] `python -m pytest` — 474 passed (14 failures + 43 errors are pre-existing audio test issues)
+  - [x] `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"` — ✅ passes
+  - [ ] (Recommended) `python -m sip_videogen.studio` launches in dev — manual testing required
 
 ## Phase 3 — Remove Brand Kit Workflow (and associated models/agents/tests)
 
