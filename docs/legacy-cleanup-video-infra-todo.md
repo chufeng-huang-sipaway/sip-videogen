@@ -121,7 +121,7 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
   - [x] Remove `[project.scripts]` entries from `pyproject.toml`:
     - [x] `sip-videogen = "sip_videogen.cli:app"`
     - [x] `sipvid = "sip_videogen.cli:app"`
-  - [ ] Remove `src/sip_videogen/__main__.py` (or repurpose to a helpful message; simplest is delete).
+  - [x] Remove `src/sip_videogen/__main__.py` (or repurpose to a helpful message; simplest is delete).
 - [ ] Delete legacy CLI files:
   - [ ] Delete `src/sip_videogen/cli.py`
   - [ ] Delete `start.sh`

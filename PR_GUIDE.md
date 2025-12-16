@@ -99,6 +99,19 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 2: Remove CLI Product Surface (Task 2)
+
+**Commit:** `78944fb` - chore: Delete __main__.py CLI entrypoint (Phase 2, Task 2)
+
+**Changes:**
+- Deleted `src/sip_videogen/__main__.py`
+  - This file only contained CLI entrypoint code (`from sip_videogen.cli import app`)
+  - Removed the ability to run CLI via `python -m sip_videogen`
+
+**Verification:**
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -109,7 +122,7 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 
 ### Phase 2: Remove CLI Product Surface
 - [x] Remove `[project.scripts]` entries from pyproject.toml
-- [ ] Delete `src/sip_videogen/__main__.py`
+- [x] Delete `src/sip_videogen/__main__.py`
 - [ ] Delete CLI files (cli.py, start.sh)
 - [ ] Delete config/setup.py
 - [ ] Delete utils/ directory
