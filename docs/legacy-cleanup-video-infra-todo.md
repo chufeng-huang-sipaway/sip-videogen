@@ -103,12 +103,12 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 - [x] Ensure the new API is non-interactive:
   - [x] No Typer, no questionary, no "press y to continue"
   - [x] Any confirmation/cost logic should live outside the library layer
-- [ ] Add unit tests for the new API (mock external calls):
-  - [ ] “happy path” test that calls pipeline with mocks and verifies calls/outputs
-  - [ ] provider selection test uses `VideoGeneratorFactory` correctly
-- [ ] Run verification:
-  - [ ] `python -m pytest`
-  - [ ] `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`
+- [x] Add unit tests for the new API (mock external calls):
+  - [x] "happy path" test that calls pipeline with mocks and verifies calls/outputs
+  - [x] provider selection test uses `VideoGeneratorFactory` correctly
+- [x] Run verification:
+  - [x] `python -m pytest` — 523 passed (18 new tests added)
+  - [x] `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"` — ✅ passes
 
 **Optional (future-proofing)** — avoid config.json overwrite risk:
 - [ ] Update `UserPreferences.save()` to **merge** into existing `~/.sip-videogen/config.json` instead of overwriting (preserve `api_keys` and update settings). Only do this if you can do it safely and with tests.
