@@ -91,18 +91,18 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 
 **Objective**: Make video generation callable via a small library surface that does not depend on CLI/UI code.
 
-- [ ] Create a new package for video orchestration (example):
-  - [ ] `src/sip_videogen/video/__init__.py`
-  - [ ] `src/sip_videogen/video/pipeline.py`
-- [ ] Move orchestration logic out of `cli.py` into the new API (minimal refactor):
-  - [ ] Script development (Showrunner agents) → return `VideoScript`
-  - [ ] Reference image generation → return list of `GeneratedAsset` reference images
-  - [ ] Provider selection → keep using `VideoProvider` + `VideoGeneratorFactory`
-  - [ ] Clip generation → `generate_all_video_clips(...)`
-  - [ ] Assembly → `FFmpegAssembler` (optional, but keep available)
-- [ ] Ensure the new API is non-interactive:
-  - [ ] No Typer, no questionary, no “press y to continue”
-  - [ ] Any confirmation/cost logic should live outside the library layer
+- [x] Create a new package for video orchestration (example):
+  - [x] `src/sip_videogen/video/__init__.py`
+  - [x] `src/sip_videogen/video/pipeline.py`
+- [x] Move orchestration logic out of `cli.py` into the new API (minimal refactor):
+  - [x] Script development (Showrunner agents) → return `VideoScript`
+  - [x] Reference image generation → return list of `GeneratedAsset` reference images
+  - [x] Provider selection → keep using `VideoProvider` + `VideoGeneratorFactory`
+  - [x] Clip generation → `generate_all_video_clips(...)`
+  - [x] Assembly → `FFmpegAssembler` (optional, but keep available)
+- [x] Ensure the new API is non-interactive:
+  - [x] No Typer, no questionary, no "press y to continue"
+  - [x] Any confirmation/cost logic should live outside the library layer
 - [ ] Add unit tests for the new API (mock external calls):
   - [ ] “happy path” test that calls pipeline with mocks and verifies calls/outputs
   - [ ] provider selection test uses `VideoGeneratorFactory` correctly

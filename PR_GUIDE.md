@@ -32,12 +32,38 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - Brand Studio import smoke test passes
 - pytest baseline established (505 passing tests)
 
+### Phase 1: Extract Video Backend API (Task 1)
+
+**Commit:** `7711995` - feat: Add video backend API module (Phase 1, Task 1)
+
+**Changes:**
+- Created `src/sip_videogen/video/__init__.py` - module exports
+- Created `src/sip_videogen/video/pipeline.py` - non-interactive pipeline API
+
+**New API:**
+- `VideoPipeline` class for full control over generation
+- `PipelineConfig` dataclass for configuration
+- `PipelineResult` dataclass for structured output
+- `generate_video()` convenience function
+
+**Pipeline Stages:**
+1. Script development via Showrunner agent team
+2. Reference image generation with quality review
+3. Video clip generation via provider (VEO, Kling, Sora)
+4. Optional background music generation
+5. Final assembly via FFmpeg
+
+**Verification:**
+- `python -c "from sip_videogen.video import VideoPipeline"` passes
+- Brand Studio import smoke test passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
-- [ ] Create `src/sip_videogen/video/__init__.py` and `pipeline.py`
-- [ ] Move orchestration logic from cli.py to new API
-- [ ] Add unit tests for new API
+- [x] Create `src/sip_videogen/video/__init__.py` and `pipeline.py`
+- [x] Move orchestration logic from cli.py to new API
+- [ ] Add unit tests for new API (mock external calls)
+- [ ] Run verification (pytest + smoke tests)
 
 ### Phase 2: Remove CLI Product Surface
 - [ ] Remove `[project.scripts]` entries from pyproject.toml
