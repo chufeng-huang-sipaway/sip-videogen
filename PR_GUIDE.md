@@ -208,11 +208,32 @@ Implemented project asset tagging via filename prefix for tracking generated ima
   - `test_generate_output_filename_without_project`: Correct format without project
   - `test_generate_output_filename_unique`: Unique hash per call
 
-## Remaining Tasks
-
-### Phase 4: Agent Tools
+### Phase 4: Agent Tools ✅
 **File**: `src/sip_videogen/advisor/tools.py`
-- Add list_products, list_projects, get_product_detail, get_project_detail tools
+
+Added four new agent tools for explicit product/project exploration:
+
+**New Tools:**
+- `list_products()`: List all products with names, slugs, attribute counts, and primary images
+- `list_projects()`: List all projects with status, asset counts, and active project marker
+- `get_product_detail(product_slug)`: Get detailed product info as formatted markdown
+- `get_project_detail(project_slug)`: Get detailed project info including instructions and assets
+
+**Implementation Details:**
+- Implementation functions (`_impl_*`) for testing, wrapped with `@function_tool`
+- Tools return formatted markdown for agent consumption
+- Active project shown with "★ ACTIVE" marker in list_projects
+- Descriptions truncated to 100 chars in list view
+- Assets truncated to first 10 in get_project_detail
+
+**Tests Added:**
+- 17 new tests in `tests/test_advisor_tools.py`:
+  - TestListProducts: 4 tests (no brand, empty, with products, truncation)
+  - TestListProjects: 4 tests (no brand, empty, with projects, active marker)
+  - TestGetProductDetail: 3 tests (no brand, not found, formatted output)
+  - TestGetProjectDetail: 6 tests (no brand, not found, formatted output, no instructions, inactive, truncation)
+
+## Remaining Tasks
 
 ### Phase 5: Bridge API
 **File**: `src/sip_videogen/studio/bridge.py`
@@ -236,8 +257,8 @@ Implemented project asset tagging via filename prefix for tracking generated ima
 - All 94 storage tests pass: `python -m pytest tests/test_brands_storage.py -v`
 - All 81 memory/context tests pass: `python -m pytest tests/test_brands_memory.py -v`
 - All 31 advisor tests pass: `python -m pytest tests/test_brand_advisor.py -v`
-- All 46 advisor tools tests pass: `python -m pytest tests/test_advisor_tools.py -v`
-- Total: 252 tests for brands + advisor modules
+- All 63 advisor tools tests pass: `python -m pytest tests/test_advisor_tools.py -v`
+- Total: 269 tests for brands + advisor modules
 
 ## Commits
 - `61e558a`: feat(models): Add Product and Project models for hierarchical memory system
@@ -246,3 +267,4 @@ Implemented project asset tagging via filename prefix for tracking generated ima
 - `c5410ab`: feat(advisor): Add per-turn context injection for products and projects
 - `3ac807d`: feat(tools): Add product_slug parameter to generate_image for automatic product reference
 - `2cc0285`: feat(tools): Add project asset tagging via filename prefix
+- `ddf88b6`: feat(tools): Add product and project exploration tools for agent
