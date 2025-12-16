@@ -175,11 +175,40 @@ Wired product images to `generate_image()` tool for automatic reference-based ge
   - `test_generate_image_with_product_slug_no_active_brand`: Error handling
   - `test_generate_image_with_product_slug_reference_image_takes_precedence`: Priority check
 
-## Remaining Tasks
-
-### Phase 3.7: Project Asset Tagging
+### Phase 3.7: Project Asset Tagging ✅
 **File**: `src/sip_videogen/advisor/tools.py`
-- Tag generated images with project prefix
+
+Implemented project asset tagging via filename prefix for tracking generated images per project:
+
+**New Helper Function:**
+- `_generate_output_filename(project_slug)`: Generates filename with optional project prefix
+  - With project: `{project_slug}__{timestamp}_{hash}.png` (e.g., `christmas-campaign__20241215_143022_a1b2c3d4.png`)
+  - Without project: `{timestamp}_{hash}.png` (e.g., `20241215_143022_a1b2c3d4.png`)
+
+**Changes to `_impl_generate_image()`:**
+- Import `get_active_project` from storage module
+- When no explicit filename is provided, check for active project
+- Tag generated images with project prefix when project is active
+- Explicit `filename` parameter bypasses project tagging
+
+**Key Implementation Details:**
+- Generated images remain in `assets/generated/` (no path change)
+- Project membership tracked via filename prefix (`{project_slug}__`)
+- Integrates with existing `list_project_assets()` and `count_project_assets()` in storage.py
+- Preserves compatibility with bridge.chat() diff logic, thumbnail APIs, and propose_images
+
+**Tests Added:**
+- 4 new tests in `tests/test_advisor_tools.py` for project tagging:
+  - `test_generate_image_with_active_project_tags_filename`: Project prefix added
+  - `test_generate_image_without_active_project_no_prefix`: No prefix when no project
+  - `test_generate_image_explicit_filename_ignores_project`: Explicit filename bypasses tagging
+  - `test_generate_image_no_brand_no_project_check`: No project check without brand
+- 3 new tests for `_generate_output_filename` helper:
+  - `test_generate_output_filename_with_project`: Correct format with project
+  - `test_generate_output_filename_without_project`: Correct format without project
+  - `test_generate_output_filename_unique`: Unique hash per call
+
+## Remaining Tasks
 
 ### Phase 4: Agent Tools
 **File**: `src/sip_videogen/advisor/tools.py`
@@ -207,8 +236,8 @@ Wired product images to `generate_image()` tool for automatic reference-based ge
 - All 94 storage tests pass: `python -m pytest tests/test_brands_storage.py -v`
 - All 81 memory/context tests pass: `python -m pytest tests/test_brands_memory.py -v`
 - All 31 advisor tests pass: `python -m pytest tests/test_brand_advisor.py -v`
-- All 39 advisor tools tests pass: `python -m pytest tests/test_advisor_tools.py -v`
-- Total: 211 tests for brands + advisor modules
+- All 46 advisor tools tests pass: `python -m pytest tests/test_advisor_tools.py -v`
+- Total: 252 tests for brands + advisor modules
 
 ## Commits
 - `61e558a`: feat(models): Add Product and Project models for hierarchical memory system
@@ -216,3 +245,4 @@ Wired product images to `generate_image()` tool for automatic reference-based ge
 - `bd581b0`: feat(memory): Add Product and Project memory and context layer functions
 - `c5410ab`: feat(advisor): Add per-turn context injection for products and projects
 - `3ac807d`: feat(tools): Add product_slug parameter to generate_image for automatic product reference
+- `2cc0285`: feat(tools): Add project asset tagging via filename prefix
