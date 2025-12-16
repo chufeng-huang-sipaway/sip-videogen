@@ -125,8 +125,8 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 - [x] Delete legacy CLI files:
   - [x] Delete `src/sip_videogen/cli.py`
   - [x] Delete `start.sh`
-- [ ] Delete CLI-only config wizard:
-  - [ ] Delete `src/sip_videogen/config/setup.py`
+- [x] Delete CLI-only config wizard:
+  - [x] Delete `src/sip_videogen/config/setup.py`
 - [ ] Delete pipx updater / CLI-only updater package:
   - [ ] Delete `src/sip_videogen/utils/` (including `src/sip_videogen/utils/__init__.py` + `src/sip_videogen/utils/updater.py`)
 - [ ] Remove CLI-only dependencies from `pyproject.toml` after confirming no other usage:
