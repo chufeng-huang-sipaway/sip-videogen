@@ -51,10 +51,6 @@ dev = [
     "twine>=5.0.0",
 ]
 
-[project.scripts]
-sip-videogen = "sip_videogen.cli:app"
-sipvid = "sip_videogen.cli:app"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
