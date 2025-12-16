@@ -2,11 +2,19 @@
 
 Generates consistent brand context sections to inject into agent prompts,
 including the L0 summary and pointers to deeper layers.
+
+Also provides context builders for Products and Projects, and a
+HierarchicalContextBuilder for per-turn context injection.
 """
 
 from __future__ import annotations
 
-from .storage import load_brand_summary
+from .storage import (
+    list_products,
+    load_brand_summary,
+    load_product,
+    load_project,
+)
 
 # Description of each detail type for agent prompts
 DETAIL_DESCRIPTIONS = {
@@ -112,3 +120,256 @@ def build_brand_context(slug: str) -> str:
         return builder.build_context_section()
     except ValueError as e:
         return f"Error: {e}"
+
+
+# =============================================================================
+# Product Context Builder
+# =============================================================================
+
+
+class ProductContextBuilder:
+    """Builds product context for agent prompts."""
+
+    def __init__(self, brand_slug: str, product_slug: str):
+        """Initialize with brand and product slugs.
+
+        Args:
+            brand_slug: Brand identifier.
+            product_slug: Product identifier.
+
+        Raises:
+            ValueError: If product not found.
+        """
+        self.brand_slug = brand_slug
+        self.product_slug = product_slug
+        self.product = load_product(brand_slug, product_slug)
+
+        if self.product is None:
+            raise ValueError(
+                f"Product '{product_slug}' not found in brand '{brand_slug}'"
+            )
+
+    def build_context_section(self) -> str:
+        """Build product context section for prompts.
+
+        Returns:
+            Formatted string including product info and brand-relative image paths.
+        """
+        p = self.product
+
+        # Format attributes
+        attributes_str = ""
+        if p.attributes:
+            attr_lines = []
+            for attr in p.attributes:
+                attr_lines.append(f"  - {attr.key}: {attr.value}")
+            attributes_str = "\n".join(attr_lines)
+        else:
+            attributes_str = "  (No attributes defined)"
+
+        # Format images
+        images_str = ""
+        if p.images:
+            image_lines = []
+            for img in p.images:
+                is_primary = " (primary)" if img == p.primary_image else ""
+                image_lines.append(f"  - {img}{is_primary}")
+            images_str = "\n".join(image_lines)
+        else:
+            images_str = "  (No images)"
+
+        context = f"""### Product: {p.name}
+**Slug**: {p.slug}
+**Description**: {p.description}
+
+**Attributes**:
+{attributes_str}
+
+**Reference Images**:
+{images_str}
+"""
+        return context.strip()
+
+
+def build_product_context(brand_slug: str, product_slug: str) -> str:
+    """Convenience function to build product context.
+
+    Args:
+        brand_slug: Brand identifier.
+        product_slug: Product identifier.
+
+    Returns:
+        Formatted product context string, or error message if not found.
+    """
+    try:
+        builder = ProductContextBuilder(brand_slug, product_slug)
+        return builder.build_context_section()
+    except ValueError as e:
+        return f"Error: {e}"
+
+
+# =============================================================================
+# Project Context Builder
+# =============================================================================
+
+
+class ProjectContextBuilder:
+    """Builds project context for agent prompts."""
+
+    def __init__(self, brand_slug: str, project_slug: str):
+        """Initialize with brand and project slugs.
+
+        Args:
+            brand_slug: Brand identifier.
+            project_slug: Project identifier.
+
+        Raises:
+            ValueError: If project not found.
+        """
+        self.brand_slug = brand_slug
+        self.project_slug = project_slug
+        self.project = load_project(brand_slug, project_slug)
+
+        if self.project is None:
+            raise ValueError(
+                f"Project '{project_slug}' not found in brand '{brand_slug}'"
+            )
+
+    def build_context_section(self) -> str:
+        """Build project context section for prompts.
+
+        Returns:
+            Formatted string with project instructions markdown.
+        """
+        p = self.project
+
+        instructions = p.instructions.strip() if p.instructions else "(No instructions defined)"
+
+        context = f"""### Active Project: {p.name}
+**Slug**: {p.slug}
+**Status**: {p.status.value}
+
+**Project Instructions**:
+{instructions}
+"""
+        return context.strip()
+
+
+def build_project_context(brand_slug: str, project_slug: str) -> str:
+    """Convenience function to build project context.
+
+    Args:
+        brand_slug: Brand identifier.
+        project_slug: Project identifier.
+
+    Returns:
+        Formatted project context string, or error message if not found.
+    """
+    try:
+        builder = ProjectContextBuilder(brand_slug, project_slug)
+        return builder.build_context_section()
+    except ValueError as e:
+        return f"Error: {e}"
+
+
+# =============================================================================
+# Hierarchical Context Builder (Per-Turn Injection)
+# =============================================================================
+
+
+class HierarchicalContextBuilder:
+    """Combines brand, product, and project context for per-turn injection.
+
+    This builder creates dynamic context to prepend to user messages each turn.
+    Unlike brand context (which is in the system prompt at init), project and
+    product context can change mid-conversation.
+
+    NOTE: Brand context is NOT included here - it's already in the system prompt.
+    This builder only handles project and attached products.
+    """
+
+    def __init__(
+        self,
+        brand_slug: str,
+        product_slugs: list[str] | None = None,
+        project_slug: str | None = None,
+    ):
+        """Initialize with brand slug and optional products/project.
+
+        Args:
+            brand_slug: Brand identifier.
+            product_slugs: List of product slugs to include (attached products).
+            project_slug: Active project slug (if any).
+        """
+        self.brand_slug = brand_slug
+        self.product_slugs = product_slugs or []
+        self.project_slug = project_slug
+
+    def build_turn_context(self) -> str:
+        """Build context to prepend to user message each turn.
+
+        Returns formatted string with:
+        - Project instructions (if project active)
+        - Attached product descriptions + image paths (if products attached)
+
+        NOTE: Brand context is in system prompt (existing).
+        This is ADDITIONAL context injected per-turn.
+
+        Returns:
+            Formatted context string, or empty string if no context.
+        """
+        sections = []
+
+        # Project context first (more global)
+        if self.project_slug:
+            try:
+                project_builder = ProjectContextBuilder(
+                    self.brand_slug, self.project_slug
+                )
+                sections.append(project_builder.build_context_section())
+            except ValueError:
+                # Project not found - skip silently
+                pass
+
+        # Attached products
+        if self.product_slugs:
+            product_sections = []
+            for slug in self.product_slugs:
+                try:
+                    product_builder = ProductContextBuilder(self.brand_slug, slug)
+                    product_sections.append(product_builder.build_context_section())
+                except ValueError:
+                    # Product not found - skip silently
+                    pass
+
+            if product_sections:
+                products_header = "### Attached Products"
+                sections.append(products_header + "\n\n" + "\n\n".join(product_sections))
+
+        if not sections:
+            return ""
+
+        return "\n\n---\n\n".join(sections)
+
+
+def build_turn_context(
+    brand_slug: str,
+    product_slugs: list[str] | None = None,
+    project_slug: str | None = None,
+) -> str:
+    """Convenience function to build per-turn context.
+
+    Args:
+        brand_slug: Brand identifier.
+        product_slugs: List of attached product slugs.
+        project_slug: Active project slug.
+
+    Returns:
+        Formatted context string for per-turn injection.
+    """
+    builder = HierarchicalContextBuilder(
+        brand_slug=brand_slug,
+        product_slugs=product_slugs,
+        project_slug=project_slug,
+    )
+    return builder.build_turn_context()

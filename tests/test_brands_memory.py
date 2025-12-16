@@ -9,11 +9,25 @@ import pytest
 from sip_videogen.brands.context import (
     DETAIL_DESCRIPTIONS,
     BrandContextBuilder,
+    HierarchicalContextBuilder,
+    ProductContextBuilder,
+    ProjectContextBuilder,
     build_brand_context,
+    build_product_context,
+    build_project_context,
+    build_turn_context,
 )
 from sip_videogen.brands.memory import (
     get_brand_detail,
     get_brand_summary,
+    get_product_detail,
+    get_product_full,
+    get_product_images_for_generation,
+    get_product_summary,
+    get_project_detail,
+    get_project_full,
+    get_project_instructions,
+    get_project_summary,
     list_brand_assets,
 )
 from sip_videogen.brands.models import (
@@ -22,10 +36,19 @@ from sip_videogen.brands.models import (
     BrandIdentityFull,
     ColorDefinition,
     CompetitivePositioning,
+    ProductAttribute,
+    ProductFull,
+    ProjectFull,
+    ProjectStatus,
     VisualIdentity,
     VoiceGuidelines,
 )
-from sip_videogen.brands.storage import create_brand
+from sip_videogen.brands.storage import (
+    add_product_image,
+    create_brand,
+    create_product,
+    create_project,
+)
 from sip_videogen.brands.tools import (
     _impl_browse_brand_assets as browse_brand_assets,
     _impl_fetch_brand_detail as fetch_brand_detail,
@@ -547,3 +570,591 @@ class TestDetailDescriptions:
         for detail_type, desc in DETAIL_DESCRIPTIONS.items():
             assert isinstance(desc, str)
             assert len(desc) >= 10  # Meaningful descriptions should be at least 10 chars
+
+
+# ============================================================================
+# Product Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def sample_product() -> ProductFull:
+    """Create a sample product for testing."""
+    return ProductFull(
+        slug="night-cream",
+        name="Restorative Night Cream",
+        description="A luxurious night cream that rejuvenates skin while you sleep.",
+        images=[
+            "products/night-cream/images/main.png",
+            "products/night-cream/images/texture.png",
+        ],
+        primary_image="products/night-cream/images/main.png",
+        attributes=[
+            ProductAttribute(key="volume", value="50ml", category="measurements"),
+            ProductAttribute(key="texture", value="Rich cream", category="texture"),
+            ProductAttribute(key="key_ingredient", value="Retinol", category="ingredients"),
+        ],
+    )
+
+
+@pytest.fixture
+def brand_with_product(
+    temp_brands_dir: Path,
+    sample_brand_identity: BrandIdentityFull,
+    sample_product: ProductFull,
+):
+    """Create a brand with a product for testing."""
+    create_brand(sample_brand_identity)
+    create_product("test-brand", sample_product)
+
+    # Create actual image files
+    brand_dir = temp_brands_dir / "test-brand"
+    images_dir = brand_dir / "products" / "night-cream" / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    (images_dir / "main.png").write_bytes(b"fake png")
+    (images_dir / "texture.png").write_bytes(b"fake png")
+
+    return sample_brand_identity
+
+
+# ============================================================================
+# Project Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def sample_project() -> ProjectFull:
+    """Create a sample project for testing."""
+    return ProjectFull(
+        slug="christmas-campaign",
+        name="Christmas 2024 Campaign",
+        status=ProjectStatus.ACTIVE,
+        instructions="""# Christmas Campaign Guidelines
+
+## Theme
+- Use festive winter imagery
+- Feature red and gold accent colors
+- Include snowflakes and gift motifs
+
+## Messaging
+- Emphasize gift-giving and celebration
+- Highlight limited-time holiday offers
+- Use warm, inviting language
+""",
+    )
+
+
+@pytest.fixture
+def brand_with_project(
+    temp_brands_dir: Path,
+    sample_brand_identity: BrandIdentityFull,
+    sample_project: ProjectFull,
+):
+    """Create a brand with a project for testing."""
+    create_brand(sample_brand_identity)
+    create_project("test-brand", sample_project)
+    return sample_brand_identity
+
+
+@pytest.fixture
+def brand_with_product_and_project(
+    temp_brands_dir: Path,
+    sample_brand_identity: BrandIdentityFull,
+    sample_product: ProductFull,
+    sample_project: ProjectFull,
+):
+    """Create a brand with both a product and a project for testing."""
+    create_brand(sample_brand_identity)
+    create_product("test-brand", sample_product)
+    create_project("test-brand", sample_project)
+
+    # Create actual image files
+    brand_dir = temp_brands_dir / "test-brand"
+    images_dir = brand_dir / "products" / "night-cream" / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    (images_dir / "main.png").write_bytes(b"fake png")
+    (images_dir / "texture.png").write_bytes(b"fake png")
+
+    return sample_brand_identity
+
+
+# ============================================================================
+# Tests for Product Memory Functions
+# ============================================================================
+
+
+class TestGetProductSummary:
+    """Tests for get_product_summary function."""
+
+    def test_returns_summary_for_existing_product(
+        self, brand_with_product: BrandIdentityFull, sample_product: ProductFull
+    ) -> None:
+        """Test that get_product_summary returns a summary for an existing product."""
+        summary = get_product_summary("test-brand", "night-cream")
+
+        assert summary is not None
+        assert summary.slug == "night-cream"
+        assert summary.name == "Restorative Night Cream"
+        assert "rejuvenates" in summary.description
+
+    def test_returns_none_for_nonexistent_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that get_product_summary returns None for nonexistent product."""
+        summary = get_product_summary("test-brand", "nonexistent")
+        assert summary is None
+
+    def test_returns_none_for_nonexistent_brand(
+        self, temp_brands_dir: Path
+    ) -> None:
+        """Test that get_product_summary returns None for nonexistent brand."""
+        summary = get_product_summary("nonexistent", "night-cream")
+        assert summary is None
+
+
+class TestGetProductDetail:
+    """Tests for get_product_detail function."""
+
+    def test_returns_json_for_existing_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that get_product_detail returns valid JSON."""
+        result = get_product_detail("test-brand", "night-cream")
+
+        data = json.loads(result)
+        assert data["slug"] == "night-cream"
+        assert data["name"] == "Restorative Night Cream"
+        assert len(data["attributes"]) == 3
+
+    def test_returns_error_for_nonexistent_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that get_product_detail returns error for nonexistent product."""
+        result = get_product_detail("test-brand", "nonexistent")
+
+        assert result.startswith("Error:")
+        assert "not found" in result
+
+
+class TestGetProductImagesForGeneration:
+    """Tests for get_product_images_for_generation function."""
+
+    def test_returns_brand_relative_paths(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that get_product_images_for_generation returns brand-relative paths."""
+        images = get_product_images_for_generation("test-brand", "night-cream")
+
+        assert len(images) == 2
+        assert all(img.startswith("products/night-cream/images/") for img in images)
+
+    def test_returns_empty_for_nonexistent_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that get_product_images_for_generation returns empty for nonexistent product."""
+        images = get_product_images_for_generation("test-brand", "nonexistent")
+        assert images == []
+
+
+class TestGetProductFull:
+    """Tests for get_product_full function."""
+
+    def test_returns_full_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that get_product_full returns complete product."""
+        product = get_product_full("test-brand", "night-cream")
+
+        assert product is not None
+        assert product.slug == "night-cream"
+        assert len(product.images) == 2
+        assert len(product.attributes) == 3
+
+    def test_returns_none_for_nonexistent_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that get_product_full returns None for nonexistent product."""
+        product = get_product_full("test-brand", "nonexistent")
+        assert product is None
+
+
+# ============================================================================
+# Tests for Project Memory Functions
+# ============================================================================
+
+
+class TestGetProjectSummary:
+    """Tests for get_project_summary function."""
+
+    def test_returns_summary_for_existing_project(
+        self, brand_with_project: BrandIdentityFull, sample_project: ProjectFull
+    ) -> None:
+        """Test that get_project_summary returns a summary for an existing project."""
+        summary = get_project_summary("test-brand", "christmas-campaign")
+
+        assert summary is not None
+        assert summary.slug == "christmas-campaign"
+        assert summary.name == "Christmas 2024 Campaign"
+        assert summary.status == ProjectStatus.ACTIVE
+
+    def test_returns_none_for_nonexistent_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that get_project_summary returns None for nonexistent project."""
+        summary = get_project_summary("test-brand", "nonexistent")
+        assert summary is None
+
+
+class TestGetProjectInstructions:
+    """Tests for get_project_instructions function."""
+
+    def test_returns_instructions_markdown(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that get_project_instructions returns markdown."""
+        instructions = get_project_instructions("test-brand", "christmas-campaign")
+
+        assert "# Christmas Campaign Guidelines" in instructions
+        assert "festive winter imagery" in instructions
+
+    def test_returns_error_for_nonexistent_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that get_project_instructions returns error for nonexistent project."""
+        result = get_project_instructions("test-brand", "nonexistent")
+
+        assert result.startswith("Error:")
+        assert "not found" in result
+
+
+class TestGetProjectDetail:
+    """Tests for get_project_detail function."""
+
+    def test_returns_json_for_existing_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that get_project_detail returns valid JSON."""
+        result = get_project_detail("test-brand", "christmas-campaign")
+
+        data = json.loads(result)
+        assert data["slug"] == "christmas-campaign"
+        assert data["name"] == "Christmas 2024 Campaign"
+        assert "Guidelines" in data["instructions"]
+
+    def test_returns_error_for_nonexistent_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that get_project_detail returns error for nonexistent project."""
+        result = get_project_detail("test-brand", "nonexistent")
+
+        assert result.startswith("Error:")
+        assert "not found" in result
+
+
+class TestGetProjectFull:
+    """Tests for get_project_full function."""
+
+    def test_returns_full_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that get_project_full returns complete project."""
+        project = get_project_full("test-brand", "christmas-campaign")
+
+        assert project is not None
+        assert project.slug == "christmas-campaign"
+        assert "Guidelines" in project.instructions
+
+    def test_returns_none_for_nonexistent_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that get_project_full returns None for nonexistent project."""
+        project = get_project_full("test-brand", "nonexistent")
+        assert project is None
+
+
+# ============================================================================
+# Tests for Product Context Builder
+# ============================================================================
+
+
+class TestProductContextBuilder:
+    """Tests for ProductContextBuilder class."""
+
+    def test_raises_for_nonexistent_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that ProductContextBuilder raises ValueError for nonexistent product."""
+        with pytest.raises(ValueError, match="not found"):
+            ProductContextBuilder("test-brand", "nonexistent")
+
+    def test_raises_for_nonexistent_brand(self, temp_brands_dir: Path) -> None:
+        """Test that ProductContextBuilder raises ValueError for nonexistent brand."""
+        with pytest.raises(ValueError, match="not found"):
+            ProductContextBuilder("nonexistent", "night-cream")
+
+    def test_builds_context_with_product_info(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that context includes product information."""
+        builder = ProductContextBuilder("test-brand", "night-cream")
+        context = builder.build_context_section()
+
+        assert "Restorative Night Cream" in context
+        assert "night-cream" in context
+        assert "rejuvenates" in context
+
+    def test_includes_attributes(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that context includes product attributes."""
+        builder = ProductContextBuilder("test-brand", "night-cream")
+        context = builder.build_context_section()
+
+        assert "volume" in context
+        assert "50ml" in context
+        assert "Retinol" in context
+
+    def test_includes_images_with_primary_marker(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that context includes images with primary marker."""
+        builder = ProductContextBuilder("test-brand", "night-cream")
+        context = builder.build_context_section()
+
+        assert "products/night-cream/images/main.png" in context
+        assert "(primary)" in context
+
+
+class TestBuildProductContext:
+    """Tests for build_product_context convenience function."""
+
+    def test_returns_context_for_existing_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that build_product_context returns context for existing product."""
+        context = build_product_context("test-brand", "night-cream")
+
+        assert "Restorative Night Cream" in context
+        assert "Error:" not in context
+
+    def test_returns_error_for_nonexistent_product(
+        self, brand_with_product: BrandIdentityFull
+    ) -> None:
+        """Test that build_product_context returns error for nonexistent product."""
+        context = build_product_context("test-brand", "nonexistent")
+
+        assert "Error:" in context
+        assert "not found" in context
+
+
+# ============================================================================
+# Tests for Project Context Builder
+# ============================================================================
+
+
+class TestProjectContextBuilder:
+    """Tests for ProjectContextBuilder class."""
+
+    def test_raises_for_nonexistent_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that ProjectContextBuilder raises ValueError for nonexistent project."""
+        with pytest.raises(ValueError, match="not found"):
+            ProjectContextBuilder("test-brand", "nonexistent")
+
+    def test_raises_for_nonexistent_brand(self, temp_brands_dir: Path) -> None:
+        """Test that ProjectContextBuilder raises ValueError for nonexistent brand."""
+        with pytest.raises(ValueError, match="not found"):
+            ProjectContextBuilder("nonexistent", "christmas-campaign")
+
+    def test_builds_context_with_project_info(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that context includes project information."""
+        builder = ProjectContextBuilder("test-brand", "christmas-campaign")
+        context = builder.build_context_section()
+
+        assert "Christmas 2024 Campaign" in context
+        assert "christmas-campaign" in context
+        assert "active" in context.lower()
+
+    def test_includes_instructions(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that context includes project instructions."""
+        builder = ProjectContextBuilder("test-brand", "christmas-campaign")
+        context = builder.build_context_section()
+
+        assert "festive winter imagery" in context
+        assert "red and gold" in context
+
+
+class TestBuildProjectContext:
+    """Tests for build_project_context convenience function."""
+
+    def test_returns_context_for_existing_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that build_project_context returns context for existing project."""
+        context = build_project_context("test-brand", "christmas-campaign")
+
+        assert "Christmas 2024 Campaign" in context
+        assert "Error:" not in context
+
+    def test_returns_error_for_nonexistent_project(
+        self, brand_with_project: BrandIdentityFull
+    ) -> None:
+        """Test that build_project_context returns error for nonexistent project."""
+        context = build_project_context("test-brand", "nonexistent")
+
+        assert "Error:" in context
+        assert "not found" in context
+
+
+# ============================================================================
+# Tests for Hierarchical Context Builder
+# ============================================================================
+
+
+class TestHierarchicalContextBuilder:
+    """Tests for HierarchicalContextBuilder class."""
+
+    def test_returns_empty_without_project_or_products(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that builder returns empty string without project or products."""
+        builder = HierarchicalContextBuilder("test-brand")
+        context = builder.build_turn_context()
+
+        assert context == ""
+
+    def test_includes_project_context(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that builder includes project context when project is active."""
+        builder = HierarchicalContextBuilder(
+            "test-brand", project_slug="christmas-campaign"
+        )
+        context = builder.build_turn_context()
+
+        assert "Christmas 2024 Campaign" in context
+        assert "festive winter imagery" in context
+
+    def test_includes_product_context(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that builder includes product context when products are attached."""
+        builder = HierarchicalContextBuilder(
+            "test-brand", product_slugs=["night-cream"]
+        )
+        context = builder.build_turn_context()
+
+        assert "Restorative Night Cream" in context
+        assert "Attached Products" in context
+
+    def test_includes_both_project_and_products(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that builder includes both project and products."""
+        builder = HierarchicalContextBuilder(
+            "test-brand",
+            product_slugs=["night-cream"],
+            project_slug="christmas-campaign",
+        )
+        context = builder.build_turn_context()
+
+        assert "Christmas 2024 Campaign" in context
+        assert "Restorative Night Cream" in context
+        assert "---" in context  # Separator between sections
+
+    def test_project_comes_before_products(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that project context comes before product context."""
+        builder = HierarchicalContextBuilder(
+            "test-brand",
+            product_slugs=["night-cream"],
+            project_slug="christmas-campaign",
+        )
+        context = builder.build_turn_context()
+
+        project_pos = context.find("Christmas 2024 Campaign")
+        product_pos = context.find("Restorative Night Cream")
+
+        assert project_pos < product_pos
+
+    def test_skips_nonexistent_project(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that builder skips nonexistent project silently."""
+        builder = HierarchicalContextBuilder(
+            "test-brand",
+            product_slugs=["night-cream"],
+            project_slug="nonexistent",
+        )
+        context = builder.build_turn_context()
+
+        # Should still include product
+        assert "Restorative Night Cream" in context
+        # But no project
+        assert "nonexistent" not in context
+
+    def test_skips_nonexistent_product(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that builder skips nonexistent products silently."""
+        builder = HierarchicalContextBuilder(
+            "test-brand",
+            product_slugs=["night-cream", "nonexistent"],
+            project_slug="christmas-campaign",
+        )
+        context = builder.build_turn_context()
+
+        # Should include existing product
+        assert "Restorative Night Cream" in context
+        # Should include project
+        assert "Christmas 2024 Campaign" in context
+
+
+class TestBuildTurnContext:
+    """Tests for build_turn_context convenience function."""
+
+    def test_returns_empty_without_project_or_products(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that build_turn_context returns empty without project or products."""
+        context = build_turn_context("test-brand")
+        assert context == ""
+
+    def test_returns_context_with_project(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that build_turn_context returns context with project."""
+        context = build_turn_context(
+            "test-brand", project_slug="christmas-campaign"
+        )
+
+        assert "Christmas 2024 Campaign" in context
+
+    def test_returns_context_with_products(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that build_turn_context returns context with products."""
+        context = build_turn_context(
+            "test-brand", product_slugs=["night-cream"]
+        )
+
+        assert "Restorative Night Cream" in context
+
+    def test_returns_combined_context(
+        self, brand_with_product_and_project: BrandIdentityFull
+    ) -> None:
+        """Test that build_turn_context returns combined context."""
+        context = build_turn_context(
+            "test-brand",
+            product_slugs=["night-cream"],
+            project_slug="christmas-campaign",
+        )
+
+        assert "Christmas 2024 Campaign" in context
+        assert "Restorative Night Cream" in context

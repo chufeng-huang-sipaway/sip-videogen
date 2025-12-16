@@ -10,12 +10,26 @@ and brand-aware agent tools for the brand kit workflow.
 from .context import (
     DETAIL_DESCRIPTIONS,
     BrandContextBuilder,
+    HierarchicalContextBuilder,
+    ProductContextBuilder,
+    ProjectContextBuilder,
     build_brand_context,
+    build_product_context,
+    build_project_context,
+    build_turn_context,
 )
 from .memory import (
     DetailType,
     get_brand_detail,
     get_brand_summary,
+    get_product_detail,
+    get_product_full,
+    get_product_images_for_generation,
+    get_product_summary,
+    get_project_detail,
+    get_project_full,
+    get_project_instructions,
+    get_project_summary,
     list_brand_assets,
 )
 
@@ -86,18 +100,37 @@ __all__ = [
     "set_active_brand",
     "slugify",
     "update_brand_summary_stats",
-    # Memory (Task 2.1)
+    # Memory - Brand (Task 2.1)
     "DetailType",
     "get_brand_detail",
     "get_brand_summary",
     "list_brand_assets",
+    # Memory - Product (Phase 3)
+    "get_product_summary",
+    "get_product_detail",
+    "get_product_full",
+    "get_product_images_for_generation",
+    # Memory - Project (Phase 3)
+    "get_project_summary",
+    "get_project_detail",
+    "get_project_full",
+    "get_project_instructions",
     # Agent Tools (Task 2.2)
     "browse_brand_assets",
     "fetch_brand_detail",
     "get_brand_context",
     "set_brand_context",
-    # Context Builder (Task 2.3)
+    # Context Builder - Brand (Task 2.3)
     "BrandContextBuilder",
     "build_brand_context",
     "DETAIL_DESCRIPTIONS",
+    # Context Builder - Product (Phase 3)
+    "ProductContextBuilder",
+    "build_product_context",
+    # Context Builder - Project (Phase 3)
+    "ProjectContextBuilder",
+    "build_project_context",
+    # Context Builder - Hierarchical (Phase 3)
+    "HierarchicalContextBuilder",
+    "build_turn_context",
 ]
