@@ -1,9 +1,12 @@
 #!/bin/bash
-# Publish sip-videogen to PyPI
+# Publish sip-videogen to PyPI (library-only, no CLI)
 #
 # Usage:
 #   ./scripts/publish.sh         # Publish to PyPI
 #   ./scripts/publish.sh test    # Publish to Test PyPI first
+#
+# Note: The CLI has been removed. This package is now a library
+# for programmatic video generation via sip_videogen.video module.
 
 set -e
 
@@ -65,5 +68,5 @@ else
     "$PYTHON_BIN" -m twine upload dist/*
     echo
     echo -e "${GREEN}Done! Install with:${NC}"
-    echo "  pipx install sip-videogen"
+    echo "  pip install sip-videogen"
 fi
