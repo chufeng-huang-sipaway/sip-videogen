@@ -150,11 +150,32 @@ augmented_message = f"""## Current Context
   - `test_chat_with_metadata_accepts_context_params`: API accepts params
   - `test_no_brand_slug_skips_context_injection`: No context without brand
 
-## Remaining Tasks
-
-### Phase 3.6: Product Image Routing
+### Phase 3.6: Product Image Routing ✅
 **File**: `src/sip_videogen/advisor/tools.py`
-- Wire product images to generate_image()
+
+Wired product images to `generate_image()` tool for automatic reference-based generation:
+
+**Changes to `generate_image()` and `_impl_generate_image()`:**
+- Added `product_slug` parameter to both functions
+- Auto-loads product's primary image as reference when `product_slug` provided
+- Auto-enables `validate_identity=True` when using product reference
+- Explicit `reference_image` parameter takes precedence over `product_slug`
+
+**Path Flow:**
+1. Product stored with `primary_image = "products/night-cream/images/main.png"` (brand-relative)
+2. `generate_image(product_slug="night-cream")` loads product, gets `primary_image`
+3. Pass to existing `reference_image` parameter
+4. `_resolve_brand_path` resolves to absolute for actual file access
+
+**Tests Added:**
+- 5 new tests in `tests/test_advisor_tools.py` covering:
+  - `test_generate_image_with_product_slug`: Auto-loads primary image
+  - `test_generate_image_with_product_slug_not_found`: Error handling
+  - `test_generate_image_with_product_slug_no_primary_image`: Graceful fallback
+  - `test_generate_image_with_product_slug_no_active_brand`: Error handling
+  - `test_generate_image_with_product_slug_reference_image_takes_precedence`: Priority check
+
+## Remaining Tasks
 
 ### Phase 3.7: Project Asset Tagging
 **File**: `src/sip_videogen/advisor/tools.py`
@@ -186,10 +207,12 @@ augmented_message = f"""## Current Context
 - All 94 storage tests pass: `python -m pytest tests/test_brands_storage.py -v`
 - All 81 memory/context tests pass: `python -m pytest tests/test_brands_memory.py -v`
 - All 31 advisor tests pass: `python -m pytest tests/test_brand_advisor.py -v`
-- Total: 206 tests for brands + advisor modules
+- All 39 advisor tools tests pass: `python -m pytest tests/test_advisor_tools.py -v`
+- Total: 211 tests for brands + advisor modules
 
 ## Commits
 - `61e558a`: feat(models): Add Product and Project models for hierarchical memory system
 - `9fe3b1f`: feat(storage): Add Product and Project storage layer functions
 - `bd581b0`: feat(memory): Add Product and Project memory and context layer functions
 - `c5410ab`: feat(advisor): Add per-turn context injection for products and projects
+- `3ac807d`: feat(tools): Add product_slug parameter to generate_image for automatic product reference
