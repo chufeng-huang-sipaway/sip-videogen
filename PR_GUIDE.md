@@ -233,12 +233,45 @@ Added four new agent tools for explicit product/project exploration:
   - TestGetProductDetail: 3 tests (no brand, not found, formatted output)
   - TestGetProjectDetail: 6 tests (no brand, not found, formatted output, no instructions, inactive, truncation)
 
-## Remaining Tasks
-
-### Phase 5: Bridge API
+### Phase 5: Bridge API ✅
 **File**: `src/sip_videogen/studio/bridge.py`
-- Product and project CRUD methods
-- Update chat() signature
+
+Added comprehensive Bridge API for products and projects:
+
+**Product Methods:**
+- `get_products(brand_slug)` / `get_product(product_slug)`: List and retrieve products
+- `create_product(name, description, images, attributes)`: Create new product with optional images
+- `update_product(product_slug, name, description, attributes)`: Update existing product
+- `delete_product(product_slug)`: Delete product and all its files
+- `get_product_images(product_slug)`: List product images (brand-relative paths)
+- `upload_product_image(product_slug, filename, data_base64)`: Upload image to product
+- `delete_product_image(product_slug, filename)`: Delete product image
+- `set_primary_product_image(product_slug, filename)`: Set primary image for product
+- `get_product_image_thumbnail(path)`: Get thumbnail for product image (base64 data URL)
+- `get_product_image_full(path)`: Get full-resolution product image (base64 data URL)
+
+**Project Methods:**
+- `get_projects(brand_slug)` / `get_project(project_slug)`: List and retrieve projects
+- `create_project(name, instructions)`: Create new project
+- `update_project(project_slug, name, instructions, status)`: Update project
+- `delete_project(project_slug)`: Delete project (keeps generated assets)
+- `set_active_project(project_slug)` / `get_active_project()`: Active project management
+- `get_project_assets(project_slug)`: List assets generated for project
+
+**Chat Integration:**
+- Updated `chat()` method signature to accept:
+  - `project_slug`: Sets active project if provided, otherwise uses persisted
+  - `attached_products`: List of product slugs for context injection
+- Context passed to advisor's `chat_with_metadata()` for per-turn injection
+
+**Key Implementation Details:**
+- All methods return `BridgeResponse` format
+- Product images support dedicated thumbnail/full APIs (paths must start with `products/`)
+- Project assets returned as assets-relative paths (`generated/...`)
+- No server-side state for attached products (frontend owns this state)
+- Slug generation from name using regex normalization
+
+## Remaining Tasks
 
 ### Phase 6: Frontend Types & Contexts
 **Files**: Frontend TypeScript files
@@ -268,3 +301,4 @@ Added four new agent tools for explicit product/project exploration:
 - `3ac807d`: feat(tools): Add product_slug parameter to generate_image for automatic product reference
 - `2cc0285`: feat(tools): Add project asset tagging via filename prefix
 - `ddf88b6`: feat(tools): Add product and project exploration tools for agent
+- `94c8ea6`: feat(bridge): Add product and project API methods

@@ -443,7 +443,7 @@ def get_project_detail(project_slug: str) -> str:
 
 ### Phase 5: Bridge API
 **File:** `src/sip_videogen/studio/bridge.py`
-**Status:** Not Started
+**Status:** Complete
 
 **Product Methods:**
 - `get_products(brand_slug=None)` / `get_product(product_slug)`
@@ -501,13 +501,13 @@ def chat(
 - ~~`clear_chat_context()`~~ - frontend clears its own state
 
 **Success Criteria:**
-- [ ] All methods implemented
-- [ ] Methods return BridgeResponse format
-- [ ] `chat()` accepts `project_slug` and `attached_products` parameters
-- [ ] No server-side state for attached products
-- [ ] Error handling consistent with existing methods
-- [ ] Product thumbnail API supports `products/...` paths
-- [ ] `get_project_assets()` returns assets-relative paths (`generated/...`)
+- [x] All methods implemented
+- [x] Methods return BridgeResponse format
+- [x] `chat()` accepts `project_slug` and `attached_products` parameters
+- [x] No server-side state for attached products
+- [x] Error handling consistent with existing methods
+- [x] Product thumbnail API supports `products/...` paths
+- [x] `get_project_assets()` returns assets-relative paths (`generated/...`)
 
 ---
 
