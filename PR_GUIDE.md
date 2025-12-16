@@ -227,7 +227,20 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
   - Removed migration exports from `__all__`
 - Deleted `tests/test_brands_migration.py` (tested now-broken migration functionality)
 
-**Note:** `brands/migration.py` still exists but is no longer imported. It will be fully deleted in the next task.
+**Verification:**
+- `python -m pytest`: 444 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
+### Phase 3: Remove Brand Kit Workflow (Task 4)
+
+**Commit:** `5df6f3e` - chore: Delete brands/migration.py (Phase 3, Task 4)
+
+**Changes:**
+- Deleted `src/sip_videogen/brands/migration.py`
+  - Brand Kit migration module that converted legacy `brand_kit.json` to new brand format
+  - Module depended on deleted `models/brand_kit.py` and was no longer importable
+  - Migration imports were already removed from `brands/__init__.py` in Task 3
 
 **Verification:**
 - `python -m pytest`: 444 passed (14 failures + 43 errors are pre-existing audio test issues)
@@ -262,7 +275,7 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Remove Brand Kit exports from models/__init__.py
 - [x] Update brands/__init__.py to remove migration imports
 - [x] Delete test_brands_migration.py
-- [ ] Delete migration.py file
+- [x] Delete migration.py file
 - [ ] Delete NanoBananaImageGenerator if unused
 
 ### Phase 4: Final Hardening

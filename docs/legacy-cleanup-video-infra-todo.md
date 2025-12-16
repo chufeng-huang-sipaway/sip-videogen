@@ -153,8 +153,8 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
   - [x] Delete `src/sip_videogen/brand_kit/**`
   - [x] Delete brand-kit-only agent(s) (e.g., `src/sip_videogen/agents/brand_designer.py`) if unused
   - [x] Delete brand-kit-only models (e.g., `src/sip_videogen/models/brand_kit.py`) if unused
-- [ ] Remove Brand Kit migration if not needed:
-  - [ ] Delete `src/sip_videogen/brands/migration.py`
+- [x] Remove Brand Kit migration if not needed:
+  - [x] Delete `src/sip_videogen/brands/migration.py`
   - [x] Update `src/sip_videogen/brands/__init__.py` to remove migration imports/exports
   - [x] Delete or rewrite `tests/test_brands_migration.py`
 - [x] Remove Brand Kit exports/imports:
