@@ -149,8 +149,8 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 
 **Objective**: Remove Brand Kit as a feature while keeping Brand Studio + Advisor stable.
 
-- [ ] Remove Brand Kit implementation modules:
-  - [ ] Delete `src/sip_videogen/brand_kit/**`
+- [x] Remove Brand Kit implementation modules:
+  - [x] Delete `src/sip_videogen/brand_kit/**`
   - [ ] Delete brand-kit-only agent(s) (e.g., `src/sip_videogen/agents/brand_designer.py`) if unused
   - [ ] Delete brand-kit-only models (e.g., `src/sip_videogen/models/brand_kit.py`) if unused
 - [ ] Remove Brand Kit migration if not needed:
@@ -160,8 +160,8 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 - [ ] Remove Brand Kit exports/imports:
   - [ ] Update `src/sip_videogen/models/__init__.py` to stop exporting brand-kit types
   - [ ] Update `src/sip_videogen/agents/__init__.py` to stop exporting Brand Kit planner
-- [ ] Remove Brand Kit related tests:
-  - [ ] Rewrite `tests/test_brand_integration.py` to remove `sip_videogen.brand_kit.*` imports and keep brand-only workflow coverage
+- [x] Remove Brand Kit related tests:
+  - [x] Rewrite `tests/test_brand_integration.py` to remove `sip_videogen.brand_kit.*` imports and keep brand-only workflow coverage
   - [ ] Delete or rewrite any remaining brand-kit model tests (search via `rg "brand_kit" tests/`)
 - [ ] NanoBanana decision:
   - [ ] If Brand Kit is removed and NanoBanana is unused, delete `src/sip_videogen/generators/nano_banana_generator.py` and remove it from `src/sip_videogen/generators/__init__.py`

@@ -1,16 +1,17 @@
 """End-to-end integration tests for brand management system.
 
 These tests verify complete workflows:
-- Create brand → generate assets flow
+- Create brand flow
 - Evolve brand flow
-- Brand context in asset prompts
+- Brand context in prompts
 - Asset count updates after generation
+- Active brand management
 """
 
 import json
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -41,11 +42,6 @@ from sip_videogen.brands.tools import (
     fetch_brand_detail,
     get_brand_context,
     set_brand_context,
-)
-from sip_videogen.brand_kit.workflow import (
-    brand_identity_to_brief_and_direction,
-    build_brand_asset_prompts,
-    build_brand_asset_prompts_from_brand,
 )
 
 
@@ -171,144 +167,6 @@ class TestCreateBrandToGenerateAssetsFlow:
         assert summary.name == "Summit Coffee Co."
         assert "#2C3E50" in summary.primary_colors
 
-    def test_brand_prompts_include_brand_context(
-        self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that asset prompts include brand identity information."""
-        create_brand(complete_brand_identity)
-
-        result = build_brand_asset_prompts_from_brand("summit-coffee")
-        assert result is not None
-
-        prompts, brief, direction = result
-
-        # Verify brief contains brand info
-        assert brief.brand_name == "Summit Coffee Co."
-        assert brief.product_category == "Premium Coffee"
-        assert brief.target_audience == "Urban professionals aged 28-45 who value sustainability"
-        assert "warm" in brief.tone
-
-        # Verify direction contains visual info
-        assert "#2C3E50" in direction.color_palette
-        assert "#8B7355" in direction.color_palette
-        assert "Playfair Display" == direction.typography
-        assert "artisanal" in direction.style_keywords
-
-    def test_brand_constraints_appear_in_prompts(
-        self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that brand constraints and avoids appear in asset prompts."""
-        create_brand(complete_brand_identity)
-
-        result = build_brand_asset_prompts_from_brand("summit-coffee")
-        assert result is not None
-
-        prompts, brief, direction = result
-
-        # Verify constraints are passed through
-        assert "Must include recycled materials in packaging" in brief.constraints
-        assert "Plastic packaging" in brief.avoid
-
-    def test_prompt_generation_returns_all_categories(
-        self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that prompts are generated for all asset categories."""
-        create_brand(complete_brand_identity)
-
-        result = build_brand_asset_prompts_from_brand("summit-coffee")
-        assert result is not None
-
-        prompts, _, _ = result
-
-        # Check all categories are represented
-        categories = {p.category.value for p in prompts}
-        expected = {"logo", "packaging", "lifestyle", "mascot", "marketing"}
-        assert categories == expected
-
-        # Check we have multiple prompts
-        assert len(prompts) >= 10  # At least 10 prompts total
-
-    def test_nonexistent_brand_returns_none(self, temp_brands_dir: Path) -> None:
-        """Test that building prompts for nonexistent brand returns None."""
-        result = build_brand_asset_prompts_from_brand("nonexistent-brand")
-        assert result is None
-
-
-# =============================================================================
-# Brand Identity to Brief/Direction Conversion Tests
-# =============================================================================
-
-
-class TestBrandIdentityConversion:
-    """Tests for converting BrandIdentityFull to BrandKitBrief and BrandDirection."""
-
-    def test_core_fields_are_mapped(
-        self, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that core brand fields are correctly mapped."""
-        brief, direction = brand_identity_to_brief_and_direction(complete_brand_identity)
-
-        assert brief.brand_name == "Summit Coffee Co."
-        assert direction.label == "Summit Coffee Co."
-        assert direction.id == "summit-coffee"
-
-    def test_positioning_is_mapped(
-        self, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that positioning information is mapped correctly."""
-        brief, direction = brand_identity_to_brief_and_direction(complete_brand_identity)
-
-        assert brief.product_category == "Premium Coffee"
-        assert "High-altitude coffee beans" in brief.core_product
-        assert "Only roaster specializing" in direction.differentiator
-
-    def test_audience_is_mapped(
-        self, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that audience information is mapped correctly."""
-        brief, _ = brand_identity_to_brief_and_direction(complete_brand_identity)
-
-        assert "Urban professionals" in brief.target_audience
-
-    def test_tone_attributes_are_mapped(
-        self, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that tone attributes are mapped correctly."""
-        brief, direction = brand_identity_to_brief_and_direction(complete_brand_identity)
-
-        assert "warm" in brief.tone
-        assert "warm" in direction.tone
-
-    def test_visual_identity_is_mapped(
-        self, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that visual identity is mapped correctly."""
-        brief, direction = brand_identity_to_brief_and_direction(complete_brand_identity)
-
-        # Colors
-        assert "#2C3E50" in direction.color_palette
-        assert "#8B7355" in direction.color_palette
-        assert "#D4C4B0" in direction.color_palette  # secondary color
-
-        # Typography
-        assert direction.typography == "Playfair Display"
-
-        # Materials
-        assert "kraft paper" in direction.materials
-
-        # Style keywords
-        assert "artisanal" in brief.style_keywords
-        assert "artisanal" in direction.style_keywords
-
-    def test_constraints_and_avoid_are_mapped(
-        self, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that constraints and avoid lists are mapped."""
-        brief, _ = brand_identity_to_brief_and_direction(complete_brand_identity)
-
-        assert "Must include recycled materials in packaging" in brief.constraints
-        assert "Plastic packaging" in brief.avoid
-
 
 # =============================================================================
 # Evolve Brand Flow Tests
@@ -340,7 +198,7 @@ class TestEvolveBrandFlow:
     def test_visual_evolution_updates_colors(
         self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
     ) -> None:
-        """Test evolving visual identity updates colors."""
+        """Test evolving visual identity updates colors in stored brand."""
         create_brand(complete_brand_identity)
 
         # Evolve colors
@@ -350,13 +208,12 @@ class TestEvolveBrandFlow:
         ]
         save_brand(complete_brand_identity)
 
-        # Verify new colors are in prompts
-        result = build_brand_asset_prompts_from_brand("summit-coffee")
-        _, _, direction = result
-
-        assert "#1A1A2E" in direction.color_palette
-        assert "#E94560" in direction.color_palette
-        assert "#2C3E50" not in direction.color_palette  # Old color should be gone
+        # Verify new colors are stored
+        loaded = load_brand("summit-coffee")
+        color_hexes = [c.hex for c in loaded.visual.primary_colors]
+        assert "#1A1A2E" in color_hexes
+        assert "#E94560" in color_hexes
+        assert "#2C3E50" not in color_hexes  # Old color should be gone
 
     def test_audience_evolution_updates_targeting(
         self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
@@ -368,10 +225,9 @@ class TestEvolveBrandFlow:
         complete_brand_identity.audience.primary_summary = "Health-conscious millennials who love specialty coffee"
         save_brand(complete_brand_identity)
 
-        result = build_brand_asset_prompts_from_brand("summit-coffee")
-        prompts, brief, direction = result
-
-        assert "Health-conscious millennials" in brief.target_audience
+        # Verify audience is stored
+        loaded = load_brand("summit-coffee")
+        assert "Health-conscious millennials" in loaded.audience.primary_summary
 
     def test_slug_preserved_on_evolution(
         self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
@@ -665,25 +521,3 @@ class TestRoundTripIntegration:
         summary = load_brand_summary("summit-coffee")
         assert summary.tagline == "New sync test tagline"
         assert "bold" in summary.tone
-
-    def test_prompts_reflect_saved_changes(
-        self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
-    ) -> None:
-        """Test that generated prompts reflect saved brand changes."""
-        create_brand(complete_brand_identity)
-
-        # Modify and save
-        loaded = load_brand("summit-coffee")
-        loaded.visual.primary_colors = [
-            ColorDefinition(hex="#000000", name="New Black"),
-        ]
-        loaded.positioning.market_category = "Ultra Premium Coffee"
-        save_brand(loaded)
-
-        # Build prompts - should use new values
-        result = build_brand_asset_prompts_from_brand("summit-coffee")
-        _, brief, direction = result
-
-        assert "#000000" in direction.color_palette
-        assert "#2C3E50" not in direction.color_palette  # Old color gone
-        assert brief.product_category == "Ultra Premium Coffee"
