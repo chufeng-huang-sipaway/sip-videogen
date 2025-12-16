@@ -198,6 +198,22 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 3: Remove Brand Kit Workflow (Task 2)
+
+**Commit:** `93e477e` - chore: Delete brand_designer agent and prompt (Phase 3, Task 2)
+
+**Changes:**
+- Deleted `src/sip_videogen/agents/brand_designer.py` (Brand Kit planning agent)
+- Deleted `src/sip_videogen/agents/prompts/brand_designer.md` (agent prompt file)
+- Updated `src/sip_videogen/agents/__init__.py`:
+  - Removed `brand_designer_agent` and `plan_brand_kit` imports
+  - Removed from `__all__` exports
+
+**Verification:**
+- `python -m pytest`: 463 passed (14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -220,10 +236,11 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 ### Phase 3: Remove Brand Kit Workflow
 - [x] Delete brand_kit/ directory
 - [x] Update test_brand_integration.py to remove brand_kit imports
-- [ ] Delete brand-kit-only agents (brand_designer.py) if unused
+- [x] Delete brand-kit-only agents (brand_designer.py) if unused
+- [x] Update agents/__init__.py to remove Brand Kit planner exports
 - [ ] Delete brand-kit-only models (models/brand_kit.py) if unused
 - [ ] Delete migration.py if not needed
-- [ ] Remove Brand Kit exports/imports from models/__init__.py and agents/__init__.py
+- [ ] Remove Brand Kit exports from models/__init__.py
 - [ ] Delete remaining brand-kit model tests
 - [ ] Delete NanoBananaImageGenerator if unused
 
