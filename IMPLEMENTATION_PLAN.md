@@ -146,7 +146,7 @@ class ProjectIndex(BaseModel):
 
 ### Phase 2: Storage Layer
 **File:** `src/sip_videogen/brands/storage.py`
-**Status:** Not Started
+**Status:** Complete
 
 Add CRUD functions following existing brand patterns:
 
@@ -170,12 +170,12 @@ Add CRUD functions following existing brand patterns:
 - `count_project_assets(brand_slug, project_slug)` -> for asset_count in summary
 
 **Success Criteria:**
-- [ ] All CRUD functions implemented
-- [ ] Directory structure created correctly
-- [ ] Index files synced properly
-- [ ] All returned paths are brand-relative
-- [ ] Project asset listing works via prefix/manifest
-- [ ] Unit tests pass
+- [x] All CRUD functions implemented
+- [x] Directory structure created correctly
+- [x] Index files synced properly
+- [x] All returned paths are brand-relative
+- [x] Project asset listing works via prefix/manifest
+- [x] Unit tests pass
 
 ---
 
