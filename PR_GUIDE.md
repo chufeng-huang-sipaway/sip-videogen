@@ -290,6 +290,25 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 4: Final Hardening (Task 2)
+
+**Commit:** `50a17f5` - chore: Fix BrandStudio.spec hidden imports, verify packaging (Phase 4, Task 2)
+
+**Changes:**
+- Fixed `BrandStudio.spec` hidden imports:
+  - Removed non-existent `sip_videogen.brands.director` reference
+  - Added actual brand modules: `context`, `tools`
+- Verified pyinstaller packaging:
+  - `pyinstaller BrandStudio.spec --noconfirm` completes successfully
+  - `Brand Studio.app` created in `dist/`
+  - All required frontend dist + prompts included
+
+**Verification:**
+- `python -m pytest`: 460 passed (14 failures + 43 errors are pre-existing issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+- `pyinstaller BrandStudio.spec`: builds successfully, no errors
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -323,7 +342,7 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 
 ### Phase 4: Final Hardening
 - [x] Add video backend smoke test
-- [ ] Confirm Brand Studio packaging works
+- [x] Confirm Brand Studio packaging works
 - [ ] Update README with "Video Generation Backend" section (already done in Phase 2)
 
 ## Testing
