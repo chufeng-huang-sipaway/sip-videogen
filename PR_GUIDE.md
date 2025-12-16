@@ -264,6 +264,32 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
 - `python -c "from sip_videogen.video import VideoPipeline"`: passes
 
+### Phase 4: Final Hardening (Task 1)
+
+**Commit:** `8f6980f` - test: Add video backend smoke tests (Phase 4, Task 1)
+
+**Changes:**
+- Created `tests/test_video_backend_smoke.py` with 16 smoke tests:
+  - `TestVideoBackendImports`: Verify all video backend modules are importable
+    - Video pipeline module (VideoPipeline, PipelineConfig, etc.)
+    - Generator module (VEO, Kling, Sora generators)
+    - Assembler module (FFmpegAssembler)
+    - Video-related models (VideoScript, GeneratedAsset, etc.)
+  - `TestVideoGeneratorFactorySmoke`: Factory instantiation with mocked credentials
+    - VEO generator creation
+    - Kling generator creation
+    - Sora generator creation
+    - Factory method existence checks
+  - `TestVideoPipelineSmoke`: Pipeline class instantiation
+    - Pipeline config dataclass
+    - Pipeline result dataclass
+  - `TestVideoProviderEnum`: Provider enum values
+
+**Verification:**
+- `python -m pytest`: 460 passed (16 new tests, 14 failures + 43 errors are pre-existing audio test issues)
+- `python -c "import sip_videogen.studio.bridge; import sip_videogen.advisor.agent"`: passes
+- `python -c "from sip_videogen.video import VideoPipeline"`: passes
+
 ## Remaining Tasks
 
 ### Phase 1: Extract Video Backend API
@@ -296,7 +322,7 @@ See `docs/legacy-cleanup-video-infra-todo.md` for the complete task list.
 - [x] Delete NanoBananaImageGenerator if unused
 
 ### Phase 4: Final Hardening
-- [ ] Add video backend smoke test
+- [x] Add video backend smoke test
 - [ ] Confirm Brand Studio packaging works
 - [ ] Update README with "Video Generation Backend" section (already done in Phase 2)
 

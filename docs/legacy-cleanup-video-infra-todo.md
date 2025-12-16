@@ -172,8 +172,8 @@ This document is a step-by-step to-do list to remove legacy surfaces while prese
 
 ## Phase 4 — Final Hardening (focus + future maintainability)
 
-- [ ] Add/keep a lightweight developer-facing “video backend smoke test”:
-  - [ ] A unit test that imports `sip_videogen.video.pipeline` and instantiates a generator via `VideoGeneratorFactory` (mocked credentials).
+- [x] Add/keep a lightweight developer-facing "video backend smoke test":
+  - [x] A unit test that imports `sip_videogen.video.pipeline` and instantiates a generator via `VideoGeneratorFactory` (mocked credentials).
 - [ ] Confirm Brand Studio packaging remains functional:
   - [ ] `BrandStudio.spec` still includes required frontend dist + prompts
   - [ ] `pyinstaller BrandStudio.spec` works (or confirm your existing release process)
