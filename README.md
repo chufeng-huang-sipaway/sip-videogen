@@ -175,23 +175,30 @@ The repository includes video generation infrastructure that can be used program
 ### API Usage
 
 ```python
-from sip_videogen.video import VideoPipeline, PipelineConfig
+import asyncio
 
-# Configure pipeline
-config = PipelineConfig(
-    video_provider="veo",  # or "kling", "sora"
-    dry_run=True,  # Script only, no video generation
-)
+from sip_videogen.generators.base import VideoProvider
+from sip_videogen.video import PipelineConfig, VideoPipeline
 
-# Generate video
-pipeline = VideoPipeline(config)
-result = await pipeline.run("Your video concept here")
-print(result.script)  # VideoScript with scenes
+async def main() -> None:
+    config = PipelineConfig(
+        idea="A cat playing piano in a jazz club",
+        num_scenes=3,
+        dry_run=True,  # Script only (no images/videos/assembly)
+        provider=VideoProvider.VEO,  # or VideoProvider.KLING / VideoProvider.SORA
+    )
+
+    pipeline = VideoPipeline(config)
+    result = await pipeline.run()
+    print(result.script.title)
+
+asyncio.run(main())
 ```
 
 ### Available Components
 
 - `sip_videogen.video.VideoPipeline` - Full video generation pipeline
+- `sip_videogen.video.generate_video` - Convenience wrapper
 - `sip_videogen.generators.VideoGeneratorFactory` - Provider selection (VEO, Kling, Sora)
 - `sip_videogen.assembler.FFmpegAssembler` - Video clip assembly
 - `sip_videogen.models.*` - Script, asset, and scene models
@@ -200,7 +207,8 @@ print(result.script)  # VideoScript with scenes
 
 | Key | Purpose |
 |-----|---------|
-| `OPENAI_API_KEY` | Script generation |
-| `GEMINI_API_KEY` | Image & video generation |
-| `GOOGLE_CLOUD_PROJECT` | GCS storage |
-| `SIP_GCS_BUCKET_NAME` | Video storage |
+| `OPENAI_API_KEY` | Script generation (and Sora provider) |
+| `GEMINI_API_KEY` | Reference image + VEO video generation |
+| `KLING_ACCESS_KEY` | Kling provider |
+| `KLING_SECRET_KEY` | Kling provider |
+| `GOOGLE_CLOUD_PROJECT` | Optional (music generation) |
