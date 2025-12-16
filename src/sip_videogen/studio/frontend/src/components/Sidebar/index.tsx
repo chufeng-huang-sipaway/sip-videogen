@@ -1,9 +1,16 @@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { BrandSelector } from './BrandSelector'
 import { BrandActions } from './BrandActions'
-import { DocumentsList } from './DocumentsList'
-import { AssetTree } from './AssetTree'
+import { BrandSection } from './sections/BrandSection'
+import { ProductsSection } from './sections/ProductsSection'
+import { ProjectsSection } from './sections/ProjectsSection'
 
 interface SidebarProps {
   width: number
@@ -29,9 +36,28 @@ export function Sidebar({ width }: SidebarProps) {
       <Separator />
       <ScrollArea className="flex-1">
         <div className="p-4">
-          <DocumentsList />
-          <Separator className="my-4" />
-          <AssetTree />
+          <Accordion type="multiple" defaultValue={["brand", "products", "projects"]}>
+            <AccordionItem value="brand">
+              <AccordionTrigger>Brand</AccordionTrigger>
+              <AccordionContent>
+                <BrandSection />
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="products">
+              <AccordionTrigger>Products</AccordionTrigger>
+              <AccordionContent>
+                <ProductsSection />
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="projects">
+              <AccordionTrigger>Projects</AccordionTrigger>
+              <AccordionContent>
+                <ProjectsSection />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </ScrollArea>
     </aside>
