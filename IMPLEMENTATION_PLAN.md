@@ -351,7 +351,7 @@ def generate_image(
 
 ### Phase 3.7: Project Asset Tagging (CRITICAL)
 **File:** `src/sip_videogen/advisor/tools.py`
-**Status:** Not Started
+**Status:** Complete
 
 **Problem:** We want to track which generated images belong to which project. But changing output location to `projects/{slug}/assets/generated/` breaks:
 - `bridge.chat()` diff logic (line 1045) - only looks at `assets/generated/`
@@ -399,12 +399,12 @@ def list_project_assets(brand_slug: str, project_slug: str) -> list[str]:
 ```
 
 **Success Criteria:**
-- [ ] Generated images saved to `assets/generated/` (existing location)
-- [ ] Project membership tracked via filename prefix
-- [ ] `bridge.chat()` diff continues to work unchanged
-- [ ] Thumbnail/image APIs continue to work unchanged
-- [ ] `list_project_assets()` can filter by project
-- [ ] Project `asset_count` calculated correctly
+- [x] Generated images saved to `assets/generated/` (existing location)
+- [x] Project membership tracked via filename prefix
+- [x] `bridge.chat()` diff continues to work unchanged
+- [x] Thumbnail/image APIs continue to work unchanged
+- [x] `list_project_assets()` can filter by project
+- [x] Project `asset_count` calculated correctly
 
 ---
 

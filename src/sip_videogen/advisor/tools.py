@@ -20,6 +20,7 @@ from agents import function_tool
 
 from sip_videogen.brands.storage import (
     get_active_brand,
+    get_active_project,
     get_brand_dir,
     get_brands_dir,
     load_product,
@@ -31,6 +32,43 @@ from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Filename Generation Helper
+# =============================================================================
+
+
+def _generate_output_filename(project_slug: str | None = None) -> str:
+    """Generate a filename with optional project prefix.
+
+    When a project is active, generated images are tagged with the project
+    slug prefix so they can be filtered and listed per-project.
+
+    Args:
+        project_slug: Optional project slug to prefix the filename.
+
+    Returns:
+        Filename (without extension) with format:
+        - With project: "{project_slug}__{timestamp}_{hash}"
+        - Without project: "{timestamp}_{hash}"
+
+    Example:
+        >>> _generate_output_filename("christmas-campaign")
+        "christmas-campaign__20241215_143022_a1b2c3d4"
+        >>> _generate_output_filename(None)
+        "20241215_143022_a1b2c3d4"
+    """
+    import uuid
+    from datetime import datetime
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    hash_suffix = uuid.uuid4().hex[:8]
+
+    if project_slug:
+        return f"{project_slug}__{timestamp}_{hash_suffix}"
+    else:
+        return f"{timestamp}_{hash_suffix}"
 
 
 # =============================================================================
@@ -136,10 +174,12 @@ async def _impl_generate_image(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate filename if not provided
+    # When a project is active, tag the filename with project prefix
     if not filename:
-        import time
-
-        filename = f"image_{int(time.time())}"
+        active_project = get_active_project(brand_slug) if brand_slug else None
+        filename = _generate_output_filename(active_project)
+        if active_project:
+            logger.info(f"Tagging generated image with project: {active_project}")
 
     output_path = output_dir / f"{filename}.png"
 
