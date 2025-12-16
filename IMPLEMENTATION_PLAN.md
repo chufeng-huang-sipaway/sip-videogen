@@ -230,7 +230,7 @@ class HierarchicalContextBuilder:
 
 ### Phase 3.5: Per-Turn Context Injection (CRITICAL)
 **File:** `src/sip_videogen/advisor/agent.py`
-**Status:** Not Started
+**Status:** Complete
 
 **Problem:** System prompt is built once at init (line ~144). Active project and attached products are dynamic - they can change mid-session. Cannot rebuild Agent each time.
 
@@ -291,13 +291,13 @@ def chat_with_metadata(
 - Rebuilding Agent object each time is expensive and loses conversation state
 
 **Success Criteria:**
-- [ ] Project instructions injected when project is active
-- [ ] Attached product context injected when products attached
-- [ ] Context is prepended to user message, not added to system prompt
-- [ ] Agent does NOT need to call tools to get project/product context
-- [ ] Changing project/products mid-conversation works correctly
-- [ ] Skill matching uses raw user message (not augmented)
-- [ ] History stores raw user message (not augmented)
+- [x] Project instructions injected when project is active
+- [x] Attached product context injected when products attached
+- [x] Context is prepended to user message, not added to system prompt
+- [x] Agent does NOT need to call tools to get project/product context
+- [x] Changing project/products mid-conversation works correctly
+- [x] Skill matching uses raw user message (not augmented)
+- [x] History stores raw user message (not augmented)
 
 ---
 

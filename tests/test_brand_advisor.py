@@ -1,14 +1,13 @@
 """Tests for the Brand Marketing Advisor agent."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from sip_videogen.advisor.agent import (
-    BrandAdvisor,
-    AdvisorProgress,
     AdvisorHooks,
+    AdvisorProgress,
+    BrandAdvisor,
     _build_system_prompt,
     _format_brand_context,
     _group_assets,
@@ -79,7 +78,9 @@ class TestSystemPromptBuilder:
     def test_build_system_prompt_no_brand(self) -> None:
         """Test building system prompt without a brand."""
         with patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry:
-            mock_registry.return_value.format_for_prompt.return_value = "## Available Skills\n- skill1"
+            mock_registry.return_value.format_for_prompt.return_value = (
+                "## Available Skills\n- skill1"
+            )
 
             prompt = _build_system_prompt(brand_slug=None)
 
@@ -413,3 +414,307 @@ class TestBrandAdvisor:
 
         assert context == ""
         assert matched_skills == []
+
+
+class TestPerTurnContextInjection:
+    """Tests for per-turn context injection (Phase 3.5)."""
+
+    @pytest.mark.asyncio
+    async def test_chat_with_project_context(self) -> None:
+        """Test that project context is injected when project_slug is provided."""
+        mock_result = MagicMock()
+        mock_result.final_output = "Using project context!"
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = []
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            # Setup builder mock
+            mock_builder = MagicMock()
+            mock_builder.build_turn_context.return_value = (
+                "### Active Project: Holiday Campaign\n**Instructions**: Use festive themes"
+            )
+            mock_builder_class.return_value = mock_builder
+
+            advisor = BrandAdvisor(brand_slug="test-brand")
+            await advisor.chat(
+                "Create a banner",
+                project_slug="holiday-campaign",
+            )
+
+        # Verify builder was called with correct params
+        mock_builder_class.assert_called_once_with(
+            brand_slug="test-brand",
+            product_slugs=None,
+            project_slug="holiday-campaign",
+        )
+
+        # Verify prompt contains project context
+        call_args = mock_runner.run.call_args
+        prompt = call_args[0][1]
+        assert "## Current Context" in prompt
+        assert "Active Project: Holiday Campaign" in prompt
+        assert "## User Request" in prompt
+        assert "Create a banner" in prompt
+
+    @pytest.mark.asyncio
+    async def test_chat_with_attached_products(self) -> None:
+        """Test that product context is injected when attached_products is provided."""
+        mock_result = MagicMock()
+        mock_result.final_output = "Using product context!"
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = []
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            # Setup builder mock
+            mock_builder = MagicMock()
+            mock_builder.build_turn_context.return_value = (
+                "### Attached Products\n\n"
+                "### Product: Night Cream\n**Description**: Anti-aging formula"
+            )
+            mock_builder_class.return_value = mock_builder
+
+            advisor = BrandAdvisor(brand_slug="test-brand")
+            await advisor.chat(
+                "Generate product image",
+                attached_products=["night-cream", "day-serum"],
+            )
+
+        # Verify builder was called with correct params
+        mock_builder_class.assert_called_once_with(
+            brand_slug="test-brand",
+            product_slugs=["night-cream", "day-serum"],
+            project_slug=None,
+        )
+
+        # Verify prompt contains product context
+        call_args = mock_runner.run.call_args
+        prompt = call_args[0][1]
+        assert "## Current Context" in prompt
+        assert "Attached Products" in prompt
+        assert "Night Cream" in prompt
+
+    @pytest.mark.asyncio
+    async def test_chat_with_project_and_products(self) -> None:
+        """Test that both project and product context are injected together."""
+        mock_result = MagicMock()
+        mock_result.final_output = "Using all context!"
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = []
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            # Setup builder mock
+            mock_builder = MagicMock()
+            mock_builder.build_turn_context.return_value = (
+                "### Active Project: Summer Sale\n\n---\n\n"
+                "### Attached Products\n\n### Product: Sunscreen"
+            )
+            mock_builder_class.return_value = mock_builder
+
+            advisor = BrandAdvisor(brand_slug="test-brand")
+            await advisor.chat(
+                "Create campaign image",
+                project_slug="summer-sale",
+                attached_products=["sunscreen"],
+            )
+
+        # Verify builder was called with both
+        mock_builder_class.assert_called_once_with(
+            brand_slug="test-brand",
+            product_slugs=["sunscreen"],
+            project_slug="summer-sale",
+        )
+
+    @pytest.mark.asyncio
+    async def test_chat_without_context_does_not_augment(self) -> None:
+        """Test that chat without project/products doesn't augment message."""
+        mock_result = MagicMock()
+        mock_result.final_output = "No context needed!"
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = []
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            advisor = BrandAdvisor(brand_slug="test-brand")
+            await advisor.chat("Just a simple question")
+
+        # Builder should not be called when no context params
+        mock_builder_class.assert_not_called()
+
+        # Prompt should not contain context markers
+        call_args = mock_runner.run.call_args
+        prompt = call_args[0][1]
+        assert "## Current Context" not in prompt
+        assert "User: Just a simple question" in prompt
+
+    @pytest.mark.asyncio
+    async def test_skill_matching_uses_raw_message(self) -> None:
+        """Test that skill matching uses the raw user message, not augmented."""
+        from sip_videogen.advisor.skills.registry import Skill
+
+        mock_result = MagicMock()
+        mock_result.final_output = "Response"
+
+        mock_skill = Skill(
+            name="logo-design",
+            description="Design logos",
+            triggers=["logo"],
+            instructions="# Logo Guidelines",
+        )
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = [mock_skill]
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            mock_builder = MagicMock()
+            mock_builder.build_turn_context.return_value = "### Project Context\nSome project info"
+            mock_builder_class.return_value = mock_builder
+
+            advisor = BrandAdvisor(brand_slug="test-brand")
+            await advisor.chat(
+                "Create a logo",
+                project_slug="brand-refresh",
+            )
+
+        # find_relevant_skills should be called with raw message (not including context)
+        mock_registry.return_value.find_relevant_skills.assert_called_once_with("Create a logo")
+
+    @pytest.mark.asyncio
+    async def test_history_stores_raw_message(self) -> None:
+        """Test that conversation history stores raw user message, not augmented."""
+        mock_result = MagicMock()
+        mock_result.final_output = "Response to raw message"
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = []
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            mock_builder = MagicMock()
+            mock_builder.build_turn_context.return_value = (
+                "### Project: Big Campaign\n"
+                "Lots of context here that shouldn't be in history"
+            )
+            mock_builder_class.return_value = mock_builder
+
+            advisor = BrandAdvisor(brand_slug="test-brand")
+            await advisor.chat(
+                "Short user message",
+                project_slug="big-campaign",
+            )
+
+        # Check history contains raw message, not augmented with context
+        history = advisor._history_manager.get_formatted()
+        assert "User: Short user message" in history
+        assert "Big Campaign" not in history  # Context should NOT be in history
+        assert "Lots of context" not in history
+
+    @pytest.mark.asyncio
+    async def test_chat_with_metadata_accepts_context_params(self) -> None:
+        """Test that chat_with_metadata accepts project_slug and attached_products."""
+        mock_result = MagicMock()
+        mock_result.final_output = "Response with metadata"
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = []
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            mock_builder = MagicMock()
+            mock_builder.build_turn_context.return_value = "### Context"
+            mock_builder_class.return_value = mock_builder
+
+            advisor = BrandAdvisor(brand_slug="test-brand")
+            result = await advisor.chat_with_metadata(
+                "Test message",
+                project_slug="my-project",
+                attached_products=["product-a", "product-b"],
+            )
+
+        # Verify builder received both params
+        mock_builder_class.assert_called_once_with(
+            brand_slug="test-brand",
+            product_slugs=["product-a", "product-b"],
+            project_slug="my-project",
+        )
+
+        # Verify response structure
+        assert "response" in result
+        assert result["response"] == "Response with metadata"
+
+    @pytest.mark.asyncio
+    async def test_no_brand_slug_skips_context_injection(self) -> None:
+        """Test that context injection is skipped when no brand_slug is set."""
+        mock_result = MagicMock()
+        mock_result.final_output = "Response"
+
+        with patch("sip_videogen.advisor.agent.get_active_brand", return_value=None), patch(
+            "sip_videogen.advisor.agent.get_skills_registry"
+        ) as mock_registry, patch(
+            "sip_videogen.advisor.agent.Runner"
+        ) as mock_runner, patch(
+            "sip_videogen.advisor.agent.HierarchicalContextBuilder"
+        ) as mock_builder_class:
+            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+            mock_registry.return_value.find_relevant_skills.return_value = []
+            mock_runner.run = AsyncMock(return_value=mock_result)
+
+            # No brand_slug
+            advisor = BrandAdvisor(brand_slug=None)
+            await advisor.chat(
+                "Message",
+                project_slug="some-project",
+                attached_products=["some-product"],
+            )
+
+        # Builder should not be called when brand_slug is None
+        mock_builder_class.assert_not_called()
