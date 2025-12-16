@@ -5,7 +5,7 @@ This PR implements a hierarchical memory system for Brand Studio, adding Product
 
 ## Related Files
 - **Task List**: `IMPLEMENTATION_PLAN.md`
-- **Main Changes**: `src/sip_videogen/brands/models.py`, `src/sip_videogen/brands/storage.py`
+- **Main Changes**: `src/sip_videogen/brands/models.py`, `src/sip_videogen/brands/storage.py`, `src/sip_videogen/advisor/agent.py`
 
 ## Completed Tasks
 
@@ -108,11 +108,49 @@ Added CRUD functions following existing brand storage patterns:
   - HierarchicalContextBuilder (empty without context, includes both, ordering, graceful skip)
   - Convenience functions (build_product_context, build_project_context, build_turn_context)
 
-## Remaining Tasks
-
-### Phase 3.5: Per-Turn Context Injection
+### Phase 3.5: Per-Turn Context Injection ✅
 **File**: `src/sip_videogen/advisor/agent.py`
-- Inject project+product context per-turn (not system prompt)
+
+Implemented per-turn context injection to dynamically inject project and product context into user messages:
+
+**Changes to BrandAdvisor:**
+- `chat_with_metadata()` accepts new parameters: `project_slug`, `attached_products`
+- `chat()` accepts same new parameters
+- `chat_stream()` accepts same new parameters
+- All three methods use `HierarchicalContextBuilder` to build per-turn context
+
+**Per-Turn Context Injection Pattern:**
+```python
+# Context is prepended to user message, NOT added to system prompt
+augmented_message = f"""## Current Context
+
+{turn_context}
+
+---
+
+## User Request
+
+{raw_user_message}"""
+```
+
+**Key Implementation Details:**
+- Skill matching uses **raw user message** (not augmented) - prevents context skewing skill selection
+- History stores **raw user message** (not augmented) - prevents history from ballooning
+- Context injection only happens when `brand_slug` is set AND (`project_slug` or `attached_products` provided)
+- Dynamic context changes work mid-conversation without rebuilding the Agent
+
+**Tests Added:**
+- 9 new tests in `tests/test_brand_advisor.py` covering:
+  - `test_chat_with_project_context`: Project context injected
+  - `test_chat_with_attached_products`: Product context injected
+  - `test_chat_with_project_and_products`: Both contexts together
+  - `test_chat_without_context_does_not_augment`: No context when params empty
+  - `test_skill_matching_uses_raw_message`: Skills match raw message
+  - `test_history_stores_raw_message`: History stores raw message
+  - `test_chat_with_metadata_accepts_context_params`: API accepts params
+  - `test_no_brand_slug_skips_context_injection`: No context without brand
+
+## Remaining Tasks
 
 ### Phase 3.6: Product Image Routing
 **File**: `src/sip_videogen/advisor/tools.py`
@@ -147,9 +185,11 @@ Added CRUD functions following existing brand storage patterns:
 ## Testing Notes
 - All 94 storage tests pass: `python -m pytest tests/test_brands_storage.py -v`
 - All 81 memory/context tests pass: `python -m pytest tests/test_brands_memory.py -v`
-- Total: 175 tests for brands module
+- All 31 advisor tests pass: `python -m pytest tests/test_brand_advisor.py -v`
+- Total: 206 tests for brands + advisor modules
 
 ## Commits
 - `61e558a`: feat(models): Add Product and Project models for hierarchical memory system
 - `9fe3b1f`: feat(storage): Add Product and Project storage layer functions
 - `bd581b0`: feat(memory): Add Product and Project memory and context layer functions
+- `c5410ab`: feat(advisor): Add per-turn context injection for products and projects
