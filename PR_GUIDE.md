@@ -134,16 +134,33 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 - Linter passes (no new errors from this change)
 - Existing brand tests pass (6 pre-existing failures unrelated to this change)
 
+#### Task 1.2.4: `list_identity_backups()` ✅
+**Commit**: `af5732b`
+
+**Implementation**:
+- Added `list_identity_backups()` method to `src/sip_videogen/studio/bridge.py`
+- Returns all identity backups for the active brand from `history/` folder
+- Response format: `{ backups: [{ filename, timestamp, size_bytes }] }`
+- Sorted by timestamp descending (most recent first)
+- Returns empty list if no backups exist
+- Returns error if no brand selected
+- Uses `list_brand_backups()` storage function internally
+
+**Testing**:
+- Method signature verified
+- Bridge imports and instantiates successfully
+- `list_identity_backups` method exists on bridge instance
+- No new linter errors from this change
+
 ---
 
 ## Next Tasks
 
 ### Stage 1.2: Bridge Methods (continued)
-- [ ] Task 1.2.4: `list_identity_backups()`
 - [ ] Task 1.2.5: `restore_identity_backup(filename: str)`
 
 ---
 
 ## Files Modified
 - `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
-- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, and regenerate_brand_identity bridge methods
+- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, regenerate_brand_identity, and list_identity_backups bridge methods
