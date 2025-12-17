@@ -695,12 +695,36 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - No ESLint warnings
 
+### Stage 3.6: Status Feedback Component - COMPLETE ✅
+
+#### Task 3.6.1: Create `BrandMemory/StatusAlert.tsx` - Inline success/error/info alerts ✅
+**Commit**: `c370bc7`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/StatusAlert.tsx`
+- Reusable inline status alert component for Brand Memory view
+- **Features**:
+  - Three variants: success (green), error (red), info (blue)
+  - Dismissible option with close button
+  - Auto-dismiss for success/info (errors persist until resolved)
+  - Consistent styling using existing Alert UI patterns
+- **Props**:
+  - `variant`: 'success' | 'error' | 'info'
+  - `message`: Alert message text
+  - `title`: Optional title (bold prefix)
+  - `dismissible`: Show close button
+  - `onDismiss`: Callback when dismissed
+  - `autoDismissMs`: Auto-dismiss after X milliseconds (not for errors)
+  - `className`: Additional styling
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No ESLint warnings
+
 ---
 
 ## Next Tasks
-
-### Stage 3.6: Status Feedback Component
-- [ ] Task 3.6.1: Create `BrandMemory/StatusAlert.tsx` - Inline success/error/info alerts
 
 ### Stage 4: Navigation & Sidebar Integration
 - [ ] Task 4.1.1: Keep ChatPanel mounted (modal overlay approach)
@@ -735,3 +759,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/TypographyListEditor.tsx` - NEW: Reusable typography list editor with card-based layout for TypographyRule arrays
 - `src/sip_videogen/studio/frontend/src/components/ui/alert-dialog.tsx` - NEW: AlertDialog UI component using Radix AlertDialog primitive
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/RegenerateConfirmDialog.tsx` - NEW: Confirmation dialog for regenerating brand identity with edit loss warning
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/StatusAlert.tsx` - NEW: Reusable inline status alert component with success/error/info variants
