@@ -16,6 +16,8 @@ interface BrandContextType {
   identityError: string | null
   refreshIdentity: () => Promise<void>
   setIdentity: (identity: BrandIdentityFull | null) => void
+  // AI advisor context
+  refreshAdvisorContext: () => Promise<{ success: boolean; message?: string; error?: string }>
 }
 
 const BrandContext = createContext<BrandContextType | null>(null)
@@ -93,6 +95,21 @@ export function BrandProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Refresh AI advisor context (wraps bridge.refreshBrandMemory)
+  // Used by sidebar "Refresh AI Memory" button and Brand Memory UI
+  const refreshAdvisorContext = useCallback(async () => {
+    try {
+      const ready = await waitForPyWebViewReady()
+      if (!ready) {
+        return { success: false, error: 'Not running in PyWebView' }
+      }
+      const result = await bridge.refreshBrandMemory()
+      return { success: true, message: result.message }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to refresh AI context' }
+    }
+  }, [])
+
   useEffect(() => {
     refresh()
   }, [refresh])
@@ -112,6 +129,8 @@ export function BrandProvider({ children }: { children: ReactNode }) {
         identityError,
         refreshIdentity,
         setIdentity,
+        // AI advisor context
+        refreshAdvisorContext,
       }}
     >
       {children}
