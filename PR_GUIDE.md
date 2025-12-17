@@ -793,6 +793,36 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - No ESLint warnings
 
+### Stage 5: Backup & Restore UI
+
+#### Task 5.1: Create `BrandMemory/BackupDialog.tsx` ✅
+**Commit**: `1ee3213`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/BackupDialog.tsx`
+- Dialog for viewing and restoring brand identity backups
+- **Features**:
+  - Lists all available backups for the current brand
+  - Shows relative timestamps (e.g., "2 hours ago") for recent backups
+  - Shows full date/time for older backups
+  - Displays file size for each backup
+  - Restore button per backup opens confirmation dialog
+  - Confirmation dialog warns about overwriting current identity
+  - Handles loading, error, empty, and restoring states
+  - Auto-dismisses success message and closes dialog after restore
+- **Props**:
+  - `open: boolean` - Dialog visibility
+  - `onOpenChange: (open: boolean) => void` - Close handler
+  - `brandName: string` - For display in dialog header
+  - `onRestore: (identity: BrandIdentityFull) => void` - Callback with restored identity
+- Uses `bridge.listIdentityBackups()` and `bridge.restoreIdentityBackup()` bridge methods
+- Uses existing AlertDialog component for restore confirmation
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No ESLint warnings
+
 ---
 
 ## Next Tasks
@@ -805,7 +835,7 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 4.3.2: Add `refreshAdvisorContext()` wrapper
 
 ### Stage 5: Backup & Restore UI
-- [ ] Task 5.1: Create `BrandMemory/BackupDialog.tsx`
+- [x] Task 5.1: Create `BrandMemory/BackupDialog.tsx`
 - [ ] Task 5.2: Add History button functionality
 - [ ] Task 5.3: Connect backup list and restore functionality
 
@@ -835,3 +865,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Added onOpenBrandMemory prop for modal trigger
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/BrandSection.tsx` - Added "Brand Memory" button with Brain icon
 - `src/sip_videogen/studio/frontend/src/context/BrandContext.tsx` - Added identity state, refreshIdentity(), setIdentity(), and refreshAdvisorContext() for brand identity and AI context management
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/BackupDialog.tsx` - NEW: Dialog for viewing and restoring brand identity backups with confirmation
