@@ -35,6 +35,7 @@ from sip_videogen.brands.storage import (
     list_products,
     list_project_assets,
     list_projects,
+    load_brand,
     load_brand_summary,
     load_product,
     load_project,
@@ -324,6 +325,35 @@ class StudioBridge:
                     "tagline": summary.tagline,
                     "category": summary.category,
                 },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_brand_identity(self) -> dict:
+        """Get full brand identity (L1 data) for the active brand.
+
+        Returns the complete brand identity including all sections:
+        core, visual, voice, audience, positioning, constraints_avoid.
+
+        Returns:
+            Success response with full BrandIdentityFull data, serialized
+            with model_dump(mode="json") for proper datetime handling.
+        """
+        try:
+            slug = self._current_brand or get_active_brand()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            identity = load_brand(slug)
+            if not identity:
+                return BridgeResponse(
+                    success=False, error=f"Brand '{slug}' not found"
+                ).to_dict()
+
+            # Use mode="json" for JSON-safe datetime serialization
+            return BridgeResponse(
+                success=True,
+                data=identity.model_dump(mode="json"),
             ).to_dict()
         except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
