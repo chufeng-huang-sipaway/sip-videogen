@@ -39,7 +39,7 @@ function ProjectCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-2 py-2 px-2 rounded cursor-pointer group transition-colors
+            className={`flex items-center gap-1.5 py-2 px-1.5 rounded cursor-pointer group transition-colors overflow-hidden
               hover:bg-gray-200/50 dark:hover:bg-gray-700/50
               ${isArchived ? 'opacity-60' : ''}`}
             onClick={onToggleExpand}
@@ -52,12 +52,12 @@ function ProjectCard({
               <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
             )}
             <FolderKanban className="h-4 w-4 shrink-0 text-gray-500" />
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <div className="flex items-center gap-1">
                 <span className="text-sm font-medium truncate">{project.name}</span>
                 {isArchived && <Archive className="h-3 w-3 text-gray-400 shrink-0" />}
               </div>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 truncate block">
                 {project.asset_count} asset{project.asset_count !== 1 ? 's' : ''}
               </span>
             </div>

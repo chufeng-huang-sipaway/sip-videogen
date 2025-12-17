@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Package, Plus, X, GripVertical, Star, Pencil, ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
+import { Package, Plus, X, Star, Pencil, ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -43,7 +43,7 @@ function ProductThumbnail({ path, size = 'sm' }: { path: string; size?: 'sm' | '
 
   if (!src) {
     return (
-      <div className={`${sizeClasses} rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center`}>
+      <div className={`${sizeClasses} rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0`}>
         {size === 'lg' ? (
           <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
         ) : (
@@ -53,7 +53,7 @@ function ProductThumbnail({ path, size = 'sm' }: { path: string; size?: 'sm' | '
     )
   }
 
-  return <img src={src} alt="" className={`${sizeClasses} rounded object-cover`} />
+  return <img src={src} alt="" className={`${sizeClasses} rounded object-cover shrink-0`} />
 }
 
 interface ProductPreviewProps {
@@ -210,7 +210,7 @@ function ProductCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-2 py-2 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group ${
+            className={`flex items-center gap-1.5 py-2 px-1.5 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group overflow-hidden ${
               isAttached ? 'bg-purple-100/50 dark:bg-purple-900/20 ring-1 ring-purple-500/30' : ''
             }`}
             draggable
@@ -225,7 +225,7 @@ function ProductCard({
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             )}
             <ProductThumbnail path={product.primary_image} />
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <div className="flex items-center gap-1">
                 <span className="text-sm font-medium truncate">{product.name}</span>
                 {isAttached && <Star className="h-3 w-3 text-purple-500 fill-purple-500 shrink-0" />}
@@ -236,7 +236,6 @@ function ProductCard({
                   : product.description}
               </span>
             </div>
-            <GripVertical className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 shrink-0" />
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
