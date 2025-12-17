@@ -158,11 +158,11 @@ mypy src/                  # Type check
 
 ```bash
 # Build DMG
-./scripts/build-release.sh 0.3.0
+./scripts/build-release.sh 0.4.5
 
 # Publish to GitHub
-gh release create v0.3.0 dist/Brand-Studio-0.3.0.dmg \
-  --title "Brand Studio v0.3.0" \
+gh release create v0.4.5 dist/Brand-Studio-0.4.5.dmg \
+  --title "Brand Studio v0.4.5" \
   --notes "Release notes here"
 ```
 
