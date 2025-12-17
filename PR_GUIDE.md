@@ -313,6 +313,34 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing UI patterns
 
+### Stage 3.2: Section Components
+
+#### Task 3.2.1: Create `sections/CoreSection.tsx` - Core identity section ✅
+**Commit**: `53687bf`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/CoreSection.tsx`
+- Displays and edits core brand identity (name, tagline, mission, brand_story, values)
+- **View mode**:
+  - Labeled display of all fields
+  - Values shown as purple badge pills
+  - Success alert shown after save ("AI context refreshed automatically")
+- **Edit mode**:
+  - Input fields for name, tagline
+  - Textarea for mission and brand_story
+  - Dynamic values list with add/remove buttons
+  - Save button with loading spinner
+  - Error alert on failure
+- Uses `MemorySection` wrapper for collapse/expand and edit mode toggle
+- Calls `updateBrandIdentitySection('core', data)` bridge method on save
+- Returns updated `BrandIdentityFull` to parent via `onIdentityUpdate` callback
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing patterns
+
 ---
 
 ## Next Tasks
@@ -320,7 +348,8 @@ All modifying methods automatically refresh the advisor context after successful
 ### Stage 3: Brand Memory View with Reusable Editors
 - [x] Task 3.1.1: Create `BrandMemory/index.tsx` - Main view container
 - [x] Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper
-- [ ] Task 3.2.1: Create `sections/CoreSection.tsx` - Core identity section
+- [x] Task 3.2.1: Create `sections/CoreSection.tsx` - Core identity section
+- [ ] Task 3.2.2: Create `sections/VisualSection.tsx` - Visual identity section
 
 ---
 
@@ -331,3 +360,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added brand identity bridge methods and wrapper functions
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx` - NEW: Main Brand Memory view container
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/MemorySection.tsx` - NEW: Reusable expandable section wrapper
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/CoreSection.tsx` - NEW: Core identity section component
