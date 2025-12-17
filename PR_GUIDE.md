@@ -526,6 +526,31 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing UI patterns
 
+#### Task 3.3.2: Create `editors/StringListEditor.tsx` - List with add/remove for string arrays ✅
+**Commit**: `bf90502`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/StringListEditor.tsx`
+- Reusable string list editor component with add/remove functionality
+- **Props**:
+  - `value`: Current list of string values
+  - `onChange`: Callback when list changes
+  - `label`: Label text displayed above the list
+  - `placeholder`: Optional placeholder text for each input
+  - `disabled`: Whether inputs are disabled
+  - `minItems`: Minimum number of items required (prevents removal below this count)
+  - `addButtonText`: Custom text for add button (defaults to "Add {label singular}")
+  - `className`: Additional container class names
+- Automatically generates singular form of label for add button text (removes trailing 's')
+- Uses existing `Input` and `Button` components from UI library
+- Matches pattern established in section components (`renderStringListEditor` helper)
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing UI patterns
+
 ---
 
 ## Next Tasks
@@ -540,9 +565,9 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 3.2.5: Create `sections/PositioningSection.tsx` - Competitive positioning section
 - [x] Task 3.2.6: Create `sections/ConstraintsAvoidSection.tsx` - Constraints + avoid lists
 - [x] Task 3.3.1: Create `editors/StringFieldEditor.tsx` - Text input / textarea for string fields
+- [x] Task 3.3.2: Create `editors/StringListEditor.tsx` - List with add/remove for string arrays
 
 ### Stage 3.3: Reusable Editors (Remaining Tasks)
-- [ ] Task 3.3.2: Create `editors/StringListEditor.tsx` - List with add/remove for string arrays
 - [ ] Task 3.3.3: Create `editors/ColorListEditor.tsx` - Color swatches with color picker
 - [ ] Task 3.3.4: Create `editors/TypographyListEditor.tsx` - Typography rules form
 
@@ -562,3 +587,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/PositioningSection.tsx` - NEW: Competitive positioning section component with market category, UVP, competitors, differentiation, and positioning statement editors
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/ConstraintsAvoidSection.tsx` - NEW: Constraints and avoid lists section component with add/remove functionality for both arrays
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/StringFieldEditor.tsx` - NEW: Reusable text field editor supporting single-line Input and multi-line textarea modes
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/StringListEditor.tsx` - NEW: Reusable string list editor with add/remove functionality for string arrays
