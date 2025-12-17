@@ -645,7 +645,7 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - No eslint warnings
 
-### Stage 3.5: Regenerate UX
+### Stage 3.5: Regenerate UX - COMPLETE ✅
 
 #### Task 3.5.1: Add confirmation dialog warning about edit loss ✅
 **Commit**: `0318749`
@@ -669,13 +669,50 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - No eslint warnings
 
-#### Remaining Tasks
-- [ ] Task 3.5.2: Show progress indicator during regeneration
-- [ ] Task 3.5.3: Auto-backup before regenerating
-- [ ] Task 3.5.4: After regeneration completes, show inline info that AI context is refreshed automatically
+#### Task 3.5.2-3.5.4: Implement regenerate brand identity flow ✅
+**Commit**: `89a886b`
+
+**Implementation**:
+- Updated `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx`
+- Added regeneration state management:
+  - `isRegenerating` - tracks when regeneration is in progress
+  - `regenerateError` - stores error message on failure
+  - `regenerateSuccess` - indicates successful regeneration
+- Implemented `handleRegenerateConfirm` with full error handling:
+  - Calls `bridge.regenerateBrandIdentity(true)` (backend auto-creates backup)
+  - Updates identity state with regenerated data
+  - Auto-dismisses success message after 5 seconds
+- Added progress indicator UI:
+  - Spinner with "Regenerating brand identity from source materials..." text
+  - Info text: "A backup has been created automatically"
+- Added success alert: "Brand identity regenerated successfully. AI context refreshed automatically."
+- Added error alert for regeneration failures
+- Disabled Regenerate/History buttons during regeneration
+- Hide identity sections during regeneration to show progress overlay
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No ESLint warnings
+
+---
+
+## Next Tasks
 
 ### Stage 3.6: Status Feedback Component
 - [ ] Task 3.6.1: Create `BrandMemory/StatusAlert.tsx` - Inline success/error/info alerts
+
+### Stage 4: Navigation & Sidebar Integration
+- [ ] Task 4.1.1: Keep ChatPanel mounted (modal overlay approach)
+- [ ] Task 4.1.2: Implement Brand Memory as modal with `brandMemoryOpen` state in App.tsx
+- [ ] Task 4.2.1: Update sidebar Brand Identity accordion with "Brand Memory" view button
+- [ ] Task 4.3.1: Add identity state to BrandContext.tsx
+- [ ] Task 4.3.2: Add `refreshAdvisorContext()` wrapper
+
+### Stage 5: Backup & Restore UI
+- [ ] Task 5.1: Create `BrandMemory/BackupDialog.tsx`
+- [ ] Task 5.2: Add History button functionality
+- [ ] Task 5.3: Connect backup list and restore functionality
 
 ---
 
