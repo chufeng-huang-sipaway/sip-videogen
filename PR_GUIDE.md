@@ -439,6 +439,37 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing patterns from CoreSection, VisualSection, VoiceSection
 
+#### Task 3.2.5: Create `sections/PositioningSection.tsx` - Competitive positioning section ✅
+**Commit**: `8c960f3`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/PositioningSection.tsx`
+- Displays and edits competitive positioning (market_category, unique_value_proposition, primary_competitors, differentiation, positioning_statement)
+- **View mode**:
+  - Market category as text
+  - Unique value proposition as paragraph text
+  - Primary competitors as orange badge pills
+  - Differentiation as paragraph text
+  - Positioning statement as italicized quoted text
+  - Success alert shown after save ("AI context refreshed automatically")
+- **Edit mode**:
+  - Input field for market_category
+  - Textarea for unique_value_proposition, differentiation, and positioning_statement
+  - Reusable `renderStringListEditor` helper for primary_competitors array
+  - Add/remove buttons for competitor list items
+  - Save button with loading spinner
+  - Error alert on failure
+- Uses `MemorySection` wrapper for collapse/expand and edit mode toggle
+- Calls `updateBrandIdentitySection('positioning', data)` bridge method on save
+- Returns updated `BrandIdentityFull` to parent via `onIdentityUpdate` callback
+- Deep copy helper ensures all arrays are properly cloned when entering edit mode
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing patterns from CoreSection, VisualSection, VoiceSection, AudienceSection
+
 ---
 
 ## Next Tasks
@@ -450,7 +481,8 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 3.2.2: Create `sections/VisualSection.tsx` - Visual identity section
 - [x] Task 3.2.3: Create `sections/VoiceSection.tsx` - Voice guidelines section
 - [x] Task 3.2.4: Create `sections/AudienceSection.tsx` - Audience profile section
-- [ ] Task 3.2.5: Create `sections/PositioningSection.tsx` - Competitive positioning section
+- [x] Task 3.2.5: Create `sections/PositioningSection.tsx` - Competitive positioning section
+- [ ] Task 3.2.6: Create `sections/ConstraintsAvoidSection.tsx` - Constraints + avoid lists
 
 ---
 
@@ -465,3 +497,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VisualSection.tsx` - NEW: Visual identity section component with color picker, typography, and imagery editors
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VoiceSection.tsx` - NEW: Voice guidelines section component with personality, tone, messaging, and examples editors
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/AudienceSection.tsx` - NEW: Audience profile section component with demographics, psychographics, pain points, and desires editors
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/PositioningSection.tsx` - NEW: Competitive positioning section component with market category, UVP, competitors, differentiation, and positioning statement editors
