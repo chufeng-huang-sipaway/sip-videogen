@@ -200,10 +200,37 @@ All modifying methods automatically refresh the advisor context after successful
 
 ---
 
+### Stage 2.1: TypeScript Types
+
+#### Task 2.1.1: Create TypeScript types file ✅
+**Commit**: `7e6199c`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/types/brand-identity.ts`
+- All types use **snake_case** to match Python models exactly (no mapping layer)
+- Defined interfaces matching Python Pydantic models:
+  - `ColorDefinition` - hex, name, usage
+  - `TypographyRule` - role, family, weight, style_notes
+  - `BrandCoreIdentity` - name, tagline, mission, brand_story, values
+  - `VisualIdentity` - colors, typography, imagery, logo, aesthetic
+  - `VoiceGuidelines` - personality, tone, messages, examples
+  - `AudienceProfile` - demographics, interests, pain_points, desires
+  - `CompetitivePositioning` - market, competitors, differentiation
+  - `BrandIdentityFull` - full L1 model with all sections
+  - `IdentitySection` - union type for section names
+  - `ConstraintsAvoidData` - constraints[] + avoid[]
+  - `BackupEntry` - filename, timestamp, size_bytes
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- Types properly exported for use in bridge.ts and components
+
+---
+
 ## Next Tasks
 
-### Stage 2: Frontend Types & Bridge
-- [ ] Task 2.1.1: Create TypeScript types file `src/sip_videogen/studio/frontend/src/types/brand-identity.ts`
+### Stage 2.2: Bridge Functions
 - [ ] Task 2.2.1: Extend `PyWebViewAPI` interface and add bridge functions in `bridge.ts`
 
 ---
@@ -211,3 +238,4 @@ All modifying methods automatically refresh the advisor context after successful
 ## Files Modified
 - `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
 - `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, regenerate_brand_identity, list_identity_backups, and restore_identity_backup bridge methods
+- `src/sip_videogen/studio/frontend/src/types/brand-identity.ts` - NEW: TypeScript types for brand identity
