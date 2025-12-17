@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Brain, RefreshCw, History, AlertCircle } from 'lucide-react'
+import { Brain, RefreshCw, History, AlertCircle, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -48,6 +48,9 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const [regenerateError, setRegenerateError] = useState<string | null>(null)
+  const [regenerateSuccess, setRegenerateSuccess] = useState(false)
 
   // Load identity when dialog opens
   const loadIdentity = useCallback(async () => {
@@ -79,6 +82,8 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
     if (!open) {
       setIdentity(null)
       setError(null)
+      setRegenerateError(null)
+      setRegenerateSuccess(false)
     }
   }, [open])
 
@@ -105,10 +110,30 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
     onOpenChange(false)
   }
 
-  // Handle regenerate confirmation (actual regeneration logic in Task 3.5.2-3.5.4)
-  const handleRegenerateConfirm = () => {
-    // TODO: Implement actual regeneration (Task 3.5.2-3.5.4)
-    console.log('[BrandMemory] Regenerate confirmed')
+  // Handle regenerate confirmation
+  const handleRegenerateConfirm = async () => {
+    if (!isPyWebView()) return
+
+    setIsRegenerating(true)
+    setRegenerateError(null)
+    setRegenerateSuccess(false)
+    setShowRegenerateConfirm(false)
+
+    try {
+      // Backend automatically creates backup before regenerating
+      const newIdentity = await bridge.regenerateBrandIdentity(true)
+      setIdentity(newIdentity)
+      setRegenerateSuccess(true)
+      console.log('[BrandMemory] Regeneration complete')
+
+      // Auto-dismiss success message after 5 seconds
+      setTimeout(() => setRegenerateSuccess(false), 5000)
+    } catch (err) {
+      console.error('[BrandMemory] Regeneration failed:', err)
+      setRegenerateError(err instanceof Error ? err.message : 'Failed to regenerate brand identity')
+    } finally {
+      setIsRegenerating(false)
+    }
   }
 
   return (
@@ -140,10 +165,20 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
               variant="outline"
               size="sm"
               onClick={() => setShowRegenerateConfirm(true)}
+              disabled={isRegenerating}
               className="gap-1.5"
             >
-              <RefreshCw className="h-4 w-4" />
-              Regenerate
+              {isRegenerating ? (
+                <>
+                  <Spinner className="h-4 w-4" />
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Regenerate
+                </>
+              )}
             </Button>
             <Button
               variant="outline"
@@ -152,6 +187,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
                 // TODO: Implement backup history (Stage 5)
                 console.log('[BrandMemory] History clicked')
               }}
+              disabled={isRegenerating}
               className="gap-1.5"
             >
               <History className="h-4 w-4" />
@@ -163,8 +199,39 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
         {/* Content area */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="pr-4 py-2">
+            {/* Regeneration progress overlay */}
+            {isRegenerating && (
+              <div className="py-12 flex flex-col items-center gap-4">
+                <Spinner className="h-8 w-8 text-purple-500" />
+                <p className="text-sm text-muted-foreground">
+                  Regenerating brand identity from source materials...
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  A backup has been created automatically
+                </p>
+              </div>
+            )}
+
+            {/* Regeneration success alert */}
+            {regenerateSuccess && !isRegenerating && (
+              <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription>
+                  Brand identity regenerated successfully. AI context refreshed automatically.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Regeneration error alert */}
+            {regenerateError && !isRegenerating && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{regenerateError}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Loading state */}
-            {isLoading && (
+            {isLoading && !isRegenerating && (
               <div className="py-12 flex flex-col items-center gap-4">
                 <Spinner className="h-8 w-8 text-purple-500" />
                 <p className="text-sm text-muted-foreground">Loading brand memory...</p>
@@ -172,7 +239,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
             )}
 
             {/* Error state */}
-            {error && !isLoading && (
+            {error && !isLoading && !isRegenerating && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
@@ -180,7 +247,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
             )}
 
             {/* Identity sections */}
-            {identity && !isLoading && !error && (
+            {identity && !isLoading && !error && !isRegenerating && (
               <MemorySectionGroup>
                 <CoreSection
                   data={identity.core}
@@ -210,7 +277,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
             )}
 
             {/* No brand selected */}
-            {!activeBrand && !isLoading && (
+            {!activeBrand && !isLoading && !isRegenerating && (
               <div className="py-12 text-center">
                 <p className="text-sm text-muted-foreground">
                   No brand selected. Please select a brand from the sidebar.
