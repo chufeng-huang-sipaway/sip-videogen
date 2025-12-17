@@ -88,12 +88,31 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 - Bridge instantiation verified
 - Linter passes (`ruff check` - no new errors)
 
+#### Task 1.2.2: `update_brand_identity_section(section: str, data: dict)` ✅
+**Commit**: `ecd4b1d`
+
+**Implementation**:
+- Added `update_brand_identity_section()` method to `src/sip_videogen/studio/bridge.py`
+- Supports sections: `core`, `visual`, `voice`, `audience`, `positioning`, `constraints_avoid`
+- **Pydantic validation**: Validates section data before saving to prevent corrupt identity files
+  - Uses `BrandCoreIdentity.model_validate()`, `VisualIdentity.model_validate()`, etc.
+  - Special handling for `constraints_avoid` which maps to two separate lists
+- Uses `save_brand()` to persist changes and sync brand index (name/category updates reflected)
+- **Auto-refreshes advisor context** after successful update (preserves chat history)
+- Returns full identity with `model_dump(mode="json")` for datetime serialization
+- Added imports: `BrandCoreIdentity`, `VisualIdentity`, `VoiceGuidelines`, `AudienceProfile`, `CompetitivePositioning`, `save_brand`
+
+**Testing**:
+- Method signature verified
+- Bridge imports and instantiates successfully
+- Linter passes (`ruff check` - no new errors from this change)
+- Existing brand tests pass (6 pre-existing failures unrelated to this change)
+
 ---
 
 ## Next Tasks
 
 ### Stage 1.2: Bridge Methods (continued)
-- [ ] Task 1.2.2: `update_brand_identity_section(section: str, data: dict)`
 - [ ] Task 1.2.3: `regenerate_brand_identity(confirm: bool)`
 - [ ] Task 1.2.4: `list_identity_backups()`
 - [ ] Task 1.2.5: `restore_identity_backup(filename: str)`
@@ -102,4 +121,4 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 
 ## Files Modified
 - `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
-- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity bridge method
+- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity and update_brand_identity_section bridge methods
