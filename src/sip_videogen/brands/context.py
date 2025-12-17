@@ -10,7 +10,6 @@ HierarchicalContextBuilder for per-turn context injection.
 from __future__ import annotations
 
 from .storage import (
-    list_products,
     load_brand_summary,
     load_product,
     load_project,
@@ -154,35 +153,90 @@ class ProductContextBuilder:
 
         Returns:
             Formatted string including product info and brand-relative image paths.
+            Includes explicit accuracy requirements and categorized attributes
+            to ensure exact reproduction of product appearance.
         """
         p = self.product
 
-        # Format attributes
-        attributes_str = ""
+        # Categorize attributes by importance for accurate reproduction
+        measurements = []
+        materials = []
+        colors = []
+        other_attrs = []
+
         if p.attributes:
-            attr_lines = []
             for attr in p.attributes:
-                attr_lines.append(f"  - {attr.key}: {attr.value}")
-            attributes_str = "\n".join(attr_lines)
-        else:
-            attributes_str = "  (No attributes defined)"
+                key_lower = attr.key.lower()
+                cat_lower = attr.category.lower() if attr.category else ""
+
+                # Check for measurements (dimensions, size, etc.)
+                if (
+                    cat_lower == "measurements"
+                    or "height" in key_lower
+                    or "width" in key_lower
+                    or "size" in key_lower
+                    or "dimension" in key_lower
+                    or "volume" in key_lower
+                    or "weight" in key_lower
+                ):
+                    measurements.append(f"  - {attr.key}: {attr.value}")
+                # Check for materials/textures (critical for visual accuracy)
+                elif (
+                    "material" in key_lower
+                    or "texture" in key_lower
+                    or "finish" in key_lower
+                    or "surface" in key_lower
+                ):
+                    materials.append(f"  - {attr.key}: {attr.value} [PRESERVE EXACTLY]")
+                # Check for colors (critical for brand consistency)
+                elif "color" in key_lower or "colour" in key_lower:
+                    colors.append(f"  - {attr.key}: {attr.value} [PRESERVE EXACTLY]")
+                else:
+                    other_attrs.append(f"  - {attr.key}: {attr.value}")
+
+        # Build categorized attributes section
+        attr_sections = []
+
+        if measurements:
+            attr_sections.append("**Measurements** (use for accurate scale):")
+            attr_sections.extend(measurements)
+
+        if materials:
+            attr_sections.append("**Materials/Texture** (CRITICAL - preserve exactly):")
+            attr_sections.extend(materials)
+
+        if colors:
+            attr_sections.append("**Colors** (CRITICAL - preserve exactly):")
+            attr_sections.extend(colors)
+
+        if other_attrs:
+            attr_sections.append("**Other Attributes**:")
+            attr_sections.extend(other_attrs)
+
+        if not attr_sections:
+            attr_sections.append("  (No attributes defined)")
+
+        attributes_str = "\n".join(attr_sections)
 
         # Format images
         images_str = ""
         if p.images:
             image_lines = []
             for img in p.images:
-                is_primary = " (primary)" if img == p.primary_image else ""
+                is_primary = " [PRIMARY - use as reference]" if img == p.primary_image else ""
                 image_lines.append(f"  - {img}{is_primary}")
             images_str = "\n".join(image_lines)
         else:
             images_str = "  (No images)"
 
         context = f"""### Product: {p.name}
+**CRITICAL - EXACT REPRODUCTION REQUIRED**
+This product must appear IDENTICAL to its reference image.
+Preserve: exact shape, materials, colors, textures, and proportions.
+
 **Slug**: {p.slug}
 **Description**: {p.description}
 
-**Attributes**:
 {attributes_str}
 
 **Reference Images**:
@@ -311,6 +365,7 @@ class HierarchicalContextBuilder:
         Returns formatted string with:
         - Project instructions (if project active)
         - Attached product descriptions + image paths (if products attached)
+        - Multi-product accuracy requirements (if 2+ products attached)
 
         NOTE: Brand context is in system prompt (existing).
         This is ADDITIONAL context injected per-turn.
@@ -343,13 +398,67 @@ class HierarchicalContextBuilder:
                     pass
 
             if product_sections:
-                products_header = "### Attached Products"
-                sections.append(products_header + "\n\n" + "\n\n".join(product_sections))
+                # Multi-product scenario requires special handling
+                if len(product_sections) > 1:
+                    multi_product_header = self._build_multi_product_header(
+                        len(product_sections)
+                    )
+                    sections.append(
+                        multi_product_header + "\n\n" + "\n\n".join(product_sections)
+                    )
+                else:
+                    # Single product - just add with simple header
+                    products_header = "### Attached Product"
+                    sections.append(
+                        products_header + "\n\n" + "\n\n".join(product_sections)
+                    )
 
         if not sections:
             return ""
 
         return "\n\n---\n\n".join(sections)
+
+    def _build_multi_product_header(self, product_count: int) -> str:
+        """Build the multi-product accuracy requirements header.
+
+        Args:
+            product_count: Number of products attached.
+
+        Returns:
+            Formatted header with accuracy requirements.
+        """
+        return f"""### MULTI-PRODUCT ACCURACY REQUIREMENTS
+
+You have {product_count} products attached. Each must be reproduced with PIXEL-PERFECT accuracy.
+
+**CRITICAL RULES:**
+1. EVERY product must appear EXACTLY as its reference image
+2. DO NOT change ANY materials, colors, or textures
+3. Each product must be CLEARLY DISTINGUISHABLE from the others
+4. Preserve exact proportions and scale relationships
+5. If products have different materials (glass vs metal vs plastic),
+   those differences MUST be visible
+
+**When generating the prompt, include for EACH product:**
+- Exact material description from attributes
+- Exact color specification
+- Exact size/dimensions if available
+- Distinctive features that differentiate it from other products
+
+**PROMPT PATTERN for multi-product images:**
+```
+[Scene description].
+Feature EXACTLY these products:
+1. [Product A name]: [exact material], [exact color], [distinctive features]
+2. [Product B name]: [exact material], [exact color], [distinctive features]
+...
+
+CRITICAL: Each product must appear IDENTICAL to its reference image.
+Preserve all materials, colors, textures, and proportions exactly.
+```
+
+**WARNING:** Accuracy is paramount. Our brand's reputation depends on showing
+products exactly as they are. A "similar-looking" product is a FAILURE."""
 
 
 def build_turn_context(

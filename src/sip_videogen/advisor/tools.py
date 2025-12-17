@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import Literal
 
 from agents import function_tool
-
 from sip_videogen.brands.storage import (
     get_active_brand,
     get_active_project,
@@ -153,6 +152,7 @@ async def _impl_generate_image(
     filename: str | None = None,
     reference_image: str | None = None,
     product_slug: str | None = None,
+    product_slugs: list[str] | None = None,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -164,6 +164,8 @@ async def _impl_generate_image(
         filename: Optional output filename (without extension).
         reference_image: Optional path to reference image within brand directory.
         product_slug: Optional product slug - auto-loads product's primary image as reference.
+        product_slugs: Optional list of product slugs for multi-product generation.
+            When provided with 2+ products, uses multi-product validation.
         validate_identity: When True with reference_image, validates that the
             generated image preserves object identity from the reference.
         max_retries: Maximum validation attempts (only used with validate_identity).
@@ -197,7 +199,10 @@ async def _impl_generate_image(
         # (agent may provide filename but with wrong separator format)
         generated_filename = _generate_output_filename(active_project)
         if filename:
-            logger.debug(f"Agent provided filename '{filename}', overriding with '{generated_filename}' for project tagging")
+            logger.debug(
+                f"Agent provided filename '{filename}', "
+                f"overriding with '{generated_filename}' for project tagging"
+            )
         filename = generated_filename
         logger.info(f"Tagging generated image with project: {active_project}")
     elif not filename:
@@ -206,7 +211,61 @@ async def _impl_generate_image(
 
     output_path = output_dir / f"{filename}.png"
 
-    # Auto-load product's primary image as reference if product_slug provided
+    # Handle multi-product generation with validation
+    if product_slugs and len(product_slugs) >= 2:
+        if not brand_slug:
+            return "Error: No active brand - cannot load products"
+
+        # Load all product primary images
+        product_references: list[tuple[str, bytes]] = []
+        for slug in product_slugs:
+            product = load_product(brand_slug, slug)
+            if product is None:
+                return f"Error: Product not found: {slug}"
+            if not product.primary_image:
+                return f"Error: Product '{slug}' has no primary image for reference"
+
+            # Resolve and load the primary image
+            ref_path = _resolve_brand_path(product.primary_image)
+            if ref_path is None or not ref_path.exists():
+                return (
+                    f"Error: Reference image not found for product '{slug}': "
+                    f"{product.primary_image}"
+                )
+
+            try:
+                ref_bytes = ref_path.read_bytes()
+                product_references.append((product.name, ref_bytes))
+                logger.info(f"Loaded reference for '{product.name}': {product.primary_image}")
+            except Exception as e:
+                return f"Error reading reference image for '{slug}': {e}"
+
+        # Use multi-product validation
+        from sip_videogen.advisor.validation import generate_with_multi_validation
+
+        logger.info(
+            f"Generating multi-product image with {len(product_references)} products "
+            f"(max {max_retries} retries)..."
+        )
+
+        try:
+            from google import genai
+
+            client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
+            return await generate_with_multi_validation(
+                client=client,
+                prompt=prompt,
+                product_references=product_references,
+                output_dir=output_dir,
+                filename=filename,
+                aspect_ratio=aspect_ratio,
+                max_retries=max_retries,
+            )
+        except Exception as e:
+            logger.error(f"Multi-product image generation failed: {e}")
+            return f"Error generating multi-product image: {str(e)}"
+
+    # Auto-load product's primary image as reference if product_slug provided (single product)
     if product_slug and not reference_image:
         if not brand_slug:
             return "Error: No active brand - cannot load product"
@@ -924,6 +983,7 @@ async def generate_image(
     filename: str | None = None,
     reference_image: str | None = None,
     product_slug: str | None = None,
+    product_slugs: list[str] | None = None,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -950,6 +1010,12 @@ async def generate_image(
             automatically loads the product's primary image as reference and enables
             identity validation. Use this when generating images featuring a specific
             product - the product's actual appearance will be preserved.
+        product_slugs: Optional list of product slugs for MULTI-PRODUCT images.
+            Use this when the user wants to generate an image featuring 2-3 products.
+            Each product's primary image will be used as reference, and multi-product
+            validation ensures EVERY product appears accurately. The prompt should
+            describe each product with specific details (materials, colors, etc.).
+            Example: product_slugs=["night-cream", "day-serum", "toner"]
         validate_identity: When True AND reference_image is provided, enables a
             validation loop that ensures the generated image preserves the identity
             of objects in the reference. Use when the user needs the EXACT SAME
@@ -970,6 +1036,7 @@ async def generate_image(
         filename,
         reference_image,
         product_slug,
+        product_slugs,
         validate_identity,
         max_retries,
     )
