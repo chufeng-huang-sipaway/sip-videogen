@@ -15,9 +15,10 @@ import { ProjectsSection } from './sections/ProjectsSection'
 
 interface SidebarProps {
   width: number
+  onOpenBrandMemory?: () => void
 }
 
-export function Sidebar({ width }: SidebarProps) {
+export function Sidebar({ width, onOpenBrandMemory }: SidebarProps) {
   return (
     <aside
       className="h-screen flex flex-col glass-sidebar border-r border-border/50 flex-shrink-0 transition-all duration-300 ease-in-out"
@@ -54,7 +55,7 @@ export function Sidebar({ width }: SidebarProps) {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-3 pb-2 pt-1">
-                <BrandSection />
+                <BrandSection onOpenBrandMemory={onOpenBrandMemory} />
               </AccordionContent>
             </AccordionItem>
 

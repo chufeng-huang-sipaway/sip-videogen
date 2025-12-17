@@ -3,6 +3,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { ChatPanel } from '@/components/ChatPanel'
 import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
 import { UpdateModal } from '@/components/Update'
+import { BrandMemory } from '@/components/BrandMemory'
 import { ResizeHandle } from '@/components/ui/resize-handle'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
@@ -19,6 +20,7 @@ function App() {
   const { activeBrand } = useBrand()
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
+  const [brandMemoryOpen, setBrandMemoryOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY)
     return saved ? parseInt(saved, 10) : SIDEBAR_DEFAULT_WIDTH
@@ -95,9 +97,12 @@ function App() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <Sidebar width={sidebarWidth} />
+      <Sidebar width={sidebarWidth} onOpenBrandMemory={() => setBrandMemoryOpen(true)} />
       <ResizeHandle onResize={handleResize} onResizeEnd={handleResizeEnd} />
       <ChatPanel brandSlug={activeBrand} />
+
+      {/* Brand Memory modal - keeps ChatPanel mounted underneath */}
+      <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
 
       {/* Update notification modal */}
       {updateInfo && (
