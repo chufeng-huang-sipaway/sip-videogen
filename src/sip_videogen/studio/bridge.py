@@ -36,6 +36,7 @@ from sip_videogen.brands.storage import (
     get_active_brand,
     get_active_project,
     get_brand_dir,
+    list_brand_backups,
     list_brands,
     list_product_images,
     list_products,
@@ -583,6 +584,43 @@ class StudioBridge:
             import traceback
             print(f"[REGENERATE_BRAND] ERROR: {e}")
             traceback.print_exc()
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def list_identity_backups(self) -> dict:
+        """List all identity backups for the active brand.
+
+        Returns backups from the brand's history/ folder, sorted by timestamp
+        (most recent first).
+
+        Returns:
+            Success response with:
+            {
+                "backups": [
+                    {
+                        "filename": "identity_full_20240115_143022.json",
+                        "timestamp": "2024-01-15T14:30:22",
+                        "size_bytes": 12345
+                    },
+                    ...
+                ]
+            }
+
+        Notes:
+            - Returns empty list if no backups exist
+            - Backups are created automatically before regeneration
+        """
+        try:
+            slug = self._current_brand or get_active_brand()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            backups = list_brand_backups(slug)
+
+            return BridgeResponse(
+                success=True,
+                data={"backups": backups},
+            ).to_dict()
+        except Exception as e:
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
     def delete_brand(self, slug: str) -> dict:
