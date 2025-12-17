@@ -70,10 +70,29 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 
 ---
 
+### Stage 1.2: Bridge Methods
+
+#### Task 1.2.1: `get_brand_identity()` ✅
+**Commit**: `d5e5793`
+
+**Implementation**:
+- Added `get_brand_identity()` method to `src/sip_videogen/studio/bridge.py`
+- Returns full brand identity (L1 data) for the active brand
+- Uses `load_brand()` from storage module to fetch `BrandIdentityFull`
+- Serializes response using `model_dump(mode="json")` for proper datetime handling
+- Returns error if no brand selected or brand not found
+
+**Testing**:
+- Method signature verified
+- Import verified (`load_brand` properly imported from storage)
+- Bridge instantiation verified
+- Linter passes (`ruff check` - no new errors)
+
+---
+
 ## Next Tasks
 
-### Stage 1.2: Bridge Methods
-- [ ] Task 1.2.1: `get_brand_identity()`
+### Stage 1.2: Bridge Methods (continued)
 - [ ] Task 1.2.2: `update_brand_identity_section(section: str, data: dict)`
 - [ ] Task 1.2.3: `regenerate_brand_identity(confirm: bool)`
 - [ ] Task 1.2.4: `list_identity_backups()`
@@ -83,3 +102,4 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 
 ## Files Modified
 - `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
+- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity bridge method
