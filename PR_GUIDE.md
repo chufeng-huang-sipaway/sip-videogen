@@ -256,10 +256,44 @@ All modifying methods automatically refresh the advisor context after successful
 
 ---
 
+### Stage 3.1: Main Components
+
+#### Task 3.1.1: Create `BrandMemory/index.tsx` - Main view container ✅
+**Commit**: `792f109`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx`
+- Modal dialog component that opens as an overlay (keeps ChatPanel mounted)
+- Loads brand identity (L1 data) via `getBrandIdentity()` bridge method on open
+- **Header** shows brand name, last updated timestamp, and action buttons:
+  - "Regenerate" button (placeholder - Task 3.5)
+  - "History" button (placeholder - Stage 5)
+- **Content area** with ScrollArea for scrollable sections:
+  - Core Identity (name, tagline)
+  - Visual Identity (colors, typography)
+  - Voice Guidelines (personality)
+  - Target Audience (primary summary)
+  - Market Positioning (market category)
+  - Constraints & Avoid (counts)
+- **State handling**:
+  - Loading state with spinner
+  - Error state with Alert
+  - No brand selected state
+- Uses `useBrand()` context for active brand slug
+- Placeholder sections will be replaced with MemorySection in Task 3.1.2
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing dialog patterns (CreateBrandDialog)
+
+---
+
 ## Next Tasks
 
 ### Stage 3: Brand Memory View with Reusable Editors
-- [ ] Task 3.1.1: Create `BrandMemory/index.tsx` - Main view container
+- [x] Task 3.1.1: Create `BrandMemory/index.tsx` - Main view container
 - [ ] Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper
 
 ---
@@ -269,3 +303,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, regenerate_brand_identity, list_identity_backups, and restore_identity_backup bridge methods
 - `src/sip_videogen/studio/frontend/src/types/brand-identity.ts` - NEW: TypeScript types for brand identity
 - `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added brand identity bridge methods and wrapper functions
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx` - NEW: Main Brand Memory view container
