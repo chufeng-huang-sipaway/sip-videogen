@@ -152,15 +152,37 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 - `list_identity_backups` method exists on bridge instance
 - No new linter errors from this change
 
+#### Task 1.2.5: `restore_identity_backup(filename: str)` ✅
+**Commit**: `acac592`
+
+**Implementation**:
+- Added `restore_identity_backup()` method to `src/sip_videogen/studio/bridge.py`
+- Restores brand identity from a backup file in the `history/` folder
+- **Security validations** (before passing to storage):
+  - Validates filename contains no path separators (`/`, `\`)
+  - Validates filename ends with `.json`
+- Uses `restore_brand_backup()` storage function for backup loading and additional validation
+- **Enforces slug stability**: Forces restored identity slug to current brand slug
+- **Saves restored identity**: Uses `save_brand()` to persist and sync index
+- **Auto-refresh advisor context**: Calls `self._advisor.set_brand(slug, preserve_history=True)` after success
+- Uses `model_dump(mode="json")` for JSON-safe datetime serialization
+- Added import: `restore_brand_backup` from storage module
+
+**Testing**:
+- Method signature verified: `(filename: str) -> dict`
+- Bridge imports and instantiates successfully
+- `restore_identity_backup` method exists on bridge instance
+- No new linter errors from this change
+
 ---
 
 ## Next Tasks
 
-### Stage 1.2: Bridge Methods (continued)
-- [ ] Task 1.2.5: `restore_identity_backup(filename: str)`
+### Stage 1.3: AI Context Sync
+- [ ] Task 1.3.1: Ensure all bridge methods returning identity use `model_dump(mode="json")` for JSON-safe datetime serialization (verify complete)
 
 ---
 
 ## Files Modified
 - `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
-- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, regenerate_brand_identity, and list_identity_backups bridge methods
+- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, regenerate_brand_identity, list_identity_backups, and restore_identity_backup bridge methods
