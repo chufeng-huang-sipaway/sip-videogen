@@ -470,6 +470,33 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing patterns from CoreSection, VisualSection, VoiceSection, AudienceSection
 
+#### Task 3.2.6: Create `sections/ConstraintsAvoidSection.tsx` - Constraints + avoid lists ✅
+**Commit**: `9e9b010`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/ConstraintsAvoidSection.tsx`
+- Displays and edits brand constraints and things to avoid
+- **View mode**:
+  - Brand constraints as yellow badge pills
+  - Things to avoid as red badge pills
+  - Descriptive labels explaining each section's purpose
+  - Success alert shown after save ("AI context refreshed automatically")
+- **Edit mode**:
+  - Reusable `renderStringListEditor` helper for both arrays
+  - Add/remove buttons for list items
+  - Save button with loading spinner
+  - Error alert on failure
+- Uses `MemorySection` wrapper for collapse/expand and edit mode toggle
+- Calls `updateBrandIdentitySection('constraints_avoid', data)` bridge method on save
+- Returns updated `BrandIdentityFull` to parent via `onIdentityUpdate` callback
+- Deep copy helper ensures all arrays are properly cloned when entering edit mode
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing patterns from other section components
+
 ---
 
 ## Next Tasks
@@ -482,7 +509,13 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 3.2.3: Create `sections/VoiceSection.tsx` - Voice guidelines section
 - [x] Task 3.2.4: Create `sections/AudienceSection.tsx` - Audience profile section
 - [x] Task 3.2.5: Create `sections/PositioningSection.tsx` - Competitive positioning section
-- [ ] Task 3.2.6: Create `sections/ConstraintsAvoidSection.tsx` - Constraints + avoid lists
+- [x] Task 3.2.6: Create `sections/ConstraintsAvoidSection.tsx` - Constraints + avoid lists
+
+### Stage 3.3: Reusable Editors (Tasks 3.3.1 - 3.3.4)
+- [ ] Task 3.3.1: Create `editors/StringFieldEditor.tsx` - Text input / textarea for string fields
+- [ ] Task 3.3.2: Create `editors/StringListEditor.tsx` - List with add/remove for string arrays
+- [ ] Task 3.3.3: Create `editors/ColorListEditor.tsx` - Color swatches with color picker
+- [ ] Task 3.3.4: Create `editors/TypographyListEditor.tsx` - Typography rules form
 
 ---
 
@@ -498,3 +531,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VoiceSection.tsx` - NEW: Voice guidelines section component with personality, tone, messaging, and examples editors
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/AudienceSection.tsx` - NEW: Audience profile section component with demographics, psychographics, pain points, and desires editors
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/PositioningSection.tsx` - NEW: Competitive positioning section component with market category, UVP, competitors, differentiation, and positioning statement editors
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/ConstraintsAvoidSection.tsx` - NEW: Constraints and avoid lists section component with add/remove functionality for both arrays
