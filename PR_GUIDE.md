@@ -341,6 +341,40 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing patterns
 
+#### Task 3.2.2: Create `sections/VisualSection.tsx` - Visual identity section ✅
+**Commit**: `ef498f3`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VisualSection.tsx`
+- Displays and edits visual brand identity (colors, typography, imagery, materials, logo, aesthetic)
+- **View mode**:
+  - Color swatches with hex color preview, name, and usage
+  - Typography rules display (role, family, weight, style notes)
+  - Imagery style with keywords (blue) and avoid items (red) as badge pills
+  - Materials list as amber badge pills
+  - Logo description and usage rules
+  - Overall aesthetic with style keywords (purple badge pills)
+  - Success alert shown after save ("AI context refreshed automatically")
+- **Edit mode**:
+  - Color editors with native `<input type="color">` picker + hex input
+  - Separate editors for primary, secondary, and accent colors
+  - Typography rules form (role, family, weight, style_notes)
+  - String array editors for imagery_keywords, imagery_avoid, materials, style_keywords
+  - Textarea fields for imagery_style, logo_description, logo_usage_rules, overall_aesthetic
+  - Add/remove buttons for all list items
+  - Save button with loading spinner
+  - Error alert on failure
+- Uses `MemorySection` wrapper for collapse/expand and edit mode toggle
+- Calls `updateBrandIdentitySection('visual', data)` bridge method on save
+- Returns updated `BrandIdentityFull` to parent via `onIdentityUpdate` callback
+- Deep copy helper ensures all nested arrays are properly cloned when entering edit mode
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing patterns from CoreSection
+
 ---
 
 ## Next Tasks
@@ -349,7 +383,8 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 3.1.1: Create `BrandMemory/index.tsx` - Main view container
 - [x] Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper
 - [x] Task 3.2.1: Create `sections/CoreSection.tsx` - Core identity section
-- [ ] Task 3.2.2: Create `sections/VisualSection.tsx` - Visual identity section
+- [x] Task 3.2.2: Create `sections/VisualSection.tsx` - Visual identity section
+- [ ] Task 3.2.3: Create `sections/VoiceSection.tsx` - Voice guidelines section
 
 ---
 
@@ -361,3 +396,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx` - NEW: Main Brand Memory view container
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/MemorySection.tsx` - NEW: Reusable expandable section wrapper
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/CoreSection.tsx` - NEW: Core identity section component
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VisualSection.tsx` - NEW: Visual identity section component with color picker, typography, and imagery editors
