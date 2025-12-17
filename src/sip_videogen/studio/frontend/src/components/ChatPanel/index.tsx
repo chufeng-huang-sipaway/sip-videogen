@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState } from 'react'
 import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -51,16 +51,24 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     getProject,
   } = useProjects()
 
-  // Track loaded project details for banner
-  const [projectFull, setProjectFull] = useState<ProjectFull | null>(null)
+  const [loadedProject, setLoadedProject] = useState<
+    | {
+        brandSlug: string
+        project: ProjectFull
+      }
+    | null
+  >(null)
 
   // Find the active project entry
   const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
 
-  // Reset projectFull when activeProject changes
-  useEffect(() => {
-    setProjectFull(null)
-  }, [activeProject])
+  const bannerProjectFull =
+    activeProjectEntry &&
+    loadedProject &&
+    loadedProject.brandSlug === (brandSlug || '') &&
+    loadedProject.project.slug === activeProjectEntry.slug
+      ? loadedProject.project
+      : null
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
@@ -170,10 +178,11 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   return (
     <main
-      {...getRootProps()}
-      onDragOver={handleNativeDragOver}
-      onDragLeave={handleNativeDragLeave}
-      onDrop={handleNativeDrop}
+      {...getRootProps({
+        onDragOver: handleNativeDragOver,
+        onDragLeave: handleNativeDragLeave,
+        onDrop: handleNativeDrop,
+      })}
       className="flex-1 flex flex-col h-screen bg-white dark:bg-gray-900 relative"
     >
       <input {...getInputProps()} />
@@ -207,12 +216,13 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Project banner */}
       <ProjectBanner
+        key={`${brandSlug || 'none'}:${activeProjectEntry?.slug || 'none'}`}
         project={activeProjectEntry}
-        projectFull={projectFull}
+        projectFull={bannerProjectFull}
         onClearProject={() => setActiveProject(null)}
         onLoadProjectDetails={async (slug) => {
           const full = await getProject(slug)
-          setProjectFull(full)
+          setLoadedProject({ brandSlug: brandSlug || '', project: full })
           return full
         }}
       />

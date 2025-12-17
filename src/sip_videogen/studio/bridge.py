@@ -8,7 +8,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from sip_videogen.config.logging import get_logger
 from sip_videogen.advisor.agent import AdvisorProgress, BrandAdvisor
+
+logger = get_logger(__name__)
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.models import (
     ProductAttribute,
@@ -18,6 +21,7 @@ from sip_videogen.brands.models import (
 )
 from sip_videogen.brands.storage import (
     add_product_image,
+    count_project_assets,
     create_product,
     create_project,
     delete_product,
@@ -1467,7 +1471,7 @@ class StudioBridge:
                             "slug": p.slug,
                             "name": p.name,
                             "status": p.status.value,
-                            "asset_count": p.asset_count,
+                            "asset_count": count_project_assets(target_slug, p.slug),
                             "created_at": p.created_at.isoformat(),
                             "updated_at": p.updated_at.isoformat(),
                         }
@@ -1815,8 +1819,24 @@ class StudioBridge:
             if not slug:
                 return BridgeResponse(success=False, error="No brand selected").to_dict()
 
+            global_active_brand = get_active_brand()
+            logger.info(
+                "chat(): slug=%s (from _get_active_slug), global_active_brand=%s, project_slug=%s (type=%s)",
+                slug,
+                global_active_brand,
+                project_slug,
+                type(project_slug).__name__,
+            )
+            if slug != global_active_brand:
+                logger.warning(
+                    "BRAND MISMATCH: _get_active_slug()=%s but get_active_brand()=%s - this may cause project tagging issues!",
+                    slug,
+                    global_active_brand,
+                )
+
             # Handle project context - if provided, set as active
             if project_slug is not None:
+                logger.info("chat(): Setting active project to %s", project_slug)
                 set_active_project(slug, project_slug)
 
             # Get effective project (may be from storage if not provided)
@@ -1824,6 +1844,7 @@ class StudioBridge:
                 effective_project = project_slug
             else:
                 effective_project = get_active_project(slug)
+                logger.info("chat(): effective_project from storage: %s", effective_project)
 
             brand_dir = get_brand_dir(slug)
             attachment_notes: list[str] = []

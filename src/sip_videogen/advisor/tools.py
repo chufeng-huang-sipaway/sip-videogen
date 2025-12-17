@@ -191,10 +191,14 @@ async def _impl_generate_image(
     # Generate filename if not provided
     # When a project is active, tag the filename with project prefix
     if not filename:
+        logger.info(f"generate_image: brand_slug={brand_slug}")
         active_project = get_active_project(brand_slug) if brand_slug else None
+        logger.info(f"generate_image: active_project from storage={active_project}")
         filename = _generate_output_filename(active_project)
         if active_project:
             logger.info(f"Tagging generated image with project: {active_project}")
+        else:
+            logger.warning(f"No active project found for brand {brand_slug}")
 
     output_path = output_dir / f"{filename}.png"
 
@@ -483,12 +487,9 @@ def _impl_load_brand(
         Formatted brand context as markdown.
     """
     from sip_videogen.brands.memory import list_brand_assets
-    from sip_videogen.brands.storage import (
-        list_brands,
-        set_active_brand,
-    )
+    from sip_videogen.brands.storage import list_brands
 
-    # Get brand slug
+    # Get brand slug - defaults to active brand if not specified
     if not slug:
         slug = get_active_brand()
 
@@ -507,13 +508,11 @@ def _impl_load_brand(
             "Tell me which brand to work with, or describe a new brand to create."
         )
 
-    # Load the brand
+    # Load the brand identity without changing global active brand state
+    # (active brand is managed by the bridge, not by tools)
     identity = storage_load_brand(slug)
     if identity is None:
         return f"Error: Brand not found: {slug}"
-
-    # Set as active brand
-    set_active_brand(slug)
 
     # Get asset count for both modes
     try:

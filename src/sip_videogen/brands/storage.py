@@ -936,6 +936,12 @@ def list_projects(brand_slug: str) -> list[ProjectSummary]:
 def get_active_project(brand_slug: str) -> str | None:
     """Get the slug of the currently active project for a brand."""
     index = load_project_index(brand_slug)
+    logger.debug(
+        "get_active_project(%s) -> %s (from index with %d projects)",
+        brand_slug,
+        index.active_project,
+        len(index.projects),
+    )
     return index.active_project
 
 

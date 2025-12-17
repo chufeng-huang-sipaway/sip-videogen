@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { bridge } from '@/lib/bridge'
@@ -13,26 +13,25 @@ interface Props {
 export function InteractionRenderer({ interaction, onSelect, disabled }: Props) {
   const [customValue, setCustomValue] = useState('')
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({})
-
-  const loadImagePreview = useCallback(
-    async (path: string) => {
-      if (imagePreviews[path]) return
-      try {
-        const dataUrl = await bridge.getAssetThumbnail(path)
-        setImagePreviews(prev => ({ ...prev, [path]: dataUrl }))
-      } catch (err) {
-        console.error('Failed to load preview:', err)
-      }
-    },
-    [imagePreviews]
-  )
+  const requestedPreviews = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (interaction.type !== 'image_select') return
     for (const path of interaction.image_paths) {
-      if (!imagePreviews[path]) void loadImagePreview(path)
+      if (requestedPreviews.current.has(path)) continue
+      requestedPreviews.current.add(path)
+
+      bridge
+        .getAssetThumbnail(path)
+        .then((dataUrl) => {
+          setImagePreviews(prev => (prev[path] ? prev : { ...prev, [path]: dataUrl }))
+        })
+        .catch((err) => {
+          requestedPreviews.current.delete(path)
+          console.error('Failed to load preview:', err)
+        })
     }
-  }, [interaction, imagePreviews, loadImagePreview])
+  }, [interaction])
 
   if (interaction.type === 'choices') {
     return (

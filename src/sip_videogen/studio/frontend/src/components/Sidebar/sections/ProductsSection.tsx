@@ -11,7 +11,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useProducts } from '@/context/ProductContext'
 import { useBrand } from '@/context/BrandContext'
-import { bridge, isPyWebView, waitForPyWebViewReady, type ProductEntry } from '@/lib/bridge'
+import { bridge, isPyWebView, type ProductEntry } from '@/lib/bridge'
+import { CreateProductDialog } from '../CreateProductDialog'
 
 function ProductThumbnail({ path }: { path: string }) {
   const [src, setSrc] = useState<string | null>(null)
@@ -119,6 +120,7 @@ export function ProductsSection() {
     deleteProduct,
   } = useProducts()
   const [actionError, setActionError] = useState<string | null>(null)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   useEffect(() => {
     if (actionError) {
@@ -134,25 +136,6 @@ export function ProductsSection() {
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Failed to delete product')
       }
-    }
-  }
-
-  const handleCreateProduct = async () => {
-    const name = prompt('Product name:')
-    if (!name) return
-
-    const description = prompt('Product description:') || ''
-
-    try {
-      const ready = await waitForPyWebViewReady()
-      if (!ready) {
-        setActionError('Not running in PyWebView')
-        return
-      }
-      await bridge.createProduct(name, description)
-      await refresh()
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to create product')
     }
   }
 
@@ -182,7 +165,7 @@ export function ProductsSection() {
           variant="ghost"
           size="sm"
           className="h-6 w-6 p-0"
-          onClick={handleCreateProduct}
+          onClick={() => setIsCreateDialogOpen(true)}
           title="Add product"
         >
           <Plus className="h-4 w-4" />
@@ -223,6 +206,11 @@ export function ProductsSection() {
           ))}
         </div>
       )}
+
+      <CreateProductDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+      />
     </div>
   )
 }
