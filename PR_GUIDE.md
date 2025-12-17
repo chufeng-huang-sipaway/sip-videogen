@@ -226,12 +226,41 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - Types properly exported for use in bridge.ts and components
 
+### Stage 2.2: Bridge Functions
+
+#### Task 2.2.1: Extend `PyWebViewAPI` interface and add bridge functions ✅
+**Commit**: `b9d196d`
+
+**Implementation**:
+- Extended `src/sip_videogen/studio/frontend/src/lib/bridge.ts`
+- Imported types from `brand-identity.ts`: `BrandIdentityFull`, `BackupEntry`, `IdentitySection`, `SectionDataMap`
+- Extended `PyWebViewAPI` interface with new backend methods:
+  - `get_brand_identity()` → `Promise<BridgeResponse<BrandIdentityFull>>`
+  - `update_brand_identity_section(section, data)` → `Promise<BridgeResponse<BrandIdentityFull>>`
+  - `regenerate_brand_identity(confirm)` → `Promise<BridgeResponse<BrandIdentityFull>>`
+  - `list_identity_backups()` → `Promise<BridgeResponse<{ backups: BackupEntry[] }>>`
+  - `restore_identity_backup(filename)` → `Promise<BridgeResponse<BrandIdentityFull>>`
+- Added corresponding bridge wrapper functions:
+  - `getBrandIdentity()` → `Promise<BrandIdentityFull>`
+  - `updateBrandIdentitySection(section, data)` → `Promise<BrandIdentityFull>` (generic for type safety)
+  - `regenerateBrandIdentity(confirm)` → `Promise<BrandIdentityFull>`
+  - `listIdentityBackups()` → `Promise<BackupEntry[]>` (unwraps backups array)
+  - `restoreIdentityBackup(filename)` → `Promise<BrandIdentityFull>`
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- Types properly imported and used
+
+**Result**: Stage 2 (Frontend Types & Bridge) is now **COMPLETE**. All TypeScript types and bridge functions are implemented.
+
 ---
 
 ## Next Tasks
 
-### Stage 2.2: Bridge Functions
-- [ ] Task 2.2.1: Extend `PyWebViewAPI` interface and add bridge functions in `bridge.ts`
+### Stage 3: Brand Memory View with Reusable Editors
+- [ ] Task 3.1.1: Create `BrandMemory/index.tsx` - Main view container
+- [ ] Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper
 
 ---
 
@@ -239,3 +268,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
 - `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, regenerate_brand_identity, list_identity_backups, and restore_identity_backup bridge methods
 - `src/sip_videogen/studio/frontend/src/types/brand-identity.ts` - NEW: TypeScript types for brand identity
+- `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added brand identity bridge methods and wrapper functions
