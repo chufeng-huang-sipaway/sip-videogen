@@ -14,6 +14,13 @@ import { Spinner } from '@/components/ui/spinner'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import type { BrandIdentityFull } from '@/types/brand-identity'
+import { MemorySectionGroup } from './MemorySection'
+import { CoreSection } from './sections/CoreSection'
+import { VisualSection } from './sections/VisualSection'
+import { VoiceSection } from './sections/VoiceSection'
+import { AudienceSection } from './sections/AudienceSection'
+import { PositioningSection } from './sections/PositioningSection'
+import { ConstraintsAvoidSection } from './sections/ConstraintsAvoidSection'
 
 interface BrandMemoryProps {
   open: boolean
@@ -169,33 +176,32 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
 
             {/* Identity sections */}
             {identity && !isLoading && !error && (
-              <div className="space-y-4">
-                {/* Placeholder sections - will be replaced with MemorySection components in Task 3.1.2 */}
-                <SectionPlaceholder
-                  title="Core Identity"
-                  description={`${identity.core.name} - ${identity.core.tagline}`}
+              <MemorySectionGroup>
+                <CoreSection
+                  data={identity.core}
+                  onIdentityUpdate={setIdentity}
                 />
-                <SectionPlaceholder
-                  title="Visual Identity"
-                  description={`${identity.visual.primary_colors.length} primary colors, ${identity.visual.typography.length} typography rules`}
+                <VisualSection
+                  data={identity.visual}
+                  onIdentityUpdate={setIdentity}
                 />
-                <SectionPlaceholder
-                  title="Voice Guidelines"
-                  description={identity.voice.personality}
+                <VoiceSection
+                  data={identity.voice}
+                  onIdentityUpdate={setIdentity}
                 />
-                <SectionPlaceholder
-                  title="Target Audience"
-                  description={identity.audience.primary_summary}
+                <AudienceSection
+                  data={identity.audience}
+                  onIdentityUpdate={setIdentity}
                 />
-                <SectionPlaceholder
-                  title="Market Positioning"
-                  description={identity.positioning.market_category}
+                <PositioningSection
+                  data={identity.positioning}
+                  onIdentityUpdate={setIdentity}
                 />
-                <SectionPlaceholder
-                  title="Constraints & Avoid"
-                  description={`${identity.constraints.length} constraints, ${identity.avoid.length} items to avoid`}
+                <ConstraintsAvoidSection
+                  data={{ constraints: identity.constraints, avoid: identity.avoid }}
+                  onIdentityUpdate={setIdentity}
                 />
-              </div>
+              </MemorySectionGroup>
             )}
 
             {/* No brand selected */}
@@ -213,15 +219,3 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
   )
 }
 
-/**
- * Placeholder component for identity sections.
- * Will be replaced with MemorySection in Task 3.1.2.
- */
-function SectionPlaceholder({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="border border-border rounded-lg p-4">
-      <h3 className="font-medium text-sm mb-1">{title}</h3>
-      <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
-    </div>
-  )
-}
