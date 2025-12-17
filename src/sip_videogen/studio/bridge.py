@@ -8,20 +8,47 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from sip_videogen.config.logging import get_logger
 from sip_videogen.advisor.agent import AdvisorProgress, BrandAdvisor
+
+logger = get_logger(__name__)
 from sip_videogen.brands.memory import list_brand_assets
+from sip_videogen.brands.models import (
+    ProductAttribute,
+    ProductFull,
+    ProjectFull,
+    ProjectStatus,
+)
+from sip_videogen.brands.storage import (
+    add_product_image,
+    count_project_assets,
+    create_product,
+    create_project,
+    delete_product,
+    delete_product_image,
+    delete_project,
+    get_active_brand,
+    get_active_project,
+    get_brand_dir,
+    list_brands,
+    list_product_images,
+    list_products,
+    list_project_assets,
+    list_projects,
+    load_brand_summary,
+    load_product,
+    load_project,
+    save_product,
+    save_project,
+    set_active_brand,
+    set_active_project,
+    set_primary_product_image,
+)
 from sip_videogen.brands.storage import (
     create_brand as storage_create_brand,
 )
 from sip_videogen.brands.storage import (
     delete_brand as storage_delete_brand,
-)
-from sip_videogen.brands.storage import (
-    get_active_brand,
-    get_brand_dir,
-    list_brands,
-    load_brand_summary,
-    set_active_brand,
 )
 
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
@@ -918,6 +945,791 @@ class StudioBridge:
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
     # =========================================================================
+    # Product Management
+    # =========================================================================
+
+    def _resolve_product_image_path(
+        self, product_slug: str, relative_path: str
+    ) -> tuple[Path | None, str | None]:
+        """Resolve a path inside a product's images directory.
+
+        Args:
+            product_slug: Product identifier.
+            relative_path: Path relative to the product's images directory (e.g., 'main.png').
+
+        Returns:
+            Tuple of (resolved_path, error_message). If error, path is None.
+        """
+        brand_dir, err = self._get_brand_dir()
+        if err:
+            return None, err
+        products_dir = brand_dir / "products" / product_slug / "images"
+        return self._resolve_in_dir(products_dir, relative_path)
+
+    def get_products(self, brand_slug: str | None = None) -> dict:
+        """Get list of products for a brand.
+
+        Args:
+            brand_slug: Brand identifier. If None, uses active brand.
+
+        Returns:
+            Success response with {"products": [ProductSummary, ...]}.
+        """
+        try:
+            target_slug = brand_slug or self._get_active_slug()
+            if not target_slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            products = list_products(target_slug)
+            return BridgeResponse(
+                success=True,
+                data={
+                    "products": [
+                        {
+                            "slug": p.slug,
+                            "name": p.name,
+                            "description": p.description,
+                            "primary_image": p.primary_image,
+                            "attribute_count": p.attribute_count,
+                            "created_at": p.created_at.isoformat(),
+                            "updated_at": p.updated_at.isoformat(),
+                        }
+                        for p in products
+                    ]
+                },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_product(self, product_slug: str) -> dict:
+        """Get detailed product information.
+
+        Args:
+            product_slug: Product identifier.
+
+        Returns:
+            Success response with full product data including images and attributes.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            product = load_product(slug, product_slug)
+            if not product:
+                return BridgeResponse(
+                    success=False, error=f"Product '{product_slug}' not found"
+                ).to_dict()
+
+            return BridgeResponse(
+                success=True,
+                data={
+                    "slug": product.slug,
+                    "name": product.name,
+                    "description": product.description,
+                    "images": product.images,
+                    "primary_image": product.primary_image,
+                    "attributes": [
+                        {"key": a.key, "value": a.value, "category": a.category}
+                        for a in product.attributes
+                    ],
+                    "created_at": product.created_at.isoformat(),
+                    "updated_at": product.updated_at.isoformat(),
+                },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def create_product(
+        self,
+        name: str,
+        description: str,
+        images: list[dict] | None = None,
+        attributes: list[dict] | None = None,
+    ) -> dict:
+        """Create a new product.
+
+        Args:
+            name: Product name.
+            description: Product description.
+            images: List of dicts with {filename, data} where data is base64.
+            attributes: List of dicts with {key, value, category}.
+
+        Returns:
+            Success response with {"slug": product_slug}.
+        """
+        from datetime import datetime
+
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            if not name.strip():
+                return BridgeResponse(success=False, error="Product name is required").to_dict()
+
+            # Generate product slug from name
+            import re
+
+            product_slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            if not product_slug:
+                return BridgeResponse(success=False, error="Invalid product name").to_dict()
+
+            # Check if product already exists
+            if load_product(slug, product_slug):
+                return BridgeResponse(
+                    success=False, error=f"Product '{product_slug}' already exists"
+                ).to_dict()
+
+            # Parse attributes
+            parsed_attributes: list[ProductAttribute] = []
+            if attributes:
+                for attr in attributes:
+                    if not isinstance(attr, dict):
+                        continue
+                    key = attr.get("key", "").strip()
+                    value = attr.get("value", "").strip()
+                    category = attr.get("category", "general").strip()
+                    if key and value:
+                        parsed_attributes.append(
+                            ProductAttribute(key=key, value=value, category=category)
+                        )
+
+            # Create product
+            now = datetime.utcnow()
+            product = ProductFull(
+                slug=product_slug,
+                name=name.strip(),
+                description=description.strip(),
+                images=[],
+                primary_image="",
+                attributes=parsed_attributes,
+                created_at=now,
+                updated_at=now,
+            )
+
+            # Create the product (this creates the directory structure)
+            create_product(slug, product)
+
+            # Upload images if provided
+            if images:
+                for img in images:
+                    filename = img.get("filename", "")
+                    data_b64 = img.get("data", "")
+                    if not filename or not data_b64:
+                        continue
+
+                    ext = Path(filename).suffix.lower()
+                    if ext not in ALLOWED_IMAGE_EXTS:
+                        continue
+
+                    try:
+                        content = base64.b64decode(data_b64)
+                        add_product_image(slug, product_slug, filename, content)
+                    except Exception:
+                        pass  # Skip failed uploads
+
+            return BridgeResponse(success=True, data={"slug": product_slug}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def update_product(
+        self,
+        product_slug: str,
+        name: str | None = None,
+        description: str | None = None,
+        attributes: list[dict] | None = None,
+    ) -> dict:
+        """Update an existing product.
+
+        Args:
+            product_slug: Product identifier.
+            name: New product name (optional).
+            description: New product description (optional).
+            attributes: New attributes list (optional, replaces all).
+
+        Returns:
+            Success response with updated product data.
+        """
+        from datetime import datetime
+
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            product = load_product(slug, product_slug)
+            if not product:
+                return BridgeResponse(
+                    success=False, error=f"Product '{product_slug}' not found"
+                ).to_dict()
+
+            # Update fields
+            if name is not None:
+                product.name = name.strip()
+            if description is not None:
+                product.description = description.strip()
+            if attributes is not None:
+                parsed_attributes: list[ProductAttribute] = []
+                for attr in attributes:
+                    if not isinstance(attr, dict):
+                        continue
+                    key = attr.get("key", "").strip()
+                    value = attr.get("value", "").strip()
+                    category = attr.get("category", "general").strip()
+                    if key and value:
+                        parsed_attributes.append(
+                            ProductAttribute(key=key, value=value, category=category)
+                        )
+                product.attributes = parsed_attributes
+
+            product.updated_at = datetime.utcnow()
+            save_product(slug, product)
+
+            return BridgeResponse(
+                success=True,
+                data={
+                    "slug": product.slug,
+                    "name": product.name,
+                    "description": product.description,
+                },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def delete_product(self, product_slug: str) -> dict:
+        """Delete a product and all its files.
+
+        Args:
+            product_slug: Product identifier.
+
+        Returns:
+            Success response or error if not found.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            deleted = delete_product(slug, product_slug)
+            if not deleted:
+                return BridgeResponse(
+                    success=False, error=f"Product '{product_slug}' not found"
+                ).to_dict()
+
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_product_images(self, product_slug: str) -> dict:
+        """Get list of images for a product.
+
+        Args:
+            product_slug: Product identifier.
+
+        Returns:
+            Success response with {"images": [brand_relative_paths]}.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            images = list_product_images(slug, product_slug)
+            return BridgeResponse(success=True, data={"images": images}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def upload_product_image(self, product_slug: str, filename: str, data_base64: str) -> dict:
+        """Upload an image to a product.
+
+        Args:
+            product_slug: Product identifier.
+            filename: Image filename.
+            data_base64: Base64-encoded image data.
+
+        Returns:
+            Success response with {"path": brand_relative_path}.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            if "/" in filename or "\\" in filename:
+                return BridgeResponse(success=False, error="Invalid filename").to_dict()
+
+            ext = Path(filename).suffix.lower()
+            if ext not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
+            content = base64.b64decode(data_base64)
+            brand_relative_path = add_product_image(slug, product_slug, filename, content)
+
+            return BridgeResponse(
+                success=True, data={"path": brand_relative_path}
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def delete_product_image(self, product_slug: str, filename: str) -> dict:
+        """Delete a product image.
+
+        Args:
+            product_slug: Product identifier.
+            filename: Image filename to delete.
+
+        Returns:
+            Success response or error if not found.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            deleted = delete_product_image(slug, product_slug, filename)
+            if not deleted:
+                return BridgeResponse(
+                    success=False, error=f"Image '{filename}' not found"
+                ).to_dict()
+
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def set_primary_product_image(self, product_slug: str, filename: str) -> dict:
+        """Set the primary image for a product.
+
+        Args:
+            product_slug: Product identifier.
+            filename: Image filename to set as primary.
+
+        Returns:
+            Success response or error if not found.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            # Get the brand-relative path for this image
+            product = load_product(slug, product_slug)
+            if not product:
+                return BridgeResponse(
+                    success=False, error=f"Product '{product_slug}' not found"
+                ).to_dict()
+
+            # Find the image in the product's images list
+            brand_relative_path = f"products/{product_slug}/images/{filename}"
+            if brand_relative_path not in product.images:
+                return BridgeResponse(
+                    success=False, error=f"Image '{filename}' not found in product"
+                ).to_dict()
+
+            success = set_primary_product_image(slug, product_slug, brand_relative_path)
+            if not success:
+                return BridgeResponse(success=False, error="Failed to set primary image").to_dict()
+
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_product_image_thumbnail(self, path: str) -> dict:
+        """Get base64-encoded thumbnail for a product image.
+
+        Args:
+            path: Brand-relative path (must start with 'products/').
+
+        Returns:
+            Success response with {"dataUrl": "data:image/png;base64,..."}.
+        """
+        try:
+            if not path.startswith("products/"):
+                return BridgeResponse(
+                    success=False, error="Path must start with 'products/'"
+                ).to_dict()
+
+            brand_dir, err = self._get_brand_dir()
+            if err:
+                return BridgeResponse(success=False, error=err).to_dict()
+
+            resolved, error = self._resolve_in_dir(brand_dir, path)
+            if error:
+                return BridgeResponse(success=False, error=error).to_dict()
+
+            if not resolved.exists():
+                return BridgeResponse(success=False, error="Image not found").to_dict()
+
+            suffix = resolved.suffix.lower()
+            if suffix not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
+            # SVG: return as-is
+            if suffix == ".svg":
+                content = resolved.read_bytes()
+                encoded = base64.b64encode(content).decode("utf-8")
+                return BridgeResponse(
+                    success=True,
+                    data={"dataUrl": f"data:image/svg+xml;base64,{encoded}"},
+                ).to_dict()
+
+            # Raster images: generate thumbnail
+            import io
+
+            from PIL import Image
+
+            with Image.open(resolved) as img:
+                img = img.convert("RGBA")
+                img.thumbnail((256, 256))
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+            return BridgeResponse(
+                success=True,
+                data={"dataUrl": f"data:image/png;base64,{encoded}"},
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_product_image_full(self, path: str) -> dict:
+        """Get base64-encoded full-resolution product image.
+
+        Args:
+            path: Brand-relative path (must start with 'products/').
+
+        Returns:
+            Success response with {"dataUrl": "data:image/...;base64,..."}.
+        """
+        try:
+            if not path.startswith("products/"):
+                return BridgeResponse(
+                    success=False, error="Path must start with 'products/'"
+                ).to_dict()
+
+            brand_dir, err = self._get_brand_dir()
+            if err:
+                return BridgeResponse(success=False, error=err).to_dict()
+
+            resolved, error = self._resolve_in_dir(brand_dir, path)
+            if error:
+                return BridgeResponse(success=False, error=error).to_dict()
+
+            if not resolved.exists():
+                return BridgeResponse(success=False, error="Image not found").to_dict()
+
+            suffix = resolved.suffix.lower()
+            if suffix not in ALLOWED_IMAGE_EXTS:
+                return BridgeResponse(success=False, error="Unsupported file type").to_dict()
+
+            content = resolved.read_bytes()
+            encoded = base64.b64encode(content).decode("utf-8")
+
+            mime_types = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+                ".svg": "image/svg+xml",
+            }
+            mime = mime_types.get(suffix, "image/png")
+
+            return BridgeResponse(
+                success=True,
+                data={"dataUrl": f"data:{mime};base64,{encoded}"},
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    # =========================================================================
+    # Project Management
+    # =========================================================================
+
+    def get_projects(self, brand_slug: str | None = None) -> dict:
+        """Get list of projects for a brand.
+
+        Args:
+            brand_slug: Brand identifier. If None, uses active brand.
+
+        Returns:
+            Success response with {"projects": [...], "active_project": str|null}.
+        """
+        try:
+            target_slug = brand_slug or self._get_active_slug()
+            if not target_slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            projects = list_projects(target_slug)
+            active = get_active_project(target_slug)
+
+            return BridgeResponse(
+                success=True,
+                data={
+                    "projects": [
+                        {
+                            "slug": p.slug,
+                            "name": p.name,
+                            "status": p.status.value,
+                            "asset_count": count_project_assets(target_slug, p.slug),
+                            "created_at": p.created_at.isoformat(),
+                            "updated_at": p.updated_at.isoformat(),
+                        }
+                        for p in projects
+                    ],
+                    "active_project": active,
+                },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_project(self, project_slug: str) -> dict:
+        """Get detailed project information.
+
+        Args:
+            project_slug: Project identifier.
+
+        Returns:
+            Success response with full project data including instructions.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            project = load_project(slug, project_slug)
+            if not project:
+                return BridgeResponse(
+                    success=False, error=f"Project '{project_slug}' not found"
+                ).to_dict()
+
+            # Get assets for this project
+            assets = list_project_assets(slug, project_slug)
+
+            return BridgeResponse(
+                success=True,
+                data={
+                    "slug": project.slug,
+                    "name": project.name,
+                    "status": project.status.value,
+                    "instructions": project.instructions,
+                    "assets": assets,  # Already assets-relative paths
+                    "asset_count": len(assets),
+                    "created_at": project.created_at.isoformat(),
+                    "updated_at": project.updated_at.isoformat(),
+                },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def create_project(self, name: str, instructions: str = "") -> dict:
+        """Create a new project.
+
+        Args:
+            name: Project name.
+            instructions: Project instructions (markdown).
+
+        Returns:
+            Success response with {"slug": project_slug}.
+        """
+        from datetime import datetime
+
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            if not name.strip():
+                return BridgeResponse(success=False, error="Project name is required").to_dict()
+
+            # Generate project slug from name
+            import re
+
+            project_slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            if not project_slug:
+                return BridgeResponse(success=False, error="Invalid project name").to_dict()
+
+            # Check if project already exists
+            if load_project(slug, project_slug):
+                return BridgeResponse(
+                    success=False, error=f"Project '{project_slug}' already exists"
+                ).to_dict()
+
+            # Create project
+            now = datetime.utcnow()
+            project = ProjectFull(
+                slug=project_slug,
+                name=name.strip(),
+                status=ProjectStatus.ACTIVE,
+                instructions=instructions.strip(),
+                created_at=now,
+                updated_at=now,
+            )
+
+            create_project(slug, project)
+
+            return BridgeResponse(success=True, data={"slug": project_slug}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def update_project(
+        self,
+        project_slug: str,
+        name: str | None = None,
+        instructions: str | None = None,
+        status: str | None = None,
+    ) -> dict:
+        """Update an existing project.
+
+        Args:
+            project_slug: Project identifier.
+            name: New project name (optional).
+            instructions: New instructions (optional).
+            status: New status - 'active' or 'archived' (optional).
+
+        Returns:
+            Success response with updated project data.
+        """
+        from datetime import datetime
+
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            project = load_project(slug, project_slug)
+            if not project:
+                return BridgeResponse(
+                    success=False, error=f"Project '{project_slug}' not found"
+                ).to_dict()
+
+            # Update fields
+            if name is not None:
+                project.name = name.strip()
+            if instructions is not None:
+                project.instructions = instructions.strip()
+            if status is not None:
+                if status == "active":
+                    project.status = ProjectStatus.ACTIVE
+                elif status == "archived":
+                    project.status = ProjectStatus.ARCHIVED
+                else:
+                    return BridgeResponse(
+                        success=False, error=f"Invalid status: {status}"
+                    ).to_dict()
+
+            project.updated_at = datetime.utcnow()
+            save_project(slug, project)
+
+            return BridgeResponse(
+                success=True,
+                data={
+                    "slug": project.slug,
+                    "name": project.name,
+                    "status": project.status.value,
+                },
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def delete_project(self, project_slug: str) -> dict:
+        """Delete a project.
+
+        Note: This does not delete generated assets - they remain in assets/generated/.
+
+        Args:
+            project_slug: Project identifier.
+
+        Returns:
+            Success response or error if not found.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            # If this is the active project, clear it first
+            active = get_active_project(slug)
+            if active == project_slug:
+                set_active_project(slug, None)
+
+            deleted = delete_project(slug, project_slug)
+            if not deleted:
+                return BridgeResponse(
+                    success=False, error=f"Project '{project_slug}' not found"
+                ).to_dict()
+
+            return BridgeResponse(success=True).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def set_active_project(self, project_slug: str | None) -> dict:
+        """Set the active project for the current brand.
+
+        Args:
+            project_slug: Project identifier, or None to clear.
+
+        Returns:
+            Success response with {"active_project": slug|null}.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            # Validate project exists if setting (not clearing)
+            if project_slug is not None:
+                project = load_project(slug, project_slug)
+                if not project:
+                    return BridgeResponse(
+                        success=False, error=f"Project '{project_slug}' not found"
+                    ).to_dict()
+
+            set_active_project(slug, project_slug)
+
+            return BridgeResponse(
+                success=True, data={"active_project": project_slug}
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_active_project(self) -> dict:
+        """Get the active project for the current brand.
+
+        Returns:
+            Success response with {"active_project": slug|null}.
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            active = get_active_project(slug)
+            return BridgeResponse(success=True, data={"active_project": active}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def get_project_assets(self, project_slug: str) -> dict:
+        """Get list of generated assets for a project.
+
+        Args:
+            project_slug: Project identifier.
+
+        Returns:
+            Success response with {"assets": [assets_relative_paths]}.
+            Paths are like "generated/project-slug__timestamp_hash.png".
+        """
+        try:
+            slug = self._get_active_slug()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            assets = list_project_assets(slug, project_slug)
+            return BridgeResponse(success=True, data={"assets": assets}).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    # =========================================================================
     # Chat
     # =========================================================================
 
@@ -966,8 +1778,26 @@ class StudioBridge:
             },
         ).to_dict()
 
-    def chat(self, message: str, attachments: list[dict] | None = None) -> dict:
-        """Send a message to the Brand Advisor."""
+    def chat(
+        self,
+        message: str,
+        attachments: list[dict] | None = None,
+        project_slug: str | None = None,
+        attached_products: list[str] | None = None,
+    ) -> dict:
+        """Send a message to the Brand Advisor with optional context.
+
+        Args:
+            message: User message.
+            attachments: List of file attachments.
+            project_slug: Project identifier for context injection. If provided,
+                set as active project. If None, uses persisted active project.
+            attached_products: List of product slugs to include in context.
+                Frontend-only state - passed with each call.
+
+        Returns:
+            Success response with response text and metadata.
+        """
         import time
 
         # Reset execution trace and matched skills for this turn
@@ -988,6 +1818,32 @@ class StudioBridge:
             slug = self._get_active_slug()
             if not slug:
                 return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            global_active_brand = get_active_brand()
+            logger.debug(
+                "chat(): slug=%s (from _get_active_slug), global_active_brand=%s, project_slug=%s",
+                slug,
+                global_active_brand,
+                project_slug,
+            )
+            if slug != global_active_brand:
+                logger.warning(
+                    "BRAND MISMATCH: _get_active_slug()=%s but get_active_brand()=%s - this may cause project tagging issues!",
+                    slug,
+                    global_active_brand,
+                )
+
+            # Handle project context - if provided, set as active
+            if project_slug is not None:
+                logger.debug("chat(): Setting active project to %s", project_slug)
+                set_active_project(slug, project_slug)
+
+            # Get effective project (may be from storage if not provided)
+            if project_slug is not None:
+                effective_project = project_slug
+            else:
+                effective_project = get_active_project(slug)
+                logger.info("chat(): effective_project from storage: %s", effective_project)
 
             brand_dir = get_brand_dir(slug)
             attachment_notes: list[str] = []
@@ -1015,9 +1871,11 @@ class StudioBridge:
                                 attachment_notes.append(f"- {safe_name} skipped (too large)")
                                 continue
                             suffix = Path(safe_name).suffix
-                            if suffix and suffix.lower() not in (ALLOWED_IMAGE_EXTS | ALLOWED_TEXT_EXTS):
+                            allowed_exts = ALLOWED_IMAGE_EXTS | ALLOWED_TEXT_EXTS
+                            if suffix and suffix.lower() not in allowed_exts:
                                 continue
-                            unique_name = f"{Path(safe_name).stem}-{int(time.time() * 1000)}{suffix}"
+                            stem = Path(safe_name).stem
+                            unique_name = f"{stem}-{int(time.time() * 1000)}{suffix}"
                             target = upload_dir / unique_name
                             target.write_bytes(content)
                             rel_path = target.relative_to(brand_dir).as_posix()
@@ -1044,7 +1902,14 @@ class StudioBridge:
             # Snapshot generated assets before running (robust vs relying on progress hook details)
             before = {a["path"] for a in list_brand_assets(slug, category="generated")}
 
-            result = asyncio.run(self._advisor.chat_with_metadata(prepared_message))
+            # Pass context parameters to advisor
+            result = asyncio.run(
+                self._advisor.chat_with_metadata(
+                    prepared_message,
+                    project_slug=effective_project,
+                    attached_products=attached_products,
+                )
+            )
             response = result["response"]
             interaction = result.get("interaction")
             memory_update = result.get("memory_update")

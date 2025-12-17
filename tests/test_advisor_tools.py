@@ -704,3 +704,887 @@ class TestGenerateImage:
         # Should have called save on the image
         mock_image.save.assert_called_once()
         assert "test-brand" in result or "image_" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with product_slug auto-loads product's primary image."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+        from sip_videogen.brands.models import ProductFull
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+        # Create product image directory and file
+        product_images_dir = brand_dir / "products" / "night-cream" / "images"
+        product_images_dir.mkdir(parents=True)
+        primary_image_path = product_images_dir / "main.png"
+        primary_image_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)  # Fake PNG
+
+        # Create mock product
+        mock_product = ProductFull(
+            slug="night-cream",
+            name="Night Cream",
+            description="A luxurious night cream",
+            images=["products/night-cream/images/main.png"],
+            primary_image="products/night-cream/images/main.png",
+            attributes=[],
+        )
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        # Mock generate_with_validation since validate_identity=True is auto-enabled
+        expected_output = str(brand_dir / "assets" / "generated" / "image.png")
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.validation.generate_with_validation",
+                return_value=expected_output,
+            ) as mock_validation,
+            patch("google.genai.Client") as mock_genai_client,
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot featuring the night cream",
+                aspect_ratio="1:1",
+                product_slug="night-cream",
+            )
+
+        # Should have called generate_with_validation (validate_identity auto-enabled)
+        mock_validation.assert_called_once()
+        call_kwargs = mock_validation.call_args.kwargs
+        # Verify reference_image_bytes was passed (loaded from product)
+        assert call_kwargs["reference_image_bytes"] is not None
+        assert len(call_kwargs["reference_image_bytes"]) > 0
+        assert result == expected_output
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_not_found(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with non-existent product returns error."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                product_slug="nonexistent-product",
+            )
+
+        assert "Error: Product not found" in result
+        assert "nonexistent-product" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_no_primary_image(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with product having no primary image."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+        from sip_videogen.brands.models import ProductFull
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        # Create mock product with no primary image
+        mock_product = ProductFull(
+            slug="night-cream",
+            name="Night Cream",
+            description="A luxurious night cream",
+            images=[],
+            primary_image="",  # No primary image
+            attributes=[],
+        )
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                product_slug="night-cream",
+            )
+
+        # Should proceed without reference (content is just the prompt string)
+        call_args = mock_client.models.generate_content.call_args
+        contents = call_args[1]["contents"]
+        # Without reference image, contents should be just the prompt string
+        assert contents == "A lifestyle shot"
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_no_active_brand(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image with product_slug but no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value=None),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                product_slug="night-cream",
+            )
+
+        assert "Error: No active brand" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_product_slug_reference_image_takes_precedence(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that explicit reference_image takes precedence over product_slug."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        # Create explicit reference image
+        explicit_ref_dir = brand_dir / "assets" / "references"
+        explicit_ref_dir.mkdir(parents=True)
+        explicit_ref_path = explicit_ref_dir / "custom.png"
+        explicit_ref_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 50)
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.load_product") as mock_load_product,
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            result = await _impl_generate_image(
+                "A lifestyle shot",
+                aspect_ratio="1:1",
+                reference_image="assets/references/custom.png",
+                product_slug="night-cream",  # Should be ignored
+            )
+
+        # load_product should NOT be called because explicit reference_image is provided
+        mock_load_product.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_generate_image_with_active_project_tags_filename(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image tags filename with active project prefix."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch(
+                "sip_videogen.advisor.tools.get_active_project",
+                return_value="christmas-campaign",
+            ),
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            await _impl_generate_image("A festive image", aspect_ratio="1:1")
+
+        # Should save image with project prefix in filename
+        mock_image.save.assert_called_once()
+        saved_path = mock_image.save.call_args[0][0]
+        assert "christmas-campaign__" in saved_path
+        assert saved_path.endswith(".png")
+
+    @pytest.mark.asyncio
+    async def test_generate_image_without_active_project_no_prefix(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image without active project does not add prefix."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.get_active_project", return_value=None),
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            await _impl_generate_image("A regular image", aspect_ratio="1:1")
+
+        # Should save image WITHOUT project prefix
+        mock_image.save.assert_called_once()
+        saved_path = mock_image.save.call_args[0][0]
+        # Filename should NOT contain __ (project separator)
+        filename = Path(saved_path).name
+        assert "__" not in filename or filename.count("__") == 0
+
+    @pytest.mark.asyncio
+    async def test_generate_image_explicit_filename_overridden_when_project_active(
+        self, tmp_path: Path
+    ) -> None:
+        """Test _impl_generate_image with explicit filename is overridden when project is active.
+
+        When a project is active, we always use our project-tagged filename format
+        to ensure proper project association, even if the agent provides a filename.
+        """
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        brand_dir = tmp_path / "test-brand"
+        brand_dir.mkdir()
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch(
+                "sip_videogen.advisor.tools.get_active_project",
+                return_value="christmas-campaign",
+            ) as mock_get_project,
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            await _impl_generate_image(
+                "A custom named image",
+                aspect_ratio="1:1",
+                filename="my_custom_image",  # Explicit filename - will be overridden
+            )
+
+        # get_active_project IS called to check if we need project tagging
+        mock_get_project.assert_called_once_with("test-brand")
+        # Should use project-tagged filename (explicit filename is overridden)
+        mock_image.save.assert_called_once()
+        saved_path = mock_image.save.call_args[0][0]
+        # Filename should contain project prefix with double underscore
+        filename = Path(saved_path).name
+        assert filename.startswith("christmas-campaign__")
+        assert filename.endswith(".png")
+
+    @pytest.mark.asyncio
+    async def test_generate_image_no_brand_no_project_check(self, tmp_path: Path) -> None:
+        """Test _impl_generate_image without active brand skips project check."""
+        from sip_videogen.advisor.tools import _impl_generate_image
+
+        # Mock the genai client and response
+        mock_image = MagicMock()
+        mock_part = MagicMock()
+        mock_part.inline_data = True
+        mock_part.as_image.return_value = mock_image
+
+        mock_response = MagicMock()
+        mock_response.parts = [mock_part]
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        mock_settings = MagicMock()
+        mock_settings.gemini_api_key = "test-key"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value=None),
+            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch(
+                "sip_videogen.advisor.tools.get_active_project"
+            ) as mock_get_project,
+            patch("google.genai.Client", return_value=mock_client),
+        ):
+            await _impl_generate_image("An image without brand", aspect_ratio="1:1")
+
+        # get_active_project should NOT be called when no brand is active
+        mock_get_project.assert_not_called()
+
+
+class TestGenerateOutputFilename:
+    """Tests for _generate_output_filename helper function."""
+
+    def test_generate_output_filename_with_project(self) -> None:
+        """Test filename generation with project prefix."""
+        from sip_videogen.advisor.tools import _generate_output_filename
+
+        filename = _generate_output_filename("christmas-campaign")
+
+        # Should have project prefix followed by __
+        assert filename.startswith("christmas-campaign__")
+        # Should have timestamp format (YYYYMMDD_HHMMSS)
+        parts = filename.split("__")[1]
+        assert "_" in parts
+        # Should have 8-char hash suffix
+        hash_part = parts.split("_")[-1]
+        assert len(hash_part) == 8
+        assert hash_part.isalnum()
+
+    def test_generate_output_filename_without_project(self) -> None:
+        """Test filename generation without project prefix."""
+        from sip_videogen.advisor.tools import _generate_output_filename
+
+        filename = _generate_output_filename(None)
+
+        # Should NOT have __ separator (no project prefix)
+        # The format is: {timestamp}_{hash}
+        parts = filename.split("_")
+        # Should have timestamp parts + hash (at least 3 parts: YYYYMMDD, HHMMSS, hash)
+        assert len(parts) >= 3
+        # Last part should be 8-char hash
+        assert len(parts[-1]) == 8
+        assert parts[-1].isalnum()
+        # Should NOT have double underscore
+        assert "__" not in filename
+
+    def test_generate_output_filename_unique(self) -> None:
+        """Test that filenames are unique (different hash each call)."""
+        from sip_videogen.advisor.tools import _generate_output_filename
+
+        filename1 = _generate_output_filename("my-project")
+        filename2 = _generate_output_filename("my-project")
+
+        # Should be different due to unique hash (unless called in same instant)
+        # Extract hash parts
+        hash1 = filename1.split("_")[-1]
+        hash2 = filename2.split("_")[-1]
+        assert hash1 != hash2
+
+
+class TestListProducts:
+    """Tests for _impl_list_products function."""
+
+    def test_list_products_no_active_brand(self) -> None:
+        """Test list_products with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_list_products
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_list_products()
+
+        assert "Error: No active brand selected" in result
+
+    def test_list_products_empty(self) -> None:
+        """Test list_products with no products returns helpful message."""
+        from sip_videogen.advisor.tools import _impl_list_products
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_products", return_value=[]),
+        ):
+            result = _impl_list_products()
+
+        assert "No products found" in result
+        assert "test-brand" in result
+
+    def test_list_products_with_products(self) -> None:
+        """Test list_products returns formatted product list."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_products
+        from sip_videogen.brands.models import ProductSummary
+
+        mock_products = [
+            ProductSummary(
+                slug="night-cream",
+                name="Night Cream",
+                description="A luxurious night cream for deep hydration.",
+                primary_image="products/night-cream/images/main.png",
+                attribute_count=5,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+            ProductSummary(
+                slug="day-serum",
+                name="Day Serum",
+                description="Lightweight serum for daytime protection.",
+                primary_image="",
+                attribute_count=0,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_products", return_value=mock_products),
+        ):
+            result = _impl_list_products()
+
+        assert "Products for brand 'test-brand'" in result
+        assert "**Night Cream**" in result
+        assert "`night-cream`" in result
+        assert "5 attributes" in result
+        assert "primary image:" in result
+        assert "**Day Serum**" in result
+        assert "get_product_detail" in result
+
+    def test_list_products_truncates_long_description(self) -> None:
+        """Test list_products truncates long descriptions."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_products
+        from sip_videogen.brands.models import ProductSummary
+
+        mock_products = [
+            ProductSummary(
+                slug="verbose-product",
+                name="Verbose Product",
+                description="A" * 200,  # Very long description
+                primary_image="",
+                attribute_count=0,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_products", return_value=mock_products),
+        ):
+            result = _impl_list_products()
+
+        # Should truncate and add ellipsis
+        assert "..." in result
+        assert "A" * 200 not in result
+
+
+class TestListProjects:
+    """Tests for _impl_list_projects function."""
+
+    def test_list_projects_no_active_brand(self) -> None:
+        """Test list_projects with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_list_projects
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_list_projects()
+
+        assert "Error: No active brand selected" in result
+
+    def test_list_projects_empty(self) -> None:
+        """Test list_projects with no projects returns helpful message."""
+        from sip_videogen.advisor.tools import _impl_list_projects
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=[]),
+        ):
+            result = _impl_list_projects()
+
+        assert "No projects found" in result
+        assert "test-brand" in result
+
+    def test_list_projects_with_projects(self) -> None:
+        """Test list_projects returns formatted project list."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_projects
+        from sip_videogen.brands.models import ProjectStatus, ProjectSummary
+
+        mock_projects = [
+            ProjectSummary(
+                slug="christmas-campaign",
+                name="Christmas Campaign",
+                status=ProjectStatus.ACTIVE,
+                asset_count=12,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+            ProjectSummary(
+                slug="summer-sale",
+                name="Summer Sale",
+                status=ProjectStatus.ARCHIVED,
+                asset_count=8,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=mock_projects),
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+        ):
+            result = _impl_list_projects()
+
+        assert "Projects for brand 'test-brand'" in result
+        assert "**Christmas Campaign**" in result
+        assert "`christmas-campaign`" in result
+        assert "[active]" in result
+        assert "12 assets" in result
+        assert "**Summer Sale**" in result
+        assert "[archived]" in result
+        assert "get_project_detail" in result
+
+    def test_list_projects_shows_active_marker(self) -> None:
+        """Test list_projects shows active marker for active project."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_list_projects
+        from sip_videogen.brands.models import ProjectStatus, ProjectSummary
+
+        mock_projects = [
+            ProjectSummary(
+                slug="christmas-campaign",
+                name="Christmas Campaign",
+                status=ProjectStatus.ACTIVE,
+                asset_count=12,
+                created_at=datetime(2024, 1, 1),
+                updated_at=datetime(2024, 1, 1),
+            ),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=mock_projects),
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+        ):
+            result = _impl_list_projects()
+
+        assert "ACTIVE" in result
+
+
+class TestGetProductDetail:
+    """Tests for _impl_get_product_detail function."""
+
+    def test_get_product_detail_no_active_brand(self) -> None:
+        """Test get_product_detail with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_get_product_detail
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_get_product_detail("night-cream")
+
+        assert "Error: No active brand selected" in result
+
+    def test_get_product_detail_not_found(self) -> None:
+        """Test get_product_detail with non-existent product returns error."""
+        from sip_videogen.advisor.tools import _impl_get_product_detail
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_product_full", return_value=None),
+        ):
+            result = _impl_get_product_detail("nonexistent")
+
+        assert "Error: Product 'nonexistent' not found" in result
+        assert "test-brand" in result
+
+    def test_get_product_detail_returns_formatted_output(self) -> None:
+        """Test get_product_detail returns properly formatted markdown."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_product_detail
+        from sip_videogen.brands.models import ProductAttribute, ProductFull
+
+        mock_product = ProductFull(
+            slug="night-cream",
+            name="Night Cream",
+            description="A luxurious night cream for deep hydration and skin repair.",
+            images=[
+                "products/night-cream/images/main.png",
+                "products/night-cream/images/side.png",
+            ],
+            primary_image="products/night-cream/images/main.png",
+            attributes=[
+                ProductAttribute(key="size", value="50ml", category="measurements"),
+                ProductAttribute(key="texture", value="rich cream", category="texture"),
+            ],
+            created_at=datetime(2024, 1, 15, 10, 30),
+            updated_at=datetime(2024, 3, 20, 14, 45),
+        )
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_product_full", return_value=mock_product),
+        ):
+            result = _impl_get_product_detail("night-cream")
+
+        # Check header
+        assert "# Product: Night Cream" in result
+        assert "`night-cream`" in result
+
+        # Check description section
+        assert "## Description" in result
+        assert "luxurious night cream" in result
+
+        # Check attributes section
+        assert "## Attributes" in result
+        assert "**size** (measurements): 50ml" in result
+        assert "**texture** (texture): rich cream" in result
+
+        # Check images section
+        assert "## Images" in result
+        assert "products/night-cream/images/main.png" in result
+        assert "PRIMARY" in result
+
+        # Check metadata
+        assert "## Metadata" in result
+        assert "Created:" in result
+        assert "Updated:" in result
+
+
+class TestGetProjectDetail:
+    """Tests for _impl_get_project_detail function."""
+
+    def test_get_project_detail_no_active_brand(self) -> None:
+        """Test get_project_detail with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_get_project_detail("christmas-campaign")
+
+        assert "Error: No active brand selected" in result
+
+    def test_get_project_detail_not_found(self) -> None:
+        """Test get_project_detail with non-existent project returns error."""
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=None),
+        ):
+            result = _impl_get_project_detail("nonexistent")
+
+        assert "Error: Project 'nonexistent' not found" in result
+        assert "test-brand" in result
+
+    def test_get_project_detail_returns_formatted_output(self) -> None:
+        """Test get_project_detail returns properly formatted markdown."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="christmas-campaign",
+            name="Christmas Campaign",
+            status=ProjectStatus.ACTIVE,
+            instructions="## Holiday Guidelines\n- Use festive colors\n- Include holiday imagery",
+            created_at=datetime(2024, 11, 1, 9, 0),
+            updated_at=datetime(2024, 11, 15, 16, 30),
+        )
+
+        mock_assets = [
+            "generated/christmas-campaign__20241115_120000_abc123.png",
+            "generated/christmas-campaign__20241115_130000_def456.png",
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+            patch(
+                "sip_videogen.brands.storage.list_project_assets",
+                return_value=mock_assets,
+            ),
+        ):
+            result = _impl_get_project_detail("christmas-campaign")
+
+        # Check header
+        assert "# Project: Christmas Campaign" in result
+        assert "`christmas-campaign`" in result
+
+        # Check status with active marker
+        assert "**Status**: active" in result
+        assert "ACTIVE" in result
+
+        # Check instructions section
+        assert "## Instructions" in result
+        assert "Holiday Guidelines" in result
+        assert "festive colors" in result
+
+        # Check assets section
+        assert "## Generated Assets" in result
+        assert "2 generated assets" in result
+
+        # Check metadata
+        assert "## Metadata" in result
+        assert "Created:" in result
+        assert "Updated:" in result
+
+    def test_get_project_detail_no_instructions(self) -> None:
+        """Test get_project_detail with empty instructions shows placeholder."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="quick-project",
+            name="Quick Project",
+            status=ProjectStatus.ACTIVE,
+            instructions="",  # Empty instructions
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            patch("sip_videogen.brands.storage.get_active_project", return_value=None),
+            patch("sip_videogen.brands.storage.list_project_assets", return_value=[]),
+        ):
+            result = _impl_get_project_detail("quick-project")
+
+        assert "*No instructions set.*" in result
+
+    def test_get_project_detail_inactive_project(self) -> None:
+        """Test get_project_detail for inactive project has no active marker."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="summer-sale",
+            name="Summer Sale",
+            status=ProjectStatus.ARCHIVED,
+            instructions="Summer promotion guidelines.",
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            # Different active project
+            patch(
+                "sip_videogen.brands.storage.get_active_project",
+                return_value="christmas-campaign",
+            ),
+            patch("sip_videogen.brands.storage.list_project_assets", return_value=[]),
+        ):
+            result = _impl_get_project_detail("summer-sale")
+
+        # Should show archived status without ACTIVE marker
+        assert "archived" in result
+        # The line with status should NOT have ACTIVE marker
+        status_line = [line for line in result.split("\n") if "**Status**" in line][0]
+        assert "ACTIVE" not in status_line
+
+    def test_get_project_detail_truncates_many_assets(self) -> None:
+        """Test get_project_detail only shows first 10 assets."""
+        from datetime import datetime
+
+        from sip_videogen.advisor.tools import _impl_get_project_detail
+        from sip_videogen.brands.models import ProjectFull, ProjectStatus
+
+        mock_project = ProjectFull(
+            slug="prolific-project",
+            name="Prolific Project",
+            status=ProjectStatus.ACTIVE,
+            instructions="Instructions.",
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+
+        # Create 15 mock assets
+        mock_assets = [f"generated/prolific-project__{i:04d}.png" for i in range(15)]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
+            patch("sip_videogen.brands.storage.get_active_project", return_value=None),
+            patch(
+                "sip_videogen.brands.storage.list_project_assets",
+                return_value=mock_assets,
+            ),
+        ):
+            result = _impl_get_project_detail("prolific-project")
+
+        # Should show 15 assets
+        assert "15 generated assets" in result
+        # Should indicate more assets
+        assert "...and 5 more" in result

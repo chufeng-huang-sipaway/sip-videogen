@@ -46,19 +46,37 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str | None = None,
+        *,
+        project: str | None = None,
+        location: str | None = None,
         model: str = "veo-3.1-generate-preview",
     ):
-        """Initialize the video generator with Gemini API.
+        """Initialize the video generator with Gemini/VEO client.
+
+        Tests construct this class with ``project`` and ``location`` for backwards
+        compatibility with Vertex-style clients; we accept those parameters but
+        VEO generation today only needs the Gemini API key.
 
         Args:
-            api_key: Google Gemini API key.
+            api_key: Google Gemini API key. If not provided, attempts to create a client
+                without explicit key (suitable when default credentials are configured).
+            project: Optional project identifier (accepted for compatibility; unused).
+            location: Optional location/region (accepted for compatibility; unused).
             model: Model to use for video generation. Defaults to veo-3.1-generate-preview.
         """
-        self.client = genai.Client(api_key=api_key)
-        self.model = model
+        # Accept project/location for compatibility but do not require them.
         self.api_key = api_key
-        logger.debug(f"Initialized VEOVideoGenerator with model: {model}")
+        self.project = project
+        self.location = location
+        self.model = model
+        self.client = genai.Client(api_key=api_key)
+        logger.debug(
+            "Initialized VEOVideoGenerator with model %s (project=%s, location=%s)",
+            model,
+            project or "default",
+            location or "default",
+        )
 
     @retry(
         retry=retry_if_exception(lambda e: not isinstance(e, PromptSafetyError)),

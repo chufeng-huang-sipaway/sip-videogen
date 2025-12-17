@@ -18,6 +18,7 @@ from sip_videogen.advisor.context_budget import ContextBudgetManager
 from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.skills.registry import get_skills_registry
 from sip_videogen.advisor.tools import ADVISOR_TOOLS
+from sip_videogen.brands.context import HierarchicalContextBuilder
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import (
     get_active_brand,
@@ -377,12 +378,29 @@ class BrandAdvisor:
 
         logger.info(f"Switched to brand: {slug}")
 
-    async def chat_with_metadata(self, message: str) -> dict:
-        """Send a message and get a response plus UI metadata."""
+    async def chat_with_metadata(
+        self,
+        message: str,
+        project_slug: str | None = None,
+        attached_products: list[str] | None = None,
+    ) -> dict:
+        """Send a message and get a response plus UI metadata.
+
+        Args:
+            message: User message to process.
+            project_slug: Active project slug for context injection.
+            attached_products: List of product slugs to include in context.
+
+        Returns:
+            Dict with response, interaction, and memory_update.
+        """
         hooks = AdvisorHooks(callback=self.progress_callback)
 
-        # Find relevant skills and inject their instructions
-        skills_context, matched_skills = self._get_relevant_skills_context(message)
+        # Keep raw message for skill matching and history
+        raw_user_message = message
+
+        # Find relevant skills using RAW message (not augmented)
+        skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
 
         # Emit progress events for matched skills
         for skill_name, skill_description in matched_skills:
@@ -400,13 +418,37 @@ class BrandAdvisor:
         if self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=4000)
 
-        # Check budget and trim if needed
+        # Build per-turn context (project + attached products)
+        turn_context = ""
+        if self.brand_slug and (project_slug or attached_products):
+            builder = HierarchicalContextBuilder(
+                brand_slug=self.brand_slug,
+                product_slugs=attached_products,
+                project_slug=project_slug,
+            )
+            turn_context = builder.build_turn_context()
+
+        # Build augmented message with turn context prepended
+        if turn_context:
+            augmented_message = f"""## Current Context
+
+{turn_context}
+
+---
+
+## User Request
+
+{raw_user_message}"""
+        else:
+            augmented_message = raw_user_message
+
+        # Check budget and trim if needed (use augmented_message for accurate size)
         budget_result, trimmed_system, trimmed_skills, trimmed_history, _ = (
             self._budget_manager.check_and_trim(
                 system_prompt=self._agent.instructions or "",
                 skills_context=skills_context,
                 history=history_text,
-                user_message=message,
+                user_message=augmented_message,
             )
         )
 
@@ -436,7 +478,8 @@ class BrandAdvisor:
         if trimmed_history:
             prompt_parts.append(trimmed_history)
 
-        prompt_parts.append(f"User: {message}")
+        # Use augmented message (with turn context) for LLM
+        prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
 
         try:
@@ -449,8 +492,9 @@ class BrandAdvisor:
             else:
                 response_text = str(response)
 
-            # Update conversation history (manager handles compaction automatically)
-            self._history_manager.add("user", message)
+            # Update conversation history with RAW message (not augmented)
+            # This prevents history from ballooning with repeated context
+            self._history_manager.add("user", raw_user_message)
             self._history_manager.add("assistant", response_text)
 
             return {
@@ -463,24 +507,52 @@ class BrandAdvisor:
             logger.error(f"Chat failed: {e}")
             raise
 
-    async def chat(self, message: str) -> str:
-        """Send a message and get a response."""
-        result = await self.chat_with_metadata(message)
+    async def chat(
+        self,
+        message: str,
+        project_slug: str | None = None,
+        attached_products: list[str] | None = None,
+    ) -> str:
+        """Send a message and get a response.
+
+        Args:
+            message: User message to process.
+            project_slug: Active project slug for context injection.
+            attached_products: List of product slugs to include in context.
+
+        Returns:
+            Agent's response text.
+        """
+        result = await self.chat_with_metadata(
+            message,
+            project_slug=project_slug,
+            attached_products=attached_products,
+        )
         return result["response"]
 
-    async def chat_stream(self, message: str) -> AsyncIterator[str]:
+    async def chat_stream(
+        self,
+        message: str,
+        project_slug: str | None = None,
+        attached_products: list[str] | None = None,
+    ) -> AsyncIterator[str]:
         """Send a message and stream the response.
 
         Args:
             message: User message to process.
+            project_slug: Active project slug for context injection.
+            attached_products: List of product slugs to include in context.
 
         Yields:
             Response text chunks as they're generated.
         """
         hooks = AdvisorHooks(callback=self.progress_callback)
 
-        # Find relevant skills and inject their instructions
-        skills_context, matched_skills = self._get_relevant_skills_context(message)
+        # Keep raw message for skill matching and history
+        raw_user_message = message
+
+        # Find relevant skills using RAW message (not augmented)
+        skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
 
         # Emit progress events for matched skills
         for skill_name, skill_description in matched_skills:
@@ -498,13 +570,37 @@ class BrandAdvisor:
         if self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=4000)
 
-        # Check budget and trim if needed
+        # Build per-turn context (project + attached products)
+        turn_context = ""
+        if self.brand_slug and (project_slug or attached_products):
+            builder = HierarchicalContextBuilder(
+                brand_slug=self.brand_slug,
+                product_slugs=attached_products,
+                project_slug=project_slug,
+            )
+            turn_context = builder.build_turn_context()
+
+        # Build augmented message with turn context prepended
+        if turn_context:
+            augmented_message = f"""## Current Context
+
+{turn_context}
+
+---
+
+## User Request
+
+{raw_user_message}"""
+        else:
+            augmented_message = raw_user_message
+
+        # Check budget and trim if needed (use augmented_message for accurate size)
         budget_result, trimmed_system, trimmed_skills, trimmed_history, _ = (
             self._budget_manager.check_and_trim(
                 system_prompt=self._agent.instructions or "",
                 skills_context=skills_context,
                 history=history_text,
-                user_message=message,
+                user_message=augmented_message,
             )
         )
 
@@ -534,7 +630,8 @@ class BrandAdvisor:
         if trimmed_history:
             prompt_parts.append(trimmed_history)
 
-        prompt_parts.append(f"User: {message}")
+        # Use augmented message (with turn context) for LLM
+        prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
 
         # Accumulate response for history
@@ -547,9 +644,10 @@ class BrandAdvisor:
                     response_chunks.append(chunk.text)
                     yield chunk.text
 
-            # Update history after stream completes (manager handles compaction)
+            # Update history with RAW message (not augmented)
+            # This prevents history from ballooning with repeated context
             full_response = "".join(response_chunks)
-            self._history_manager.add("user", message)
+            self._history_manager.add("user", raw_user_message)
             self._history_manager.add("assistant", full_response)
 
         except Exception as e:

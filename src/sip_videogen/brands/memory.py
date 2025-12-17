@@ -4,6 +4,8 @@ Provides hierarchical access to brand information:
 - L0 (Summary): Always available
 - L1 (Details): Fetched on demand by detail type
 - L2 (Assets): File listings
+
+Also provides access to Product and Project memory layers.
 """
 
 from __future__ import annotations
@@ -13,8 +15,21 @@ from typing import Literal
 
 from .models import (
     BrandSummary,
+    ProductFull,
+    ProductSummary,
+    ProjectFull,
+    ProjectSummary,
 )
-from .storage import get_brand_dir, load_brand, load_brand_summary
+from .storage import (
+    get_brand_dir,
+    list_product_images,
+    load_brand,
+    load_brand_summary,
+    load_product,
+    load_product_summary,
+    load_project,
+    load_project_summary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -113,3 +128,134 @@ def list_brand_assets(slug: str, category: str | None = None) -> list[dict]:
                 )
 
     return assets
+
+
+# =============================================================================
+# Product Memory Access
+# =============================================================================
+
+
+def get_product_summary(brand_slug: str, product_slug: str) -> ProductSummary | None:
+    """Get the L0 summary layer for a product.
+
+    Args:
+        brand_slug: Brand identifier.
+        product_slug: Product identifier.
+
+    Returns:
+        ProductSummary or None if not found.
+    """
+    return load_product_summary(brand_slug, product_slug)
+
+
+def get_product_detail(brand_slug: str, product_slug: str) -> str:
+    """Get detailed product info as JSON string for agent context.
+
+    Args:
+        brand_slug: Brand identifier.
+        product_slug: Product identifier.
+
+    Returns:
+        JSON string of the product details, or error message.
+    """
+    product = load_product(brand_slug, product_slug)
+
+    if product is None:
+        return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'"
+
+    return product.model_dump_json(indent=2)
+
+
+def get_product_images_for_generation(
+    brand_slug: str, product_slug: str
+) -> list[str]:
+    """Get product images for use in generation.
+
+    Args:
+        brand_slug: Brand identifier.
+        product_slug: Product identifier.
+
+    Returns:
+        List of brand-relative image paths.
+    """
+    return list_product_images(brand_slug, product_slug)
+
+
+def get_product_full(brand_slug: str, product_slug: str) -> ProductFull | None:
+    """Get the full product details (L1 layer).
+
+    Args:
+        brand_slug: Brand identifier.
+        product_slug: Product identifier.
+
+    Returns:
+        ProductFull or None if not found.
+    """
+    return load_product(brand_slug, product_slug)
+
+
+# =============================================================================
+# Project Memory Access
+# =============================================================================
+
+
+def get_project_summary(brand_slug: str, project_slug: str) -> ProjectSummary | None:
+    """Get the L0 summary layer for a project.
+
+    Args:
+        brand_slug: Brand identifier.
+        project_slug: Project identifier.
+
+    Returns:
+        ProjectSummary or None if not found.
+    """
+    return load_project_summary(brand_slug, project_slug)
+
+
+def get_project_instructions(brand_slug: str, project_slug: str) -> str:
+    """Get project instructions markdown.
+
+    Args:
+        brand_slug: Brand identifier.
+        project_slug: Project identifier.
+
+    Returns:
+        Instructions markdown string, or error message.
+    """
+    project = load_project(brand_slug, project_slug)
+
+    if project is None:
+        return f"Error: Project '{project_slug}' not found in brand '{brand_slug}'"
+
+    return project.instructions
+
+
+def get_project_detail(brand_slug: str, project_slug: str) -> str:
+    """Get detailed project info as JSON string for agent context.
+
+    Args:
+        brand_slug: Brand identifier.
+        project_slug: Project identifier.
+
+    Returns:
+        JSON string of the project details, or error message.
+    """
+    project = load_project(brand_slug, project_slug)
+
+    if project is None:
+        return f"Error: Project '{project_slug}' not found in brand '{brand_slug}'"
+
+    return project.model_dump_json(indent=2)
+
+
+def get_project_full(brand_slug: str, project_slug: str) -> ProjectFull | None:
+    """Get the full project details (L1 layer).
+
+    Args:
+        brand_slug: Brand identifier.
+        project_slug: Project identifier.
+
+    Returns:
+        ProjectFull or None if not found.
+    """
+    return load_project(brand_slug, project_slug)

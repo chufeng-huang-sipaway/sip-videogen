@@ -1,11 +1,20 @@
 """Universal tools for Brand Marketing Advisor.
 
-These are the 5 basic tools available to the advisor agent:
+Core tools available to the advisor agent:
 1. generate_image - Create images via Gemini 3.0 Pro
 2. read_file - Read files from brand directory
 3. write_file - Write files to brand directory
 4. list_files - List files in brand directory
 5. load_brand - Load brand identity and context
+6. propose_choices - Present choices to user
+7. propose_images - Present images for selection
+8. update_memory - Store user preferences
+
+Product and Project exploration tools:
+9. list_products - List all products for the active brand
+10. list_projects - List all projects/campaigns for the active brand
+11. get_product_detail - Get detailed product information
+12. get_project_detail - Get detailed project information
 
 Tool functions are defined as pure functions (prefixed with _impl_) for testing,
 then wrapped with @function_tool for agent use.
@@ -17,11 +26,18 @@ from pathlib import Path
 from typing import Literal
 
 from agents import function_tool
-
 from sip_videogen.brands.storage import (
     get_active_brand,
+    get_active_project,
     get_brand_dir,
     get_brands_dir,
+    load_product,
+)
+from sip_videogen.brands.storage import (
+    list_products as storage_list_products,
+)
+from sip_videogen.brands.storage import (
+    list_projects as storage_list_projects,
 )
 from sip_videogen.brands.storage import (
     load_brand as storage_load_brand,
@@ -30,6 +46,43 @@ from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Filename Generation Helper
+# =============================================================================
+
+
+def _generate_output_filename(project_slug: str | None = None) -> str:
+    """Generate a filename with optional project prefix.
+
+    When a project is active, generated images are tagged with the project
+    slug prefix so they can be filtered and listed per-project.
+
+    Args:
+        project_slug: Optional project slug to prefix the filename.
+
+    Returns:
+        Filename (without extension) with format:
+        - With project: "{project_slug}__{timestamp}_{hash}"
+        - Without project: "{timestamp}_{hash}"
+
+    Example:
+        >>> _generate_output_filename("christmas-campaign")
+        "christmas-campaign__20241215_143022_a1b2c3d4"
+        >>> _generate_output_filename(None)
+        "20241215_143022_a1b2c3d4"
+    """
+    import uuid
+    from datetime import datetime
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    hash_suffix = uuid.uuid4().hex[:8]
+
+    if project_slug:
+        return f"{project_slug}__{timestamp}_{hash_suffix}"
+    else:
+        return f"{timestamp}_{hash_suffix}"
 
 
 # =============================================================================
@@ -98,6 +151,8 @@ async def _impl_generate_image(
     aspect_ratio: str = "1:1",
     filename: str | None = None,
     reference_image: str | None = None,
+    product_slug: str | None = None,
+    product_slugs: list[str] | None = None,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -108,6 +163,9 @@ async def _impl_generate_image(
         aspect_ratio: Image aspect ratio.
         filename: Optional output filename (without extension).
         reference_image: Optional path to reference image within brand directory.
+        product_slug: Optional product slug - auto-loads product's primary image as reference.
+        product_slugs: Optional list of product slugs for multi-product generation.
+            When provided with 2+ products, uses multi-product validation.
         validate_identity: When True with reference_image, validates that the
             generated image preserves object identity from the reference.
         max_retries: Maximum validation attempts (only used with validate_identity).
@@ -132,13 +190,99 @@ async def _impl_generate_image(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate filename if not provided
-    if not filename:
-        import time
+    # Generate filename with project prefix when a project is active
+    # IMPORTANT: Always use our format when project is active to ensure proper tagging
+    active_project = get_active_project(brand_slug) if brand_slug else None
 
-        filename = f"image_{int(time.time())}"
+    if active_project:
+        # Always generate our own filename to ensure proper project tagging format
+        # (agent may provide filename but with wrong separator format)
+        generated_filename = _generate_output_filename(active_project)
+        if filename:
+            logger.debug(
+                f"Agent provided filename '{filename}', "
+                f"overriding with '{generated_filename}' for project tagging"
+            )
+        filename = generated_filename
+        logger.info(f"Tagging generated image with project: {active_project}")
+    elif not filename:
+        # No project active and no filename provided - generate one without prefix
+        filename = _generate_output_filename(None)
 
     output_path = output_dir / f"{filename}.png"
+
+    # Handle multi-product generation with validation
+    if product_slugs and len(product_slugs) >= 2:
+        if not brand_slug:
+            return "Error: No active brand - cannot load products"
+
+        # Load all product primary images
+        product_references: list[tuple[str, bytes]] = []
+        for slug in product_slugs:
+            product = load_product(brand_slug, slug)
+            if product is None:
+                return f"Error: Product not found: {slug}"
+            if not product.primary_image:
+                return f"Error: Product '{slug}' has no primary image for reference"
+
+            # Resolve and load the primary image
+            ref_path = _resolve_brand_path(product.primary_image)
+            if ref_path is None or not ref_path.exists():
+                return (
+                    f"Error: Reference image not found for product '{slug}': "
+                    f"{product.primary_image}"
+                )
+
+            try:
+                ref_bytes = ref_path.read_bytes()
+                product_references.append((product.name, ref_bytes))
+                logger.info(f"Loaded reference for '{product.name}': {product.primary_image}")
+            except Exception as e:
+                return f"Error reading reference image for '{slug}': {e}"
+
+        # Use multi-product validation
+        from sip_videogen.advisor.validation import generate_with_multi_validation
+
+        logger.info(
+            f"Generating multi-product image with {len(product_references)} products "
+            f"(max {max_retries} retries)..."
+        )
+
+        try:
+            from google import genai
+
+            client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
+            return await generate_with_multi_validation(
+                client=client,
+                prompt=prompt,
+                product_references=product_references,
+                output_dir=output_dir,
+                filename=filename,
+                aspect_ratio=aspect_ratio,
+                max_retries=max_retries,
+            )
+        except Exception as e:
+            logger.error(f"Multi-product image generation failed: {e}")
+            return f"Error generating multi-product image: {str(e)}"
+
+    # Auto-load product's primary image as reference if product_slug provided (single product)
+    if product_slug and not reference_image:
+        if not brand_slug:
+            return "Error: No active brand - cannot load product"
+        product = load_product(brand_slug, product_slug)
+        if product is None:
+            return f"Error: Product not found: {product_slug}"
+        if product.primary_image:
+            # primary_image is brand-relative (e.g., "products/night-cream/images/main.png")
+            # Pass directly - _resolve_brand_path will handle it
+            reference_image = product.primary_image
+            # Enable identity validation for product consistency
+            validate_identity = True
+            logger.info(
+                f"Using product '{product_slug}' primary image as reference: {reference_image}"
+            )
+        else:
+            logger.warning(f"Product '{product_slug}' has no primary image")
 
     # Resolve and load reference image if provided
     reference_image_bytes: bytes | None = None
@@ -269,8 +413,7 @@ def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
             # Add metadata header
             total_len = len(content)
             header = (
-                f"[Chunk {chunk + 1}/{total_chunks}] "
-                f"(chars {start + 1}-{end} of {total_len})\n\n"
+                f"[Chunk {chunk + 1}/{total_chunks}] (chars {start + 1}-{end} of {total_len})\n\n"
             )
             footer = ""
             if chunk < total_chunks - 1:
@@ -407,12 +550,9 @@ def _impl_load_brand(
         Formatted brand context as markdown.
     """
     from sip_videogen.brands.memory import list_brand_assets
-    from sip_videogen.brands.storage import (
-        list_brands,
-        set_active_brand,
-    )
+    from sip_videogen.brands.storage import list_brands
 
-    # Get brand slug
+    # Get brand slug - defaults to active brand if not specified
     if not slug:
         slug = get_active_brand()
 
@@ -431,13 +571,11 @@ def _impl_load_brand(
             "Tell me which brand to work with, or describe a new brand to create."
         )
 
-    # Load the brand
+    # Load the brand identity without changing global active brand state
+    # (active brand is managed by the bridge, not by tools)
     identity = storage_load_brand(slug)
     if identity is None:
         return f"Error: Brand not found: {slug}"
-
-    # Set as active brand
-    set_active_brand(slug)
 
     # Get asset count for both modes
     try:
@@ -459,9 +597,7 @@ def _impl_load_brand(
 
         # Primary colors only (max 3)
         if identity.visual.primary_colors:
-            colors = ", ".join(
-                f"{c.name} ({c.hex})" for c in identity.visual.primary_colors[:3]
-            )
+            colors = ", ".join(f"{c.name} ({c.hex})" for c in identity.visual.primary_colors[:3])
             context_parts.append(f"**Colors**: {colors}")
 
         # Style keywords (max 3)
@@ -558,6 +694,186 @@ def _impl_load_brand(
         context_parts.append("")
 
     return "\n".join(context_parts)
+
+
+def _impl_list_products() -> str:
+    """Implementation of list_products tool.
+
+    Returns:
+        Formatted list of products for the active brand.
+    """
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    products = storage_list_products(brand_slug)
+
+    if not products:
+        return f"No products found for brand '{brand_slug}'. Use the bridge to create products."
+
+    lines = [f"Products for brand '{brand_slug}':\n"]
+    for product in products:
+        primary = f" (primary image: {product.primary_image})" if product.primary_image else ""
+        attrs = f", {product.attribute_count} attributes" if product.attribute_count > 0 else ""
+        lines.append(f"- **{product.name}** (`{product.slug}`){attrs}{primary}")
+        if product.description:
+            # Truncate long descriptions
+            desc = product.description
+            if len(desc) > 100:
+                desc = desc[:100] + "..."
+            lines.append(f"  {desc}")
+
+    lines.append("")
+    lines.append("---")
+    lines.append("Use `get_product_detail(product_slug)` for full product information.")
+
+    return "\n".join(lines)
+
+
+def _impl_list_projects() -> str:
+    """Implementation of list_projects tool.
+
+    Returns:
+        Formatted list of projects for the active brand.
+    """
+    from sip_videogen.brands.storage import get_active_project as storage_get_active_project
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    projects = storage_list_projects(brand_slug)
+    active_project = storage_get_active_project(brand_slug)
+
+    if not projects:
+        return f"No projects found for brand '{brand_slug}'. Use the bridge to create projects."
+
+    lines = [f"Projects for brand '{brand_slug}':\n"]
+    for project in projects:
+        active_marker = " ★ ACTIVE" if project.slug == active_project else ""
+        status_badge = f"[{project.status.value}]"
+        assets = f", {project.asset_count} assets" if project.asset_count > 0 else ""
+        line = f"- **{project.name}** (`{project.slug}`) {status_badge}{assets}{active_marker}"
+        lines.append(line)
+
+    lines.append("")
+    lines.append("---")
+    lines.append(
+        "Use `get_project_detail(project_slug)` for full project info including instructions."
+    )
+
+    return "\n".join(lines)
+
+
+def _impl_get_product_detail(product_slug: str) -> str:
+    """Implementation of get_product_detail tool.
+
+    Args:
+        product_slug: Product identifier.
+
+    Returns:
+        Formatted product detail as markdown.
+    """
+    from sip_videogen.brands.memory import get_product_full
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    product = get_product_full(brand_slug, product_slug)
+    if product is None:
+        return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+
+    lines = [f"# Product: {product.name}"]
+    lines.append(f"*Slug: `{product.slug}`*\n")
+
+    # Description
+    if product.description:
+        lines.append("## Description")
+        lines.append(product.description)
+        lines.append("")
+
+    # Attributes
+    if product.attributes:
+        lines.append("## Attributes")
+        for attr in product.attributes:
+            lines.append(f"- **{attr.key}** ({attr.category}): {attr.value}")
+        lines.append("")
+
+    # Images
+    if product.images:
+        lines.append("## Images")
+        for img in product.images:
+            primary_marker = " ★ PRIMARY" if img == product.primary_image else ""
+            lines.append(f"- `{img}`{primary_marker}")
+        lines.append("")
+
+    # Timestamps
+    lines.append("## Metadata")
+    lines.append(f"- Created: {product.created_at.strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"- Updated: {product.updated_at.strftime('%Y-%m-%d %H:%M')}")
+
+    return "\n".join(lines)
+
+
+def _impl_get_project_detail(project_slug: str) -> str:
+    """Implementation of get_project_detail tool.
+
+    Args:
+        project_slug: Project identifier.
+
+    Returns:
+        Formatted project detail as markdown.
+    """
+    from sip_videogen.brands.memory import get_project_full
+    from sip_videogen.brands.storage import get_active_project as storage_get_active_project
+    from sip_videogen.brands.storage import list_project_assets
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    project = get_project_full(brand_slug, project_slug)
+    if project is None:
+        return f"Error: Project '{project_slug}' not found in brand '{brand_slug}'."
+
+    active_project = storage_get_active_project(brand_slug)
+    is_active = project.slug == active_project
+
+    lines = [f"# Project: {project.name}"]
+    lines.append(f"*Slug: `{project.slug}`*\n")
+
+    # Status
+    active_marker = " ★ ACTIVE" if is_active else ""
+    lines.append(f"**Status**: {project.status.value}{active_marker}\n")
+
+    # Instructions
+    if project.instructions:
+        lines.append("## Instructions")
+        lines.append(project.instructions)
+        lines.append("")
+    else:
+        lines.append("## Instructions")
+        lines.append("*No instructions set.*")
+        lines.append("")
+
+    # Assets
+    assets = list_project_assets(brand_slug, project_slug)
+    if assets:
+        lines.append("## Generated Assets")
+        lines.append(f"This project has {len(assets)} generated assets:")
+        for asset in assets[:10]:  # Show first 10
+            lines.append(f"- `{asset}`")
+        if len(assets) > 10:
+            lines.append(f"- *...and {len(assets) - 10} more*")
+        lines.append("")
+
+    # Timestamps
+    lines.append("## Metadata")
+    lines.append(f"- Created: {project.created_at.strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"- Updated: {project.updated_at.strftime('%Y-%m-%d %H:%M')}")
+
+    return "\n".join(lines)
 
 
 # =============================================================================
@@ -666,6 +982,8 @@ async def generate_image(
     aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"] = "1:1",
     filename: str | None = None,
     reference_image: str | None = None,
+    product_slug: str | None = None,
+    product_slugs: list[str] | None = None,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -688,11 +1006,21 @@ async def generate_image(
             When provided, the generated image will incorporate visual elements from
             this reference to maintain consistency. Path should be relative to the
             brand folder (e.g., "uploads/product.png", "assets/logo/main.png").
+        product_slug: Optional product slug. When provided without reference_image,
+            automatically loads the product's primary image as reference and enables
+            identity validation. Use this when generating images featuring a specific
+            product - the product's actual appearance will be preserved.
+        product_slugs: Optional list of product slugs for MULTI-PRODUCT images.
+            Use this when the user wants to generate an image featuring 2-3 products.
+            Each product's primary image will be used as reference, and multi-product
+            validation ensures EVERY product appears accurately. The prompt should
+            describe each product with specific details (materials, colors, etc.).
+            Example: product_slugs=["night-cream", "day-serum", "toner"]
         validate_identity: When True AND reference_image is provided, enables a
             validation loop that ensures the generated image preserves the identity
             of objects in the reference. Use when the user needs the EXACT SAME
             object (their specific product, logo, etc.) to appear in the generated
-            image, not just something similar.
+            image, not just something similar. Auto-enabled when using product_slug.
         max_retries: Maximum attempts for the validation loop (default 3). Only
             used when validate_identity is True. If validation fails after all
             retries, returns the best attempt with a warning.
@@ -703,7 +1031,14 @@ async def generate_image(
         potential differences from the reference.
     """
     return await _impl_generate_image(
-        prompt, aspect_ratio, filename, reference_image, validate_identity, max_retries
+        prompt,
+        aspect_ratio,
+        filename,
+        reference_image,
+        product_slug,
+        product_slugs,
+        validate_identity,
+        max_retries,
     )
 
 
@@ -794,6 +1129,98 @@ def load_brand(
 
 
 @function_tool
+def list_products() -> str:
+    """List all products for the active brand.
+
+    Returns a formatted list of products with their names, slugs, attribute counts,
+    and primary images. Use this to explore available products before getting details
+    or using them in image generation.
+
+    Products can be used with generate_image(product_slug="...") to automatically
+    use their primary image as a reference for consistent generation.
+
+    Returns:
+        Formatted markdown list of products, or error message if no brand is active.
+
+    Example output:
+        Products for brand 'coffee-co':
+
+        - **Night Cream** (`night-cream`), 5 attributes
+          A luxurious night cream for deep hydration...
+        - **Day Serum** (`day-serum`), 3 attributes
+          Lightweight serum for daytime protection...
+    """
+    return _impl_list_products()
+
+
+@function_tool
+def list_projects() -> str:
+    """List all projects/campaigns for the active brand.
+
+    Returns a formatted list of projects with their names, slugs, status,
+    and asset counts. Active projects are marked with a star.
+
+    When a project is active, generated images are automatically tagged with
+    that project's slug for organization and filtering.
+
+    Returns:
+        Formatted markdown list of projects, or error message if no brand is active.
+
+    Example output:
+        Projects for brand 'coffee-co':
+
+        - **Christmas Campaign** (`christmas-campaign`) [active], 12 assets ★ ACTIVE
+        - **Summer Sale** (`summer-sale`) [archived], 8 assets
+    """
+    return _impl_list_projects()
+
+
+@function_tool
+def get_product_detail(product_slug: str) -> str:
+    """Get detailed information about a specific product.
+
+    Use this when you need more information than what's provided by list_products,
+    such as full descriptions, all attributes, or complete image lists.
+
+    Args:
+        product_slug: The product's slug identifier (e.g., "night-cream").
+
+    Returns:
+        Formatted markdown with:
+        - Product name and slug
+        - Full description
+        - All attributes (key, category, value)
+        - All images with primary marker
+        - Creation and update timestamps
+
+        Or error message if product not found.
+    """
+    return _impl_get_product_detail(product_slug)
+
+
+@function_tool
+def get_project_detail(project_slug: str) -> str:
+    """Get detailed information about a specific project/campaign.
+
+    Use this when you need the project's instructions or want to see
+    what assets have been generated for it.
+
+    Args:
+        project_slug: The project's slug identifier (e.g., "christmas-campaign").
+
+    Returns:
+        Formatted markdown with:
+        - Project name, slug, and status (with active marker if applicable)
+        - Full instructions markdown
+        - List of generated assets (first 10)
+        - Creation and update timestamps
+
+        Or error message if project not found.
+    """
+    return _impl_get_project_detail(project_slug)
+
+
+@function_tool
 def update_memory(
     key: str,
     value: str,
@@ -858,4 +1285,9 @@ ADVISOR_TOOLS = [
     propose_choices,
     propose_images,
     update_memory,
+    # Product and Project exploration tools
+    list_products,
+    list_projects,
+    get_product_detail,
+    get_project_detail,
 ]

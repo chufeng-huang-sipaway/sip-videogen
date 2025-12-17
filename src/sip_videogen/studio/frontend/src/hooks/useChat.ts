@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext } from '@/lib/bridge'
 
 export interface Message {
   id: string
@@ -20,6 +20,8 @@ export interface Message {
     path?: string
     source?: 'upload' | 'asset'
   }>
+  /** Product slugs that were attached when this message was sent */
+  attachedProductSlugs?: string[]
 }
 
 interface PendingAttachment extends ChatAttachment {
@@ -152,7 +154,7 @@ export function useChat(brandSlug: string | null) {
     ))
   }, [])
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, context?: ChatContext) => {
     const hasAttachments = attachmentsRef.current.length > 0
     if (!content.trim() && !hasAttachments) return
     if (isLoading || !brandSlug) return
@@ -185,6 +187,9 @@ export function useChat(brandSlug: string | null) {
       timestamp: new Date(),
       status: 'sent',
       attachments: attachmentDisplay.length ? attachmentDisplay : undefined,
+      attachedProductSlugs: context?.attached_products?.length
+        ? [...context.attached_products]
+        : undefined,
     }
 
     const assistantId = generateId()
@@ -238,7 +243,7 @@ export function useChat(brandSlug: string | null) {
         return
       }
 
-      const result = await bridge.chat(finalContent, payloadAttachments)
+      const result = await bridge.chat(finalContent, payloadAttachments, context)
       setMessages(prev => prev.map(m =>
         m.id === assistantId
           ? {
