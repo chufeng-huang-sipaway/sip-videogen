@@ -621,12 +621,38 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 3.3.3: Create `editors/ColorListEditor.tsx` - Color swatches with color picker
 - [x] Task 3.3.4: Create `editors/TypographyListEditor.tsx` - Typography rules form
 
-### Stage 3.4: Edit UX (Next)
-- [ ] Task 3.4.1: Implement Save/Cancel buttons per section
-- [ ] Task 3.4.2: Show spinner during save
-- [ ] Task 3.4.3: Display success/error using inline Alert component
-- [ ] Task 3.4.4: Wait for server response (no optimistic updates)
-- [ ] Task 3.4.5: After successful save, show inline info that AI context is refreshed automatically
+### Stage 3.4: Edit UX - COMPLETE ✅
+*Note: These tasks were implemented as part of Section Components (Task 3.2.x) - each section includes Save/Cancel, spinner, and Alert components.*
+
+- [x] Task 3.4.1: Implement Save/Cancel buttons per section (in MemorySection + each section component)
+- [x] Task 3.4.2: Show spinner during save (each section uses `<Spinner>` while `isSaving`)
+- [x] Task 3.4.3: Display success/error using inline Alert component (each section has Alert variants)
+- [x] Task 3.4.4: Wait for server response - no optimistic updates (`await bridge.updateBrandIdentitySection()`)
+- [x] Task 3.4.5: After successful save, show inline info that AI context is refreshed automatically ("AI context refreshed automatically" message)
+
+#### Task 3.4.6: Wire up BrandMemory with section components ✅
+**Commit**: `8c13129`
+
+**Implementation**:
+- Updated `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx`
+- Replaced placeholder `SectionPlaceholder` components with actual section implementations
+- Imported and integrated: CoreSection, VisualSection, VoiceSection, AudienceSection, PositioningSection, ConstraintsAvoidSection
+- Used `MemorySectionGroup` wrapper for consistent section styling
+- Each section receives its data slice from identity and `onIdentityUpdate={setIdentity}` callback
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+
+### Stage 3.5: Regenerate UX (Next)
+- [ ] Task 3.5.1: Add confirmation dialog warning about edit loss
+- [ ] Task 3.5.2: Show progress indicator during regeneration
+- [ ] Task 3.5.3: Auto-backup before regenerating
+- [ ] Task 3.5.4: After regeneration completes, show inline info that AI context is refreshed automatically
+
+### Stage 3.6: Status Feedback Component
+- [ ] Task 3.6.1: Create `BrandMemory/StatusAlert.tsx` - Inline success/error/info alerts
 
 ---
 
