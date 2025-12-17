@@ -834,10 +834,34 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 4.3.1: Add identity state to BrandContext.tsx
 - [x] Task 4.3.2: Add `refreshAdvisorContext()` wrapper
 
-### Stage 5: Backup & Restore UI
+### Stage 5: Backup & Restore UI - COMPLETE ✅
 - [x] Task 5.1: Create `BrandMemory/BackupDialog.tsx`
-- [ ] Task 5.2: Add History button functionality
-- [ ] Task 5.3: Connect backup list and restore functionality
+- [x] Task 5.2: Add History button functionality
+- [x] Task 5.3: Connect backup list and restore functionality
+
+#### Task 5.2-5.3: Wire up History button and connect backup functionality ✅
+**Commit**: `4a39f3c`
+
+**Implementation**:
+- Updated `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx`
+- Imported `BackupDialog` component
+- Added `showBackupDialog` state for dialog visibility
+- Wired History button `onClick` to open BackupDialog via `setShowBackupDialog(true)`
+- Added `BackupDialog` component with:
+  - `open` state binding to `showBackupDialog`
+  - `onOpenChange` handler to close dialog
+  - `brandName` for dialog header display
+  - `onRestore` callback that updates identity state when backup is restored
+- BackupDialog already implements:
+  - `listIdentityBackups()` bridge call to fetch backups
+  - `restoreIdentityBackup()` bridge call to restore selected backup
+  - Confirmation dialog before restore
+  - Auto-dismiss and close after successful restore
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No ESLint warnings
 
 ---
 
