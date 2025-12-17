@@ -44,6 +44,7 @@ function deepCopyPositioning(data: CompetitivePositioning): CompetitivePositioni
 export function PositioningSection({ data, onIdentityUpdate }: PositioningSectionProps) {
   // Edit state - local copy of data being edited
   const [editData, setEditData] = useState<CompetitivePositioning | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -51,6 +52,7 @@ export function PositioningSection({ data, onIdentityUpdate }: PositioningSectio
   // Handle entering edit mode
   const handleEditModeChange = useCallback(
     (isEditing: boolean) => {
+      setIsEditing(isEditing)
       if (isEditing) {
         // Deep copy current data for editing
         setEditData(deepCopyPositioning(data))
@@ -80,6 +82,7 @@ export function PositioningSection({ data, onIdentityUpdate }: PositioningSectio
       setSaveSuccess(true)
       // Clear edit mode after successful save
       setEditData(null)
+      setIsEditing(false)
     } catch (err) {
       console.error('[PositioningSection] Save failed:', err)
       setSaveError(err instanceof Error ? err.message : 'Failed to save changes')
@@ -330,6 +333,7 @@ export function PositioningSection({ data, onIdentityUpdate }: PositioningSectio
       title="Market Positioning"
       subtitle={data.market_category}
       editable
+      isEditing={isEditing}
       isSaving={isSaving}
       onEditModeChange={handleEditModeChange}
       editContent={editContent}

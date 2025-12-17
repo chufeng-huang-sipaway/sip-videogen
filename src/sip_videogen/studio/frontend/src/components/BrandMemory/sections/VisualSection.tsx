@@ -36,6 +36,7 @@ interface VisualSectionProps {
 export function VisualSection({ data, onIdentityUpdate }: VisualSectionProps) {
   // Edit state - local copy of data being edited
   const [editData, setEditData] = useState<VisualIdentity | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -56,6 +57,7 @@ export function VisualSection({ data, onIdentityUpdate }: VisualSectionProps) {
   // Handle entering edit mode
   const handleEditModeChange = useCallback(
     (isEditing: boolean) => {
+      setIsEditing(isEditing)
       if (isEditing) {
         setEditData(deepCopyData(data))
         setSaveError(null)
@@ -82,6 +84,7 @@ export function VisualSection({ data, onIdentityUpdate }: VisualSectionProps) {
       onIdentityUpdate(updatedIdentity)
       setSaveSuccess(true)
       setEditData(null)
+      setIsEditing(false)
     } catch (err) {
       console.error('[VisualSection] Save failed:', err)
       setSaveError(err instanceof Error ? err.message : 'Failed to save changes')
@@ -897,6 +900,7 @@ export function VisualSection({ data, onIdentityUpdate }: VisualSectionProps) {
       title="Visual Identity"
       subtitle={subtitle}
       editable
+      isEditing={isEditing}
       isSaving={isSaving}
       onEditModeChange={handleEditModeChange}
       editContent={editContent}

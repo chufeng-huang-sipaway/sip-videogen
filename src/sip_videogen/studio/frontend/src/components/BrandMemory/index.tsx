@@ -42,7 +42,7 @@ interface BrandMemoryProps {
  * - Sections will be rendered via MemorySection components (Task 3.1.2)
  */
 export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
-  const { activeBrand } = useBrand()
+  const { activeBrand, refresh: refreshBrands } = useBrand()
 
   // State
   const [identity, setIdentity] = useState<BrandIdentityFull | null>(null)
@@ -71,6 +71,15 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
       setIsLoading(false)
     }
   }, [activeBrand])
+
+  // Update identity state and refresh brand list (keeps sidebar name/category in sync)
+  const handleIdentityUpdate = useCallback(
+    (updated: BrandIdentityFull) => {
+      setIdentity(updated)
+      void refreshBrands()
+    },
+    [refreshBrands]
+  )
 
   // Load identity when dialog opens or brand changes
   useEffect(() => {
@@ -124,7 +133,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
     try {
       // Backend automatically creates backup before regenerating
       const newIdentity = await bridge.regenerateBrandIdentity(true)
-      setIdentity(newIdentity)
+      handleIdentityUpdate(newIdentity)
       setRegenerateSuccess(true)
       console.log('[BrandMemory] Regeneration complete')
 
@@ -250,27 +259,27 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
               <MemorySectionGroup>
                 <CoreSection
                   data={identity.core}
-                  onIdentityUpdate={setIdentity}
+                  onIdentityUpdate={handleIdentityUpdate}
                 />
                 <VisualSection
                   data={identity.visual}
-                  onIdentityUpdate={setIdentity}
+                  onIdentityUpdate={handleIdentityUpdate}
                 />
                 <VoiceSection
                   data={identity.voice}
-                  onIdentityUpdate={setIdentity}
+                  onIdentityUpdate={handleIdentityUpdate}
                 />
                 <AudienceSection
                   data={identity.audience}
-                  onIdentityUpdate={setIdentity}
+                  onIdentityUpdate={handleIdentityUpdate}
                 />
                 <PositioningSection
                   data={identity.positioning}
-                  onIdentityUpdate={setIdentity}
+                  onIdentityUpdate={handleIdentityUpdate}
                 />
                 <ConstraintsAvoidSection
                   data={{ constraints: identity.constraints, avoid: identity.avoid }}
-                  onIdentityUpdate={setIdentity}
+                  onIdentityUpdate={handleIdentityUpdate}
                 />
               </MemorySectionGroup>
             )}
@@ -301,11 +310,10 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
         onOpenChange={setShowBackupDialog}
         brandName={identity?.core.name ?? 'this brand'}
         onRestore={(restoredIdentity) => {
-          setIdentity(restoredIdentity)
+          handleIdentityUpdate(restoredIdentity)
           console.log('[BrandMemory] Identity restored from backup')
         }}
       />
     </Dialog>
   )
 }
-

@@ -32,6 +32,7 @@ interface VoiceSectionProps {
 export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
   // Edit state - local copy of data being edited
   const [editData, setEditData] = useState<VoiceGuidelines | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -52,6 +53,7 @@ export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
   // Handle entering edit mode
   const handleEditModeChange = useCallback(
     (isEditing: boolean) => {
+      setIsEditing(isEditing)
       if (isEditing) {
         // Deep copy current data for editing
         setEditData(deepCopy(data))
@@ -81,6 +83,7 @@ export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
       setSaveSuccess(true)
       // Clear edit mode after successful save
       setEditData(null)
+      setIsEditing(false)
     } catch (err) {
       console.error('[VoiceSection] Save failed:', err)
       setSaveError(err instanceof Error ? err.message : 'Failed to save changes')
@@ -400,6 +403,7 @@ export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
       title="Voice Guidelines"
       subtitle={subtitle}
       editable
+      isEditing={isEditing}
       isSaving={isSaving}
       onEditModeChange={handleEditModeChange}
       editContent={editContent}

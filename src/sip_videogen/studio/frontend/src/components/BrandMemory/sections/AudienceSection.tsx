@@ -35,6 +35,7 @@ interface AudienceSectionProps {
 export function AudienceSection({ data, onIdentityUpdate }: AudienceSectionProps) {
   // Edit state - local copy of data being edited
   const [editData, setEditData] = useState<AudienceProfile | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -51,6 +52,7 @@ export function AudienceSection({ data, onIdentityUpdate }: AudienceSectionProps
   // Handle entering edit mode
   const handleEditModeChange = useCallback(
     (isEditing: boolean) => {
+      setIsEditing(isEditing)
       if (isEditing) {
         // Deep copy current data for editing
         setEditData(deepCopyAudienceProfile(data))
@@ -80,6 +82,7 @@ export function AudienceSection({ data, onIdentityUpdate }: AudienceSectionProps
       setSaveSuccess(true)
       // Clear edit mode after successful save
       setEditData(null)
+      setIsEditing(false)
     } catch (err) {
       console.error('[AudienceSection] Save failed:', err)
       setSaveError(err instanceof Error ? err.message : 'Failed to save changes')
@@ -436,6 +439,7 @@ export function AudienceSection({ data, onIdentityUpdate }: AudienceSectionProps
       title="Target Audience"
       subtitle={data.primary_summary.slice(0, 80) + (data.primary_summary.length > 80 ? '...' : '')}
       editable
+      isEditing={isEditing}
       isSaving={isSaving}
       onEditModeChange={handleEditModeChange}
       editContent={editContent}

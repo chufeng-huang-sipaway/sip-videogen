@@ -21,21 +21,23 @@ export interface MemorySectionProps {
   isSaving?: boolean
   /** Called when the edit mode changes */
   onEditModeChange?: (isEditing: boolean) => void
+  /** Controlled edit mode (optional). If provided, MemorySection will use this state. */
+  isEditing?: boolean
   /** Whether to start in expanded state */
   defaultExpanded?: boolean
 }
 
 /**
- * MemorySection - Reusable expandable section wrapper for Brand Memory.
- *
- * Features:
- * - Collapsible/expandable via accordion
- * - Header with title and Edit button
- * - View mode vs Edit mode toggle
- * - Edit mode shows editContent instead of children
- *
- * Used by BrandMemory to wrap each identity section (core, visual, voice, etc.)
- */
+  * MemorySection - Reusable expandable section wrapper for Brand Memory.
+  *
+  * Features:
+  * - Collapsible/expandable via accordion
+  * - Header with title and Edit button
+  * - View mode vs Edit mode toggle
+  * - Edit mode shows editContent instead of children
+  *
+  * Used by BrandMemory to wrap each identity section (core, visual, voice, etc.)
+  */
 export function MemorySection({
   id,
   title,
@@ -45,21 +47,27 @@ export function MemorySection({
   editContent,
   isSaving = false,
   onEditModeChange,
+  isEditing: isEditingProp,
   defaultExpanded = true,
 }: MemorySectionProps) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [internalEditing, setInternalEditing] = useState(false)
+  const isEditing = isEditingProp ?? internalEditing
+
+  const setEditing = (next: boolean) => {
+    if (isEditingProp === undefined) {
+      setInternalEditing(next)
+    }
+    onEditModeChange?.(next)
+  }
 
   const handleEditClick = (e: React.MouseEvent) => {
     // Prevent accordion toggle when clicking edit button
     e.stopPropagation()
-    const newEditState = !isEditing
-    setIsEditing(newEditState)
-    onEditModeChange?.(newEditState)
+    setEditing(!isEditing)
   }
 
   const handleCancelEdit = () => {
-    setIsEditing(false)
-    onEditModeChange?.(false)
+    setEditing(false)
   }
 
   return (
@@ -109,7 +117,10 @@ export function MemorySection({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleCancelEdit}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleCancelEdit()
+                }}
                 className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
                 disabled={isSaving}
               >

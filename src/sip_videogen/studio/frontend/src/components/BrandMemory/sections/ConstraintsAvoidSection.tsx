@@ -38,6 +38,7 @@ function deepCopyConstraintsAvoid(data: ConstraintsAvoidData): ConstraintsAvoidD
 export function ConstraintsAvoidSection({ data, onIdentityUpdate }: ConstraintsAvoidSectionProps) {
   // Edit state - local copy of data being edited
   const [editData, setEditData] = useState<ConstraintsAvoidData | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -45,6 +46,7 @@ export function ConstraintsAvoidSection({ data, onIdentityUpdate }: ConstraintsA
   // Handle entering edit mode
   const handleEditModeChange = useCallback(
     (isEditing: boolean) => {
+      setIsEditing(isEditing)
       if (isEditing) {
         // Deep copy current data for editing
         setEditData(deepCopyConstraintsAvoid(data))
@@ -74,6 +76,7 @@ export function ConstraintsAvoidSection({ data, onIdentityUpdate }: ConstraintsA
       setSaveSuccess(true)
       // Clear edit mode after successful save
       setEditData(null)
+      setIsEditing(false)
     } catch (err) {
       console.error('[ConstraintsAvoidSection] Save failed:', err)
       setSaveError(err instanceof Error ? err.message : 'Failed to save changes')
@@ -273,6 +276,7 @@ export function ConstraintsAvoidSection({ data, onIdentityUpdate }: ConstraintsA
       title="Constraints & Avoid"
       subtitle={subtitle}
       editable
+      isEditing={isEditing}
       isSaving={isSaving}
       onEditModeChange={handleEditModeChange}
       editContent={editContent}
