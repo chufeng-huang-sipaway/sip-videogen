@@ -20,6 +20,8 @@ export interface Message {
     path?: string
     source?: 'upload' | 'asset'
   }>
+  /** Product slugs that were attached when this message was sent */
+  attachedProductSlugs?: string[]
 }
 
 interface PendingAttachment extends ChatAttachment {
@@ -185,6 +187,9 @@ export function useChat(brandSlug: string | null) {
       timestamp: new Date(),
       status: 'sent',
       attachments: attachmentDisplay.length ? attachmentDisplay : undefined,
+      attachedProductSlugs: context?.attached_products?.length
+        ? [...context.attached_products]
+        : undefined,
     }
 
     const assistantId = generateId()

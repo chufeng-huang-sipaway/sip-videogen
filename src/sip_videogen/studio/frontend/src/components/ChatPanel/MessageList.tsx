@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
-import { Paperclip } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Package, Paperclip } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { ActivityIndicator, type ActivityType } from '@/components/ui/activity-indicator'
+import { bridge, isPyWebView, type ProductEntry } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
@@ -15,10 +16,51 @@ interface MessageListProps {
   progressType: ActivityType
   loadedSkills: string[]
   isLoading: boolean
+  products: ProductEntry[]
   onInteractionSelect: (messageId: string, selection: string) => void
 }
 
-export function MessageList({ messages, progress, progressType, loadedSkills, isLoading, onInteractionSelect }: MessageListProps) {
+/** Thumbnail component for product images in message history */
+function MessageProductThumbnail({ path }: { path: string }) {
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      if (!isPyWebView() || !path) return
+      try {
+        const dataUrl = await bridge.getProductImageThumbnail(path)
+        if (!cancelled) setSrc(dataUrl)
+      } catch {
+        // Ignore thumbnail errors
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [path])
+
+  if (!src) {
+    return (
+      <div className="h-6 w-6 rounded bg-white/20 flex items-center justify-center shrink-0">
+        <Package className="h-3 w-3 text-white/60" />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="h-6 w-6 rounded object-cover shrink-0 border border-white/30"
+    />
+  )
+}
+
+export function MessageList({ messages, progress, progressType, loadedSkills, isLoading, products, onInteractionSelect }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -102,6 +144,42 @@ export function MessageList({ messages, progress, progressType, loadedSkills, is
                 ))}
               </div>
             )}
+
+            {/* Attached products (user messages only) */}
+            {message.role === 'user' &&
+              message.attachedProductSlugs &&
+              message.attachedProductSlugs.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-white/20">
+                  <div className="flex items-center gap-1.5 text-[10px] text-white/70 mb-1.5">
+                    <Package className="h-3 w-3" />
+                    <span>Products referenced</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {message.attachedProductSlugs.map((slug) => {
+                      const product = products.find((p) => p.slug === slug)
+                      return (
+                        <div
+                          key={slug}
+                          className="flex items-center gap-1.5 rounded-md bg-white/10
+                                   border border-white/20 px-1.5 py-0.5"
+                        >
+                          {product?.primary_image ? (
+                            <MessageProductThumbnail path={product.primary_image} />
+                          ) : (
+                            <div className="h-6 w-6 rounded bg-white/20 flex items-center
+                                          justify-center shrink-0">
+                              <Package className="h-3 w-3 text-white/60" />
+                            </div>
+                          )}
+                          <span className="text-[11px] text-white/90 max-w-[80px] truncate">
+                            {product?.name || slug}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
             {message.images.length > 0 && (
               <ChatImageGallery images={message.images} />

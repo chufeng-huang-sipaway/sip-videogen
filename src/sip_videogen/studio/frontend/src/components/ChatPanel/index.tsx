@@ -260,6 +260,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           progressType={progressType}
           loadedSkills={loadedSkills}
           isLoading={isLoading}
+          products={products}
           onInteractionSelect={(messageId, selection) => {
             resolveInteraction(messageId)
             void sendMessage(selection)
