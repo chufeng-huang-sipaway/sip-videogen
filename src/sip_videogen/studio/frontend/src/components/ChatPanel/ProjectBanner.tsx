@@ -1,19 +1,16 @@
 import { useState } from 'react'
-import { FolderOpen, ChevronDown, ChevronUp, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { FolderOpen, ChevronDown, ChevronUp } from 'lucide-react'
 import type { ProjectEntry, ProjectFull } from '@/lib/bridge'
 
 interface ProjectBannerProps {
   project: ProjectEntry | null
   projectFull: ProjectFull | null
-  onClearProject: () => void
   onLoadProjectDetails: (slug: string) => Promise<ProjectFull>
 }
 
 export function ProjectBanner({
   project,
   projectFull,
-  onClearProject,
   onLoadProjectDetails,
 }: ProjectBannerProps) {
   const [expanded, setExpanded] = useState(false)
@@ -37,7 +34,7 @@ export function ProjectBanner({
 
   return (
     <div className="border-b border-gray-200 dark:border-gray-700 bg-green-50/50 dark:bg-green-900/10">
-      <div className="px-4 py-2 flex items-center justify-between">
+      <div className="px-4 py-2">
         <button
           type="button"
           className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"
@@ -54,15 +51,6 @@ export function ProjectBanner({
             <ChevronDown className="h-3 w-3" />
           )}
         </button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 text-green-500 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
-          onClick={onClearProject}
-          title="Clear active project"
-        >
-          <X className="h-3 w-3" />
-        </Button>
       </div>
       {expanded && projectFull && (
         <div className="px-4 pb-3 text-xs">

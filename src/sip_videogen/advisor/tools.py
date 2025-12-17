@@ -188,17 +188,21 @@ async def _impl_generate_image(
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate filename if not provided
-    # When a project is active, tag the filename with project prefix
-    if not filename:
-        logger.info(f"generate_image: brand_slug={brand_slug}")
-        active_project = get_active_project(brand_slug) if brand_slug else None
-        logger.info(f"generate_image: active_project from storage={active_project}")
-        filename = _generate_output_filename(active_project)
-        if active_project:
-            logger.info(f"Tagging generated image with project: {active_project}")
-        else:
-            logger.warning(f"No active project found for brand {brand_slug}")
+    # Generate filename with project prefix when a project is active
+    # IMPORTANT: Always use our format when project is active to ensure proper tagging
+    active_project = get_active_project(brand_slug) if brand_slug else None
+
+    if active_project:
+        # Always generate our own filename to ensure proper project tagging format
+        # (agent may provide filename but with wrong separator format)
+        generated_filename = _generate_output_filename(active_project)
+        if filename:
+            logger.debug(f"Agent provided filename '{filename}', overriding with '{generated_filename}' for project tagging")
+        filename = generated_filename
+        logger.info(f"Tagging generated image with project: {active_project}")
+    elif not filename:
+        # No project active and no filename provided - generate one without prefix
+        filename = _generate_output_filename(None)
 
     output_path = output_dir / f"{filename}.png"
 

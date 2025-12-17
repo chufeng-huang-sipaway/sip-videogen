@@ -995,8 +995,14 @@ class TestGenerateImage:
         assert "__" not in filename or filename.count("__") == 0
 
     @pytest.mark.asyncio
-    async def test_generate_image_explicit_filename_ignores_project(self, tmp_path: Path) -> None:
-        """Test _impl_generate_image with explicit filename ignores project prefix."""
+    async def test_generate_image_explicit_filename_overridden_when_project_active(
+        self, tmp_path: Path
+    ) -> None:
+        """Test _impl_generate_image with explicit filename is overridden when project is active.
+
+        When a project is active, we always use our project-tagged filename format
+        to ensure proper project association, even if the agent provides a filename.
+        """
         from sip_videogen.advisor.tools import _impl_generate_image
 
         brand_dir = tmp_path / "test-brand"
@@ -1031,15 +1037,18 @@ class TestGenerateImage:
             await _impl_generate_image(
                 "A custom named image",
                 aspect_ratio="1:1",
-                filename="my_custom_image",  # Explicit filename
+                filename="my_custom_image",  # Explicit filename - will be overridden
             )
 
-        # get_active_project should NOT be called when filename is explicitly provided
-        mock_get_project.assert_not_called()
-        # Should use explicit filename (no project prefix)
+        # get_active_project IS called to check if we need project tagging
+        mock_get_project.assert_called_once_with("test-brand")
+        # Should use project-tagged filename (explicit filename is overridden)
         mock_image.save.assert_called_once()
         saved_path = mock_image.save.call_args[0][0]
-        assert "my_custom_image.png" in saved_path
+        # Filename should contain project prefix with double underscore
+        filename = Path(saved_path).name
+        assert filename.startswith("christmas-campaign__")
+        assert filename.endswith(".png")
 
     @pytest.mark.asyncio
     async def test_generate_image_no_brand_no_project_check(self, tmp_path: Path) -> None:

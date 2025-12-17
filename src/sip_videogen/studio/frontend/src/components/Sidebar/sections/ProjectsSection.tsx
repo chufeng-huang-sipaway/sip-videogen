@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FolderKanban, Plus, X, Check, Archive } from 'lucide-react'
+import { FolderKanban, Plus, X, Archive, ChevronRight, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -12,69 +12,76 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, waitForPyWebViewReady, type ProjectEntry } from '@/lib/bridge'
+import { ProjectAssetGrid } from './ProjectAssetGrid'
 
 interface ProjectCardProps {
   project: ProjectEntry
-  isActive: boolean
-  onSelect: () => void
-  onDeselect: () => void
+  isExpanded: boolean
+  onToggleExpand: () => void
   onArchive: () => void
   onDelete: () => void
 }
 
-function ProjectCard({ project, isActive, onSelect, onDeselect, onArchive, onDelete }: ProjectCardProps) {
+function ProjectCard({
+  project,
+  isExpanded,
+  onToggleExpand,
+  onArchive,
+  onDelete,
+}: ProjectCardProps) {
   const isArchived = project.status === 'archived'
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          className={`flex items-center gap-2 py-2 px-2 rounded cursor-pointer group transition-colors ${
-            isActive
-              ? 'bg-green-100/50 dark:bg-green-900/20 ring-1 ring-green-500/30'
-              : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
-          } ${isArchived ? 'opacity-60' : ''}`}
-          onClick={isActive ? onDeselect : onSelect}
-          title={isActive ? 'Click to deselect project' : 'Click to set as active project'}
-        >
-          <FolderKanban
-            className={`h-4 w-4 shrink-0 ${
-              isActive ? 'text-green-600 dark:text-green-400' : 'text-gray-500'
-            }`}
-          />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-medium truncate">{project.name}</span>
-              {isActive && <Check className="h-3 w-3 text-green-600 dark:text-green-400 shrink-0" />}
-              {isArchived && <Archive className="h-3 w-3 text-gray-400 shrink-0" />}
+    <div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            className={`flex items-center gap-2 py-2 px-2 rounded cursor-pointer group transition-colors
+              hover:bg-gray-200/50 dark:hover:bg-gray-700/50
+              ${isArchived ? 'opacity-60' : ''}`}
+            onClick={onToggleExpand}
+            title="Click to view project assets"
+          >
+            {/* Expand/collapse chevron */}
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+            )}
+            <FolderKanban className="h-4 w-4 shrink-0 text-gray-500" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-medium truncate">{project.name}</span>
+                {isArchived && <Archive className="h-3 w-3 text-gray-400 shrink-0" />}
+              </div>
+              <span className="text-xs text-gray-500">
+                {project.asset_count} asset{project.asset_count !== 1 ? 's' : ''}
+              </span>
             </div>
-            <span className="text-xs text-gray-500">
-              {project.asset_count} asset{project.asset_count !== 1 ? 's' : ''}
-            </span>
           </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          {!isArchived && (
+            <>
+              <ContextMenuItem onClick={onArchive}>
+                Archive Project
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
+          <ContextMenuItem onClick={onDelete} className="text-red-600">
+            Delete Project
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* Expanded asset grid */}
+      {isExpanded && (
+        <div className="pl-8 pr-2">
+          <ProjectAssetGrid projectSlug={project.slug} />
         </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        {isActive ? (
-          <ContextMenuItem onClick={onDeselect}>
-            Clear Active Project
-          </ContextMenuItem>
-        ) : (
-          <ContextMenuItem onClick={onSelect}>
-            Set as Active
-          </ContextMenuItem>
-        )}
-        <ContextMenuSeparator />
-        {!isArchived && (
-          <ContextMenuItem onClick={onArchive}>
-            Archive Project
-          </ContextMenuItem>
-        )}
-        <ContextMenuItem onClick={onDelete} className="text-red-600">
-          Delete Project
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+      )}
+    </div>
   )
 }
 
@@ -86,10 +93,10 @@ export function ProjectsSection() {
     isLoading,
     error,
     refresh,
-    setActiveProject,
     updateProject,
     deleteProject,
   } = useProjects()
+  const [expandedProject, setExpandedProject] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -99,10 +106,18 @@ export function ProjectsSection() {
     }
   }, [actionError])
 
+  const handleToggleExpand = (slug: string) => {
+    setExpandedProject((prev) => (prev === slug ? null : slug))
+  }
+
   const handleDelete = async (slug: string) => {
     if (confirm(`Delete project "${slug}"? Generated assets will be kept.`)) {
       try {
         await deleteProject(slug)
+        // Close expanded view if deleting expanded project
+        if (expandedProject === slug) {
+          setExpandedProject(null)
+        }
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Failed to delete project')
       }
@@ -133,22 +148,6 @@ export function ProjectsSection() {
       await refresh()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to create project')
-    }
-  }
-
-  const handleSelect = async (slug: string) => {
-    try {
-      await setActiveProject(slug)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to set active project')
-    }
-  }
-
-  const handleDeselect = async () => {
-    try {
-      await setActiveProject(null)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to clear active project')
     }
   }
 
@@ -219,9 +218,8 @@ export function ProjectsSection() {
             <ProjectCard
               key={project.slug}
               project={project}
-              isActive={activeProject === project.slug}
-              onSelect={() => handleSelect(project.slug)}
-              onDeselect={handleDeselect}
+              isExpanded={expandedProject === project.slug}
+              onToggleExpand={() => handleToggleExpand(project.slug)}
               onArchive={() => handleArchive(project.slug)}
               onDelete={() => handleDelete(project.slug)}
             />

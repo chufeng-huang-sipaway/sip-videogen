@@ -1820,12 +1820,11 @@ class StudioBridge:
                 return BridgeResponse(success=False, error="No brand selected").to_dict()
 
             global_active_brand = get_active_brand()
-            logger.info(
-                "chat(): slug=%s (from _get_active_slug), global_active_brand=%s, project_slug=%s (type=%s)",
+            logger.debug(
+                "chat(): slug=%s (from _get_active_slug), global_active_brand=%s, project_slug=%s",
                 slug,
                 global_active_brand,
                 project_slug,
-                type(project_slug).__name__,
             )
             if slug != global_active_brand:
                 logger.warning(
@@ -1836,7 +1835,7 @@ class StudioBridge:
 
             # Handle project context - if provided, set as active
             if project_slug is not None:
-                logger.info("chat(): Setting active project to %s", project_slug)
+                logger.debug("chat(): Setting active project to %s", project_slug)
                 set_active_project(slug, project_slug)
 
             # Get effective project (may be from storage if not provided)

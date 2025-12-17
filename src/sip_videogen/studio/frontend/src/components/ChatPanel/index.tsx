@@ -12,6 +12,7 @@ import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
 import { AttachedProducts } from './AttachedProducts'
 import { ProjectBanner } from './ProjectBanner'
+import { ProjectSelector } from './ProjectSelector'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -198,7 +199,15 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       )}
 
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Chat</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Chat</span>
+          <ProjectSelector
+            projects={projects}
+            activeProject={activeProject}
+            onSelect={setActiveProject}
+            disabled={isLoading || !brandSlug}
+          />
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -219,7 +228,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         key={`${brandSlug || 'none'}:${activeProjectEntry?.slug || 'none'}`}
         project={activeProjectEntry}
         projectFull={bannerProjectFull}
-        onClearProject={() => setActiveProject(null)}
         onLoadProjectDetails={async (slug) => {
           const full = await getProject(slug)
           setLoadedProject({ brandSlug: brandSlug || '', project: full })
