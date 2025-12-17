@@ -288,13 +288,39 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing dialog patterns (CreateBrandDialog)
 
+#### Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper ✅
+**Commit**: `7262da9`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/MemorySection.tsx`
+- Reusable collapsible section wrapper for Brand Memory view
+- **Features**:
+  - Header with title, optional subtitle, and Edit button
+  - Collapse/expand functionality via Radix accordion primitive
+  - View mode vs Edit mode toggle (shows `editContent` prop when editing)
+  - Cancel button in edit mode to discard changes
+  - Disabled state when saving (`isSaving` prop)
+  - Callback for edit mode changes (`onEditModeChange`)
+  - Default expanded state configurable (`defaultExpanded`)
+- **Exports**:
+  - `MemorySection` - Main component
+  - `MemorySectionGroup` - Wrapper for grouping multiple sections
+- Uses proper TypeScript imports (`type ReactNode` for verbatimModuleSyntax)
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing UI patterns
+
 ---
 
 ## Next Tasks
 
 ### Stage 3: Brand Memory View with Reusable Editors
 - [x] Task 3.1.1: Create `BrandMemory/index.tsx` - Main view container
-- [ ] Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper
+- [x] Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper
+- [ ] Task 3.2.1: Create `sections/CoreSection.tsx` - Core identity section
 
 ---
 
@@ -304,3 +330,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/types/brand-identity.ts` - NEW: TypeScript types for brand identity
 - `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added brand identity bridge methods and wrapper functions
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/index.tsx` - NEW: Main Brand Memory view container
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/MemorySection.tsx` - NEW: Reusable expandable section wrapper
