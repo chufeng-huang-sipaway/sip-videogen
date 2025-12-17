@@ -108,12 +108,37 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 - Linter passes (`ruff check` - no new errors from this change)
 - Existing brand tests pass (6 pre-existing failures unrelated to this change)
 
+#### Task 1.2.3: `regenerate_brand_identity(confirm: bool)` ✅
+**Commit**: `4a659e3`
+
+**Implementation**:
+- Added `regenerate_brand_identity()` method to `src/sip_videogen/studio/bridge.py`
+- **Safety check**: Requires `confirm=True` to proceed (prevents accidental regeneration)
+- **Backup before regenerate**: Creates backup via `backup_brand_identity()` before any changes
+- **Reads docs/ folder**: Iterates brand's docs/ directory for source materials
+- **4800 char truncation limit**: Truncates concept if exceeds limit (same as create_brand_from_materials)
+- **Preserves slug**: Forces original slug on regenerated identity (never changes during regeneration)
+- **Error handling**:
+  - Returns error if no brand selected
+  - Returns error if brand not found
+  - Returns error if no documents in docs/ folder
+  - Returns error if backup fails
+- **AI regeneration**: Uses `develop_brand_with_output()` with `existing_brand_slug` parameter
+- **Auto-refresh advisor context**: Calls `self._advisor.set_brand(slug, preserve_history=True)` after success
+- Uses `model_dump(mode="json")` for JSON-safe datetime serialization
+- Added import: `backup_brand_identity` from storage module
+
+**Testing**:
+- Method signature verified: `(confirm: bool) -> dict`
+- Bridge imports and instantiates successfully
+- Linter passes (no new errors from this change)
+- Existing brand tests pass (6 pre-existing failures unrelated to this change)
+
 ---
 
 ## Next Tasks
 
 ### Stage 1.2: Bridge Methods (continued)
-- [ ] Task 1.2.3: `regenerate_brand_identity(confirm: bool)`
 - [ ] Task 1.2.4: `list_identity_backups()`
 - [ ] Task 1.2.5: `restore_identity_backup(filename: str)`
 
@@ -121,4 +146,4 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 
 ## Files Modified
 - `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
-- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity and update_brand_identity_section bridge methods
+- `src/sip_videogen/studio/bridge.py` - Added get_brand_identity, update_brand_identity_section, and regenerate_brand_identity bridge methods
