@@ -22,6 +22,7 @@ import { AudienceSection } from './sections/AudienceSection'
 import { PositioningSection } from './sections/PositioningSection'
 import { ConstraintsAvoidSection } from './sections/ConstraintsAvoidSection'
 import { RegenerateConfirmDialog } from './RegenerateConfirmDialog'
+import { BackupDialog } from './BackupDialog'
 
 interface BrandMemoryProps {
   open: boolean
@@ -51,6 +52,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [regenerateError, setRegenerateError] = useState<string | null>(null)
   const [regenerateSuccess, setRegenerateSuccess] = useState(false)
+  const [showBackupDialog, setShowBackupDialog] = useState(false)
 
   // Load identity when dialog opens
   const loadIdentity = useCallback(async () => {
@@ -183,10 +185,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                // TODO: Implement backup history (Stage 5)
-                console.log('[BrandMemory] History clicked')
-              }}
+              onClick={() => setShowBackupDialog(true)}
               disabled={isRegenerating}
               className="gap-1.5"
             >
@@ -294,6 +293,17 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
         onOpenChange={setShowRegenerateConfirm}
         onConfirm={handleRegenerateConfirm}
         brandName={identity?.core.name ?? 'this brand'}
+      />
+
+      {/* Backup history dialog */}
+      <BackupDialog
+        open={showBackupDialog}
+        onOpenChange={setShowBackupDialog}
+        brandName={identity?.core.name ?? 'this brand'}
+        onRestore={(restoredIdentity) => {
+          setIdentity(restoredIdentity)
+          console.log('[BrandMemory] Identity restored from backup')
+        }}
       />
     </Dialog>
   )
