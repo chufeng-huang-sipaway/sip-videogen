@@ -2,31 +2,39 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --color-sidebar-light: rgba(246, 246, 246, 0.8);
-  --color-sidebar-dark: rgba(30, 30, 30, 0.8);
+  --color-sidebar-light: rgba(255, 255, 255, 0.7);
+  --color-sidebar-dark: rgba(20, 20, 20, 0.7);
 
-  /* shadcn/ui theme colors */
+  /* shadcn/ui theme colors - Modern Mac Style */
   --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222.2 84% 4.9%);
+  --color-foreground: hsl(240 10% 3.9%);
+  
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222.2 84% 4.9%);
+  --color-card-foreground: hsl(240 10% 3.9%);
+  
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222.2 84% 4.9%);
-  --color-primary: hsl(222.2 47.4% 11.2%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-secondary: hsl(210 40% 96.1%);
-  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-muted: hsl(210 40% 96.1%);
-  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
+  --color-popover-foreground: hsl(240 10% 3.9%);
+  
+  --color-primary: hsl(240 5.9% 10%);
+  --color-primary-foreground: hsl(0 0% 98%);
+  
+  --color-secondary: hsl(240 4.8% 95.9%);
+  --color-secondary-foreground: hsl(240 5.9% 10%);
+  
+  --color-muted: hsl(240 4.8% 95.9%);
+  --color-muted-foreground: hsl(240 3.8% 46.1%);
+  
+  --color-accent: hsl(240 4.8% 95.9%);
+  --color-accent-foreground: hsl(240 5.9% 10%);
+  
   --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(214.3 31.8% 91.4%);
-  --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(222.2 84% 4.9%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  
+  --color-border: hsl(240 5.9% 90%);
+  --color-input: hsl(240 5.9% 90%);
+  --color-ring: hsl(240 5.9% 10%);
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /* Animation keyframes */
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -35,25 +43,33 @@
 
 /* Dark mode colors */
 .dark {
-  --color-background: hsl(222.2 84% 4.9%);
-  --color-foreground: hsl(210 40% 98%);
-  --color-card: hsl(222.2 84% 4.9%);
-  --color-card-foreground: hsl(210 40% 98%);
-  --color-popover: hsl(222.2 84% 4.9%);
-  --color-popover-foreground: hsl(210 40% 98%);
-  --color-primary: hsl(210 40% 98%);
-  --color-primary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-secondary: hsl(217.2 32.6% 17.5%);
-  --color-secondary-foreground: hsl(210 40% 98%);
-  --color-muted: hsl(217.2 32.6% 17.5%);
-  --color-muted-foreground: hsl(215 20.2% 65.1%);
-  --color-accent: hsl(217.2 32.6% 17.5%);
-  --color-accent-foreground: hsl(210 40% 98%);
+  --color-background: hsl(240 10% 3.9%);
+  --color-foreground: hsl(0 0% 98%);
+  
+  --color-card: hsl(240 10% 3.9%);
+  --color-card-foreground: hsl(0 0% 98%);
+  
+  --color-popover: hsl(240 10% 3.9%);
+  --color-popover-foreground: hsl(0 0% 98%);
+  
+  --color-primary: hsl(0 0% 98%);
+  --color-primary-foreground: hsl(240 5.9% 10%);
+  
+  --color-secondary: hsl(240 3.7% 15.9%);
+  --color-secondary-foreground: hsl(0 0% 98%);
+  
+  --color-muted: hsl(240 3.7% 15.9%);
+  --color-muted-foreground: hsl(240 5% 64.9%);
+  
+  --color-accent: hsl(240 3.7% 15.9%);
+  --color-accent-foreground: hsl(0 0% 98%);
+  
   --color-destructive: hsl(0 62.8% 30.6%);
-  --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(217.2 32.6% 17.5%);
-  --color-input: hsl(217.2 32.6% 17.5%);
-  --color-ring: hsl(212.7 26.8% 83.9%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  
+  --color-border: hsl(240 3.7% 15.9%);
+  --color-input: hsl(240 3.7% 15.9%);
+  --color-ring: hsl(240 4.9% 83.9%);
 }
 
 @keyframes accordion-down {
@@ -74,22 +90,34 @@
   }
 }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
-.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
 .glass {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.dark .glass {
+  background: rgba(20, 20, 20, 0.7);
 }
 
 .glass-sidebar {
-  background: rgba(246, 246, 246, 0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background: rgba(250, 250, 250, 0.65);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
 }
 
 .dark .glass-sidebar {
-  background: rgba(30, 30, 30, 0.72);
+  background: rgba(30, 30, 30, 0.65);
+}
+
+/* Base styles for cleaner typography */
+body {
+  font-feature-settings: "rlig" 1, "calt" 1;
 }

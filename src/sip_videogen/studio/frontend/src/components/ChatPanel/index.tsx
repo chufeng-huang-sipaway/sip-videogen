@@ -3,7 +3,7 @@ import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, Paperclip, Plus, X, Upload } from 'lucide-react'
+import { AlertCircle, Paperclip, X, Upload, MessageSquarePlus } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
@@ -54,9 +54,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   const [loadedProject, setLoadedProject] = useState<
     | {
-        brandSlug: string
-        project: ProjectFull
-      }
+      brandSlug: string
+      project: ProjectFull
+    }
     | null
   >(null)
 
@@ -65,9 +65,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   const bannerProjectFull =
     activeProjectEntry &&
-    loadedProject &&
-    loadedProject.brandSlug === (brandSlug || '') &&
-    loadedProject.project.slug === activeProjectEntry.slug
+      loadedProject &&
+      loadedProject.brandSlug === (brandSlug || '') &&
+      loadedProject.project.slug === activeProjectEntry.slug
       ? loadedProject.project
       : null
 
@@ -184,60 +184,69 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         onDragLeave: handleNativeDragLeave,
         onDrop: handleNativeDrop,
       })}
-      className="flex-1 flex flex-col h-screen bg-white dark:bg-gray-900 relative"
+      className="flex-1 flex flex-col h-screen bg-background relative"
     >
       <input {...getInputProps()} />
 
       {/* Prominent drag overlay */}
       {showDragOverlay && (
-        <div className="absolute inset-0 z-50 bg-blue-500/20 backdrop-blur-[2px] border-4 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
-          <div className="bg-blue-500 text-white px-6 py-4 rounded-xl shadow-lg flex items-center gap-3">
-            <Upload className="h-6 w-6" />
-            <span className="text-lg font-medium">Drop files here to attach</span>
+        <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-sm border-4 border-dashed border-primary/20 flex items-center justify-center pointer-events-none transition-all duration-200">
+          <div className="bg-card text-card-foreground px-8 py-6 rounded-2xl shadow-2xl ring-1 ring-border/50 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Upload className="h-8 w-8 text-primary" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-xl font-semibold">Drop files to attach</h3>
+              <p className="text-sm text-muted-foreground mt-1">Add context to your conversation</p>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Chat</span>
-          <ProjectSelector
-            projects={projects}
-            activeProject={activeProject}
-            onSelect={setActiveProject}
-            disabled={isLoading || !brandSlug}
-          />
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/50 backdrop-blur-md sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/50">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Project</span>
+            <ProjectSelector
+              projects={projects}
+              activeProject={activeProject}
+              onSelect={setActiveProject}
+              disabled={isLoading || !brandSlug}
+            />
+          </div>
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={() => {
             clearMessages()
             clearAttachments() // Clear attached products on New Chat
           }}
           disabled={isLoading || messages.length === 0}
-          className="text-gray-500 hover:text-gray-700"
+          className="rounded-full px-4 h-8 text-xs font-medium shadow-sm hover:shadow-md transition-all"
         >
-          <Plus className="h-4 w-4 mr-1" />
+          <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
           New Chat
         </Button>
       </div>
 
       {/* Project banner */}
-      <ProjectBanner
-        key={`${brandSlug || 'none'}:${activeProjectEntry?.slug || 'none'}`}
-        project={activeProjectEntry}
-        projectFull={bannerProjectFull}
-        onLoadProjectDetails={async (slug) => {
-          const full = await getProject(slug)
-          setLoadedProject({ brandSlug: brandSlug || '', project: full })
-          return full
-        }}
-      />
+      <div className="px-6 pt-4">
+        <ProjectBanner
+          key={`${brandSlug || 'none'}:${activeProjectEntry?.slug || 'none'}`}
+          project={activeProjectEntry}
+          projectFull={bannerProjectFull}
+          onLoadProjectDetails={async (slug) => {
+            const full = await getProject(slug)
+            setLoadedProject({ brandSlug: brandSlug || '', project: full })
+            return full
+          }}
+        />
+      </div>
 
       {error && (
-        <div className="p-4">
-          <Alert variant="destructive">
+        <div className="px-6 pt-4">
+          <Alert variant="destructive" className="rounded-xl shadow-sm">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -245,81 +254,89 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       )}
 
       {attachmentError && (
-        <div className="px-4">
-          <Alert variant="destructive">
+        <div className="px-6 pt-4">
+          <Alert variant="destructive" className="rounded-xl shadow-sm">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{attachmentError}</AlertDescription>
           </Alert>
         </div>
       )}
 
-      <ScrollArea className="flex-1">
-        <MessageList
-          messages={messages}
-          progress={progress}
-          progressType={progressType}
-          loadedSkills={loadedSkills}
-          isLoading={isLoading}
-          products={products}
-          onInteractionSelect={(messageId, selection) => {
-            resolveInteraction(messageId)
-            void sendMessage(selection)
-          }}
-        />
+      <ScrollArea className="flex-1 px-6">
+        <div className="py-6 max-w-4xl mx-auto">
+          <MessageList
+            messages={messages}
+            progress={progress}
+            progressType={progressType}
+            loadedSkills={loadedSkills}
+            isLoading={isLoading}
+            products={products}
+            onInteractionSelect={(messageId, selection) => {
+              resolveInteraction(messageId)
+              void sendMessage(selection)
+            }}
+          />
+        </div>
       </ScrollArea>
 
       {/* Attached products display */}
-      <AttachedProducts
-        products={products}
-        attachedSlugs={attachedProducts}
-        onDetach={detachProduct}
-      />
+      <div className="px-6 max-w-4xl mx-auto w-full">
+        <AttachedProducts
+          products={products}
+          attachedSlugs={attachedProducts}
+          onDetach={detachProduct}
+        />
+      </div>
 
       {attachments.length > 0 && (
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 mb-1">
-            <Paperclip className="h-3 w-3" />
-            <span>Attachments</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {attachments.map((att) => (
-              <div
-                key={att.id}
-                className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
-              >
-                {att.preview ? (
-                  <img src={att.preview} alt={att.name} className="h-10 w-10 rounded object-cover" />
-                ) : (
-                  <div className="h-10 w-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] text-gray-500">
-                    {att.source === 'asset' ? 'Asset' : 'File'}
-                  </div>
-                )}
-                <div className="text-xs max-w-[160px] truncate">{att.name}</div>
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  onClick={() => removeAttachment(att.id)}
+        <div className="px-6 py-3 border-t border-border/40 bg-muted/30 backdrop-blur-sm">
+          <div className="max-w-4xl mx-auto w-full">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
+              <Paperclip className="h-3 w-3" />
+              <span>Attachments</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="group flex items-center gap-2 rounded-lg border border-border/60 bg-background/80 px-2 py-1.5 shadow-sm transition-all hover:shadow-md hover:border-border"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+                  {att.preview ? (
+                    <img src={att.preview} alt={att.name} className="h-8 w-8 rounded object-cover ring-1 ring-border/20" />
+                  ) : (
+                    <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-[10px] text-muted-foreground font-medium">
+                      {att.source === 'asset' ? 'Asset' : 'File'}
+                    </div>
+                  )}
+                  <div className="text-xs max-w-[160px] truncate font-medium">{att.name}</div>
+                  <button
+                    type="button"
+                    className="text-muted-foreground/60 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                    onClick={() => removeAttachment(att.id)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="border-t border-gray-200 dark:border-gray-800">
-        <MessageInput
-          disabled={isLoading || !brandSlug}
-          placeholder={brandSlug ? 'Ask me to create something...' : 'Select a brand first...'}
-          onSend={(text) =>
-            sendMessage(text, {
-              project_slug: activeProject,
-              attached_products: attachedProducts.length > 0 ? attachedProducts : undefined,
-            })
-          }
-          canSendWithoutText={attachments.length > 0}
-        />
+      <div className="p-6 pt-2 bg-gradient-to-t from-background via-background to-transparent">
+        <div className="max-w-4xl mx-auto w-full">
+          <MessageInput
+            disabled={isLoading || !brandSlug}
+            placeholder={brandSlug ? 'Ask me to create something...' : 'Select a brand first...'}
+            onSend={(text) =>
+              sendMessage(text, {
+                project_slug: activeProject,
+                attached_products: attachedProducts.length > 0 ? attachedProducts : undefined,
+              })
+            }
+            canSendWithoutText={attachments.length > 0}
+          />
+        </div>
       </div>
     </main>
   )

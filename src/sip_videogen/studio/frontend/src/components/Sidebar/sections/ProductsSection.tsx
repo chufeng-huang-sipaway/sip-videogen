@@ -118,16 +118,16 @@ function ProductPreview({ productSlug }: ProductPreviewProps) {
           {images.map((path, index) => (
             <div
               key={path}
-              className={`relative ${path === product.primary_image ? 'ring-2 ring-purple-500 ring-offset-1' : ''}`}
+              className={`relative rounded-md overflow-hidden ${path === product.primary_image ? 'ring-2 ring-primary ring-offset-2' : 'ring-1 ring-border/50'}`}
             >
               <ProductThumbnail path={path} size="lg" />
               {path === product.primary_image && (
-                <div className="absolute top-1 left-1 bg-purple-500 text-white rounded-full p-0.5">
+                <div className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full p-0.5 shadow-sm">
                   <Star className="h-2.5 w-2.5 fill-current" />
                 </div>
               )}
               {index === 0 && images.length > 1 && (
-                <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm">
                   1/{images.length}
                 </span>
               )}
@@ -210,9 +210,10 @@ function ProductCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-1.5 py-2 px-1.5 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group overflow-hidden ${
-              isAttached ? 'bg-purple-100/50 dark:bg-purple-900/20 ring-1 ring-purple-500/30' : ''
-            }`}
+            className={`flex items-center gap-2.5 py-2 px-2.5 rounded-lg border border-transparent hover:bg-accent/50 cursor-pointer group overflow-hidden transition-all duration-200 ${isAttached
+              ? 'bg-secondary/50 border-input shadow-sm'
+              : ''
+              }`}
             draggable
             onDragStart={handleDragStart}
             onClick={handleClick}
@@ -220,17 +221,17 @@ function ProductCard({
           >
             {/* Expand/collapse chevron */}
             {isExpanded ? (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
             ) : (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 group-hover:text-foreground/80 transition-colors" />
             )}
             <ProductThumbnail path={product.primary_image} />
             <div className="flex-1 min-w-0 overflow-hidden">
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-medium truncate">{product.name}</span>
-                {isAttached && <Star className="h-3 w-3 text-purple-500 fill-purple-500 shrink-0" />}
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium truncate text-foreground/90">{product.name}</span>
+                {isAttached && <Star className="h-3 w-3 text-primary fill-primary shrink-0 animate-in zoom-in spin-in-90 duration-300" />}
               </div>
-              <span className="text-xs text-gray-500 truncate block">
+              <span className="text-xs text-muted-foreground truncate block">
                 {product.description.length > 40
                   ? product.description.slice(0, 40) + '...'
                   : product.description}
@@ -262,7 +263,9 @@ function ProductCard({
 
       {/* Expanded preview */}
       {isExpanded && (
-        <div className="pl-6 pr-2 border-l-2 border-purple-200 dark:border-purple-800 ml-[7px]">
+        <div className="pl-6 pr-2 border-l-2 border-border/50 ml-[11px] mt-1 relative">
+          {/* Connecting line dot */}
+          <div className="absolute top-0 -left-[5px] w-2 h-2 rounded-full bg-border/50"></div>
           <ProductPreview productSlug={product.slug} />
         </div>
       )}

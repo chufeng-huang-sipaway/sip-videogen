@@ -47,8 +47,8 @@ export function AttachedProducts({ products, attachedSlugs, onDetach }: Attached
   const attachedProducts = products.filter(p => attachedSlugs.includes(p.slug))
 
   return (
-    <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 bg-purple-50/50 dark:bg-purple-900/10">
-      <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 mb-1">
+    <div className="px-4 py-2 border-t border-border/40 bg-muted/40 backdrop-blur-sm">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
         <Package className="h-3 w-3" />
         <span>Products attached to chat</span>
       </div>
@@ -56,13 +56,13 @@ export function AttachedProducts({ products, attachedSlugs, onDetach }: Attached
         {attachedProducts.map((product) => (
           <div
             key={product.slug}
-            className="flex items-center gap-2 rounded-lg border border-purple-200 dark:border-purple-800 bg-white dark:bg-gray-800 px-2 py-1"
+            className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/80 px-2 py-1 shadow-sm transition-all hover:shadow-md hover:border-border"
           >
             <ProductThumbnail path={product.primary_image} />
-            <div className="text-xs max-w-[120px] truncate">{product.name}</div>
+            <div className="text-xs max-w-[120px] truncate font-medium">{product.name}</div>
             <button
               type="button"
-              className="text-purple-400 hover:text-purple-600 dark:hover:text-purple-300"
+              className="text-muted-foreground/60 hover:text-destructive transition-colors"
               onClick={() => onDetach(product.slug)}
               title="Remove from chat"
             >
@@ -76,15 +76,15 @@ export function AttachedProducts({ products, attachedSlugs, onDetach }: Attached
           .map((slug) => (
             <div
               key={slug}
-              className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 opacity-50"
+              className="flex items-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/50 px-2 py-1"
             >
-              <div className="h-8 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                <Package className="h-4 w-4 text-gray-400" />
+              <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+                <Package className="h-4 w-4 text-muted-foreground/50" />
               </div>
-              <div className="text-xs max-w-[120px] truncate">{slug}</div>
+              <div className="text-xs max-w-[120px] truncate text-muted-foreground">{slug}</div>
               <button
                 type="button"
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="text-muted-foreground/60 hover:text-muted-foreground"
                 onClick={() => onDetach(slug)}
               >
                 <X className="h-3 w-3" />
