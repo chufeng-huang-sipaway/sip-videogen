@@ -497,6 +497,35 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing patterns from other section components
 
+### Stage 3.3: Reusable Editors
+
+#### Task 3.3.1: Create `editors/StringFieldEditor.tsx` - Text input / textarea for string fields ✅
+**Commit**: `702f180`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/StringFieldEditor.tsx`
+- Reusable text field editor component supporting both single-line and multi-line modes
+- **Props**:
+  - `value`: Current value of the field
+  - `onChange`: Callback when value changes
+  - `label`: Label text displayed above the field
+  - `placeholder`: Optional placeholder text
+  - `multiline`: Boolean to switch between Input (single-line) and textarea (multi-line)
+  - `minHeight`: Minimum height for textarea (default "80px")
+  - `maxLength`: Optional max length with character count display
+  - `disabled`: Whether field is disabled
+  - `required`: Shows red asterisk if required
+  - `className`: Additional container class names
+- Uses existing `Input` component from `@/components/ui/input` for single-line
+- Raw textarea with consistent shadcn styling for multi-line
+- Character count shown when maxLength is set
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing UI patterns
+
 ---
 
 ## Next Tasks
@@ -510,9 +539,9 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 3.2.4: Create `sections/AudienceSection.tsx` - Audience profile section
 - [x] Task 3.2.5: Create `sections/PositioningSection.tsx` - Competitive positioning section
 - [x] Task 3.2.6: Create `sections/ConstraintsAvoidSection.tsx` - Constraints + avoid lists
+- [x] Task 3.3.1: Create `editors/StringFieldEditor.tsx` - Text input / textarea for string fields
 
-### Stage 3.3: Reusable Editors (Tasks 3.3.1 - 3.3.4)
-- [ ] Task 3.3.1: Create `editors/StringFieldEditor.tsx` - Text input / textarea for string fields
+### Stage 3.3: Reusable Editors (Remaining Tasks)
 - [ ] Task 3.3.2: Create `editors/StringListEditor.tsx` - List with add/remove for string arrays
 - [ ] Task 3.3.3: Create `editors/ColorListEditor.tsx` - Color swatches with color picker
 - [ ] Task 3.3.4: Create `editors/TypographyListEditor.tsx` - Typography rules form
@@ -532,3 +561,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/AudienceSection.tsx` - NEW: Audience profile section component with demographics, psychographics, pain points, and desires editors
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/PositioningSection.tsx` - NEW: Competitive positioning section component with market category, UVP, competitors, differentiation, and positioning statement editors
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/ConstraintsAvoidSection.tsx` - NEW: Constraints and avoid lists section component with add/remove functionality for both arrays
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/StringFieldEditor.tsx` - NEW: Reusable text field editor supporting single-line Input and multi-line textarea modes
