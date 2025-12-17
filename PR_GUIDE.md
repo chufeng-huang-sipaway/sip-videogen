@@ -722,14 +722,39 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - No ESLint warnings
 
+### Stage 4.1: Brand Memory as Modal/Overlay
+
+#### Task 4.1.1-4.1.2: Keep ChatPanel mounted with modal overlay ✅
+**Commit**: `43d7dac`
+
+**Implementation**:
+- Updated `src/sip_videogen/studio/frontend/src/App.tsx`
+  - Added `brandMemoryOpen` state for modal control
+  - Imported `BrandMemory` component
+  - Rendered `BrandMemory` modal with open state binding
+  - Passed `onOpenBrandMemory` callback to `Sidebar` component
+  - **CRITICAL**: ChatPanel remains mounted when modal is open (modal uses Radix Portal overlay)
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx`
+  - Added `onOpenBrandMemory` prop to `SidebarProps` interface
+  - Passed `onOpenBrandMemory` to `BrandSection` component
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/BrandSection.tsx`
+  - Added `BrandSectionProps` interface with `onOpenBrandMemory` prop
+  - Added "Brand Memory" button with Brain icon and "View" label
+  - Button triggers `onOpenBrandMemory` callback to open modal
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No ESLint warnings
+
 ---
 
 ## Next Tasks
 
 ### Stage 4: Navigation & Sidebar Integration
-- [ ] Task 4.1.1: Keep ChatPanel mounted (modal overlay approach)
-- [ ] Task 4.1.2: Implement Brand Memory as modal with `brandMemoryOpen` state in App.tsx
-- [ ] Task 4.2.1: Update sidebar Brand Identity accordion with "Brand Memory" view button
+- [x] Task 4.1.1: Keep ChatPanel mounted (modal overlay approach)
+- [x] Task 4.1.2: Implement Brand Memory as modal with `brandMemoryOpen` state in App.tsx
+- [x] Task 4.2.1: Update sidebar Brand Identity accordion with "Brand Memory" view button
 - [ ] Task 4.3.1: Add identity state to BrandContext.tsx
 - [ ] Task 4.3.2: Add `refreshAdvisorContext()` wrapper
 
@@ -760,3 +785,6 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/ui/alert-dialog.tsx` - NEW: AlertDialog UI component using Radix AlertDialog primitive
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/RegenerateConfirmDialog.tsx` - NEW: Confirmation dialog for regenerating brand identity with edit loss warning
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/StatusAlert.tsx` - NEW: Reusable inline status alert component with success/error/info variants
+- `src/sip_videogen/studio/frontend/src/App.tsx` - Added brandMemoryOpen state and BrandMemory modal integration
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Added onOpenBrandMemory prop for modal trigger
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/BrandSection.tsx` - Added "Brand Memory" button with Brain icon
