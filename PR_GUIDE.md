@@ -773,16 +773,36 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - No ESLint warnings
 
+#### Task 4.3.2: Add `refreshAdvisorContext()` wrapper ✅
+**Commit**: `dc5f635`
+
+**Implementation**:
+- Updated `src/sip_videogen/studio/frontend/src/context/BrandContext.tsx`
+- Added `refreshAdvisorContext` to `BrandContextType` interface:
+  - `refreshAdvisorContext: () => Promise<{ success: boolean; message?: string; error?: string }>`
+- Added `refreshAdvisorContext()` callback that:
+  - Wraps `bridge.refreshBrandMemory()` for AI advisor context refresh
+  - Returns success/error object for proper error handling
+  - Returns error if not running in PyWebView environment
+- Added `refreshAdvisorContext` to Provider value
+- Keeps existing sidebar "Refresh AI Memory" button working
+- Also usable from Brand Memory UI if needed
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No ESLint warnings
+
 ---
 
 ## Next Tasks
 
-### Stage 4: Navigation & Sidebar Integration
+### Stage 4: Navigation & Sidebar Integration - COMPLETE ✅
 - [x] Task 4.1.1: Keep ChatPanel mounted (modal overlay approach)
 - [x] Task 4.1.2: Implement Brand Memory as modal with `brandMemoryOpen` state in App.tsx
 - [x] Task 4.2.1: Update sidebar Brand Identity accordion with "Brand Memory" view button
 - [x] Task 4.3.1: Add identity state to BrandContext.tsx
-- [ ] Task 4.3.2: Add `refreshAdvisorContext()` wrapper
+- [x] Task 4.3.2: Add `refreshAdvisorContext()` wrapper
 
 ### Stage 5: Backup & Restore UI
 - [ ] Task 5.1: Create `BrandMemory/BackupDialog.tsx`
@@ -814,4 +834,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/App.tsx` - Added brandMemoryOpen state and BrandMemory modal integration
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Added onOpenBrandMemory prop for modal trigger
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/BrandSection.tsx` - Added "Brand Memory" button with Brain icon
-- `src/sip_videogen/studio/frontend/src/context/BrandContext.tsx` - Added identity state, refreshIdentity(), and setIdentity() for brand identity management
+- `src/sip_videogen/studio/frontend/src/context/BrandContext.tsx` - Added identity state, refreshIdentity(), setIdentity(), and refreshAdvisorContext() for brand identity and AI context management
