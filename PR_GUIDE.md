@@ -43,12 +43,34 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 - Linter passes (`ruff check`)
 - All existing brand tests pass
 
+#### Task 1.1.3: `restore_brand_backup(slug: str, filename: str) -> BrandIdentityFull` ✅
+**Commit**: `a349b87`
+
+**Implementation**:
+- Added `restore_brand_backup()` function to `src/sip_videogen/brands/storage.py`
+- Loads a backup from brand's `history/` folder and returns parsed `BrandIdentityFull`
+- **Security validations** (prevent directory traversal):
+  - Validates filename contains no path separators (`/`, `\`)
+  - Validates filename ends with `.json`
+  - Validates filename starts with `identity_full_`
+  - Extra check: verifies resolved path is within `history/` dir
+- Enforces slug stability: forces current brand slug on restored identity
+- Raises `ValueError` for non-existent brand, invalid filename, or backup not found
+
+**Testing**:
+- Function signature verified (`(slug: str, filename: str) -> BrandIdentityFull`)
+- All security validations tested:
+  - Path traversal with `/` → blocked
+  - Path traversal with `\` → blocked
+  - Wrong extension → blocked
+  - Wrong prefix → blocked
+  - Non-existent backup → proper error
+- Linter passes (`ruff check`)
+- All existing brand tests pass
+
 ---
 
 ## Next Tasks
-
-### Stage 1.1: Storage Helpers (continued)
-- [ ] Task 1.1.3: `restore_brand_backup(slug: str, filename: str) -> BrandIdentityFull`
 
 ### Stage 1.2: Bridge Methods
 - [ ] Task 1.2.1: `get_brand_identity()`
@@ -60,4 +82,4 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 ---
 
 ## Files Modified
-- `src/sip_videogen/brands/storage.py` - Added backup and list_backups functions
+- `src/sip_videogen/brands/storage.py` - Added backup, list_backups, and restore_backup functions
