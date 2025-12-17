@@ -423,6 +423,73 @@ def list_brand_backups(slug: str) -> list[dict]:
     return backups
 
 
+def restore_brand_backup(slug: str, filename: str) -> BrandIdentityFull:
+    """Restore a brand identity from a backup file.
+
+    Loads a backup from the history/ folder and returns the parsed identity.
+    The identity's slug is forced to match the current brand slug for stability.
+
+    Args:
+        slug: Brand identifier.
+        filename: Backup filename (e.g., 'identity_full_20240115_143022.json').
+
+    Returns:
+        BrandIdentityFull parsed from the backup file with slug enforced.
+
+    Raises:
+        ValueError: If brand doesn't exist, filename is invalid, or backup not found.
+    """
+    brand_dir = get_brand_dir(slug)
+
+    if not brand_dir.exists():
+        raise ValueError(f"Brand '{slug}' not found")
+
+    # Security: Validate filename has no path separators (prevent directory traversal)
+    if "/" in filename or "\\" in filename:
+        raise ValueError("Invalid filename: path separators not allowed")
+
+    # Validate filename format
+    if not filename.endswith(".json"):
+        raise ValueError("Invalid filename: must end with .json")
+
+    if not filename.startswith("identity_full_"):
+        raise ValueError("Invalid filename: must start with 'identity_full_'")
+
+    # Verify file exists in history folder
+    history_dir = brand_dir / "history"
+    backup_path = history_dir / filename
+
+    if not backup_path.exists():
+        raise ValueError(f"Backup '{filename}' not found for brand '{slug}'")
+
+    # Ensure the resolved path is still within history/ (extra safety)
+    try:
+        backup_path.resolve().relative_to(history_dir.resolve())
+    except ValueError:
+        raise ValueError("Invalid filename: path traversal detected")
+
+    # Load and parse the backup
+    try:
+        data = json.loads(backup_path.read_text())
+        identity = BrandIdentityFull.model_validate(data)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in backup file: {e}")
+    except Exception as e:
+        raise ValueError(f"Failed to parse backup file: {e}")
+
+    # Enforce slug stability - force the current slug regardless of backup content
+    if identity.slug != slug:
+        logger.warning(
+            "Backup slug '%s' differs from current brand '%s', forcing current slug",
+            identity.slug,
+            slug,
+        )
+        identity.slug = slug
+
+    logger.info("Restored backup for brand %s from %s", slug, filename)
+    return identity
+
+
 # =============================================================================
 # Active Brand Management
 # =============================================================================
