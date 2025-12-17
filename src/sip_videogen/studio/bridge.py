@@ -14,10 +14,15 @@ from sip_videogen.advisor.agent import AdvisorProgress, BrandAdvisor
 logger = get_logger(__name__)
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.models import (
+    AudienceProfile,
+    BrandCoreIdentity,
+    CompetitivePositioning,
     ProductAttribute,
     ProductFull,
     ProjectFull,
     ProjectStatus,
+    VisualIdentity,
+    VoiceGuidelines,
 )
 from sip_videogen.brands.storage import (
     add_product_image,
@@ -39,6 +44,7 @@ from sip_videogen.brands.storage import (
     load_brand_summary,
     load_product,
     load_project,
+    save_brand,
     save_product,
     save_project,
     set_active_brand,
@@ -351,6 +357,99 @@ class StudioBridge:
                 ).to_dict()
 
             # Use mode="json" for JSON-safe datetime serialization
+            return BridgeResponse(
+                success=True,
+                data=identity.model_dump(mode="json"),
+            ).to_dict()
+        except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def update_brand_identity_section(self, section: str, data: dict) -> dict:
+        """Update a specific section of the brand identity.
+
+        Args:
+            section: Section name - one of 'core', 'visual', 'voice', 'audience',
+                'positioning', or 'constraints_avoid'.
+            data: Complete section data object. Must be the full section (not partial).
+                For 'constraints_avoid', expects {constraints: [...], avoid: [...]}.
+
+        Returns:
+            Success response with updated BrandIdentityFull data, serialized
+            with model_dump(mode="json") for proper datetime handling.
+
+        Notes:
+            - Validates section data with Pydantic before saving
+            - Uses save_brand() to persist changes and sync index
+            - After successful save, refreshes advisor context automatically
+        """
+        try:
+            slug = self._current_brand or get_active_brand()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            identity = load_brand(slug)
+            if not identity:
+                return BridgeResponse(
+                    success=False, error=f"Brand '{slug}' not found"
+                ).to_dict()
+
+            # Validate section name and parse data with Pydantic
+            valid_sections = {
+                "core", "visual", "voice", "audience", "positioning", "constraints_avoid"
+            }
+            if section not in valid_sections:
+                return BridgeResponse(
+                    success=False,
+                    error=(
+                        f"Invalid section: {section}. "
+                        f"Must be one of: {', '.join(sorted(valid_sections))}"
+                    ),
+                ).to_dict()
+
+            try:
+                if section == "core":
+                    identity.core = BrandCoreIdentity.model_validate(data)
+                elif section == "visual":
+                    identity.visual = VisualIdentity.model_validate(data)
+                elif section == "voice":
+                    identity.voice = VoiceGuidelines.model_validate(data)
+                elif section == "audience":
+                    identity.audience = AudienceProfile.model_validate(data)
+                elif section == "positioning":
+                    identity.positioning = CompetitivePositioning.model_validate(data)
+                elif section == "constraints_avoid":
+                    # Special handling for constraints + avoid lists
+                    if not isinstance(data, dict):
+                        return BridgeResponse(
+                            success=False,
+                            error=(
+                                "constraints_avoid section must be an object "
+                                "with 'constraints' and 'avoid' arrays"
+                            ),
+                        ).to_dict()
+                    constraints = data.get("constraints", [])
+                    avoid = data.get("avoid", [])
+                    if not isinstance(constraints, list) or not isinstance(avoid, list):
+                        return BridgeResponse(
+                            success=False,
+                            error="'constraints' and 'avoid' must be arrays",
+                        ).to_dict()
+                    identity.constraints = constraints
+                    identity.avoid = avoid
+            except Exception as validation_error:
+                return BridgeResponse(
+                    success=False,
+                    error=f"Invalid {section} data: {validation_error}",
+                ).to_dict()
+
+            # Save via save_brand() to update timestamps and sync index
+            save_brand(identity)
+
+            # Refresh advisor context with updated identity (preserve chat history)
+            if self._advisor:
+                self._advisor.set_brand(slug, preserve_history=True)
+
+            # Return updated identity with JSON-safe serialization
             return BridgeResponse(
                 success=True,
                 data=identity.model_dump(mode="json"),
