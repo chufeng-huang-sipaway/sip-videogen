@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Package, Plus, X, GripVertical, Star } from 'lucide-react'
+import { Package, Plus, X, GripVertical, Star, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -13,6 +13,7 @@ import { useProducts } from '@/context/ProductContext'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView, type ProductEntry } from '@/lib/bridge'
 import { CreateProductDialog } from '../CreateProductDialog'
+import { EditProductDialog } from '../EditProductDialog'
 
 function ProductThumbnail({ path }: { path: string }) {
   const [src, setSrc] = useState<string | null>(null)
@@ -52,10 +53,11 @@ interface ProductCardProps {
   isAttached: boolean
   onAttach: () => void
   onDetach: () => void
+  onEdit: () => void
   onDelete: () => void
 }
 
-function ProductCard({ product, isAttached, onAttach, onDetach, onDelete }: ProductCardProps) {
+function ProductCard({ product, isAttached, onAttach, onDetach, onEdit, onDelete }: ProductCardProps) {
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/x-brand-product', product.slug)
     e.dataTransfer.setData('text/plain', product.slug)
@@ -99,6 +101,11 @@ function ProductCard({ product, isAttached, onAttach, onDetach, onDelete }: Prod
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
+        <ContextMenuItem onClick={onEdit}>
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit Product
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={onDelete} className="text-red-600">
           Delete Product
         </ContextMenuItem>
@@ -121,6 +128,7 @@ export function ProductsSection() {
   } = useProducts()
   const [actionError, setActionError] = useState<string | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [editingProductSlug, setEditingProductSlug] = useState<string | null>(null)
 
   useEffect(() => {
     if (actionError) {
@@ -201,6 +209,7 @@ export function ProductsSection() {
               isAttached={attachedProducts.includes(product.slug)}
               onAttach={() => attachProduct(product.slug)}
               onDetach={() => detachProduct(product.slug)}
+              onEdit={() => setEditingProductSlug(product.slug)}
               onDelete={() => handleDelete(product.slug)}
             />
           ))}
@@ -211,6 +220,16 @@ export function ProductsSection() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
       />
+
+      {editingProductSlug && (
+        <EditProductDialog
+          open={!!editingProductSlug}
+          onOpenChange={(open) => {
+            if (!open) setEditingProductSlug(null)
+          }}
+          productSlug={editingProductSlug}
+        />
+      )}
     </div>
   )
 }

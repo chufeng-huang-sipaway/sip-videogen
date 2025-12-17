@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FolderKanban, Plus, X, Archive, ChevronRight, ChevronDown } from 'lucide-react'
+import { FolderKanban, Plus, X, Archive, ChevronRight, ChevronDown, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -13,11 +13,13 @@ import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, waitForPyWebViewReady, type ProjectEntry } from '@/lib/bridge'
 import { ProjectAssetGrid } from './ProjectAssetGrid'
+import { EditProjectDialog } from '../EditProjectDialog'
 
 interface ProjectCardProps {
   project: ProjectEntry
   isExpanded: boolean
   onToggleExpand: () => void
+  onEdit: () => void
   onArchive: () => void
   onDelete: () => void
 }
@@ -26,6 +28,7 @@ function ProjectCard({
   project,
   isExpanded,
   onToggleExpand,
+  onEdit,
   onArchive,
   onDelete,
 }: ProjectCardProps) {
@@ -61,14 +64,20 @@ function ProjectCard({
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
+          <ContextMenuItem onClick={onEdit}>
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit Project
+          </ContextMenuItem>
           {!isArchived && (
             <>
+              <ContextMenuSeparator />
               <ContextMenuItem onClick={onArchive}>
+                <Archive className="h-4 w-4 mr-2" />
                 Archive Project
               </ContextMenuItem>
-              <ContextMenuSeparator />
             </>
           )}
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={onDelete} className="text-red-600">
             Delete Project
           </ContextMenuItem>
@@ -78,7 +87,7 @@ function ProjectCard({
       {/* Expanded asset grid */}
       {isExpanded && (
         <div className="pl-8 pr-2">
-          <ProjectAssetGrid projectSlug={project.slug} />
+          <ProjectAssetGrid projectSlug={project.slug} expectedAssetCount={project.asset_count} />
         </div>
       )}
     </div>
@@ -98,6 +107,7 @@ export function ProjectsSection() {
   } = useProjects()
   const [expandedProject, setExpandedProject] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [editingProjectSlug, setEditingProjectSlug] = useState<string | null>(null)
 
   useEffect(() => {
     if (actionError) {
@@ -220,11 +230,22 @@ export function ProjectsSection() {
               project={project}
               isExpanded={expandedProject === project.slug}
               onToggleExpand={() => handleToggleExpand(project.slug)}
+              onEdit={() => setEditingProjectSlug(project.slug)}
               onArchive={() => handleArchive(project.slug)}
               onDelete={() => handleDelete(project.slug)}
             />
           ))}
         </div>
+      )}
+
+      {editingProjectSlug && (
+        <EditProjectDialog
+          open={!!editingProjectSlug}
+          onOpenChange={(open) => {
+            if (!open) setEditingProjectSlug(null)
+          }}
+          projectSlug={editingProjectSlug}
+        />
       )}
     </div>
   )

@@ -80,10 +80,11 @@ function AssetThumbnail({ path, onClick }: AssetThumbnailProps) {
 
 interface ProjectAssetGridProps {
   projectSlug: string
+  expectedAssetCount?: number // Used to detect when assets have changed
 }
 
-export function ProjectAssetGrid({ projectSlug }: ProjectAssetGridProps) {
-  const { getProjectAssets } = useProjects()
+export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAssetGridProps) {
+  const { getProjectAssets, refresh: refreshProjects } = useProjects()
   const [assets, setAssets] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,7 +98,13 @@ export function ProjectAssetGrid({ projectSlug }: ProjectAssetGridProps) {
       setError(null)
       try {
         const paths = await getProjectAssets(projectSlug)
-        if (!cancelled) setAssets(paths)
+        if (!cancelled) {
+          setAssets(paths)
+          // If actual count differs from expected, refresh projects list to update the count
+          if (expectedAssetCount !== undefined && paths.length !== expectedAssetCount) {
+            refreshProjects()
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load assets')
@@ -111,7 +118,7 @@ export function ProjectAssetGrid({ projectSlug }: ProjectAssetGridProps) {
     return () => {
       cancelled = true
     }
-  }, [projectSlug, getProjectAssets])
+  }, [projectSlug, getProjectAssets, expectedAssetCount, refreshProjects])
 
   const handlePreview = useCallback(async (path: string) => {
     if (!isPyWebView()) return
