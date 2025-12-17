@@ -375,6 +375,37 @@ All modifying methods automatically refresh the advisor context after successful
 - No eslint warnings
 - Component follows existing patterns from CoreSection
 
+#### Task 3.2.3: Create `sections/VoiceSection.tsx` - Voice guidelines section ✅
+**Commit**: `b206103`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VoiceSection.tsx`
+- Displays and edits voice and messaging guidelines (personality, tone_attributes, key_messages, messaging_do, messaging_dont, example_headlines, example_taglines)
+- **View mode**:
+  - Brand personality as paragraph text
+  - Tone attributes as blue badge pills
+  - Key messages as purple badge pills
+  - Messaging do's as green badge pills
+  - Messaging don'ts as red badge pills
+  - Example headlines and taglines as quoted lists
+  - Success alert shown after save ("AI context refreshed automatically")
+- **Edit mode**:
+  - Textarea for personality description
+  - Reusable `renderStringListEditor` helper for all string array fields
+  - Add/remove buttons for all list items
+  - Save button with loading spinner
+  - Error alert on failure
+- Uses `MemorySection` wrapper for collapse/expand and edit mode toggle
+- Calls `updateBrandIdentitySection('voice', data)` bridge method on save
+- Returns updated `BrandIdentityFull` to parent via `onIdentityUpdate` callback
+- Deep copy helper ensures all arrays are properly cloned when entering edit mode
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+- Component follows existing patterns from CoreSection and VisualSection
+
 ---
 
 ## Next Tasks
@@ -384,7 +415,8 @@ All modifying methods automatically refresh the advisor context after successful
 - [x] Task 3.1.2: Create `BrandMemory/MemorySection.tsx` - Reusable expandable section wrapper
 - [x] Task 3.2.1: Create `sections/CoreSection.tsx` - Core identity section
 - [x] Task 3.2.2: Create `sections/VisualSection.tsx` - Visual identity section
-- [ ] Task 3.2.3: Create `sections/VoiceSection.tsx` - Voice guidelines section
+- [x] Task 3.2.3: Create `sections/VoiceSection.tsx` - Voice guidelines section
+- [ ] Task 3.2.4: Create `sections/AudienceSection.tsx` - Audience profile section
 
 ---
 
@@ -397,3 +429,4 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/MemorySection.tsx` - NEW: Reusable expandable section wrapper
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/CoreSection.tsx` - NEW: Core identity section component
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VisualSection.tsx` - NEW: Visual identity section component with color picker, typography, and imagery editors
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/sections/VoiceSection.tsx` - NEW: Voice guidelines section component with personality, tone, messaging, and examples editors
