@@ -46,6 +46,7 @@ from sip_videogen.brands.storage import (
     load_brand_summary,
     load_product,
     load_project,
+    restore_brand_backup,
     save_brand,
     save_product,
     save_project,
@@ -621,6 +622,70 @@ class StudioBridge:
                 data={"backups": backups},
             ).to_dict()
         except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def restore_identity_backup(self, filename: str) -> dict:
+        """Restore brand identity from a backup file.
+
+        Loads a backup from the brand's history/ folder and replaces the current
+        identity with the restored version.
+
+        Args:
+            filename: Backup filename (e.g., 'identity_full_20240115_143022.json').
+                Must end with '.json' and not contain path separators.
+
+        Returns:
+            Success response with restored BrandIdentityFull data, serialized
+            with model_dump(mode="json") for proper datetime handling.
+
+        Notes:
+            - Validates filename has no path separators (security check)
+            - Validates filename ends with '.json'
+            - Enforces slug stability (restored identity uses current brand slug)
+            - Auto-refreshes advisor context after successful restore
+        """
+        try:
+            slug = self._current_brand or get_active_brand()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            # Validate filename (additional check before passing to storage)
+            if "/" in filename or "\\" in filename:
+                return BridgeResponse(
+                    success=False, error="Invalid filename: path separators not allowed"
+                ).to_dict()
+
+            if not filename.endswith(".json"):
+                return BridgeResponse(
+                    success=False, error="Invalid filename: must end with .json"
+                ).to_dict()
+
+            # Restore the backup (this parses and validates the backup file)
+            try:
+                restored_identity = restore_brand_backup(slug, filename)
+            except ValueError as e:
+                return BridgeResponse(success=False, error=str(e)).to_dict()
+
+            # Force current slug (storage layer should already do this, but double-check)
+            restored_identity.slug = slug
+
+            # Save the restored identity as the current identity
+            save_brand(restored_identity)
+            print(f"[RESTORE_IDENTITY] Restored identity from backup: {filename}")
+
+            # Refresh advisor context with restored identity (preserve chat history)
+            if self._advisor:
+                self._advisor.set_brand(slug, preserve_history=True)
+
+            # Return restored identity with JSON-safe serialization
+            return BridgeResponse(
+                success=True,
+                data=restored_identity.model_dump(mode="json"),
+            ).to_dict()
+        except Exception as e:
+            import traceback
+            print(f"[RESTORE_IDENTITY] ERROR: {e}")
+            traceback.print_exc()
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
     def delete_brand(self, slug: str) -> dict:
