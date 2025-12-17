@@ -21,6 +21,7 @@ import { VoiceSection } from './sections/VoiceSection'
 import { AudienceSection } from './sections/AudienceSection'
 import { PositioningSection } from './sections/PositioningSection'
 import { ConstraintsAvoidSection } from './sections/ConstraintsAvoidSection'
+import { RegenerateConfirmDialog } from './RegenerateConfirmDialog'
 
 interface BrandMemoryProps {
   open: boolean
@@ -46,6 +47,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
   const [identity, setIdentity] = useState<BrandIdentityFull | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
 
   // Load identity when dialog opens
   const loadIdentity = useCallback(async () => {
@@ -103,6 +105,12 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
     onOpenChange(false)
   }
 
+  // Handle regenerate confirmation (actual regeneration logic in Task 3.5.2-3.5.4)
+  const handleRegenerateConfirm = () => {
+    // TODO: Implement actual regeneration (Task 3.5.2-3.5.4)
+    console.log('[BrandMemory] Regenerate confirmed')
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
@@ -131,10 +139,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                // TODO: Implement regenerate (Task 3.5)
-                console.log('[BrandMemory] Regenerate clicked')
-              }}
+              onClick={() => setShowRegenerateConfirm(true)}
               className="gap-1.5"
             >
               <RefreshCw className="h-4 w-4" />
@@ -215,6 +220,14 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
           </div>
         </ScrollArea>
       </DialogContent>
+
+      {/* Regenerate confirmation dialog */}
+      <RegenerateConfirmDialog
+        open={showRegenerateConfirm}
+        onOpenChange={setShowRegenerateConfirm}
+        onConfirm={handleRegenerateConfirm}
+        brandName={identity?.core.name ?? 'this brand'}
+      />
     </Dialog>
   )
 }
