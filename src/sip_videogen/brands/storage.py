@@ -323,6 +323,50 @@ def update_brand_summary_stats(slug: str) -> bool:
 
 
 # =============================================================================
+# Brand Identity Backup Functions
+# =============================================================================
+
+
+def backup_brand_identity(slug: str) -> str:
+    """Create a backup of the brand's full identity.
+
+    Creates a timestamped copy of identity_full.json in the history/ folder.
+
+    Args:
+        slug: Brand identifier.
+
+    Returns:
+        Backup filename (e.g., 'identity_full_20240115_143022.json').
+
+    Raises:
+        ValueError: If brand doesn't exist or identity file not found.
+    """
+    brand_dir = get_brand_dir(slug)
+    identity_path = brand_dir / "identity_full.json"
+
+    if not brand_dir.exists():
+        raise ValueError(f"Brand '{slug}' not found")
+
+    if not identity_path.exists():
+        raise ValueError(f"Identity file not found for brand '{slug}'")
+
+    # Ensure history directory exists
+    history_dir = brand_dir / "history"
+    history_dir.mkdir(exist_ok=True)
+
+    # Create timestamped filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"identity_full_{timestamp}.json"
+    backup_path = history_dir / backup_filename
+
+    # Copy identity file to history
+    shutil.copy2(identity_path, backup_path)
+
+    logger.info("Created backup for brand %s: %s", slug, backup_filename)
+    return backup_filename
+
+
+# =============================================================================
 # Active Brand Management
 # =============================================================================
 
