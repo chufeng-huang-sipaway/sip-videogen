@@ -176,10 +176,35 @@ This PR implements the Brand Memory feature - a dedicated panel that shows what 
 
 ---
 
+### Stage 1.3: AI Context Sync
+
+#### Task 1.3.1: Verify `model_dump(mode="json")` and AI context refresh ✅
+**Commit**: (verification only - no code changes needed)
+
+**Verification**:
+All bridge methods returning identity data have been verified to use `model_dump(mode="json")` for JSON-safe datetime serialization:
+
+1. **`get_brand_identity()`** (line 365): ✅ `identity.model_dump(mode="json")`
+2. **`update_brand_identity_section()`** (line 458): ✅ `identity.model_dump(mode="json")`
+3. **`regenerate_brand_identity()`** (line 582): ✅ `new_identity.model_dump(mode="json")`
+4. **`restore_identity_backup()`** (line 683): ✅ `restored_identity.model_dump(mode="json")`
+
+**AI Context Auto-Refresh**:
+All modifying methods automatically refresh the advisor context after successful updates:
+
+1. **`update_brand_identity_section()`** (lines 452-453): ✅ `self._advisor.set_brand(slug, preserve_history=True)`
+2. **`regenerate_brand_identity()`** (lines 576-577): ✅ `self._advisor.set_brand(slug, preserve_history=True)`
+3. **`restore_identity_backup()`** (lines 677-678): ✅ `self._advisor.set_brand(slug, preserve_history=True)`
+
+**Result**: Stage 1 (Backend) is now **COMPLETE**. All storage helpers and bridge methods are implemented with proper datetime serialization and AI context synchronization.
+
+---
+
 ## Next Tasks
 
-### Stage 1.3: AI Context Sync
-- [ ] Task 1.3.1: Ensure all bridge methods returning identity use `model_dump(mode="json")` for JSON-safe datetime serialization (verify complete)
+### Stage 2: Frontend Types & Bridge
+- [ ] Task 2.1.1: Create TypeScript types file `src/sip_videogen/studio/frontend/src/types/brand-identity.ts`
+- [ ] Task 2.2.1: Extend `PyWebViewAPI` interface and add bridge functions in `bridge.ts`
 
 ---
 
