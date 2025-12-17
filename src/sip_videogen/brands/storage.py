@@ -366,6 +366,63 @@ def backup_brand_identity(slug: str) -> str:
     return backup_filename
 
 
+def list_brand_backups(slug: str) -> list[dict]:
+    """List all backups for a brand's identity.
+
+    Args:
+        slug: Brand identifier.
+
+    Returns:
+        List of backup entries, each with:
+        - filename: Backup filename (e.g., 'identity_full_20240115_143022.json')
+        - timestamp: ISO format timestamp extracted from filename
+        - size_bytes: File size in bytes
+
+        Sorted by timestamp descending (most recent first).
+
+    Raises:
+        ValueError: If brand doesn't exist.
+    """
+    brand_dir = get_brand_dir(slug)
+
+    if not brand_dir.exists():
+        raise ValueError(f"Brand '{slug}' not found")
+
+    history_dir = brand_dir / "history"
+
+    if not history_dir.exists():
+        return []
+
+    backups = []
+    for file_path in history_dir.iterdir():
+        if file_path.is_file() and file_path.name.startswith("identity_full_"):
+            # Extract timestamp from filename: identity_full_YYYYMMDD_HHMMSS.json
+            name = file_path.stem  # identity_full_20240115_143022
+            parts = name.split("_")
+            if len(parts) >= 4:
+                date_part = parts[2]  # 20240115
+                time_part = parts[3]  # 143022
+                try:
+                    # Parse and format as ISO timestamp
+                    dt = datetime.strptime(f"{date_part}_{time_part}", "%Y%m%d_%H%M%S")
+                    iso_timestamp = dt.isoformat()
+                except ValueError:
+                    # Skip malformed filenames
+                    continue
+
+                backups.append({
+                    "filename": file_path.name,
+                    "timestamp": iso_timestamp,
+                    "size_bytes": file_path.stat().st_size,
+                })
+
+    # Sort by timestamp descending (most recent first)
+    backups.sort(key=lambda b: b["timestamp"], reverse=True)
+
+    logger.debug("Found %d backups for brand %s", len(backups), slug)
+    return backups
+
+
 # =============================================================================
 # Active Brand Management
 # =============================================================================
