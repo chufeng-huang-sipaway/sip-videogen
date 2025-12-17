@@ -43,38 +43,33 @@ function AssetThumbnail({ path, onClick }: AssetThumbnailProps) {
     e.dataTransfer.effectAllowed = 'copy'
   }
 
-  if (loading) {
-    return (
-      <div className="aspect-square rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-        <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
-      </div>
-    )
-  }
-
-  if (!src) {
-    return (
-      <div
-        className="aspect-square rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-        onClick={onClick}
-        draggable
-        onDragStart={handleDragStart}
-        title="Drag to chat or click to preview"
-      >
-        <Image className="h-4 w-4 text-gray-400" />
-      </div>
-    )
-  }
-
   return (
-    <img
-      src={src}
-      alt=""
-      className="aspect-square rounded object-cover cursor-pointer hover:opacity-80 transition-opacity"
+    <div
+      className="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-transparent hover:border-blue-500/50 hover:shadow-md transition-all duration-200 cursor-pointer"
       onClick={onClick}
-      draggable
+      draggable={!!src}
       onDragStart={handleDragStart}
       title="Drag to chat or click to preview"
-    />
+    >
+      {loading ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+        </div>
+      ) : src ? (
+        <>
+          <img
+            src={src}
+            alt=""
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+        </>
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-gray-400 group-hover:text-gray-500">
+          <Image className="h-5 w-5" />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -132,7 +127,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 py-2 text-xs text-gray-400">
+      <div className="flex items-center gap-2 py-4 px-2 text-xs text-gray-400">
         <Loader2 className="h-3 w-3 animate-spin" />
         <span>Loading assets...</span>
       </div>
@@ -141,7 +136,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
   if (error) {
     return (
-      <div className="py-2 text-xs text-red-500">
+      <div className="py-2 px-2 text-xs text-red-500">
         {error}
       </div>
     )
@@ -149,15 +144,15 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
   if (assets.length === 0) {
     return (
-      <div className="py-2 text-xs text-gray-400 italic">
-        No assets generated yet
+      <div className="py-4 px-2 text-xs text-center text-gray-400 italic bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
+        No assets yet
       </div>
     )
   }
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-1.5 py-2">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2 py-2">
         {assets.map((path) => (
           <AssetThumbnail
             key={path}
