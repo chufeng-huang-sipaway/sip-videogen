@@ -26,6 +26,7 @@ from sip_videogen.brands.models import (
 )
 from sip_videogen.brands.storage import (
     add_product_image,
+    backup_brand_identity,
     count_project_assets,
     create_product,
     create_project,
@@ -455,6 +456,133 @@ class StudioBridge:
                 data=identity.model_dump(mode="json"),
             ).to_dict()
         except Exception as e:
+            return BridgeResponse(success=False, error=str(e)).to_dict()
+
+    def regenerate_brand_identity(self, confirm: bool) -> dict:
+        """Regenerate brand identity from source materials.
+
+        This re-runs the brand director agents using the documents in the brand's
+        docs/ folder to create a fresh identity. The existing identity is backed
+        up to history/ before regeneration.
+
+        Args:
+            confirm: Must be True to proceed (safety check to prevent accidental
+                regeneration which overwrites current identity).
+
+        Returns:
+            Success response with regenerated BrandIdentityFull data, serialized
+            with model_dump(mode="json") for proper datetime handling.
+
+        Notes:
+            - Requires confirm=True (safety check)
+            - Backs up current identity to history/ folder before regenerating
+            - Reads docs/ folder, applies 4800 char truncation limit
+            - Preserves existing slug (never changes slug during regeneration)
+            - Returns error if no documents found in docs/
+            - Auto-refreshes advisor context after successful regeneration
+        """
+        from sip_videogen.agents.brand_director import develop_brand_with_output
+
+        try:
+            # Safety check - require explicit confirmation
+            if not confirm:
+                return BridgeResponse(
+                    success=False,
+                    error="Regeneration requires confirm=True. This will overwrite the current identity.",
+                ).to_dict()
+
+            slug = self._current_brand or get_active_brand()
+            if not slug:
+                return BridgeResponse(success=False, error="No brand selected").to_dict()
+
+            # Verify brand exists
+            identity = load_brand(slug)
+            if not identity:
+                return BridgeResponse(
+                    success=False, error=f"Brand '{slug}' not found"
+                ).to_dict()
+
+            # Read documents from docs/ folder
+            brand_dir = get_brand_dir(slug)
+            docs_dir = brand_dir / "docs"
+
+            if not docs_dir.exists() or not any(docs_dir.iterdir()):
+                return BridgeResponse(
+                    success=False,
+                    error="No source documents found. Add documents to the brand's docs/ folder before regenerating.",
+                ).to_dict()
+
+            # Build concept from documents (same pattern as create_brand_from_materials)
+            concept_parts = []
+            for doc_path in sorted(docs_dir.rglob("*")):
+                if not doc_path.is_file():
+                    continue
+                if doc_path.name.startswith("."):
+                    continue
+                if doc_path.suffix.lower() not in ALLOWED_TEXT_EXTS:
+                    continue
+
+                try:
+                    content = doc_path.read_text(encoding="utf-8", errors="replace")
+                    # Limit document size (50KB ~= 25 pages)
+                    if len(content) > 50 * 1024:
+                        content = content[: 50 * 1024] + "\n...[truncated]"
+                    concept_parts.append(f"## From: {doc_path.name}\n\n{content}")
+                except Exception:
+                    continue
+
+            if not concept_parts:
+                return BridgeResponse(
+                    success=False,
+                    error="No readable documents found in docs/ folder.",
+                ).to_dict()
+
+            concept = "\n\n---\n\n".join(concept_parts)
+
+            # Apply 4800 char truncation limit (leave buffer for AI)
+            max_concept_len = 4800
+            if len(concept) > max_concept_len:
+                concept = concept[:max_concept_len] + "\n...[truncated]"
+
+            # Backup current identity before regenerating
+            try:
+                backup_filename = backup_brand_identity(slug)
+                print(f"[REGENERATE_BRAND] Backed up identity to: {backup_filename}")
+            except Exception as backup_error:
+                return BridgeResponse(
+                    success=False,
+                    error=f"Failed to backup current identity: {backup_error}",
+                ).to_dict()
+
+            # Re-run brand director agents
+            print(f"[REGENERATE_BRAND] Starting regeneration for {slug}...")
+            print(f"[REGENERATE_BRAND] Concept length: {len(concept)} chars")
+
+            output = asyncio.run(develop_brand_with_output(concept, existing_brand_slug=slug))
+            new_identity = output.brand_identity
+
+            # Force preserve the original slug (never change slug during regeneration)
+            new_identity.slug = slug
+
+            print(f"[REGENERATE_BRAND] AI completed! Brand name: {new_identity.core.name}")
+
+            # Save the regenerated identity
+            save_brand(new_identity)
+            print(f"[REGENERATE_BRAND] Saved regenerated identity for {slug}")
+
+            # Refresh advisor context with updated identity (preserve chat history)
+            if self._advisor:
+                self._advisor.set_brand(slug, preserve_history=True)
+
+            # Return regenerated identity with JSON-safe serialization
+            return BridgeResponse(
+                success=True,
+                data=new_identity.model_dump(mode="json"),
+            ).to_dict()
+        except Exception as e:
+            import traceback
+            print(f"[REGENERATE_BRAND] ERROR: {e}")
+            traceback.print_exc()
             return BridgeResponse(success=False, error=str(e)).to_dict()
 
     def delete_brand(self, slug: str) -> dict:
