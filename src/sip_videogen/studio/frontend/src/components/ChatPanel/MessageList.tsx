@@ -10,6 +10,11 @@ import { InteractionRenderer } from './InteractionRenderer'
 import { MemoryUpdateBadge } from './MemoryUpdateBadge'
 import { ChatImageGallery } from './ChatImageGallery'
 import { cn } from '@/lib/utils'
+import { useBrand } from '@/context/BrandContext'
+import { Button } from '@/components/ui/button'
+import { BrandSelector } from './BrandSelector'
+import { Sparkles, Download, Copy, RefreshCw, XCircle } from 'lucide-react'
+
 
 interface MessageListProps {
   messages: Message[]
@@ -75,36 +80,39 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
   return (
     <div
       className={cn(
-        'group relative flex w-full gap-4 px-4 py-6 transition-colors duration-200',
-        isUser ? 'bg-transparent' : 'bg-transparent'
+        'group relative flex w-full gap-5 px-6 py-8 transition-colors duration-200 border-b border-transparent',
+        isUser ? 'bg-transparent' : 'bg-muted/30 border-border/20'
       )}
     >
       {/* Avatar */}
-      <div className="flex-shrink-0 mt-1">
+      <div className="flex-shrink-0 mt-0.5">
         {isUser ? (
-          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
-            <User className="h-4 w-4" />
+          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20 ring-4 ring-background">
+            <User className="h-5 w-5" />
           </div>
         ) : (
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-primary-foreground shadow-md">
-            <Bot className="h-4 w-4" />
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md ring-4 ring-background">
+            <Bot className="h-5 w-5" />
           </div>
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 space-y-2">
-        {/* Name */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-foreground/80">
-            {isUser ? 'You' : 'Brand Studio'}
+      <div className="flex-1 min-w-0 space-y-2.5">
+        {/* Name & Time */}
+        <div className="flex items-center gap-3 mb-1.5 px-1">
+          <span className="text-sm font-semibold tracking-tight text-foreground/90">
+            {isUser ? 'You' : 'Brand Assistant'}
+          </span>
+          <span className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-medium">
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
 
         {/* Text / Markdown */}
         <div className={cn(
-          "prose prose-sm max-w-none dark:prose-invert leading-relaxed",
-          isUser ? "text-foreground" : "text-foreground/90"
+          "prose prose-base max-w-none dark:prose-invert leading-loose tracking-wide",
+          isUser ? "text-foreground font-light" : "text-foreground/80 font-light"
         )}>
           {message.role === 'assistant' ? (
             <MarkdownContent content={message.content} />
@@ -120,30 +128,24 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
               att.preview ? (
                 <Dialog key={att.id}>
                   <DialogTrigger asChild>
-                    <div className="cursor-pointer group relative overflow-hidden rounded-lg ring-1 ring-border/20 shadow-sm">
+                    <div className="cursor-pointer group relative overflow-hidden rounded-xl ring-1 ring-border/20 shadow-sm hover:ring-primary/40 transition-all">
                       <img
                         src={att.preview}
                         alt={att.name}
-                        className="h-20 w-20 object-cover hover:scale-105 transition duration-300"
+                        className="h-24 w-24 object-cover hover:scale-105 transition duration-300"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1.5 py-0.5 truncate backdrop-blur-sm">
-                        {att.name}
-                      </div>
                     </div>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background/90 border-none backdrop-blur-xl">
-                    <img src={att.preview} alt={att.name} className="w-full h-auto max-h-[80vh] object-contain" />
+                  <DialogContent className="max-w-screen-lg p-0 overflow-hidden bg-background/90 border-none backdrop-blur-xl">
+                    <div className="relative flex items-center justify-center min-h-[50vh]">
+                      <img src={att.preview} alt={att.name} className="max-w-full max-h-[90vh] object-contain shadow-2xl" />
+                    </div>
                   </DialogContent>
                 </Dialog>
               ) : (
-                <div
-                  key={att.id}
-                  className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5"
-                >
-                  <Paperclip className="h-3.5 w-3.5 opacity-70" />
-                  <div className="text-xs max-w-[160px] truncate font-medium">
-                    {att.name}
-                  </div>
+                <div key={att.id} className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/40 px-3 py-2">
+                  <Paperclip className="h-4 w-4 opacity-70" />
+                  <div className="text-xs font-medium">{att.name}</div>
                 </div>
               )
             ))}
@@ -184,14 +186,16 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
 
         {/* Gallery */}
         {message.images.length > 0 && (
-          <div className="mt-3">
-            <ChatImageGallery images={message.images} />
+          <div className="mt-4">
+            <div className="p-1 rounded-2xl border border-border/40 bg-background/50 backdrop-blur-sm shadow-sm">
+              <ChatImageGallery images={message.images} />
+            </div>
           </div>
         )}
 
         {/* Execution Trace */}
         {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (
-          <div className="mt-3">
+          <div className="mt-3 opacity-80 hover:opacity-100 transition-opacity">
             <ExecutionTrace events={message.executionTrace} />
           </div>
         )}
@@ -205,7 +209,7 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
 
         {/* Interaction Request */}
         {message.role === 'assistant' && message.interaction && !message.interactionResolved && (
-          <div className="mt-3">
+          <div className="mt-4 p-4 rounded-xl border border-primary/20 bg-primary/5">
             <InteractionRenderer
               interaction={message.interaction}
               onSelect={(selection) => onInteractionSelect(message.id, selection)}
@@ -214,11 +218,34 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
           </div>
         )}
 
+        {/* Quick Actions for Assistant */}
+        {message.role === 'assistant' && !message.interaction && !isLoading && (
+          <div className="flex flex-wrap gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background">
+              <RefreshCw className="w-3 h-3" />
+              Regenerate
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background">
+              <Copy className="w-3 h-3" />
+              Copy
+            </Button>
+            {message.images.length > 0 && (
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background">
+                <Download className="w-3 h-3" />
+                Download All
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Error */}
         {message.status === 'error' && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg border border-destructive/20">
-            <span className="font-semibold">Error:</span>
-            {message.error}
+          <div className="mt-3 flex items-start gap-3 text-sm text-destructive bg-destructive/5 px-4 py-3 rounded-xl border border-destructive/20">
+            <XCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold">Error occurred</span>
+              <span className="text-destructive/90">{message.error}</span>
+            </div>
           </div>
         )}
       </div>
@@ -233,16 +260,75 @@ export function MessageList({ messages, progress, progressType, loadedSkills, is
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, progress])
 
+  const { brands, activeBrand, selectBrand } = useBrand()
+
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-in fade-in duration-500">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center mb-6 ring-1 ring-border/50 shadow-sm">
-          <Bot className="w-8 h-8 text-primary/60" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+
+        {/* Minimal High-End Hero Card */}
+        <div className="relative w-full max-w-sm mx-auto">
+
+          {/* Card Container - Simplified/Softened */}
+          <div className="relative bg-muted/20 rounded-3xl p-8 flex flex-col items-center">
+
+            {/* Icon - Simplified */}
+            <div className="w-12 h-12 rounded-full bg-background/80 flex items-center justify-center shadow-sm mb-6 text-foreground/80">
+              <Bot className="w-6 h-6" strokeWidth={1.5} />
+            </div>
+
+            <div className="space-y-4 mb-8 text-center">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                {activeBrand ? `Hello, ${brands.find(b => b.slug === activeBrand)?.name}` : 'Brand Studio'}
+              </h2>
+              <p className="text-muted-foreground/70 text-sm font-light leading-7 max-w-[260px] mx-auto">
+                {activeBrand
+                  ? "What would you like to create today?"
+                  : "Select a brand to begin your creative journey."}
+              </p>
+            </div>
+
+            {/* Actions */}
+            {activeBrand && (
+              <div className="flex flex-col gap-3 w-full">
+                {/* Primary CTA - Mid-weight fill, tighter */}
+                <Button
+                  className="w-full h-10 rounded-full text-sm font-medium bg-neutral-800 text-white hover:bg-neutral-900 transition-all shadow-sm"
+                  onClick={() => onInteractionSelect('suggestion', "Generate Social Post")}
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-2 text-white/70" />
+                  Generate Social Post
+                </Button>
+
+                {/* Secondary Options - Quiet/Ghost Pills */}
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <Button
+                    variant="ghost"
+                    className="h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-medium px-4"
+                    onClick={() => onInteractionSelect('suggestion', "Create Ad Campaign")}
+                  >
+                    Ad Campaign
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-medium px-4"
+                    onClick={() => onInteractionSelect('suggestion', "Brand Guidelines")}
+                  >
+                    Guidelines
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!activeBrand && (
+              <div className="flex justify-center mt-2">
+                <BrandSelector brands={brands} activeBrand={activeBrand} onSelect={selectBrand} />
+              </div>
+            )}
+
+            {/* Footer Product Link - REMOVED per request */}
+          </div>
         </div>
-        <h2 className="text-2xl font-semibold tracking-tight mb-2">Welcome to Brand Studio</h2>
-        <p className="text-muted-foreground max-w-md leading-relaxed">
-          Select a brand, then ask me to generate on-brand marketing images or provide brand guidance.
-        </p>
       </div>
     )
   }
@@ -264,14 +350,19 @@ export function MessageList({ messages, progress, progressType, loadedSkills, is
 
       {/* Thinking Indicator - separate from bubbles, flush left aligned with bot */}
       {showActivity && (
-        <div className="px-4 py-2 flex w-full gap-4 animate-in fade-in duration-300">
-          {/* Placeholder for alignment or actual bot icon if desired, but minimalist usually just shows text */}
-          <div className="h-8 w-8 flex-shrink-0" /> {/* Spacer to align with bot text starts */}
+        <div className="px-6 py-4 flex w-full gap-5 animate-in fade-in duration-300 bg-muted/30 border-t border-border/20">
+          <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center">
+            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+          </div>
 
-          <div className="flex-1">
+          <div className="flex-1 py-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-semibold text-foreground/80">Thinking...</span>
+              <span className="text-xs text-muted-foreground">• ~10s</span>
+            </div>
             <ActivityIndicator
               type={progressType || 'thinking'}
-              message={progress || 'Thinking...'}
+              message={progress || 'Generating response...'}
               skills={loadedSkills}
             />
           </div>

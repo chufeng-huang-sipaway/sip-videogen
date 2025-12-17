@@ -30,16 +30,16 @@ export function ProjectSelector({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           disabled={disabled}
-          className="gap-1.5 text-xs h-7 px-2"
+          className="gap-2 text-sm font-medium px-2 py-1 h-auto hover:bg-transparent hover:text-foreground text-foreground/80 transition-colors"
         >
-          <FolderKanban className="h-3.5 w-3.5 text-green-600" />
-          <span className="truncate max-w-[100px]">
+          <FolderKanban className="h-4 w-4 text-muted-foreground/70" />
+          <span className="truncate max-w-[120px] tracking-tight">
             {currentProject?.name || 'No Project'}
           </span>
-          <ChevronDown className="h-3 w-3 opacity-50" />
+          <ChevronDown className="h-3 w-3 opacity-30" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">

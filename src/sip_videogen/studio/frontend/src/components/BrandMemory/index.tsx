@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Brain, RefreshCw, History, AlertCircle, CheckCircle } from 'lucide-react'
+import { Brain, RefreshCw, History, AlertCircle, CheckCircle, FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import type { BrandIdentityFull } from '@/types/brand-identity'
@@ -23,6 +24,7 @@ import { PositioningSection } from './sections/PositioningSection'
 import { ConstraintsAvoidSection } from './sections/ConstraintsAvoidSection'
 import { RegenerateConfirmDialog } from './RegenerateConfirmDialog'
 import { BackupDialog } from './BackupDialog'
+import { FilesTab } from './FilesTab'
 
 interface BrandMemoryProps {
   open: boolean
@@ -149,7 +151,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-purple-500" />
@@ -204,96 +206,129 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
           </div>
         )}
 
-        {/* Content area */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="pr-4 py-2">
-            {/* Regeneration progress overlay */}
-            {isRegenerating && (
-              <div className="py-12 flex flex-col items-center gap-4">
-                <Spinner className="h-8 w-8 text-purple-500" />
-                <p className="text-sm text-muted-foreground">
-                  Regenerating brand identity from source materials...
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  A backup has been created automatically
-                </p>
+        {/* Tabs content area */}
+        <Tabs defaultValue="memory" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="flex-shrink-0 w-fit">
+            <TabsTrigger value="memory" className="gap-1.5">
+              <Brain className="h-4 w-4" />
+              Memory
+            </TabsTrigger>
+            <TabsTrigger value="files" className="gap-1.5">
+              <FolderOpen className="h-4 w-4" />
+              Files
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Memory Tab */}
+          <TabsContent value="memory" className="flex-1 min-h-0 mt-0">
+            <ScrollArea className="h-full">
+              <div className="pr-4 py-2">
+                {/* Regeneration progress overlay */}
+                {isRegenerating && (
+                  <div className="py-12 flex flex-col items-center gap-4">
+                    <Spinner className="h-8 w-8 text-purple-500" />
+                    <p className="text-sm text-muted-foreground">
+                      Regenerating brand identity from source materials...
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      A backup has been created automatically
+                    </p>
+                  </div>
+                )}
+
+                {/* Regeneration success alert */}
+                {regenerateSuccess && !isRegenerating && (
+                  <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription>
+                      Brand identity regenerated successfully. AI context refreshed automatically.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Regeneration error alert */}
+                {regenerateError && !isRegenerating && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{regenerateError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Loading state */}
+                {isLoading && !isRegenerating && (
+                  <div className="py-12 flex flex-col items-center gap-4">
+                    <Spinner className="h-8 w-8 text-purple-500" />
+                    <p className="text-sm text-muted-foreground">Loading brand memory...</p>
+                  </div>
+                )}
+
+                {/* Error state */}
+                {error && !isLoading && !isRegenerating && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Identity sections */}
+                {identity && !isLoading && !error && !isRegenerating && (
+                  <MemorySectionGroup>
+                    <CoreSection
+                      data={identity.core}
+                      onIdentityUpdate={handleIdentityUpdate}
+                    />
+                    <VisualSection
+                      data={identity.visual}
+                      onIdentityUpdate={handleIdentityUpdate}
+                    />
+                    <VoiceSection
+                      data={identity.voice}
+                      onIdentityUpdate={handleIdentityUpdate}
+                    />
+                    <AudienceSection
+                      data={identity.audience}
+                      onIdentityUpdate={handleIdentityUpdate}
+                    />
+                    <PositioningSection
+                      data={identity.positioning}
+                      onIdentityUpdate={handleIdentityUpdate}
+                    />
+                    <ConstraintsAvoidSection
+                      data={{ constraints: identity.constraints, avoid: identity.avoid }}
+                      onIdentityUpdate={handleIdentityUpdate}
+                    />
+                  </MemorySectionGroup>
+                )}
+
+                {/* No brand selected */}
+                {!activeBrand && !isLoading && !isRegenerating && (
+                  <div className="py-12 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No brand selected. Please select a brand from the sidebar.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
+            </ScrollArea>
+          </TabsContent>
 
-            {/* Regeneration success alert */}
-            {regenerateSuccess && !isRegenerating && (
-              <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription>
-                  Brand identity regenerated successfully. AI context refreshed automatically.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Regeneration error alert */}
-            {regenerateError && !isRegenerating && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{regenerateError}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Loading state */}
-            {isLoading && !isRegenerating && (
-              <div className="py-12 flex flex-col items-center gap-4">
-                <Spinner className="h-8 w-8 text-purple-500" />
-                <p className="text-sm text-muted-foreground">Loading brand memory...</p>
+          {/* Files Tab */}
+          <TabsContent value="files" className="flex-1 min-h-0 mt-0">
+            <ScrollArea className="h-full">
+              <div className="pr-4 py-2">
+                {activeBrand ? (
+                  <FilesTab />
+                ) : (
+                  <div className="py-12 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No brand selected. Please select a brand from the sidebar.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* Error state */}
-            {error && !isLoading && !isRegenerating && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Identity sections */}
-            {identity && !isLoading && !error && !isRegenerating && (
-              <MemorySectionGroup>
-                <CoreSection
-                  data={identity.core}
-                  onIdentityUpdate={handleIdentityUpdate}
-                />
-                <VisualSection
-                  data={identity.visual}
-                  onIdentityUpdate={handleIdentityUpdate}
-                />
-                <VoiceSection
-                  data={identity.voice}
-                  onIdentityUpdate={handleIdentityUpdate}
-                />
-                <AudienceSection
-                  data={identity.audience}
-                  onIdentityUpdate={handleIdentityUpdate}
-                />
-                <PositioningSection
-                  data={identity.positioning}
-                  onIdentityUpdate={handleIdentityUpdate}
-                />
-                <ConstraintsAvoidSection
-                  data={{ constraints: identity.constraints, avoid: identity.avoid }}
-                  onIdentityUpdate={handleIdentityUpdate}
-                />
-              </MemorySectionGroup>
-            )}
-
-            {/* No brand selected */}
-            {!activeBrand && !isLoading && !isRegenerating && (
-              <div className="py-12 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No brand selected. Please select a brand from the sidebar.
-                </p>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
 
       {/* Regenerate confirmation dialog */}

@@ -6,10 +6,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { LayoutGrid, Package, FolderOpen, Sparkles } from 'lucide-react'
+import { Package, FolderOpen, Sparkles } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
-import { BrandActions } from './BrandActions'
-import { BrandSection } from './sections/BrandSection'
+import { BrandBrainCard } from './BrandBrainCard'
 import { ProductsSection } from './sections/ProductsSection'
 import { ProjectsSection } from './sections/ProjectsSection'
 
@@ -33,52 +32,46 @@ export function Sidebar({ width, onOpenBrandMemory }: SidebarProps) {
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">AI Workspace</p>
         </div>
       </div>
-      
+
       <div className="px-4 pb-4">
         <BrandSelector />
       </div>
-      
-      <BrandActions />
-      
+
+      <BrandBrainCard onOpenBrandMemory={onOpenBrandMemory ?? (() => { })} />
+
       <div className="px-4 py-2">
         <Separator className="bg-border/60" />
       </div>
 
       <ScrollArea className="flex-1">
         <div className="px-3 py-2">
-          <Accordion type="multiple" defaultValue={["brand", "products", "projects"]} className="space-y-1">
-            <AccordionItem value="brand" className="border-none">
-              <AccordionTrigger className="px-3 py-2 hover:bg-accent/50 rounded-lg hover:no-underline transition-colors [&[data-state=open]>svg]:rotate-90">
-                <div className="flex items-center gap-2.5">
-                  <LayoutGrid className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">Brand Identity</span>
+          <Accordion type="multiple" defaultValue={["products", "projects"]} className="space-y-1">
+            <AccordionItem value="products" className="border-none mb-1">
+              <AccordionTrigger className="px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
+                <div className="flex items-center gap-3 text-left">
+                  <Package className="w-4 h-4 text-muted-foreground/70" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-sm text-foreground/80 leading-snug">Products</span>
+                    <span className="text-[10px] text-muted-foreground/60 font-normal">Context for generation</span>
+                  </div>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-3 pb-2 pt-1">
-                <BrandSection onOpenBrandMemory={onOpenBrandMemory} />
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="products" className="border-none">
-              <AccordionTrigger className="px-3 py-2 hover:bg-accent/50 rounded-lg hover:no-underline transition-colors [&[data-state=open]>svg]:rotate-90">
-                <div className="flex items-center gap-2.5">
-                  <Package className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">Products</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-3 pb-2 pt-1">
+              <AccordionContent className="px-3 pb-2 pt-1 ml-2 mt-1">
                 <ProductsSection />
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="projects" className="border-none">
-              <AccordionTrigger className="px-3 py-2 hover:bg-accent/50 rounded-lg hover:no-underline transition-colors [&[data-state=open]>svg]:rotate-90">
-                <div className="flex items-center gap-2.5">
-                  <FolderOpen className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">Projects</span>
+            <AccordionItem value="projects" className="border-none mb-1">
+              <AccordionTrigger className="px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
+                <div className="flex items-center gap-3 text-left">
+                  <FolderOpen className="w-4 h-4 text-muted-foreground/70" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-sm text-foreground/80 leading-snug">Projects</span>
+                    <span className="text-[10px] text-muted-foreground/60 font-normal">Organize your work</span>
+                  </div>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-3 pb-2 pt-1">
+              <AccordionContent className="px-3 pb-2 pt-1 ml-2 mt-1">
                 <ProjectsSection />
               </AccordionContent>
             </AccordionItem>

@@ -17,6 +17,7 @@ import { EditProjectDialog } from '../EditProjectDialog'
 
 interface ProjectCardProps {
   project: ProjectEntry
+  isActive?: boolean
   isExpanded: boolean
   onToggleExpand: () => void
   onEdit: () => void
@@ -26,6 +27,7 @@ interface ProjectCardProps {
 
 function ProjectCard({
   project,
+  isActive,
   isExpanded,
   onToggleExpand,
   onEdit,
@@ -39,25 +41,27 @@ function ProjectCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-1.5 py-2 px-1.5 rounded cursor-pointer group transition-colors overflow-hidden
-              hover:bg-gray-200/50 dark:hover:bg-gray-700/50
+            className={`flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden
+              ${isActive
+                ? 'bg-foreground text-background shadow-sm hover:bg-foreground/90'
+                : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'}
               ${isArchived ? 'opacity-60' : ''}`}
             onClick={onToggleExpand}
             title="Click to view project assets"
           >
             {/* Expand/collapse chevron */}
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+              <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-background/70' : 'text-muted-foreground/60'}`} />
             ) : (
-              <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+              <ChevronRight className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-background/70' : 'text-muted-foreground/60'}`} />
             )}
-            <FolderKanban className="h-4 w-4 shrink-0 text-gray-500" />
+            <FolderKanban className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-background/70' : 'text-muted-foreground/70'}`} />
             <div className="flex-1 min-w-0 overflow-hidden">
               <div className="flex items-center gap-1">
-                <span className="text-sm font-medium truncate">{project.name}</span>
-                {isArchived && <Archive className="h-3 w-3 text-gray-400 shrink-0" />}
+                <span className={`text-sm font-medium truncate ${isActive ? 'text-background' : 'text-foreground/90'}`}>{project.name}</span>
+                {isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
               </div>
-              <span className="text-xs text-gray-500 truncate block">
+              <span className={`text-[10px] truncate block ${isActive ? 'text-background/60' : 'text-muted-foreground/60'}`}>
                 {project.asset_count} asset{project.asset_count !== 1 ? 's' : ''}
               </span>
             </div>
@@ -228,6 +232,7 @@ export function ProjectsSection() {
             <ProjectCard
               key={project.slug}
               project={project}
+              isActive={activeProject === project.slug}
               isExpanded={expandedProject === project.slug}
               onToggleExpand={() => handleToggleExpand(project.slug)}
               onEdit={() => setEditingProjectSlug(project.slug)}
