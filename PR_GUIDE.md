@@ -645,8 +645,31 @@ All modifying methods automatically refresh the advisor context after successful
 - No TypeScript errors
 - No eslint warnings
 
-### Stage 3.5: Regenerate UX (Next)
-- [ ] Task 3.5.1: Add confirmation dialog warning about edit loss
+### Stage 3.5: Regenerate UX
+
+#### Task 3.5.1: Add confirmation dialog warning about edit loss ✅
+**Commit**: `0318749`
+
+**Implementation**:
+- Created `src/sip_videogen/studio/frontend/src/components/ui/alert-dialog.tsx`
+  - Uses existing `@radix-ui/react-alert-dialog` package (already installed)
+  - Full AlertDialog component following shadcn/ui patterns
+- Created `src/sip_videogen/studio/frontend/src/components/BrandMemory/RegenerateConfirmDialog.tsx`
+  - Warns users that regenerating will overwrite all current edits
+  - Explains that a backup will be created (can be restored from History)
+  - Explains that AI brand director will re-run on source materials
+  - Amber warning styling for destructive action emphasis
+- Updated `BrandMemory/index.tsx`:
+  - Added `showRegenerateConfirm` state
+  - Wired Regenerate button to open confirmation dialog
+  - Added `handleRegenerateConfirm` handler (placeholder for Task 3.5.2-3.5.4)
+
+**Testing**:
+- Frontend builds successfully (`npm run build`)
+- No TypeScript errors
+- No eslint warnings
+
+#### Remaining Tasks
 - [ ] Task 3.5.2: Show progress indicator during regeneration
 - [ ] Task 3.5.3: Auto-backup before regenerating
 - [ ] Task 3.5.4: After regeneration completes, show inline info that AI context is refreshed automatically
@@ -673,3 +696,5 @@ All modifying methods automatically refresh the advisor context after successful
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/StringListEditor.tsx` - NEW: Reusable string list editor with add/remove functionality for string arrays
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/ColorListEditor.tsx` - NEW: Reusable color list editor with native color picker and hex input for ColorDefinition arrays
 - `src/sip_videogen/studio/frontend/src/components/BrandMemory/editors/TypographyListEditor.tsx` - NEW: Reusable typography list editor with card-based layout for TypographyRule arrays
+- `src/sip_videogen/studio/frontend/src/components/ui/alert-dialog.tsx` - NEW: AlertDialog UI component using Radix AlertDialog primitive
+- `src/sip_videogen/studio/frontend/src/components/BrandMemory/RegenerateConfirmDialog.tsx` - NEW: Confirmation dialog for regenerating brand identity with edit loss warning
