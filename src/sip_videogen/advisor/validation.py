@@ -636,25 +636,42 @@ async def generate_with_validation(
             if best_attempt is None or attempt.similarity_score > best_attempt.similarity_score:
                 best_attempt = attempt
 
-            if validation.is_identical:
+            # Log proportion status
+            prop_status = "OK" if validation.proportions_match else "FAIL"
+            if validation.proportions_notes:
+                logger.info(f"  Proportions [{prop_status}]: {validation.proportions_notes}")
+
+            # Phase 3: Check both identity AND proportions
+            settings = get_settings()
+            validation_passed = (
+                validation.is_identical
+                and (validation.proportions_match or not settings.sip_proportion_validation)
+            )
+
+            if validation_passed:
                 # Success - rename to final filename
                 final_path = output_dir / f"{filename}.png"
                 attempt_path.rename(final_path)
                 logger.info(
                     f"Validation passed on attempt {attempt_number} "
-                    f"(score: {validation.similarity_score:.2f})"
+                    f"(score: {validation.similarity_score:.2f}, proportions: {prop_status})"
                 )
                 return str(final_path)
 
             # Improve prompt for next attempt
+            # Get proportion notes for prompt improvement if proportions failed
+            prop_notes = ""
+            if not validation.proportions_match:
+                prop_notes = validation.proportions_notes
             current_prompt = _improve_prompt_for_identity(
                 original_prompt=prompt,
                 suggestions=validation.improvement_suggestions,
                 attempt_number=attempt_number,
+                proportions_notes=prop_notes,
             )
             logger.info(
-                f"Validation failed (score: {validation.similarity_score:.2f}), "
-                f"improving prompt for retry"
+                f"Validation failed (score: {validation.similarity_score:.2f}, "
+                f"proportions: {prop_status}), improving prompt for retry"
             )
 
         except Exception as e:
@@ -697,6 +714,7 @@ def _improve_prompt_for_identity(
     original_prompt: str,
     suggestions: str,
     attempt_number: int,
+    proportions_notes: str = "",
 ) -> str:
     """Improve generation prompt to better preserve object identity.
 
@@ -704,6 +722,7 @@ def _improve_prompt_for_identity(
         original_prompt: Original user prompt.
         suggestions: Improvement suggestions from validator.
         attempt_number: Current attempt number.
+        proportions_notes: Notes about proportion issues to fix.
 
     Returns:
         Improved prompt.
@@ -712,10 +731,14 @@ def _improve_prompt_for_identity(
         "CRITICAL: The generated image MUST show the EXACT SAME object from the reference image.",
         "Preserve all distinctive features: brand logos, specific colors, shapes, and markings.",
         "This is NOT about style - it's about showing the SAME physical object.",
+        "PRESERVE EXACT PROPORTIONS - do not squash or stretch the object.",
     ]
 
     if suggestions:
         improvements.append(f"Specific feedback: {suggestions}")
+
+    if proportions_notes:
+        improvements.append(f"PROPORTION FIX NEEDED: {proportions_notes}")
 
     return (
         f"{original_prompt}\n\n"
@@ -746,24 +769,28 @@ async def generate_with_multi_validation(
     aspect_ratio: str = "1:1",
     max_retries: int = 3,
     product_slugs: list[str] | None = None,
+    generation_images: list[bytes] | None = None,
 ) -> str:
     """Generate image with multiple products and validate each one.
 
     This function implements a retry loop that:
-    1. Generates an image using all product reference images
-    2. Validates each product individually using GPT-4o vision
+    1. Generates an image using all reference images (including multi-angle)
+    2. Validates each product individually using GPT-4o vision (primary refs only)
     3. If any product fails validation, improves the prompt and retries
     4. Returns the best attempt if all retries are exhausted
 
     Args:
         client: Gemini API client.
         prompt: Generation prompt (should mention all products).
-        product_references: List of (product_name, image_bytes) tuples.
+        product_references: List of (product_name, image_bytes) tuples for VALIDATION.
+            Should contain exactly one entry per product (primary image).
         output_dir: Directory to save output.
         filename: Base filename (without extension).
         aspect_ratio: Image aspect ratio.
         max_retries: Maximum validation attempts.
         product_slugs: Optional list of product slugs for metrics.
+        generation_images: Optional list of all image bytes for GENERATION.
+            Can include multiple angles per product. If None, uses product_references.
 
     Returns:
         Path to generated image. If validation failed after all retries,
@@ -773,6 +800,10 @@ async def generate_with_multi_validation(
     from PIL import Image as PILImage
 
     settings = get_settings()
+
+    # If generation_images not provided, extract from product_references
+    if generation_images is None:
+        generation_images = [img_bytes for _, img_bytes in product_references]
 
     attempts: list[MultiValidationAttempt] = []
     best_attempt: MultiValidationAttempt | None = None
@@ -796,13 +827,13 @@ async def generate_with_multi_validation(
         metrics.total_attempts = attempt_number
         logger.info(
             f"Multi-product generation attempt {attempt_number}/{max_retries} "
-            f"({len(product_references)} products)"
+            f"({len(product_references)} products, {len(generation_images)} reference images)"
         )
 
         try:
-            # Build contents with all reference images
+            # Build contents with ALL reference images (including multi-angle)
             contents: list = [current_prompt]
-            for name, ref_bytes in product_references:
+            for ref_bytes in generation_images:
                 ref_pil = PILImage.open(io.BytesIO(ref_bytes))
                 contents.append(ref_pil)
 
@@ -880,11 +911,16 @@ async def generate_with_multi_validation(
                 )
                 for pr in validation.product_results
             ]
+            # Determine if attempt passed (respecting proportion validation setting)
+            attempt_passed = (
+                validation.all_products_accurate
+                and (validation.all_proportions_match or not settings.sip_proportion_validation)
+            )
             metrics.add_attempt(
                 attempt_number=attempt_number,
                 prompt_used=current_prompt,
                 overall_score=validation.overall_score,
-                passed=validation.all_products_accurate and validation.all_proportions_match,
+                passed=attempt_passed,
                 product_metrics=product_metrics,
                 improvement_suggestions=validation.suggestions,
             )
@@ -895,8 +931,12 @@ async def generate_with_multi_validation(
 
             # Log per-product results
             for pr in validation.product_results:
-                status = "PASS" if pr.is_accurate and pr.proportions_match else "FAIL"
-                prop_note = f" [PROPORTIONS: {'OK' if pr.proportions_match else 'FAIL'}]"
+                # Status respects proportion validation setting
+                prop_ok = pr.proportions_match or not settings.sip_proportion_validation
+                status = "PASS" if pr.is_accurate and prop_ok else "FAIL"
+                prop_note = ""
+                if settings.sip_proportion_validation:
+                    prop_note = f" [PROPORTIONS: {'OK' if pr.proportions_match else 'FAIL'}]"
                 logger.info(
                     f"  {pr.product_name}: {pr.similarity_score:.2f} [{status}]{prop_note} "
                     f"{'- ' + pr.issues if pr.issues else ''}"

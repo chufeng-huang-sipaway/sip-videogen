@@ -218,11 +218,14 @@ async def _impl_generate_image(
             return "Error: No active brand - cannot load products"
 
         # Phase 2: Load multiple reference images per product when available
+        # We maintain two structures:
+        # - product_references: one (name, bytes) per product for VALIDATION
+        # - generation_images: all images (including angles) for GEMINI generation
         max_images_per_product = settings.sip_product_ref_images_per_product
         max_total_images = 8  # Cap total images to avoid runaway payloads
 
-        # Load product reference images
-        product_references: list[tuple[str, bytes]] = []
+        product_references: list[tuple[str, bytes]] = []  # For validation (1 per product)
+        generation_images: list[bytes] = []  # For Gemini (all angles)
         total_images_loaded = 0
 
         for slug in product_slugs:
@@ -256,6 +259,7 @@ async def _impl_generate_image(
 
             # Load the images
             images_loaded = 0
+            primary_bytes: bytes | None = None
             for img_path in product_images:
                 ref_path = _resolve_brand_path(img_path)
                 if ref_path is None or not ref_path.exists():
@@ -270,21 +274,26 @@ async def _impl_generate_image(
 
                 try:
                     ref_bytes = ref_path.read_bytes()
-                    # For primary image, use product name; for additional, add angle indicator
+                    generation_images.append(ref_bytes)  # All images go to Gemini
                     if images_loaded == 0:
-                        ref_name = product.name
+                        primary_bytes = ref_bytes  # Keep primary for validation
+                        logger.info(f"Loaded primary reference for '{product.name}': {img_path}")
                     else:
-                        ref_name = f"{product.name} (angle {images_loaded + 1})"
-                    product_references.append((ref_name, ref_bytes))
+                        logger.info(
+                            f"Loaded angle {images_loaded + 1} for '{product.name}': {img_path}"
+                        )
                     images_loaded += 1
                     total_images_loaded += 1
-                    logger.info(f"Loaded reference for '{ref_name}': {img_path}")
                 except Exception as e:
                     if images_loaded == 0:
                         return f"Error reading reference image for '{slug}': {e}"
                     else:
                         logger.warning(f"Failed to read additional image: {e}")
                         continue
+
+            # Add ONE entry per product to validation refs (primary only)
+            if primary_bytes:
+                product_references.append((product.name, primary_bytes))
 
             if images_loaded > 1:
                 logger.info(
@@ -307,8 +316,8 @@ async def _impl_generate_image(
         from sip_videogen.advisor.validation import generate_with_multi_validation
 
         logger.info(
-            f"Generating multi-product image with {len(product_references)} products "
-            f"(max {max_retries} retries)..."
+            f"Generating multi-product image with {len(product_references)} products, "
+            f"{len(generation_images)} total reference images (max {max_retries} retries)..."
         )
 
         try:
@@ -318,7 +327,8 @@ async def _impl_generate_image(
             return await generate_with_multi_validation(
                 client=client,
                 prompt=generation_prompt,
-                product_references=product_references,
+                product_references=product_references,  # For validation (1 per product)
+                generation_images=generation_images,  # For Gemini (all angles)
                 output_dir=output_dir,
                 filename=filename,
                 aspect_ratio=aspect_ratio,

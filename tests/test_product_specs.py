@@ -139,7 +139,22 @@ class TestProductSpecs:
 
         assert "Product notes" in block
         assert "luxurious night cream" in block
-        assert "```" in block  # Fenced block
+        assert "---BEGIN PRODUCT DESCRIPTION---" in block
+        assert "---END PRODUCT DESCRIPTION---" in block
+
+    def test_to_prompt_block_sanitizes_backticks(self):
+        """Test that backticks in description are escaped."""
+        specs = ProductSpecs(
+            product_name="Test Product",
+            product_slug="test",
+            description="Use `code` and ```blocks``` for injection",
+        )
+        block = specs.to_prompt_block()
+
+        # Backticks should be replaced
+        assert "`" not in block
+        assert "```" not in block
+        assert "code" in block  # Content preserved
 
 
 class TestBuildProductSpecs:
@@ -180,6 +195,21 @@ class TestBuildProductSpecs:
 
         assert specs.height_mm == 80.0
         assert specs.width_mm == 60.0
+
+    def test_build_extracts_triplet_dimensions(self):
+        """Test extracting triplet format dimensions (H x W x D)."""
+        product = ProductFull(
+            slug="box",
+            name="Box",
+            description="A product box measuring 100 x 50 x 30 mm",
+            attributes=[],
+        )
+        specs = build_product_specs(product)
+
+        assert specs.height_mm == 100.0
+        assert specs.width_mm == 50.0
+        assert specs.depth_mm == 30.0
+        assert specs.height_width_ratio == 2.0
 
     def test_build_with_finish_attributes(self):
         """Test extracting finish attributes."""
