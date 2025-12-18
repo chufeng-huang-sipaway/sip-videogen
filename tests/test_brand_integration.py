@@ -38,8 +38,8 @@ from sip_videogen.brands.storage import (
     set_active_brand,
 )
 from sip_videogen.brands.tools import (
-    browse_brand_assets,
-    fetch_brand_detail,
+    _impl_browse_brand_assets,
+    _impl_fetch_brand_detail,
     get_brand_context,
     set_brand_context,
 )
@@ -298,29 +298,29 @@ Generate marketing copy for the brand."""
     def test_fetch_brand_detail_returns_correct_sections(
         self, temp_brands_dir: Path, complete_brand_identity: BrandIdentityFull
     ) -> None:
-        """Test that fetch_brand_detail returns correct sections for agents."""
+        """Test that _impl_fetch_brand_detail returns correct sections for agents."""
         create_brand(complete_brand_identity)
         set_brand_context("summit-coffee")
 
         # Test visual identity
-        visual_json = fetch_brand_detail("visual_identity")
+        visual_json = _impl_fetch_brand_detail("visual_identity")
         visual_data = json.loads(visual_json)
         assert "primary_colors" in visual_data
         assert len(visual_data["primary_colors"]) == 2
 
         # Test voice guidelines
-        voice_json = fetch_brand_detail("voice_guidelines")
+        voice_json = _impl_fetch_brand_detail("voice_guidelines")
         voice_data = json.loads(voice_json)
         assert "tone_attributes" in voice_data
         assert "warm" in voice_data["tone_attributes"]
 
         # Test audience profile
-        audience_json = fetch_brand_detail("audience_profile")
+        audience_json = _impl_fetch_brand_detail("audience_profile")
         audience_data = json.loads(audience_json)
         assert "primary_summary" in audience_data
 
         # Test positioning
-        positioning_json = fetch_brand_detail("positioning")
+        positioning_json = _impl_fetch_brand_detail("positioning")
         positioning_data = json.loads(positioning_json)
         assert positioning_data["market_category"] == "Premium Coffee"
 
@@ -396,15 +396,15 @@ class TestAssetCountUpdates:
 
 
 class TestBrowseAssetsIntegration:
-    """Tests for browse_brand_assets tool integration."""
+    """Tests for _impl_browse_brand_assets tool integration."""
 
     def test_browse_assets_returns_all_assets(
         self, brand_with_assets: BrandIdentityFull
     ) -> None:
-        """Test that browse_brand_assets returns all assets."""
+        """Test that _impl_browse_brand_assets returns all assets."""
         set_brand_context("summit-coffee")
 
-        result = browse_brand_assets()
+        result = _impl_browse_brand_assets()
         assets = json.loads(result)
 
         assert len(assets) == 4
@@ -417,7 +417,7 @@ class TestBrowseAssetsIntegration:
         """Test filtering assets by category."""
         set_brand_context("summit-coffee")
 
-        result = browse_brand_assets(category="logo")
+        result = _impl_browse_brand_assets(category="logo")
         assets = json.loads(result)
 
         assert len(assets) == 1
@@ -429,7 +429,7 @@ class TestBrowseAssetsIntegration:
         """Test that asset paths are correct."""
         set_brand_context("summit-coffee")
 
-        result = browse_brand_assets(category="logo")
+        result = _impl_browse_brand_assets(category="logo")
         assets = json.loads(result)
 
         expected_path = str(temp_brands_dir / "summit-coffee" / "assets" / "logo" / "primary-logo.png")

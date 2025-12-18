@@ -922,7 +922,7 @@ class TestProductContextBuilder:
         context = builder.build_context_section()
 
         assert "products/night-cream/images/main.png" in context
-        assert "(primary)" in context
+        assert "[PRIMARY - use as reference]" in context
 
 
 class TestBuildProductContext:
@@ -1050,7 +1050,7 @@ class TestHierarchicalContextBuilder:
         context = builder.build_turn_context()
 
         assert "Restorative Night Cream" in context
-        assert "Attached Products" in context
+        assert "Attached Product" in context
 
     def test_includes_both_project_and_products(
         self, brand_with_product_and_project: BrandIdentityFull

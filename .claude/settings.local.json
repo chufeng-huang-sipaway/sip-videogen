@@ -122,7 +122,8 @@
       "Bash(open \"Brand Studio.app\")",
       "Bash(log show:*)",
       "Bash(unzip:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(./scripts/build-release.sh:*)"
     ]
   }
 }
