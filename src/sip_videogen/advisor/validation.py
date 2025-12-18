@@ -400,7 +400,7 @@ async def generate_with_validation(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
                         aspect_ratio=aspect_ratio,
-                        image_size="2K",
+                        image_size="4K",
                     ),
                 ),
             )
@@ -605,7 +605,7 @@ async def generate_with_multi_validation(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
                         aspect_ratio=aspect_ratio,
-                        image_size="2K",
+                        image_size="4K",
                     ),
                 ),
             )
