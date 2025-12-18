@@ -29,6 +29,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     attachments,
     sendMessage,
     clearMessages,
+    regenerateMessage,
     resolveInteraction,
     addFilesAsAttachments,
     addAttachmentReference,
@@ -253,6 +254,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
               resolveInteraction(messageId)
               void sendMessage(selection)
             }}
+            onRegenerate={regenerateMessage}
           />
         </div>
       </ScrollArea>

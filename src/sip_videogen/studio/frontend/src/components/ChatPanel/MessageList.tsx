@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { useBrand } from '@/context/BrandContext'
 import { Button } from '@/components/ui/button'
 import { BrandSelector } from './BrandSelector'
-import { Sparkles, Download, Copy, RefreshCw, XCircle } from 'lucide-react'
+import { Sparkles, Download, Copy, RefreshCw, XCircle, Check } from 'lucide-react'
 
 
 interface MessageListProps {
@@ -22,6 +22,7 @@ interface MessageListProps {
   isLoading: boolean
   products: ProductEntry[]
   onInteractionSelect: (messageId: string, selection: string) => void
+  onRegenerate?: (messageId: string) => void
 }
 
 /** Thumbnail component for product images in message history */
@@ -64,13 +65,73 @@ function MessageProductThumbnail({ path }: { path: string }) {
   )
 }
 
-function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
+function MessageBubble({ message, products, onInteractionSelect, isLoading, onRegenerate }: {
   message: Message;
   products: ProductEntry[];
   onInteractionSelect: (id: string, sel: string) => void;
-  isLoading: boolean
+  isLoading: boolean;
+  onRegenerate?: (id: string) => void;
 }) {
   const isUser = message.role === 'user'
+  const [copied, setCopied] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
+  // Handle copy to clipboard
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = message.content
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  // Handle download all images
+  const handleDownloadAll = async () => {
+    if (downloading || message.images.length === 0) return
+    setDownloading(true)
+
+    try {
+      for (let i = 0; i < message.images.length; i++) {
+        const url = message.images[i]
+        const filename = `brand-studio-${i + 1}.png`
+
+        // Handle data URLs
+        if (url.startsWith('data:')) {
+          const response = await fetch(url)
+          const blob = await response.blob()
+          const objectUrl = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = objectUrl
+          a.download = filename
+          a.click()
+          URL.revokeObjectURL(objectUrl)
+        } else {
+          // HTTP URL - direct download
+          const a = document.createElement('a')
+          a.href = url
+          a.download = filename
+          a.click()
+        }
+
+        // Small delay between downloads
+        if (i < message.images.length - 1) {
+          await new Promise(r => setTimeout(r, 150))
+        }
+      }
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   // Don't render status updates as full bubbles yet - they are rendered specially
   if (message.status === 'sending') return null
@@ -219,18 +280,37 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
         {/* Quick Actions for Assistant */}
         {message.role === 'assistant' && !message.interaction && !isLoading && (
           <div className="flex flex-wrap gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background"
+              onClick={() => onRegenerate?.(message.id)}
+            >
               <RefreshCw className="w-3 h-3" />
               Regenerate
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background">
-              <Copy className="w-3 h-3" />
-              Copy
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background transition-colors",
+                copied && "text-green-600 border-green-600/30"
+              )}
+              onClick={handleCopy}
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copied ? 'Copied!' : 'Copy'}
             </Button>
             {message.images.length > 0 && (
-              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background">
-                <Download className="w-3 h-3" />
-                Download All
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background"
+                onClick={handleDownloadAll}
+                disabled={downloading}
+              >
+                <Download className={cn("w-3 h-3", downloading && "animate-bounce")} />
+                {downloading ? 'Downloading...' : 'Download All'}
               </Button>
             )}
           </div>
@@ -396,7 +476,7 @@ function ActivityCard({ progress, loadedSkills }: ActivityCardProps) {
   )
 }
 
-export function MessageList({ messages, progress, loadedSkills, isLoading, products, onInteractionSelect }: MessageListProps) {
+export function MessageList({ messages, progress, loadedSkills, isLoading, products, onInteractionSelect, onRegenerate }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -488,6 +568,7 @@ export function MessageList({ messages, progress, loadedSkills, isLoading, produ
           products={products}
           onInteractionSelect={onInteractionSelect}
           isLoading={isLoading}
+          onRegenerate={onRegenerate}
         />
       ))}
 
