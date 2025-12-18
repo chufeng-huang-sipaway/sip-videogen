@@ -83,7 +83,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
   const [assets, setAssets] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [previewImage, setPreviewImage] = useState<{ src: string; path: string } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -119,7 +119,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     if (!isPyWebView()) return
     try {
       const dataUrl = await bridge.getAssetFull(path)
-      setPreviewImage(dataUrl)
+      setPreviewImage({ src: dataUrl, path })
     } catch (err) {
       console.error('Failed to load preview:', err)
     }
@@ -161,7 +161,12 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
           />
         ))}
       </div>
-      <ImageViewer src={previewImage} onClose={() => setPreviewImage(null)} />
+      <ImageViewer
+        src={previewImage?.src ?? null}
+        filePath={previewImage?.path}
+        fileType="asset"
+        onClose={() => setPreviewImage(null)}
+      />
     </>
   )
 }

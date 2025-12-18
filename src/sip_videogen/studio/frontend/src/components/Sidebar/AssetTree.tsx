@@ -164,7 +164,7 @@ export function AssetTree() {
   const { tree, isLoading, error, refresh, deleteAsset, renameAsset, uploadAsset } = useAssets(activeBrand)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [previewImage, setPreviewImage] = useState<{ src: string; path: string } | null>(null)
 
   // Auto-clear upload error after 5 seconds
   useEffect(() => {
@@ -178,7 +178,7 @@ export function AssetTree() {
     if (!isPyWebView()) return
     try {
       const dataUrl = await bridge.getAssetFull(path)
-      setPreviewImage(dataUrl)
+      setPreviewImage({ src: dataUrl, path })
     } catch (err) {
       console.error('Failed to load preview:', err)
     }
@@ -298,7 +298,12 @@ export function AssetTree() {
           ))}
         </div>
       )}
-      <ImageViewer src={previewImage} onClose={() => setPreviewImage(null)} />
+      <ImageViewer
+        src={previewImage?.src ?? null}
+        filePath={previewImage?.path}
+        fileType="asset"
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   )
 }

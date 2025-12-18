@@ -146,12 +146,12 @@ export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
 
   // Reusable badge list renderer for view mode
   const renderBadgeList = (items: string[], colorClass: string) => (
-    <div className="mt-1 flex flex-wrap gap-2">
+    <div className="mt-2 flex flex-wrap gap-2">
       {items.length > 0 ? (
         items.map((item, index) => (
           <span
             key={index}
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}
+            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${colorClass}`}
           >
             {item}
           </span>
@@ -223,7 +223,7 @@ export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
 
   // View mode content
   const viewContent = (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-prose">
       {/* Success message */}
       {saveSuccess && (
         <Alert className="bg-green-500/10 border-green-500/20">
@@ -234,13 +234,13 @@ export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
         </Alert>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid gap-5">
         {/* Personality */}
         <div>
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Brand Personality
           </label>
-          <p className="mt-1 text-sm whitespace-pre-wrap">{data.personality || 'Not specified'}</p>
+          <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap">{data.personality || 'Not specified'}</p>
         </div>
 
         {/* Tone Attributes */}
@@ -265,63 +265,59 @@ export function VoiceSection({ data, onIdentityUpdate }: VoiceSectionProps) {
           )}
         </div>
 
-        {/* Messaging Do's */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Messaging Do's
-          </label>
-          {renderBadgeList(
-            data.messaging_do,
-            'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-          )}
-        </div>
-
-        {/* Messaging Don'ts */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Messaging Don'ts
-          </label>
-          {renderBadgeList(
-            data.messaging_dont,
-            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-          )}
+        {/* Messaging Do's & Don'ts - side by side */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Do
+            </label>
+            {renderBadgeList(
+              data.messaging_do,
+              'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Avoid
+            </label>
+            {renderBadgeList(
+              data.messaging_dont,
+              'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+            )}
+          </div>
         </div>
 
         {/* Example Headlines */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Example Headlines
-          </label>
-          <ul className="mt-1 space-y-1">
-            {data.example_headlines.length > 0 ? (
-              data.example_headlines.map((headline, index) => (
-                <li key={index} className="text-sm text-muted-foreground">
+        {data.example_headlines.length > 0 && (
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Example Headlines
+            </label>
+            <ul className="mt-2 space-y-1">
+              {data.example_headlines.map((headline, index) => (
+                <li key={index} className="text-sm italic text-muted-foreground">
                   "{headline}"
                 </li>
-              ))
-            ) : (
-              <li className="text-xs text-muted-foreground italic">None specified</li>
-            )}
-          </ul>
-        </div>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Example Taglines */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Example Taglines
-          </label>
-          <ul className="mt-1 space-y-1">
-            {data.example_taglines.length > 0 ? (
-              data.example_taglines.map((tagline, index) => (
-                <li key={index} className="text-sm text-muted-foreground">
+        {data.example_taglines.length > 0 && (
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Example Taglines
+            </label>
+            <ul className="mt-2 space-y-1">
+              {data.example_taglines.map((tagline, index) => (
+                <li key={index} className="text-sm italic text-muted-foreground">
                   "{tagline}"
                 </li>
-              ))
-            ) : (
-              <li className="text-xs text-muted-foreground italic">None specified</li>
-            )}
-          </ul>
-        </div>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -107,7 +107,7 @@ export function CoreSection({ data, onIdentityUpdate }: CoreSectionProps) {
 
   // View mode content
   const viewContent = (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-prose">
       {/* Success message */}
       {saveSuccess && (
         <Alert className="bg-green-500/10 border-green-500/20">
@@ -118,44 +118,49 @@ export function CoreSection({ data, onIdentityUpdate }: CoreSectionProps) {
         </Alert>
       )}
 
-      <div className="grid gap-4">
-        <div>
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Brand Name
-          </label>
-          <p className="mt-1 text-sm">{data.name}</p>
+      <div className="grid gap-5">
+        {/* Brand Name & Tagline - inline for scannability */}
+        <div className="flex flex-wrap gap-x-8 gap-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Brand Name
+            </label>
+            <p className="mt-1 text-sm font-medium">{data.name}</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Tagline
+            </label>
+            <p className="mt-1 text-sm italic text-muted-foreground">{data.tagline}</p>
+          </div>
         </div>
 
-        <div>
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Tagline
-          </label>
-          <p className="mt-1 text-sm">{data.tagline}</p>
-        </div>
-
+        {/* Mission - constrained width for readability */}
         <div>
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Mission
           </label>
-          <p className="mt-1 text-sm whitespace-pre-wrap">{data.mission}</p>
+          <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap">{data.mission}</p>
         </div>
 
+        {/* Brand Story - constrained width for readability */}
         <div>
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Brand Story
           </label>
-          <p className="mt-1 text-sm whitespace-pre-wrap">{data.brand_story}</p>
+          <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{data.brand_story}</p>
         </div>
 
+        {/* Values - chips for quick scanning */}
         <div>
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Values
           </label>
-          <div className="mt-1 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             {data.values.map((value, index) => (
               <span
                 key={index}
-                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
               >
                 {value}
               </span>
