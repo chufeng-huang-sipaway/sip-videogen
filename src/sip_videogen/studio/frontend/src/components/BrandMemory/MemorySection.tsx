@@ -1,8 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import * as AccordionPrimitive from '@radix-ui/react-accordion'
-import { ChevronDown, Pencil, X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 
 export interface MemorySectionProps {
   /** Unique identifier for this section */
@@ -23,21 +21,21 @@ export interface MemorySectionProps {
   onEditModeChange?: (isEditing: boolean) => void
   /** Controlled edit mode (optional). If provided, MemorySection will use this state. */
   isEditing?: boolean
-  /** Whether to start in expanded state */
+  /** @deprecated No longer used - kept for backward compatibility */
   defaultExpanded?: boolean
 }
 
 /**
-  * MemorySection - Reusable expandable section wrapper for Brand Memory.
-  *
-  * Features:
-  * - Collapsible/expandable via accordion
-  * - Header with title and Edit button
-  * - View mode vs Edit mode toggle
-  * - Edit mode shows editContent instead of children
-  *
-  * Used by BrandMemory to wrap each identity section (core, visual, voice, etc.)
-  */
+ * MemorySection - Content wrapper for Brand Memory sections.
+ *
+ * Features:
+ * - Header with title and Edit button
+ * - View mode vs Edit mode toggle
+ * - Edit mode shows editContent instead of children
+ *
+ * Used by BrandMemory to wrap each identity section (core, visual, voice, etc.)
+ * Navigation between sections is handled by the parent via vertical tabs.
+ */
 export function MemorySection({
   id,
   title,
@@ -48,7 +46,6 @@ export function MemorySection({
   isSaving = false,
   onEditModeChange,
   isEditing: isEditingProp,
-  defaultExpanded = true,
 }: MemorySectionProps) {
   const [internalEditing, setInternalEditing] = useState(false)
   const isEditing = isEditingProp ?? internalEditing
@@ -60,9 +57,7 @@ export function MemorySection({
     onEditModeChange?.(next)
   }
 
-  const handleEditClick = (e: React.MouseEvent) => {
-    // Prevent accordion toggle when clicking edit button
-    e.stopPropagation()
+  const handleEditClick = () => {
     setEditing(!isEditing)
   }
 
@@ -71,79 +66,50 @@ export function MemorySection({
   }
 
   return (
-    <AccordionPrimitive.Root
-      type="single"
-      collapsible
-      defaultValue={defaultExpanded ? id : undefined}
-      className="border border-border rounded-lg overflow-hidden"
-    >
-      <AccordionPrimitive.Item value={id}>
-        {/* Section Header */}
-        <AccordionPrimitive.Header className="flex">
-          <AccordionPrimitive.Trigger
-            className={cn(
-              'flex flex-1 items-center justify-between px-4 py-3',
-              'text-sm font-medium transition-colors',
-              'hover:bg-muted/50',
-              '[&[data-state=open]>div>.chevron]:rotate-180'
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <ChevronDown className="chevron h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
-              <div className="text-left">
-                <span className="font-medium">{title}</span>
-                {subtitle && (
-                  <span className="ml-2 text-xs text-muted-foreground">{subtitle}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Edit button - only show when not in edit mode and section is editable */}
-            {editable && !isEditing && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleEditClick}
-                className="h-7 px-2 text-xs gap-1 opacity-70 hover:opacity-100"
-                disabled={isSaving}
-              >
-                <Pencil className="h-3 w-3" />
-                Edit
-              </Button>
-            )}
-
-            {/* Cancel button - show when in edit mode */}
-            {isEditing && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleCancelEdit()
-                }}
-                className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                disabled={isSaving}
-              >
-                <X className="h-3 w-3" />
-                Cancel
-              </Button>
-            )}
-          </AccordionPrimitive.Trigger>
-        </AccordionPrimitive.Header>
-
-        {/* Section Content */}
-        <AccordionPrimitive.Content
-          className={cn(
-            'overflow-hidden text-sm',
-            'data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down'
+    <div className="h-full flex flex-col" data-section-id={id}>
+      {/* Section Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-border group">
+        <div>
+          <h3 className="text-base font-semibold">{title}</h3>
+          {subtitle && (
+            <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
           )}
-        >
-          <div className="px-4 pb-4 pt-0">
-            {isEditing && editContent ? editContent : children}
-          </div>
-        </AccordionPrimitive.Content>
-      </AccordionPrimitive.Item>
-    </AccordionPrimitive.Root>
+        </div>
+
+        {/* Edit button - show on hover when not in edit mode */}
+        {editable && !isEditing && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleEditClick}
+            className="h-8 px-3 text-sm gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            disabled={isSaving}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+        )}
+
+        {/* Cancel button - show when in edit mode */}
+        {isEditing && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCancelEdit}
+            className="h-8 px-3 text-sm gap-1.5 text-muted-foreground hover:text-foreground"
+            disabled={isSaving}
+          >
+            <X className="h-3.5 w-3.5" />
+            Cancel
+          </Button>
+        )}
+      </div>
+
+      {/* Section Content */}
+      <div className="flex-1 pt-4 overflow-auto">
+        {isEditing && editContent ? editContent : children}
+      </div>
+    </div>
   )
 }
 

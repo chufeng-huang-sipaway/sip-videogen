@@ -1,12 +1,12 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
-import { Brain, Eye, FileText, Image, RefreshCw, History, ChevronRight } from 'lucide-react'
+import { Brain, FileText, Image, RefreshCw, History, ChevronRight } from 'lucide-react'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
@@ -38,9 +38,6 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
 
   // Backup dialog state
   const [showBackupDialog, setShowBackupDialog] = useState(false)
-
-  // Dropdown open state
-  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   // Load identity on mount if not already loaded
   useEffect(() => {
@@ -141,16 +138,18 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
   return (
     <>
       <div className="px-4 pb-3">
-        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <DropdownMenuTrigger asChild>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            {/* Card - click opens panel, right-click opens context menu */}
             <button
+              onClick={onOpenBrandMemory}
               className="w-full p-3 rounded-lg border border-border/60 bg-card/50
                        cursor-pointer hover:bg-accent/50 transition-colors text-left"
             >
               {/* Header row */}
               <div className="flex items-center gap-2 mb-1">
                 <Brain className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                <span className="font-medium text-sm flex-1 truncate">Brand Brain</span>
+                <span className="font-medium text-sm flex-1 truncate">Brand Memory</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               </div>
 
@@ -187,24 +186,11 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
                 </div>
               ) : null}
             </button>
-          </DropdownMenuTrigger>
+          </ContextMenuTrigger>
 
-          <DropdownMenuContent align="start" className="w-56">
-            {/* View Memory */}
-            <DropdownMenuItem
-              onClick={() => {
-                setDropdownOpen(false)
-                onOpenBrandMemory()
-              }}
-            >
-              <Eye className="h-4 w-4" />
-              <span>View Memory</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
+          <ContextMenuContent className="w-56">
             {/* Upload Documents */}
-            <DropdownMenuItem
+            <ContextMenuItem
               onClick={() => docInputRef.current?.click()}
               disabled={isUploadingDoc}
             >
@@ -215,10 +201,10 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
               )}
               <span>{isUploadingDoc ? 'Uploading...' : 'Upload Documents'}</span>
               <span className="ml-auto text-xs text-muted-foreground">.md, .txt</span>
-            </DropdownMenuItem>
+            </ContextMenuItem>
 
             {/* Upload Images */}
-            <DropdownMenuItem
+            <ContextMenuItem
               onClick={() => imageInputRef.current?.click()}
               disabled={isUploadingImage}
             >
@@ -229,16 +215,13 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
               )}
               <span>{isUploadingImage ? 'Uploading...' : 'Upload Images'}</span>
               <span className="ml-auto text-xs text-muted-foreground">.png, .jpg</span>
-            </DropdownMenuItem>
+            </ContextMenuItem>
 
-            <DropdownMenuSeparator />
+            <ContextMenuSeparator />
 
             {/* Regenerate */}
-            <DropdownMenuItem
-              onClick={() => {
-                setDropdownOpen(false)
-                setShowRegenerateConfirm(true)
-              }}
+            <ContextMenuItem
+              onClick={() => setShowRegenerateConfirm(true)}
               disabled={isRegenerating || !identity}
             >
               {isRegenerating ? (
@@ -247,21 +230,18 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
                 <RefreshCw className="h-4 w-4" />
               )}
               <span>{isRegenerating ? 'Regenerating...' : 'Regenerate'}</span>
-            </DropdownMenuItem>
+            </ContextMenuItem>
 
             {/* History */}
-            <DropdownMenuItem
-              onClick={() => {
-                setDropdownOpen(false)
-                setShowBackupDialog(true)
-              }}
+            <ContextMenuItem
+              onClick={() => setShowBackupDialog(true)}
               disabled={!identity}
             >
               <History className="h-4 w-4" />
               <span>History</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
 
         {/* Hidden file inputs */}
         <input

@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Brain, RefreshCw, History, AlertCircle, CheckCircle, FolderOpen } from 'lucide-react'
+import {
+  Brain,
+  RefreshCw,
+  History,
+  AlertCircle,
+  CheckCircle,
+  FolderOpen,
+  MoreHorizontal,
+  Sparkles,
+  Palette,
+  MessageSquare,
+  Users,
+  Target,
+  ShieldAlert,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,10 +26,16 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
+import { cn } from '@/lib/utils'
 import type { BrandIdentityFull } from '@/types/brand-identity'
-import { MemorySectionGroup } from './MemorySection'
 import { CoreSection } from './sections/CoreSection'
 import { VisualSection } from './sections/VisualSection'
 import { VoiceSection } from './sections/VoiceSection'
@@ -25,6 +45,18 @@ import { ConstraintsAvoidSection } from './sections/ConstraintsAvoidSection'
 import { RegenerateConfirmDialog } from './RegenerateConfirmDialog'
 import { BackupDialog } from './BackupDialog'
 import { FilesTab } from './FilesTab'
+
+// Section definitions for vertical tabs navigation
+const MEMORY_SECTIONS = [
+  { id: 'core', label: 'Core Identity', icon: Sparkles },
+  { id: 'visual', label: 'Visual Style', icon: Palette },
+  { id: 'voice', label: 'Voice & Tone', icon: MessageSquare },
+  { id: 'audience', label: 'Audience', icon: Users },
+  { id: 'positioning', label: 'Positioning', icon: Target },
+  { id: 'constraints', label: 'Constraints', icon: ShieldAlert },
+] as const
+
+type MemorySectionId = (typeof MEMORY_SECTIONS)[number]['id']
 
 interface BrandMemoryProps {
   open: boolean
@@ -55,6 +87,7 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
   const [regenerateError, setRegenerateError] = useState<string | null>(null)
   const [regenerateSuccess, setRegenerateSuccess] = useState(false)
   const [showBackupDialog, setShowBackupDialog] = useState(false)
+  const [activeSection, setActiveSection] = useState<MemorySectionId>('core')
 
   // Load identity when dialog opens
   const loadIdentity = useCallback(async () => {
@@ -100,21 +133,34 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
     }
   }, [open])
 
-  // Format last updated date
-  const formatLastUpdated = (isoString: string): string => {
+  // Format last updated date with absolute date on hover
+  const formatLastUpdated = (isoString: string): { relative: string; absolute: string } => {
     const date = new Date(isoString)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
 
-    if (diffDays === 0) {
-      return 'Updated today'
+    // Absolute date for tooltip
+    const absolute = date.toLocaleString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+
+    // Handle edge cases: future dates or same day
+    if (diffDays < 0) {
+      return { relative: 'Updated recently', absolute }
+    } else if (diffDays === 0) {
+      return { relative: 'Updated today', absolute }
     } else if (diffDays === 1) {
-      return 'Updated yesterday'
+      return { relative: 'Updated yesterday', absolute }
     } else if (diffDays < 7) {
-      return `Updated ${diffDays} days ago`
+      return { relative: `Updated ${diffDays} days ago`, absolute }
     } else {
-      return `Updated ${date.toLocaleDateString()}`
+      return { relative: `Updated ${date.toLocaleDateString()}`, absolute }
     }
   }
 
@@ -151,182 +197,240 @@ export function BrandMemory({ open, onOpenChange }: BrandMemoryProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-3xl h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-purple-500" />
             Brand Memory
           </DialogTitle>
-          <DialogDescription className="flex items-center justify-between">
-            <span>
-              {identity
-                ? `What the AI knows about ${identity.core.name}`
-                : 'Loading brand identity...'}
-            </span>
+          <DialogDescription className="flex items-center gap-2">
+            {identity
+              ? `What the AI knows about ${identity.core.name}`
+              : 'Loading brand identity...'}
             {identity && (
-              <span className="text-xs text-muted-foreground">
-                {formatLastUpdated(identity.updated_at)}
-              </span>
+              <>
+                <span className="text-muted-foreground/50">·</span>
+                <span
+                  className="cursor-help"
+                  title={formatLastUpdated(identity.updated_at).absolute}
+                >
+                  {formatLastUpdated(identity.updated_at).relative}
+                </span>
+              </>
             )}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Action buttons */}
-        {identity && !isLoading && (
-          <div className="flex items-center gap-2 flex-shrink-0 pb-2 border-b border-border">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowRegenerateConfirm(true)}
-              disabled={isRegenerating}
-              className="gap-1.5"
-            >
-              {isRegenerating ? (
-                <>
-                  <Spinner className="h-4 w-4" />
-                  Regenerating...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  Regenerate
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBackupDialog(true)}
-              disabled={isRegenerating}
-              className="gap-1.5"
-            >
-              <History className="h-4 w-4" />
-              History
-            </Button>
-          </div>
-        )}
-
         {/* Tabs content area */}
         <Tabs defaultValue="memory" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="flex-shrink-0 w-fit">
-            <TabsTrigger value="memory" className="gap-1.5">
-              <Brain className="h-4 w-4" />
-              Memory
-            </TabsTrigger>
-            <TabsTrigger value="files" className="gap-1.5">
-              <FolderOpen className="h-4 w-4" />
-              Files
-            </TabsTrigger>
-          </TabsList>
+          {/* Tabs row with menu aligned right */}
+          <div className="flex items-center justify-between flex-shrink-0 border-b border-border">
+            <TabsList className="h-10 bg-transparent p-0 border-0">
+              <TabsTrigger
+                value="memory"
+                className="gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-purple-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0"
+              >
+                <Brain className="h-4 w-4" />
+                Memory
+              </TabsTrigger>
+              <TabsTrigger
+                value="files"
+                className="gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-purple-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Files
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Actions menu - aligned right on tabs row */}
+            {identity && !isLoading && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={isRegenerating}
+                  >
+                    {isRegenerating ? (
+                      <Spinner className="h-4 w-4" />
+                    ) : (
+                      <MoreHorizontal className="h-4 w-4" />
+                    )}
+                    <span className="sr-only">Actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => setShowRegenerateConfirm(true)}
+                    disabled={isRegenerating}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Regenerate from files
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowBackupDialog(true)}
+                    disabled={isRegenerating}
+                  >
+                    <History className="h-4 w-4 mr-2" />
+                    View history
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
 
           {/* Memory Tab */}
           <TabsContent value="memory" className="flex-1 min-h-0 mt-0">
-            <ScrollArea className="h-full">
-              <div className="pr-4 py-2">
-                {/* Regeneration progress overlay */}
-                {isRegenerating && (
-                  <div className="py-12 flex flex-col items-center gap-4">
-                    <Spinner className="h-8 w-8 text-purple-500" />
-                    <p className="text-sm text-muted-foreground">
-                      Regenerating brand identity from source materials...
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      A backup has been created automatically
-                    </p>
-                  </div>
-                )}
-
-                {/* Regeneration success alert */}
-                {regenerateSuccess && !isRegenerating && (
-                  <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription>
-                      Brand identity regenerated successfully. AI context refreshed automatically.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Regeneration error alert */}
-                {regenerateError && !isRegenerating && (
-                  <Alert variant="destructive" className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{regenerateError}</AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Loading state */}
-                {isLoading && !isRegenerating && (
-                  <div className="py-12 flex flex-col items-center gap-4">
-                    <Spinner className="h-8 w-8 text-purple-500" />
-                    <p className="text-sm text-muted-foreground">Loading brand memory...</p>
-                  </div>
-                )}
-
-                {/* Error state */}
-                {error && !isLoading && !isRegenerating && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Identity sections */}
-                {identity && !isLoading && !error && !isRegenerating && (
-                  <MemorySectionGroup>
-                    <CoreSection
-                      data={identity.core}
-                      onIdentityUpdate={handleIdentityUpdate}
-                    />
-                    <VisualSection
-                      data={identity.visual}
-                      onIdentityUpdate={handleIdentityUpdate}
-                    />
-                    <VoiceSection
-                      data={identity.voice}
-                      onIdentityUpdate={handleIdentityUpdate}
-                    />
-                    <AudienceSection
-                      data={identity.audience}
-                      onIdentityUpdate={handleIdentityUpdate}
-                    />
-                    <PositioningSection
-                      data={identity.positioning}
-                      onIdentityUpdate={handleIdentityUpdate}
-                    />
-                    <ConstraintsAvoidSection
-                      data={{ constraints: identity.constraints, avoid: identity.avoid }}
-                      onIdentityUpdate={handleIdentityUpdate}
-                    />
-                  </MemorySectionGroup>
-                )}
-
-                {/* No brand selected */}
-                {!activeBrand && !isLoading && !isRegenerating && (
-                  <div className="py-12 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No brand selected. Please select a brand from the sidebar.
-                    </p>
-                  </div>
-                )}
+            {/* Regeneration progress overlay */}
+            {isRegenerating && (
+              <div className="h-full flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                  <Spinner className="h-8 w-8 text-purple-500" />
+                  <p className="text-sm text-muted-foreground">
+                    Regenerating brand identity from source materials...
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    A backup has been created automatically
+                  </p>
+                </div>
               </div>
-            </ScrollArea>
+            )}
+
+            {/* Loading state */}
+            {isLoading && !isRegenerating && (
+              <div className="h-full flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                  <Spinner className="h-8 w-8 text-purple-500" />
+                  <p className="text-sm text-muted-foreground">Loading brand memory...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Error state */}
+            {error && !isLoading && !isRegenerating && (
+              <div className="p-4">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            {/* No brand selected */}
+            {!activeBrand && !isLoading && !isRegenerating && (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                  No brand selected. Please select a brand from the sidebar.
+                </p>
+              </div>
+            )}
+
+            {/* Vertical tabs layout for identity sections */}
+            {identity && !isLoading && !error && !isRegenerating && (
+              <div className="h-full flex gap-0">
+                {/* Vertical navigation sidebar */}
+                <nav className="w-44 flex-shrink-0 border-r border-border pr-2 py-2">
+                  <ul className="space-y-1">
+                    {MEMORY_SECTIONS.map((section) => {
+                      const Icon = section.icon
+                      const isActive = activeSection === section.id
+                      return (
+                        <li key={section.id}>
+                          <button
+                            onClick={() => setActiveSection(section.id)}
+                            className={cn(
+                              'w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                              'hover:bg-muted/50',
+                              isActive
+                                ? 'bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-100'
+                                : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            <Icon className={cn('h-4 w-4', isActive && 'text-purple-600 dark:text-purple-400')} />
+                            {section.label}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </nav>
+
+                {/* Section content area */}
+                <div className="flex-1 min-w-0 min-h-0 pl-4 flex flex-col">
+                  {/* Alerts at top of content area */}
+                  {regenerateSuccess && (
+                    <Alert className="mb-4 flex-shrink-0 bg-green-50 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <AlertDescription>
+                        Brand identity regenerated successfully. AI context refreshed automatically.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {regenerateError && (
+                    <Alert variant="destructive" className="mb-4 flex-shrink-0">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{regenerateError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Scrollable section content */}
+                  <ScrollArea className="flex-1 min-h-0">
+                    <div className="pr-4 pb-4">
+                      {activeSection === 'core' && (
+                        <CoreSection
+                          data={identity.core}
+                          onIdentityUpdate={handleIdentityUpdate}
+                        />
+                      )}
+                      {activeSection === 'visual' && (
+                        <VisualSection
+                          data={identity.visual}
+                          onIdentityUpdate={handleIdentityUpdate}
+                        />
+                      )}
+                      {activeSection === 'voice' && (
+                        <VoiceSection
+                          data={identity.voice}
+                          onIdentityUpdate={handleIdentityUpdate}
+                        />
+                      )}
+                      {activeSection === 'audience' && (
+                        <AudienceSection
+                          data={identity.audience}
+                          onIdentityUpdate={handleIdentityUpdate}
+                        />
+                      )}
+                      {activeSection === 'positioning' && (
+                        <PositioningSection
+                          data={identity.positioning}
+                          onIdentityUpdate={handleIdentityUpdate}
+                        />
+                      )}
+                      {activeSection === 'constraints' && (
+                        <ConstraintsAvoidSection
+                          data={{ constraints: identity.constraints, avoid: identity.avoid }}
+                          onIdentityUpdate={handleIdentityUpdate}
+                        />
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Files Tab */}
           <TabsContent value="files" className="flex-1 min-h-0 mt-0">
-            <ScrollArea className="h-full">
-              <div className="pr-4 py-2">
-                {activeBrand ? (
-                  <FilesTab />
-                ) : (
-                  <div className="py-12 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No brand selected. Please select a brand from the sidebar.
-                    </p>
-                  </div>
-                )}
+            {activeBrand ? (
+              <FilesTab />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                  No brand selected. Please select a brand from the sidebar.
+                </p>
               </div>
-            </ScrollArea>
+            )}
           </TabsContent>
         </Tabs>
       </DialogContent>
