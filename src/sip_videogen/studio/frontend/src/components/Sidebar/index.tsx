@@ -13,7 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { Package, FolderOpen, Sparkles, PanelLeftClose, PanelLeft, Brain } from 'lucide-react'
+import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { BrandBrainCard } from './BrandBrainCard'
 import { ProductsSection } from './sections/ProductsSection'
@@ -46,17 +46,8 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
           className="h-screen flex flex-col glass-sidebar border-r border-border/50 flex-shrink-0 transition-all duration-300 ease-in-out"
           style={{ width }}
         >
-          {/* Logo */}
-          <div className="p-3 flex justify-center">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-white/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-          </div>
-
-          <Separator className="mx-3 bg-border/40" />
-
           {/* Icon buttons */}
-          <div className="flex-1 flex flex-col items-center py-4 gap-2">
+          <div className="flex-1 flex flex-col items-center pt-4 pb-4 gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -153,18 +144,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
       className="h-screen flex flex-col glass-sidebar border-r border-border/50 flex-shrink-0 transition-all duration-300 ease-in-out"
       style={{ width }}
     >
-      {/* Header */}
-      <div className="p-5 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-white/20">
-          <Sparkles className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-base font-bold tracking-tight text-foreground">Brand Studio</h1>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">AI Workspace</p>
-        </div>
-      </div>
-
-      <div className="px-4 pb-4">
+      <div className="px-4 pt-4 pb-4">
         <BrandSelector />
       </div>
 
