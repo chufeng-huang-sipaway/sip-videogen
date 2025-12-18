@@ -36,7 +36,7 @@ export function ProjectSelector({
           className="gap-2 text-sm font-medium px-2 py-1 h-auto hover:bg-transparent hover:text-foreground text-foreground/80 transition-colors"
         >
           <FolderKanban className="h-4 w-4 text-muted-foreground/70" />
-          <span className="truncate max-w-[120px] tracking-tight">
+          <span className="truncate max-w-[280px] tracking-tight">
             {currentProject?.name || 'No Project'}
           </span>
           <ChevronDown className="h-3 w-3 opacity-30" />

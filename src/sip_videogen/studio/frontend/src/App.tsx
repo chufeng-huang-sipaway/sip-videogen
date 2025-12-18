@@ -4,16 +4,12 @@ import { ChatPanel } from '@/components/ChatPanel'
 import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
 import { UpdateModal } from '@/components/Update'
 import { BrandMemory } from '@/components/BrandMemory'
-import { ResizeHandle } from '@/components/ui/resize-handle'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
 import type { UpdateCheckResult } from '@/lib/bridge'
 import { useTheme } from '@/hooks/useTheme'
 
-const SIDEBAR_MIN_WIDTH = 200
-const SIDEBAR_MAX_WIDTH = 500
-const SIDEBAR_DEFAULT_WIDTH = 288
-const SIDEBAR_WIDTH_KEY = 'brand-studio-sidebar-width'
+const SIDEBAR_COLLAPSED_KEY = 'brand-studio-sidebar-collapsed'
 
 function App() {
   useTheme()
@@ -21,21 +17,18 @@ function App() {
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
   const [brandMemoryOpen, setBrandMemoryOpen] = useState(false)
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY)
-    return saved ? parseInt(saved, 10) : SIDEBAR_DEFAULT_WIDTH
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+    return saved === 'true'
   })
 
-  const handleResize = useCallback((delta: number) => {
-    setSidebarWidth(prev => {
-      const newWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, prev + delta))
-      return newWidth
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const newValue = !prev
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue))
+      return newValue
     })
   }, [])
-
-  const handleResizeEnd = useCallback(() => {
-    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
-  }, [sidebarWidth])
 
   const handleSkipVersion = useCallback(async (version: string) => {
     try {
@@ -97,8 +90,11 @@ function App() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <Sidebar width={sidebarWidth} onOpenBrandMemory={() => setBrandMemoryOpen(true)} />
-      <ResizeHandle onResize={handleResize} onResizeEnd={handleResizeEnd} />
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
+        onOpenBrandMemory={() => setBrandMemoryOpen(true)}
+      />
       <ChatPanel brandSlug={activeBrand} />
 
       {/* Brand Memory modal - keeps ChatPanel mounted underneath */}

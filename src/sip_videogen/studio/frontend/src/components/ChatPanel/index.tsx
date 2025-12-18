@@ -10,9 +10,8 @@ import { useProjects } from '@/context/ProjectContext'
 import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
 import { AttachedProducts } from './AttachedProducts'
+import { ProductPickerDialog } from './ProductPickerDialog'
 import { ProjectSelector } from './ProjectSelector'
-import { BrandSelector } from './BrandSelector'
-import { useBrand } from '@/context/BrandContext'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -51,12 +50,22 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setActiveProject,
   } = useProjects()
 
-  const { brands, activeBrand, selectBrand } = useBrand()
-
   const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
+
+  // Product picker dialog state
+  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false)
+
+  // Handle image selection from file input
+  const handleSelectImages = useCallback((files: File[]) => {
+    if (!brandSlug) {
+      setAttachmentError('Select a brand before attaching files.')
+      return
+    }
+    void addFilesAsAttachments(files)
+  }, [addFilesAsAttachments, brandSlug, setAttachmentError])
 
   const handleDrop = useCallback(
     (accepted: File[], rejections: FileRejection[], event: DropEvent) => {
@@ -189,21 +198,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       <div className="flex items-center justify-between px-6 py-3 border-b border-border/20 bg-background/80 backdrop-blur-md sticky top-0 z-20 transition-all gap-4">
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="flex items-center gap-1.5 p-1 rounded-lg transition-colors group">
-            <BrandSelector
-              brands={brands}
-              activeBrand={activeBrand}
-              onSelect={selectBrand}
-              disabled={isLoading}
-            />
-            <span className="text-muted-foreground/20 text-lg font-light pb-0.5">|</span>
-            <ProjectSelector
-              projects={projects}
-              activeProject={activeProject}
-              onSelect={setActiveProject}
-              disabled={isLoading || !brandSlug}
-            />
-          </div>
+          <ProjectSelector
+            projects={projects}
+            activeProject={activeProject}
+            onSelect={setActiveProject}
+            disabled={isLoading || !brandSlug}
+          />
         </div>
         <Button
           variant="ghost"
@@ -347,9 +347,21 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
               })
             }
             canSendWithoutText={attachments.length > 0}
+            onSelectImages={handleSelectImages}
+            onOpenProductPicker={() => setIsProductPickerOpen(true)}
+            hasProducts={products.length > 0}
           />
         </div>
       </div>
+
+      {/* Product Picker Dialog */}
+      <ProductPickerDialog
+        open={isProductPickerOpen}
+        onOpenChange={setIsProductPickerOpen}
+        products={products}
+        attachedSlugs={attachedProducts}
+        onSelect={attachProduct}
+      />
     </main >
   )
 }
