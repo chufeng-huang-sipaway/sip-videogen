@@ -1,3 +1,10 @@
+import type {
+  BrandIdentityFull,
+  BackupEntry,
+  IdentitySection,
+  SectionDataMap,
+} from '../types/brand-identity'
+
 interface BridgeResponse<T> {
   success: boolean
   data?: T
@@ -253,6 +260,16 @@ interface PyWebViewAPI {
   skip_update_version(version: string): Promise<BridgeResponse<void>>
   get_update_settings(): Promise<BridgeResponse<UpdateSettings>>
   set_update_check_on_startup(enabled: boolean): Promise<BridgeResponse<void>>
+
+  // Brand Identity methods
+  get_brand_identity(): Promise<BridgeResponse<BrandIdentityFull>>
+  update_brand_identity_section(
+    section: IdentitySection,
+    data: SectionDataMap[IdentitySection]
+  ): Promise<BridgeResponse<BrandIdentityFull>>
+  regenerate_brand_identity(confirm: boolean): Promise<BridgeResponse<BrandIdentityFull>>
+  list_identity_backups(): Promise<BridgeResponse<{ backups: BackupEntry[] }>>
+  restore_identity_backup(filename: string): Promise<BridgeResponse<BrandIdentityFull>>
 }
 
 declare global {
@@ -392,4 +409,15 @@ export const bridge = {
   getUpdateSettings: () => callBridge(() => window.pywebview!.api.get_update_settings()),
   setUpdateCheckOnStartup: (enabled: boolean) =>
     callBridge(() => window.pywebview!.api.set_update_check_on_startup(enabled)),
+
+  // Brand Identity
+  getBrandIdentity: () => callBridge(() => window.pywebview!.api.get_brand_identity()),
+  updateBrandIdentitySection: <S extends IdentitySection>(section: S, data: SectionDataMap[S]) =>
+    callBridge(() => window.pywebview!.api.update_brand_identity_section(section, data)),
+  regenerateBrandIdentity: (confirm: boolean) =>
+    callBridge(() => window.pywebview!.api.regenerate_brand_identity(confirm)),
+  listIdentityBackups: async () =>
+    (await callBridge(() => window.pywebview!.api.list_identity_backups())).backups,
+  restoreIdentityBackup: (filename: string) =>
+    callBridge(() => window.pywebview!.api.restore_identity_backup(filename)),
 }

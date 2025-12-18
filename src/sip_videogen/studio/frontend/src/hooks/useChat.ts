@@ -287,6 +287,42 @@ export function useChat(brandSlug: string | null) {
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
 
+  const regenerateMessage = useCallback(async (assistantMessageId: string) => {
+    if (isLoading || !brandSlug) return
+
+    // Find the assistant message index
+    const assistantIdx = messages.findIndex(m => m.id === assistantMessageId)
+    if (assistantIdx === -1) return
+
+    // Find the preceding user message
+    let userMsgIdx = assistantIdx - 1
+    while (userMsgIdx >= 0 && messages[userMsgIdx].role !== 'user') {
+      userMsgIdx--
+    }
+    if (userMsgIdx < 0) return
+
+    const userMessage = messages[userMsgIdx]
+
+    // Get all messages before this user-assistant exchange
+    const priorMessages = messages.slice(0, userMsgIdx)
+
+    // Clear backend conversation completely
+    if (isPyWebView()) {
+      await bridge.clearChat()
+    }
+
+    // Update frontend state to remove the exchange we're regenerating
+    setMessages(priorMessages)
+    setError(null)
+    setAttachments([])
+    setAttachmentError(null)
+
+    // Re-send the user message to get a new response
+    await sendMessage(userMessage.content, {
+      attached_products: userMessage.attachedProductSlugs,
+    })
+  }, [messages, isLoading, brandSlug, sendMessage])
+
   return {
     messages,
     isLoading,
@@ -298,6 +334,7 @@ export function useChat(brandSlug: string | null) {
     attachments,
     sendMessage,
     clearMessages,
+    regenerateMessage,
     resolveInteraction,
     addFilesAsAttachments,
     addAttachmentReference,

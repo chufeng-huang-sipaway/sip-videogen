@@ -323,6 +323,174 @@ def update_brand_summary_stats(slug: str) -> bool:
 
 
 # =============================================================================
+# Brand Identity Backup Functions
+# =============================================================================
+
+
+def backup_brand_identity(slug: str) -> str:
+    """Create a backup of the brand's full identity.
+
+    Creates a timestamped copy of identity_full.json in the history/ folder.
+
+    Args:
+        slug: Brand identifier.
+
+    Returns:
+        Backup filename (e.g., 'identity_full_20240115_143022.json').
+
+    Raises:
+        ValueError: If brand doesn't exist or identity file not found.
+    """
+    brand_dir = get_brand_dir(slug)
+    identity_path = brand_dir / "identity_full.json"
+
+    if not brand_dir.exists():
+        raise ValueError(f"Brand '{slug}' not found")
+
+    if not identity_path.exists():
+        raise ValueError(f"Identity file not found for brand '{slug}'")
+
+    # Ensure history directory exists
+    history_dir = brand_dir / "history"
+    history_dir.mkdir(exist_ok=True)
+
+    # Create timestamped filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"identity_full_{timestamp}.json"
+    backup_path = history_dir / backup_filename
+
+    # Copy identity file to history
+    shutil.copy2(identity_path, backup_path)
+
+    logger.info("Created backup for brand %s: %s", slug, backup_filename)
+    return backup_filename
+
+
+def list_brand_backups(slug: str) -> list[dict]:
+    """List all backups for a brand's identity.
+
+    Args:
+        slug: Brand identifier.
+
+    Returns:
+        List of backup entries, each with:
+        - filename: Backup filename (e.g., 'identity_full_20240115_143022.json')
+        - timestamp: ISO format timestamp extracted from filename
+        - size_bytes: File size in bytes
+
+        Sorted by timestamp descending (most recent first).
+
+    Raises:
+        ValueError: If brand doesn't exist.
+    """
+    brand_dir = get_brand_dir(slug)
+
+    if not brand_dir.exists():
+        raise ValueError(f"Brand '{slug}' not found")
+
+    history_dir = brand_dir / "history"
+
+    if not history_dir.exists():
+        return []
+
+    backups = []
+    for file_path in history_dir.iterdir():
+        if file_path.is_file() and file_path.name.startswith("identity_full_"):
+            # Extract timestamp from filename: identity_full_YYYYMMDD_HHMMSS.json
+            name = file_path.stem  # identity_full_20240115_143022
+            parts = name.split("_")
+            if len(parts) >= 4:
+                date_part = parts[2]  # 20240115
+                time_part = parts[3]  # 143022
+                try:
+                    # Parse and format as ISO timestamp
+                    dt = datetime.strptime(f"{date_part}_{time_part}", "%Y%m%d_%H%M%S")
+                    iso_timestamp = dt.isoformat()
+                except ValueError:
+                    # Skip malformed filenames
+                    continue
+
+                backups.append({
+                    "filename": file_path.name,
+                    "timestamp": iso_timestamp,
+                    "size_bytes": file_path.stat().st_size,
+                })
+
+    # Sort by timestamp descending (most recent first)
+    backups.sort(key=lambda b: b["timestamp"], reverse=True)
+
+    logger.debug("Found %d backups for brand %s", len(backups), slug)
+    return backups
+
+
+def restore_brand_backup(slug: str, filename: str) -> BrandIdentityFull:
+    """Restore a brand identity from a backup file.
+
+    Loads a backup from the history/ folder and returns the parsed identity.
+    The identity's slug is forced to match the current brand slug for stability.
+
+    Args:
+        slug: Brand identifier.
+        filename: Backup filename (e.g., 'identity_full_20240115_143022.json').
+
+    Returns:
+        BrandIdentityFull parsed from the backup file with slug enforced.
+
+    Raises:
+        ValueError: If brand doesn't exist, filename is invalid, or backup not found.
+    """
+    brand_dir = get_brand_dir(slug)
+
+    if not brand_dir.exists():
+        raise ValueError(f"Brand '{slug}' not found")
+
+    # Security: Validate filename has no path separators (prevent directory traversal)
+    if "/" in filename or "\\" in filename:
+        raise ValueError("Invalid filename: path separators not allowed")
+
+    # Validate filename format
+    if not filename.endswith(".json"):
+        raise ValueError("Invalid filename: must end with .json")
+
+    if not filename.startswith("identity_full_"):
+        raise ValueError("Invalid filename: must start with 'identity_full_'")
+
+    # Verify file exists in history folder
+    history_dir = brand_dir / "history"
+    backup_path = history_dir / filename
+
+    if not backup_path.exists():
+        raise ValueError(f"Backup '{filename}' not found for brand '{slug}'")
+
+    # Ensure the resolved path is still within history/ (extra safety)
+    try:
+        backup_path.resolve().relative_to(history_dir.resolve())
+    except ValueError:
+        raise ValueError("Invalid filename: path traversal detected")
+
+    # Load and parse the backup
+    try:
+        data = json.loads(backup_path.read_text())
+        identity = BrandIdentityFull.model_validate(data)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in backup file: {e}")
+    except Exception as e:
+        raise ValueError(f"Failed to parse backup file: {e}")
+
+    # Enforce slug stability - force the current slug regardless of backup content
+    if identity.slug != slug:
+        logger.warning(
+            "Backup slug '%s' differs from current brand '%s', forcing current slug",
+            identity.slug,
+            slug,
+        )
+        identity.slug = slug
+
+    logger.info("Restored backup for brand %s from %s", slug, filename)
+    return identity
+
+
+# =============================================================================
 # Active Brand Management
 # =============================================================================
 
