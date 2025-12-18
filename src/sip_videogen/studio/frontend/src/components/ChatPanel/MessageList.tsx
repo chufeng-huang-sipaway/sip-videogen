@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Package, Paperclip, Bot, User } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { ActivityIndicator, type ActivityType } from '@/components/ui/activity-indicator'
 import { bridge, isPyWebView, type ProductEntry } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
@@ -19,7 +18,6 @@ import { Sparkles, Download, Copy, RefreshCw, XCircle } from 'lucide-react'
 interface MessageListProps {
   messages: Message[]
   progress: string
-  progressType: ActivityType
   loadedSkills: string[]
   isLoading: boolean
   products: ProductEntry[]
@@ -253,7 +251,152 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading }: {
   )
 }
 
-export function MessageList({ messages, progress, progressType, loadedSkills, isLoading, products, onInteractionSelect }: MessageListProps) {
+/** Transform tool names to friendly messages */
+const TOOL_FRIENDLY_NAMES: Record<string, { label: string; description: string }> = {
+  generate_image: { label: 'Creating Image', description: 'Generating visual content with AI' },
+  search_web: { label: 'Searching Web', description: 'Looking up information online' },
+  read_file: { label: 'Reading File', description: 'Processing document contents' },
+  write_file: { label: 'Saving File', description: 'Writing content to disk' },
+  analyze_image: { label: 'Analyzing Image', description: 'Understanding visual content' },
+  get_brand_identity: { label: 'Loading Brand', description: 'Fetching brand guidelines' },
+  update_brand: { label: 'Updating Brand', description: 'Saving brand changes' },
+  get_product: { label: 'Loading Product', description: 'Fetching product details' },
+  update_product: { label: 'Updating Product', description: 'Saving product changes' },
+  get_asset: { label: 'Loading Asset', description: 'Fetching media file' },
+}
+
+function parseProgress(progress: string): { toolName: string; friendly: { label: string; description: string } } {
+  // Handle "Using tool_name" format
+  const usingMatch = progress.match(/^Using\s+(\w+)$/i)
+  if (usingMatch) {
+    const toolName = usingMatch[1]
+    const friendly = TOOL_FRIENDLY_NAMES[toolName] || {
+      label: toolName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      description: 'Processing your request',
+    }
+    return { toolName, friendly }
+  }
+
+  // Handle thinking
+  if (progress.toLowerCase().includes('thinking') || !progress) {
+    return {
+      toolName: 'thinking',
+      friendly: { label: 'Thinking', description: 'Analyzing your request' },
+    }
+  }
+
+  // Default
+  return {
+    toolName: '',
+    friendly: { label: progress || 'Processing', description: 'Working on your request' },
+  }
+}
+
+interface ActivityCardProps {
+  progress: string
+  loadedSkills: string[]
+}
+
+function ActivityCard({ progress, loadedSkills }: ActivityCardProps) {
+  const [elapsed, setElapsed] = useState(0)
+  const startTimeRef = useRef(Date.now())
+
+  // Reset timer when progress changes significantly
+  useEffect(() => {
+    startTimeRef.current = Date.now()
+    setElapsed(0)
+  }, [progress])
+
+  // Update elapsed time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const { toolName, friendly } = parseProgress(progress)
+  const isImageGen = toolName === 'generate_image'
+
+  const formatElapsed = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}m ${secs}s`
+  }
+
+  return (
+    <div className="px-6 py-4 animate-in fade-in duration-300">
+      <div className="rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/40 overflow-hidden">
+        {/* Main content */}
+        <div className="p-4 flex items-start gap-4">
+          {/* Animated icon */}
+          <div className="relative flex-shrink-0 mt-0.5">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              {isImageGen ? (
+                <Sparkles className="w-5 h-5 text-primary animate-pulse" />
+              ) : (
+                <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              )}
+            </div>
+            {/* Pulse ring */}
+            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-30" />
+          </div>
+
+          {/* Status info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-semibold text-foreground">
+                {friendly.label}
+              </span>
+              <span className="text-xs text-muted-foreground/70">
+                {formatElapsed(elapsed)}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              {friendly.description}
+            </p>
+
+            {/* Tool badge */}
+            {toolName && toolName !== 'thinking' && (
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-background/60 border border-border/30">
+                <span className="text-[10px] text-muted-foreground/80 font-mono">
+                  {toolName}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Skills section */}
+        {loadedSkills && loadedSkills.length > 0 && (
+          <div className="px-4 py-3 border-t border-border/30 bg-background/30">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider">
+                Expert Skills Active
+              </span>
+              <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                {loadedSkills.length}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {loadedSkills.map((skill, i) => (
+                <span
+                  key={i}
+                  className="text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary/80 font-medium"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function MessageList({ messages, progress, loadedSkills, isLoading, products, onInteractionSelect }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -348,25 +491,12 @@ export function MessageList({ messages, progress, progressType, loadedSkills, is
         />
       ))}
 
-      {/* Thinking Indicator - separate from bubbles, flush left aligned with bot */}
+      {/* Activity Indicator */}
       {showActivity && (
-        <div className="px-6 py-4 flex w-full gap-5 animate-in fade-in duration-300 bg-muted/30 border-t border-border/20">
-          <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center">
-            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-          </div>
-
-          <div className="flex-1 py-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-semibold text-foreground/80">Thinking...</span>
-              <span className="text-xs text-muted-foreground">• ~10s</span>
-            </div>
-            <ActivityIndicator
-              type={progressType || 'thinking'}
-              message={progress || 'Generating response...'}
-              skills={loadedSkills}
-            />
-          </div>
-        </div>
+        <ActivityCard
+          progress={progress}
+          loadedSkills={loadedSkills}
+        />
       )}
 
       <div ref={bottomRef} className="h-px" />
