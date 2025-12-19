@@ -77,24 +77,34 @@ def _build_api_call_code(
     has_reference: bool,
     reference_count: int,
     aspect_ratio: str,
+    reference_image_path: str | None = None,
 ) -> str:
-    """Build a string representation of the actual API call for debugging."""
-    # Truncate prompt for readability if very long
-    prompt_display = prompt if len(prompt) <= 500 else prompt[:500] + "..."
-    prompt_escaped = prompt_display.replace('"""', '\\"\\"\\"')
+    """Build a string representation of the actual API call for debugging.
+
+    Shows the complete prompt and actual reference image path(s) so developers
+    can understand exactly what was sent to the Gemini API.
+    """
+    # Escape triple quotes in prompt for valid Python syntax
+    prompt_escaped = prompt.replace('"""', '\\"\\"\\"')
 
     if has_reference:
+        # Show actual path if available
+        if reference_image_path:
+            ref_comment = f'  # Loaded from: {reference_image_path}'
+        else:
+            ref_comment = ''
+
         if reference_count > 1:
             contents_repr = f'''[
     """{prompt_escaped}""",
-    <PIL.Image: reference_image_1>,
-    <PIL.Image: reference_image_2>,
-    ... ({reference_count} total reference images)
+    PIL.Image.open(reference_image_1),  # {reference_count} reference images loaded
+    PIL.Image.open(reference_image_2),
+    # ... ({reference_count} total)
 ]'''
         else:
             contents_repr = f'''[
     """{prompt_escaped}""",
-    <PIL.Image: reference_image>
+    PIL.Image.open(io.BytesIO(reference_image_bytes)),{ref_comment}
 ]'''
     else:
         contents_repr = f'"""{prompt_escaped}"""'
@@ -436,6 +446,7 @@ async def _impl_generate_image(
                         has_reference=True,
                         reference_count=len(generation_images),
                         aspect_ratio=aspect_ratio,
+                        reference_image_path=f"[{len(product_slugs)} products: {', '.join(product_slugs)}]",
                     ),
                 )
                 store_image_metadata(actual_path, metadata)
@@ -534,6 +545,7 @@ async def _impl_generate_image(
                         has_reference=True,
                         reference_count=1,
                         aspect_ratio=aspect_ratio,
+                        reference_image_path=reference_image,
                     ),
                 )
                 store_image_metadata(actual_path, metadata)
@@ -585,6 +597,7 @@ async def _impl_generate_image(
                         has_reference=reference_image_bytes is not None,
                         reference_count=1 if reference_image_bytes else 0,
                         aspect_ratio=aspect_ratio,
+                        reference_image_path=reference_image,
                     ),
                 )
                 store_image_metadata(str(output_path), metadata)
