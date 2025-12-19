@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Image, Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import { useProjects } from '@/context/ProjectContext'
+import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import { ImageViewer } from '@/components/ui/image-viewer'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,14 @@ function runNextInQueue() {
   }
 }
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+function isNotFoundError(message: string): boolean {
+  return message.toLowerCase().includes('not found')
+}
+
 interface AssetThumbnailProps {
   path: string
   onClick?: () => void
@@ -32,37 +41,15 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
   const [hasError, setHasError] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const loadedRef = useRef(false)
-
-  // Lazy loading with IntersectionObserver
-  useEffect(() => {
-    if (!isPyWebView() || loadedRef.current || thumbnailCache.has(path)) {
-      setLoading(false)
-      return
-    }
-
-    const container = containerRef.current
-    if (!container) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && !loadedRef.current) {
-          loadedRef.current = true
-          observer.disconnect()
-          loadThumbnail()
-        }
-      },
-      { rootMargin: '50px' }
-    )
-
-    observer.observe(container)
-    return () => observer.disconnect()
-  }, [path])
+  const unmountedRef = useRef(false)
 
   const loadThumbnail = useCallback(async () => {
     // Check cache again
     if (thumbnailCache.has(path)) {
-      setSrc(thumbnailCache.get(path)!)
-      setLoading(false)
+      if (!unmountedRef.current) {
+        setSrc(thumbnailCache.get(path)!)
+        setLoading(false)
+      }
       return
     }
 
@@ -77,17 +64,66 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
     try {
       const dataUrl = await bridge.getAssetThumbnail(path)
       thumbnailCache.set(path, dataUrl)
-      setSrc(dataUrl)
-      setHasError(false)
-    } catch {
-      setHasError(true)
-      onLoadError?.(path)
+      if (!unmountedRef.current) {
+        setSrc(dataUrl)
+        setHasError(false)
+      }
+    } catch (err) {
+      const message = getErrorMessage(err)
+      if (!unmountedRef.current) {
+        setHasError(true)
+      }
+      // Only treat as a "ghost item" if the backend confirms it is missing.
+      // PyWebView can throw transient errors during concurrent calls.
+      if (isNotFoundError(message)) {
+        onLoadError?.(path)
+      }
     } finally {
-      setLoading(false)
+      if (!unmountedRef.current) {
+        setLoading(false)
+      }
       activeThumbnailLoads--
       runNextInQueue()
     }
   }, [path, onLoadError])
+
+  useEffect(() => {
+    unmountedRef.current = false
+    return () => {
+      unmountedRef.current = true
+    }
+  }, [])
+
+  // Lazy loading with IntersectionObserver
+  useEffect(() => {
+    if (!isPyWebView() || loadedRef.current || thumbnailCache.has(path)) {
+      setLoading(false)
+      return
+    }
+
+    const container = containerRef.current
+    if (!container) return
+
+    if (typeof IntersectionObserver === 'undefined') {
+      loadedRef.current = true
+      void loadThumbnail()
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loadedRef.current) {
+          loadedRef.current = true
+          observer.disconnect()
+          void loadThumbnail()
+        }
+      },
+      { rootMargin: '50px' }
+    )
+
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [path, loadThumbnail])
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/x-brand-asset', path)
@@ -140,6 +176,7 @@ const POLL_INTERVAL_NORMAL = 2000 // 2 seconds
 const POLL_INTERVAL_BACKOFF = 5000 // 5 seconds after errors
 
 export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAssetGridProps) {
+  const { activeBrand } = useBrand()
   const { getProjectAssets, refresh: refreshProjects } = useProjects()
   const [assets, setAssets] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -147,15 +184,25 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
   const [error, setError] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<{ src: string; path: string } | null>(null)
   const [missingAssetsBanner, setMissingAssetsBanner] = useState(false)
+  const [thumbnailReloadNonce, setThumbnailReloadNonce] = useState(0)
 
   // Refs for polling
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const refreshInFlightRef = useRef(false)
   const errorCountRef = useRef(0)
   const pollIntervalMs = useRef(POLL_INTERVAL_NORMAL)
+  const isMountedRef = useRef(true)
 
   // Track failed asset paths
   const failedAssetsRef = useRef<Set<string>>(new Set())
+  const missingAssetsRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear thumbnail cache when switching brands to avoid cross-brand stale thumbnails.
+  useEffect(() => {
+    thumbnailCache.clear()
+    setThumbnailReloadNonce((n) => n + 1)
+    failedAssetsRef.current.clear()
+  }, [activeBrand])
 
   const loadAssets = useCallback(async (isBackgroundRefresh = false) => {
     if (refreshInFlightRef.current) return
@@ -201,53 +248,74 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
   // Initial load
   useEffect(() => {
-    loadAssets(false)
-    // Reset failed assets when project changes
-    failedAssetsRef.current.clear()
+    const failedAssets = failedAssetsRef.current
+    failedAssets.clear()
+    void loadAssets(false)
     return () => {
-      failedAssetsRef.current.clear()
+      failedAssets.clear()
     }
+  }, [loadAssets])
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const scheduleNextPoll = useCallback((delayMs: number) => {
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current)
+    }
+
+    pollTimeoutRef.current = setTimeout(async () => {
+      if (!isMountedRef.current) return
+
+      if (!document.hidden) {
+        await loadAssets(true)
+      }
+
+      if (!isMountedRef.current) return
+      scheduleNextPoll(pollIntervalMs.current)
+    }, delayMs)
   }, [loadAssets])
 
   // Polling while component is mounted (project is expanded)
   useEffect(() => {
-    const startPolling = () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-      }
-      pollIntervalRef.current = setInterval(() => {
-        // Skip if document is hidden
-        if (document.hidden) return
-        loadAssets(true)
-      }, pollIntervalMs.current)
-    }
-
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Pause polling when hidden
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current)
-          pollIntervalRef.current = null
+        if (pollTimeoutRef.current) {
+          clearTimeout(pollTimeoutRef.current)
+          pollTimeoutRef.current = null
         }
-      } else {
-        // Resume polling when visible, and do an immediate refresh
-        loadAssets(true)
-        startPolling()
+        return
       }
+
+      void loadAssets(true)
+      scheduleNextPoll(pollIntervalMs.current)
     }
 
-    // Start polling
-    startPolling()
+    scheduleNextPoll(pollIntervalMs.current)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current)
+        pollTimeoutRef.current = null
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [loadAssets])
+  }, [loadAssets, scheduleNextPoll])
+
+  // Clear any pending debounced missing-assets refresh on unmount
+  useEffect(() => {
+    return () => {
+      if (missingAssetsRefreshTimeoutRef.current) {
+        clearTimeout(missingAssetsRefreshTimeoutRef.current)
+        missingAssetsRefreshTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   // Handle thumbnail load errors (ghost item detection)
   const handleThumbnailError = useCallback((path: string) => {
@@ -258,10 +326,13 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     setAssets((prev) => prev.filter((p) => p !== path))
 
     // Trigger a refresh to update the list
-    setTimeout(() => {
-      loadAssets(true)
-      setMissingAssetsBanner(false)
-    }, 2000)
+    if (missingAssetsRefreshTimeoutRef.current) {
+      clearTimeout(missingAssetsRefreshTimeoutRef.current)
+    }
+    missingAssetsRefreshTimeoutRef.current = setTimeout(() => {
+      void loadAssets(true).finally(() => setMissingAssetsBanner(false))
+      missingAssetsRefreshTimeoutRef.current = null
+    }, 500)
   }, [loadAssets])
 
   const handlePreview = useCallback(async (path: string) => {
@@ -271,15 +342,24 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
       setPreviewImage({ src: dataUrl, path })
     } catch (err) {
       console.error('Failed to load preview:', err)
-      // This might be a ghost item
-      handleThumbnailError(path)
+      const message = getErrorMessage(err)
+      // Only remove if we are sure the file is missing (not a transient bridge error).
+      if (isNotFoundError(message)) {
+        handleThumbnailError(path)
+      }
     }
   }, [handleThumbnailError])
 
   const handleManualRefresh = useCallback(() => {
     // Clear failed assets to retry them
     failedAssetsRef.current.clear()
-    loadAssets(false)
+    if (missingAssetsRefreshTimeoutRef.current) {
+      clearTimeout(missingAssetsRefreshTimeoutRef.current)
+      missingAssetsRefreshTimeoutRef.current = null
+    }
+    setMissingAssetsBanner(false)
+    setThumbnailReloadNonce((n) => n + 1)
+    void loadAssets(false)
   }, [loadAssets])
 
   // Memoize sorted assets (newest first based on filename patterns)
@@ -296,7 +376,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     return (
       <div className="py-2">
         {/* Skeleton loading state */}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2">
           {Array.from({ length: Math.min(expectedAssetCount ?? 4, 8) }).map((_, i) => (
             <div
               key={i}
@@ -364,10 +444,10 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2 py-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 py-1">
         {sortedAssets.map((path) => (
           <AssetThumbnail
-            key={path}
+            key={`${path}:${thumbnailReloadNonce}`}
             path={path}
             onClick={() => handlePreview(path)}
             onLoadError={handleThumbnailError}
