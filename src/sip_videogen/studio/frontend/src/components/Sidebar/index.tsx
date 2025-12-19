@@ -167,7 +167,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
                   </div>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-3 pb-2 pt-1 ml-2 mt-1">
+              <AccordionContent className="px-0 pb-1 pt-0">
                 <ProductsSection />
               </AccordionContent>
             </AccordionItem>
@@ -182,7 +182,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
                   </div>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-3 pb-2 pt-1 ml-2 mt-1">
+              <AccordionContent className="px-0 pb-1 pt-0">
                 <ProjectsSection />
               </AccordionContent>
             </AccordionItem>

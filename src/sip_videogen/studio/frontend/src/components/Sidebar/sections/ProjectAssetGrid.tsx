@@ -134,7 +134,7 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
   return (
     <div
       ref={containerRef}
-      className="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-transparent hover:border-blue-500/50 hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="group relative aspect-square rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 border border-transparent hover:border-blue-500/50 hover:shadow-md transition-all duration-200 cursor-pointer"
       onClick={onClick}
       draggable={!!src}
       onDragStart={handleDragStart}
@@ -444,7 +444,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 py-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(60px,1fr))] gap-1.5 py-1">
         {sortedAssets.map((path) => (
           <AssetThumbnail
             key={`${path}:${thumbnailReloadNonce}`}

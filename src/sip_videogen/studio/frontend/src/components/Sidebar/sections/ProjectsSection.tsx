@@ -91,7 +91,7 @@ function ProjectCard({
 
       {/* Expanded asset grid */}
       {isExpanded && (
-        <div className="pl-8 pr-2">
+        <div className="pl-4 pr-1 pt-1 pb-2">
           <ProjectAssetGrid projectSlug={project.slug} expectedAssetCount={project.asset_count} />
         </div>
       )}
@@ -124,15 +124,15 @@ export function ProjectsSection() {
   }, [actionError])
 
   const handleToggleExpand = useCallback((slug: string) => {
-    setExpandedProject((prev) => {
-      const isExpanding = prev !== slug
-      // Trigger refresh when expanding a project to ensure we have fresh data
-      if (isExpanding) {
-        refresh()
-      }
-      return prev === slug ? null : slug
-    })
-  }, [refresh])
+    setExpandedProject((prev) => (prev === slug ? null : slug))
+  }, [])
+
+  // Refresh projects when expanding a project to avoid stale counts/status
+  useEffect(() => {
+    if (expandedProject) {
+      refresh()
+    }
+  }, [expandedProject, refresh])
 
   const handleDelete = async (slug: string) => {
     if (confirm(`Delete project "${slug}"? Generated assets will be kept.`)) {
@@ -184,7 +184,7 @@ export function ProjectsSection() {
   })
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 pl-2 pr-1">
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">
           {projects.length} project{projects.length !== 1 ? 's' : ''}
