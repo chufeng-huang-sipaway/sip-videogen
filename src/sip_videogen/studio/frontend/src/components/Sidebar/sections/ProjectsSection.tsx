@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { FolderKanban, Plus, X, Archive, ChevronRight, ChevronDown, Pencil } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { FolderKanban, Plus, X, Archive, ChevronRight, ChevronDown, Pencil, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -11,9 +11,10 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
-import { bridge, waitForPyWebViewReady, type ProjectEntry } from '@/lib/bridge'
+import { type ProjectEntry } from '@/lib/bridge'
 import { ProjectAssetGrid } from './ProjectAssetGrid'
 import { EditProjectDialog } from '../EditProjectDialog'
+import { CreateProjectDialog } from '../CreateProjectDialog'
 
 interface ProjectCardProps {
   project: ProjectEntry
@@ -104,6 +105,7 @@ export function ProjectsSection() {
     projects,
     activeProject,
     isLoading,
+    isRefreshing,
     error,
     refresh,
     updateProject,
@@ -112,6 +114,7 @@ export function ProjectsSection() {
   const [expandedProject, setExpandedProject] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingProjectSlug, setEditingProjectSlug] = useState<string | null>(null)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
   useEffect(() => {
     if (actionError) {
@@ -120,9 +123,16 @@ export function ProjectsSection() {
     }
   }, [actionError])
 
-  const handleToggleExpand = (slug: string) => {
-    setExpandedProject((prev) => (prev === slug ? null : slug))
-  }
+  const handleToggleExpand = useCallback((slug: string) => {
+    setExpandedProject((prev) => {
+      const isExpanding = prev !== slug
+      // Trigger refresh when expanding a project to ensure we have fresh data
+      if (isExpanding) {
+        refresh()
+      }
+      return prev === slug ? null : slug
+    })
+  }, [refresh])
 
   const handleDelete = async (slug: string) => {
     if (confirm(`Delete project "${slug}"? Generated assets will be kept.`)) {
@@ -146,24 +156,9 @@ export function ProjectsSection() {
     }
   }
 
-  const handleCreateProject = async () => {
-    const name = prompt('Project name:')
-    if (!name) return
-
-    const instructions = prompt('Campaign instructions (optional):') || ''
-
-    try {
-      const ready = await waitForPyWebViewReady()
-      if (!ready) {
-        setActionError('Not running in PyWebView')
-        return
-      }
-      await bridge.createProject(name, instructions)
-      await refresh()
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to create project')
-    }
-  }
+  const handleCreateProject = useCallback(() => {
+    setIsCreateDialogOpen(true)
+  }, [])
 
   if (!activeBrand) {
     return <div className="text-sm text-gray-500">Select a brand</div>
@@ -195,15 +190,27 @@ export function ProjectsSection() {
           {projects.length} project{projects.length !== 1 ? 's' : ''}
           {activeProject && ' (1 active)'}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0"
-          onClick={handleCreateProject}
-          title="Add project"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={refresh}
+            disabled={isRefreshing}
+            title="Refresh projects"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={handleCreateProject}
+            title="Add project"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {actionError && (
@@ -252,6 +259,11 @@ export function ProjectsSection() {
           projectSlug={editingProjectSlug}
         />
       )}
+
+      <CreateProjectDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+      />
     </div>
   )
 }
