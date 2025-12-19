@@ -133,6 +133,65 @@ def extract_dimensions_from_text(text: str) -> dict[str, float]:
     return dimensions
 
 
+_NEGATIVE_PATTERN = re.compile(
+    r"\b(do not|don't|never|avoid|no|without)\b",
+    re.IGNORECASE,
+)
+
+
+def _dedupe_forbidden_items(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        normalized = re.sub(r"\s+", " ", item.strip().lower())
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(item.strip())
+    return result
+
+
+def _clean_forbidden_sentence(sentence: str) -> str | None:
+    cleaned = " ".join(sentence.strip().split())
+    if not cleaned:
+        return None
+
+    lower = cleaned.lower()
+    if "bankrupt" in lower and " or " in lower:
+        cleaned = cleaned.split(" or ", 1)[0].strip()
+
+    if len(cleaned) > 220:
+        cleaned = cleaned[:220].rstrip() + "..."
+
+    if not re.match(r"^(do not|don't|never|avoid|no|without)\b", cleaned, re.IGNORECASE):
+        cleaned = f"Do not {cleaned}"
+
+    return cleaned.rstrip(".")
+
+
+def _extract_forbidden_from_text(text: str) -> tuple[list[str], str]:
+    """Extract negative instructions and return remaining text."""
+    if not text:
+        return [], ""
+
+    parts = re.split(r"(?<=[.!?])\s+|\n+", text)
+    forbidden: list[str] = []
+    kept: list[str] = []
+
+    for part in parts:
+        if not part or not part.strip():
+            continue
+        if _NEGATIVE_PATTERN.search(part):
+            cleaned = _clean_forbidden_sentence(part)
+            if cleaned:
+                forbidden.append(cleaned)
+            continue
+        kept.append(part.strip())
+
+    cleaned_text = " ".join(kept).strip()
+    return forbidden, cleaned_text
+
+
 # =============================================================================
 # Product Specs Data Structure
 # =============================================================================
@@ -165,6 +224,7 @@ class ProductSpecs:
 
     # Distinguishing features
     distinguishers: list[str] = field(default_factory=list)
+    forbidden: list[str] = field(default_factory=list)
 
     def compute_ratios(self) -> None:
         """Compute derived ratios from dimensions."""
@@ -238,6 +298,10 @@ class ProductSpecs:
         if self.distinguishers:
             lines.append(f"  Key features: {', '.join(self.distinguishers)}")
 
+        # Forbidden (explicit negatives)
+        if self.forbidden:
+            lines.append(f"  Forbidden: {', '.join(self.forbidden)}")
+
         # Description (sanitized - escape backticks to prevent injection)
         include_description = include_description or not self.has_structured_data()
         if include_description and self.description:
@@ -276,6 +340,12 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
         product_slug=product.slug,
         description=product.description or "",
     )
+
+    forbidden_items: list[str] = []
+    if specs.description:
+        extracted, cleaned = _extract_forbidden_from_text(specs.description)
+        forbidden_items.extend(extracted)
+        specs.description = cleaned
 
     # Parse attributes
     if product.attributes:
@@ -324,6 +394,10 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
             # Distinguishing features
             elif any(k in key_lower for k in ["cap", "lid", "label", "shape", "style"]):
                 specs.distinguishers.append(f"{attr.key}: {value}")
+            else:
+                extracted, _ = _extract_forbidden_from_text(value)
+                if extracted:
+                    forbidden_items.extend(extracted)
 
     # Fallback: try to extract dimensions from description
     if not specs.height_mm and not specs.width_mm and specs.description:
@@ -345,6 +419,7 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
 
     # Compute derived ratios
     specs.compute_ratios()
+    specs.forbidden = _dedupe_forbidden_items(forbidden_items)
 
     return specs
 
@@ -492,6 +567,17 @@ def inject_specs_into_prompt(
         include_constraints=include_constraints,
         include_description=include_description,
     )
-    if specs_block:
-        return prompt + specs_block
+    global_forbidden, _ = _extract_forbidden_from_text(prompt)
+    forbidden_block = ""
+    if global_forbidden:
+        forbidden_block = "\n".join([
+            "",
+            "### FORBIDDEN (GLOBAL)",
+            "",
+            *[f"- {item}" for item in _dedupe_forbidden_items(global_forbidden)],
+            "",
+        ])
+
+    if specs_block or forbidden_block:
+        return prompt + specs_block + forbidden_block
     return prompt
