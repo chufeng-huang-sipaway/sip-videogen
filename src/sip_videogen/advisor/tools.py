@@ -53,7 +53,7 @@ logger = get_logger(__name__)
 # Image Generation Metadata
 # =============================================================================
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 
 @dataclass
@@ -61,6 +61,7 @@ class ImageGenerationMetadata:
     """Metadata captured during image generation for debugging visibility."""
 
     prompt: str
+    original_prompt: str
     model: str  # "gemini-3-pro-image-preview"
     aspect_ratio: str  # "1:1", "16:9", etc.
     image_size: str  # "4K"
@@ -70,14 +71,22 @@ class ImageGenerationMetadata:
     generated_at: str  # ISO timestamp
     generation_time_ms: int
     api_call_code: str  # The actual Python code executed
+    reference_images: list[str] = field(default_factory=list)
+    reference_images_detail: list[dict] = field(default_factory=list)
+    validation_passed: bool | None = None
+    validation_warning: str | None = None
+    validation_attempts: int | None = None
+    final_attempt_number: int | None = None
+    attempts: list[dict] = field(default_factory=list)
+    request_payload: dict | None = None
 
 
 def _build_api_call_code(
     prompt: str,
-    has_reference: bool,
-    reference_count: int,
+    model: str,
     aspect_ratio: str,
-    reference_image_path: str | None = None,
+    image_size: str,
+    reference_images: list[str] | None = None,
 ) -> str:
     """Build a string representation of the actual API call for debugging.
 
@@ -87,39 +96,85 @@ def _build_api_call_code(
     # Escape triple quotes in prompt for valid Python syntax
     prompt_escaped = prompt.replace('"""', '\\"\\"\\"')
 
-    if has_reference:
-        # Show actual path if available
-        if reference_image_path:
-            ref_comment = f'  # Loaded from: {reference_image_path}'
-        else:
-            ref_comment = ''
-
-        if reference_count > 1:
-            contents_repr = f'''[
-    """{prompt_escaped}""",
-    PIL.Image.open(reference_image_1),  # {reference_count} reference images loaded
-    PIL.Image.open(reference_image_2),
-    # ... ({reference_count} total)
-]'''
-        else:
-            contents_repr = f'''[
-    """{prompt_escaped}""",
-    PIL.Image.open(io.BytesIO(reference_image_bytes)),{ref_comment}
-]'''
+    reference_images = [path for path in (reference_images or []) if path]
+    if reference_images:
+        contents_lines = ['[', f'    """{prompt_escaped}""",']
+        for idx, ref_path in enumerate(reference_images, start=1):
+            ref_comment = f'  # Loaded from: {ref_path}'
+            contents_lines.append(
+                f'    PILImage.open(io.BytesIO(reference_image_bytes_{idx})),{ref_comment}'
+            )
+        contents_lines.append(']')
+        contents_repr = "\n".join(contents_lines)
     else:
         contents_repr = f'"""{prompt_escaped}"""'
 
     return f'''client.models.generate_content(
-    model="gemini-3-pro-image-preview",
+    model="{model}",
     contents={contents_repr},
     config=types.GenerateContentConfig(
         response_modalities=["IMAGE"],
         image_config=types.ImageConfig(
             aspect_ratio="{aspect_ratio}",
-            image_size="4K",
+            image_size="{image_size}",
         ),
     ),
 )'''
+
+
+def _build_request_payload(
+    prompt: str,
+    model: str,
+    aspect_ratio: str,
+    image_size: str,
+    reference_images: list[str] | None = None,
+) -> dict:
+    """Build a structured representation of the generate_content request."""
+    return {
+        "model": model,
+        "contents": {
+            "prompt": prompt,
+            "reference_images": reference_images or [],
+        },
+        "config": {
+            "response_modalities": ["IMAGE"],
+            "image_config": {
+                "aspect_ratio": aspect_ratio,
+                "image_size": image_size,
+            },
+        },
+    }
+
+
+def _build_attempts_metadata(
+    attempts: list[dict],
+    model: str,
+    aspect_ratio: str,
+    image_size: str,
+    reference_images: list[str] | None = None,
+) -> list[dict]:
+    """Attach API call details to each attempt record."""
+    enriched_attempts: list[dict] = []
+    for attempt in attempts:
+        prompt = attempt.get("prompt")
+        enriched = dict(attempt)
+        if prompt:
+            enriched["api_call_code"] = _build_api_call_code(
+                prompt=prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+            enriched["request_payload"] = _build_request_payload(
+                prompt=prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+        enriched_attempts.append(enriched)
+    return enriched_attempts
 
 
 # Module-level storage for metadata (keyed by output path)
@@ -269,6 +324,8 @@ async def _impl_generate_image(
 
     settings = get_settings()
     brand_slug = get_active_brand()
+    model = "gemini-3-pro-image-preview"
+    image_size = "4K"
 
     # Determine output path
     if brand_slug:
@@ -313,6 +370,8 @@ async def _impl_generate_image(
 
         product_references: list[tuple[str, bytes]] = []  # For validation (1 per product)
         generation_images: list[bytes] = []  # For Gemini (all angles)
+        generation_image_paths: list[str] = []
+        reference_images_detail: list[dict] = []
         total_images_loaded = 0
 
         for slug in product_slugs:
@@ -362,6 +421,15 @@ async def _impl_generate_image(
                 try:
                     ref_bytes = ref_path.read_bytes()
                     generation_images.append(ref_bytes)  # All images go to Gemini
+                    generation_image_paths.append(img_path)
+                    role = "primary" if img_path == product.primary_image else "additional"
+                    used_for = "generation+validation" if role == "primary" else "generation"
+                    reference_images_detail.append({
+                        "path": img_path,
+                        "product_slug": slug,
+                        "role": role,
+                        "used_for": used_for,
+                    })
                     if images_loaded == 0:
                         primary_bytes = ref_bytes  # Keep primary for validation
                         logger.info(f"Loaded primary reference for '{product.name}': {img_path}")
@@ -416,7 +484,7 @@ async def _impl_generate_image(
             from google import genai
 
             client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
-            result_path = await generate_with_multi_validation(
+            result = await generate_with_multi_validation(
                 client=client,
                 prompt=generation_prompt,
                 product_references=product_references,  # For validation (1 per product)
@@ -427,31 +495,61 @@ async def _impl_generate_image(
                 max_retries=max_retries,
                 product_slugs=product_slugs,  # Phase 0: Pass for metrics
             )
+            if isinstance(result, str):
+                return result
 
-            # Store metadata for multi-product path (if successful)
-            if not result_path.startswith("Error"):
-                actual_path = result_path.split(" [Warning:")[0].strip()
-                metadata = ImageGenerationMetadata(
-                    prompt=generation_prompt,
-                    model="gemini-3-pro-image-preview",
-                    aspect_ratio=aspect_ratio,
-                    image_size="4K",
-                    reference_image=None,  # Multi-product uses multiple references
-                    product_slugs=product_slugs,
-                    validate_identity=True,
-                    generated_at=datetime.utcnow().isoformat(),
-                    generation_time_ms=int((time.time() - start_time) * 1000),
-                    api_call_code=_build_api_call_code(
-                        prompt=generation_prompt,
-                        has_reference=True,
-                        reference_count=len(generation_images),
-                        aspect_ratio=aspect_ratio,
-                        reference_image_path=f"[{len(product_slugs)} products: {', '.join(product_slugs)}]",
-                    ),
-                )
-                store_image_metadata(actual_path, metadata)
+            actual_path = result.path
+            return_value = actual_path
+            if result.warning:
+                return_value = f"{actual_path}\n\n{result.warning}"
 
-            return result_path
+            reference_images = generation_image_paths
+            attempts = _build_attempts_metadata(
+                attempts=result.attempts,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+            final_prompt = result.final_prompt
+            final_api_call = _build_api_call_code(
+                prompt=final_prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+            final_request_payload = _build_request_payload(
+                prompt=final_prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+            metadata = ImageGenerationMetadata(
+                prompt=final_prompt,
+                original_prompt=prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_image=reference_images[0] if reference_images else None,
+                product_slugs=product_slugs,
+                validate_identity=True,
+                validation_passed=result.validation_passed,
+                validation_warning=result.warning,
+                validation_attempts=len(result.attempts),
+                final_attempt_number=result.final_attempt_number,
+                attempts=attempts,
+                request_payload=final_request_payload,
+                generated_at=datetime.utcnow().isoformat(),
+                generation_time_ms=int((time.time() - start_time) * 1000),
+                api_call_code=final_api_call,
+                reference_images=reference_images,
+                reference_images_detail=reference_images_detail,
+            )
+            store_image_metadata(actual_path, metadata)
+
+            return return_value
         except Exception as e:
             logger.error(f"Multi-product image generation failed: {e}")
             return f"Error generating multi-product image: {str(e)}"
@@ -516,7 +614,7 @@ async def _impl_generate_image(
             from sip_videogen.advisor.validation import generate_with_validation
 
             logger.info(f"Generating with validation (max {max_retries} retries)...")
-            result_path = await generate_with_validation(
+            result = await generate_with_validation(
                 client=client,
                 prompt=generation_prompt,  # Phase 1: Use specs-injected prompt
                 reference_image_bytes=reference_image_bytes,
@@ -525,32 +623,72 @@ async def _impl_generate_image(
                 aspect_ratio=aspect_ratio,
                 max_retries=max_retries,
             )
+            if isinstance(result, str):
+                return result
 
-            # Store metadata for validation path (if successful)
-            if not result_path.startswith("Error"):
-                # Extract actual path (may include warning suffix)
-                actual_path = result_path.split(" [Warning:")[0].strip()
-                metadata = ImageGenerationMetadata(
-                    prompt=generation_prompt,
-                    model="gemini-3-pro-image-preview",
-                    aspect_ratio=aspect_ratio,
-                    image_size="4K",
-                    reference_image=reference_image,
-                    product_slugs=product_slugs or ([product_slug] if product_slug else []),
-                    validate_identity=validate_identity,
-                    generated_at=datetime.utcnow().isoformat(),
-                    generation_time_ms=int((time.time() - start_time) * 1000),
-                    api_call_code=_build_api_call_code(
-                        prompt=generation_prompt,
-                        has_reference=True,
-                        reference_count=1,
-                        aspect_ratio=aspect_ratio,
-                        reference_image_path=reference_image,
-                    ),
-                )
-                store_image_metadata(actual_path, metadata)
+            actual_path = result.path
+            return_value = actual_path
+            if result.warning:
+                return_value = f"{actual_path}\n\n{result.warning}"
 
-            return result_path
+            reference_images = [reference_image] if reference_image else []
+            reference_images_detail = []
+            if reference_image:
+                role = "primary" if product_slug else "reference"
+                used_for = "generation+validation" if validate_identity else "generation"
+                reference_images_detail.append({
+                    "path": reference_image,
+                    "product_slug": product_slug,
+                    "role": role,
+                    "used_for": used_for,
+                })
+
+            attempts = _build_attempts_metadata(
+                attempts=result.attempts,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+            final_prompt = result.final_prompt
+            final_api_call = _build_api_call_code(
+                prompt=final_prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+            final_request_payload = _build_request_payload(
+                prompt=final_prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_images=reference_images,
+            )
+            metadata = ImageGenerationMetadata(
+                prompt=final_prompt,
+                original_prompt=prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                reference_image=reference_image,
+                product_slugs=product_slugs or ([product_slug] if product_slug else []),
+                validate_identity=validate_identity,
+                validation_passed=result.validation_passed,
+                validation_warning=result.warning,
+                validation_attempts=len(result.attempts),
+                final_attempt_number=result.final_attempt_number,
+                attempts=attempts,
+                request_payload=final_request_payload,
+                generated_at=datetime.utcnow().isoformat(),
+                generation_time_ms=int((time.time() - start_time) * 1000),
+                api_call_code=final_api_call,
+                reference_images=reference_images,
+                reference_images_detail=reference_images_detail,
+            )
+            store_image_metadata(actual_path, metadata)
+
+            return return_value
 
         # Standard generation (with or without reference)
         if reference_image_bytes:
@@ -563,13 +701,13 @@ async def _impl_generate_image(
             logger.info(f"Generating image: {generation_prompt[:100]}...")
 
         response = client.models.generate_content(
-            model="gemini-3-pro-image-preview",
+            model=model,
             contents=contents,
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE"],
                 image_config=types.ImageConfig(
                     aspect_ratio=aspect_ratio,
-                    image_size="4K",
+                    image_size=image_size,
                 ),
             ),
         )
@@ -582,23 +720,58 @@ async def _impl_generate_image(
                 logger.info(f"Saved image to: {output_path}")
 
                 # Store metadata for debugging visibility
+                reference_images = [reference_image] if reference_image else []
+                reference_images_detail = []
+                if reference_image:
+                    role = "primary" if product_slug else "reference"
+                    reference_images_detail.append({
+                        "path": reference_image,
+                        "product_slug": product_slug,
+                        "role": role,
+                        "used_for": "generation",
+                    })
+
+                final_api_call = _build_api_call_code(
+                    prompt=generation_prompt,
+                    model=model,
+                    aspect_ratio=aspect_ratio,
+                    image_size=image_size,
+                    reference_images=reference_images,
+                )
+                final_request_payload = _build_request_payload(
+                    prompt=generation_prompt,
+                    model=model,
+                    aspect_ratio=aspect_ratio,
+                    image_size=image_size,
+                    reference_images=reference_images,
+                )
+                attempts = [{
+                    "attempt_number": 1,
+                    "prompt": generation_prompt,
+                    "validation_passed": None,
+                    "api_call_code": final_api_call,
+                    "request_payload": final_request_payload,
+                }]
                 metadata = ImageGenerationMetadata(
                     prompt=generation_prompt,
-                    model="gemini-3-pro-image-preview",
+                    original_prompt=prompt,
+                    model=model,
                     aspect_ratio=aspect_ratio,
-                    image_size="4K",
+                    image_size=image_size,
                     reference_image=reference_image,
                     product_slugs=product_slugs or ([product_slug] if product_slug else []),
                     validate_identity=validate_identity,
+                    validation_passed=None,
+                    validation_warning=None,
+                    validation_attempts=None,
+                    final_attempt_number=1,
+                    attempts=attempts,
+                    request_payload=final_request_payload,
                     generated_at=datetime.utcnow().isoformat(),
                     generation_time_ms=int((time.time() - start_time) * 1000),
-                    api_call_code=_build_api_call_code(
-                        prompt=generation_prompt,
-                        has_reference=reference_image_bytes is not None,
-                        reference_count=1 if reference_image_bytes else 0,
-                        aspect_ratio=aspect_ratio,
-                        reference_image_path=reference_image,
-                    ),
+                    api_call_code=final_api_call,
+                    reference_images=reference_images,
+                    reference_images_detail=reference_images_detail,
                 )
                 store_image_metadata(str(output_path), metadata)
 

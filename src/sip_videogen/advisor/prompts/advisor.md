@@ -153,9 +153,10 @@ When products are attached to the conversation (shown in "Current Context"), the
 ### Single Product Attached
 - Use `generate_image` with `product_slug` parameter to auto-load reference
 - Enable `validate_identity=True` to ensure exact reproduction
-- Include ALL distinctive attributes (measurements, materials, colors) in the prompt
+- If product specs injection is enabled (default), do NOT repeat numeric measurements or the constraints block in the prompt; focus on concise qualitative identifiers and relative size cues
+- If specs injection is disabled, include exact measurements in the prompt
 - Read the product's attributes carefully - materials and colors are marked [PRESERVE EXACTLY]
-- Example prompt: "A frosted glass bottle (height 107.5mm, width 47.5mm) with copper cap on a marble counter..."
+- Example prompt: "A frosted glass bottle with a copper cap on a marble counter, tall and slim silhouette..."
 
 ### Multiple Products Attached (2-3)
 This is the HARDEST scenario. Follow the multi-product requirements in the context.
@@ -165,7 +166,7 @@ This is the HARDEST scenario. Follow the multi-product requirements in the conte
 2. **Include SPECIFIC details for EACH product in the prompt:**
    - Exact material (frosted glass, matte metal, glossy ceramic, etc.)
    - Exact color with full description
-   - Exact size/dimensions if available
+   - Relative size cues (short and wide vs tall and slim); avoid numeric dimensions if specs injection is enabled
    - Distinctive features (cap style, texture, patterns)
 3. **Explicitly differentiate products in the prompt:**
    - "Product A: the FROSTED GLASS bottle with COPPER cap..."
@@ -175,13 +176,16 @@ This is the HARDEST scenario. Follow the multi-product requirements in the conte
    ```
    [Scene description].
    Feature EXACTLY these products:
-   1. [Product A name]: [exact material], [exact color], [exact size], [distinctive features]
-   2. [Product B name]: [exact material], [exact color], [exact size], [distinctive features]
-   3. [Product C name]: [exact material], [exact color], [exact size], [distinctive features]
+   1. [Product A name]: [exact material], [exact color], [distinctive features]
+   2. [Product B name]: [exact material], [exact color], [distinctive features]
+   3. [Product C name]: [exact material], [exact color], [distinctive features]
 
    CRITICAL: Each product must appear IDENTICAL to its reference image.
    Preserve all materials, colors, textures, and proportions exactly.
    If you fail even by one pixel in material or color accuracy, the generation fails.
+
+**NOTE:** If product specs injection is enabled, the system will append a structured specs block
+with measurements, ratios, and constraints. Do NOT duplicate numeric details or the constraints block.
    ```
 
 ### Why This Matters

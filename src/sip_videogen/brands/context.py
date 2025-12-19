@@ -14,6 +14,7 @@ from .storage import (
     load_product,
     load_project,
 )
+from sip_videogen.config.settings import get_settings
 
 # Description of each detail type for agent prompts
 DETAIL_DESCRIPTIONS = {
@@ -391,6 +392,9 @@ class HierarchicalContextBuilder:
                 # Project not found - skip silently
                 pass
 
+        settings = get_settings()
+        specs_injection_enabled = settings.sip_product_specs_injection
+
         # Attached products
         if self.product_slugs:
             product_sections = []
@@ -414,6 +418,12 @@ class HierarchicalContextBuilder:
                 else:
                     # Single product - just add with simple header
                     products_header = "### Attached Product"
+                    if specs_injection_enabled:
+                        products_header += (
+                            "\nNOTE: Product specs (measurements/materials/colors) will be appended "
+                            "automatically. Keep the prompt concise; omit numeric dimensions and "
+                            "do not restate the constraints block."
+                        )
                     sections.append(
                         products_header + "\n\n" + "\n\n".join(product_sections)
                     )
@@ -432,6 +442,36 @@ class HierarchicalContextBuilder:
         Returns:
             Formatted header with accuracy requirements.
         """
+        settings = get_settings()
+        specs_injection_enabled = settings.sip_product_specs_injection
+
+        if specs_injection_enabled:
+            size_guidance = "- Relative size cues only (e.g., short and wide vs tall and slim); omit numeric dimensions"
+            prompt_pattern = """[Scene description].
+Feature EXACTLY these products:
+1. [Product A name]: [concise visual identifiers only; omit numeric dimensions]
+2. [Product B name]: [concise visual identifiers only; omit numeric dimensions]
+...
+"""
+            note = (
+                "NOTE: Product specs (measurements/materials/colors) will be appended automatically. "
+                "Do not repeat numeric dimensions or restate the constraints block."
+            )
+        else:
+            size_guidance = "- Exact size/dimensions if available"
+            prompt_pattern = """[Scene description].
+Feature EXACTLY these products:
+1. [Product A name]: [exact material], [exact color], [exact size], [distinctive features]
+2. [Product B name]: [exact material], [exact color], [exact size], [distinctive features]
+...
+
+CRITICAL: Each product must appear IDENTICAL to its reference image.
+Preserve all materials, colors, textures, and proportions exactly.
+"""
+            note = ""
+
+        note_block = f"\n\n{note}\n" if note else "\n"
+
         return f"""### MULTI-PRODUCT ACCURACY REQUIREMENTS
 
 You have {product_count} products attached. Each must be reproduced with PIXEL-PERFECT accuracy.
@@ -447,21 +487,14 @@ You have {product_count} products attached. Each must be reproduced with PIXEL-P
 **When generating the prompt, include for EACH product:**
 - Exact material description from attributes
 - Exact color specification
-- Exact size/dimensions if available
+{size_guidance}
 - Distinctive features that differentiate it from other products
 
 **PROMPT PATTERN for multi-product images:**
 ```
-[Scene description].
-Feature EXACTLY these products:
-1. [Product A name]: [exact material], [exact color], [distinctive features]
-2. [Product B name]: [exact material], [exact color], [distinctive features]
-...
-
-CRITICAL: Each product must appear IDENTICAL to its reference image.
-Preserve all materials, colors, textures, and proportions exactly.
+{prompt_pattern}
 ```
-
+{note_block}
 **WARNING:** Accuracy is paramount. Our brand's reputation depends on showing
 products exactly as they are. A "similar-looking" product is a FAILURE."""
 

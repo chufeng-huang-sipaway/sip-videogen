@@ -350,6 +350,7 @@ def build_product_specs_block(
     brand_slug: str,
     product_slugs: list[str],
     max_description_chars: int = 500,
+    include_constraints: bool = True,
 ) -> str:
     """Build a complete PRODUCT SPECS block for Gemini prompts.
 
@@ -359,6 +360,7 @@ def build_product_specs_block(
         brand_slug: Brand identifier.
         product_slugs: List of product slugs to include.
         max_description_chars: Max characters for product descriptions.
+        include_constraints: Whether to append the critical constraints block.
 
     Returns:
         Formatted specs block to append to Gemini prompts.
@@ -394,18 +396,35 @@ def build_product_specs_block(
         lines.append(specs.to_prompt_block(index=idx))
         lines.append("")
 
-    # Add constraint reminders
-    lines.extend([
-        "**CRITICAL CONSTRAINTS:**",
-        "- DO NOT change proportions — preserve height:width ratios exactly",
-        "- DO NOT substitute materials — glass stays glass, metal stays metal",
-        "- DO NOT alter colors — exact shades must be preserved",
-        "- The reference image is PRIMARY TRUTH for appearance",
-        "- Attributes above provide additional precision",
-        "",
-    ])
+    if include_constraints:
+        # Add constraint reminders
+        lines.extend([
+            "**CRITICAL CONSTRAINTS:**",
+            "- DO NOT change proportions — preserve height:width ratios exactly",
+            "- DO NOT substitute materials — glass stays glass, metal stays metal",
+            "- DO NOT alter colors — exact shades must be preserved",
+            "- The reference image is PRIMARY TRUTH for appearance",
+            "- Attributes above provide additional precision",
+            "",
+        ])
 
     return "\n".join(lines)
+
+
+def _prompt_has_constraints(prompt: str) -> bool:
+    """Check whether the prompt already includes strict identity constraints."""
+    lowered = prompt.lower()
+    markers = [
+        "must appear identical",
+        "reference image",
+        "preserve all materials",
+        "preserve exact proportions",
+        "do not change proportions",
+        "do not substitute materials",
+        "do not alter colors",
+    ]
+    hits = sum(1 for marker in markers if marker in lowered)
+    return hits >= 2 or ("critical:" in lowered and ("reference" in lowered or "identical" in lowered))
 
 
 def inject_specs_into_prompt(
@@ -423,7 +442,12 @@ def inject_specs_into_prompt(
     Returns:
         Prompt with specs block appended.
     """
-    specs_block = build_product_specs_block(brand_slug, product_slugs)
+    include_constraints = not _prompt_has_constraints(prompt)
+    specs_block = build_product_specs_block(
+        brand_slug,
+        product_slugs,
+        include_constraints=include_constraints,
+    )
     if specs_block:
         return prompt + specs_block
     return prompt
