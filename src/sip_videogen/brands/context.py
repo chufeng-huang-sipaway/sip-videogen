@@ -158,6 +158,8 @@ class ProductContextBuilder:
             to ensure exact reproduction of product appearance.
         """
         p = self.product
+        settings = get_settings()
+        specs_injection_enabled = settings.sip_product_specs_injection
 
         # Categorize attributes by importance for accurate reproduction
         measurements = []
@@ -230,6 +232,15 @@ class ProductContextBuilder:
         else:
             images_str = "  (No images)"
 
+        prompt_guidance = ""
+        if specs_injection_enabled:
+            prompt_guidance = (
+                "\n**PROMPT GUIDANCE (Specs Injection Enabled):**\n"
+                "- Keep the product description concise (1-2 visual identifiers)\n"
+                "- Use relative size cues (short/wide vs tall/slim)\n"
+                "- Omit numeric dimensions and do not restate constraint blocks\n"
+            )
+
         context = f"""### Product: {p.name}
 **CRITICAL - EXACT REPRODUCTION REQUIRED**
 This product must appear IDENTICAL to its reference image.
@@ -242,6 +253,7 @@ Preserve: exact shape, materials, colors, textures, and proportions.
 
 **Reference Images**:
 {images_str}
+{prompt_guidance}
 
 **HOW TO USE THIS PRODUCT IN IMAGES**:
 → Call `generate_image(product_slug="{p.slug}", prompt="...")`
@@ -455,7 +467,7 @@ Feature EXACTLY these products:
 """
             note = (
                 "NOTE: Product specs (measurements/materials/colors) will be appended automatically. "
-                "Do not repeat numeric dimensions or restate the constraints block."
+                "Keep per-product descriptions short and do not repeat numeric dimensions or restate the constraints block."
             )
         else:
             size_guidance = "- Exact size/dimensions if available"

@@ -185,7 +185,8 @@ This is the HARDEST scenario. Follow the multi-product requirements in the conte
    If you fail even by one pixel in material or color accuracy, the generation fails.
 
 **NOTE:** If product specs injection is enabled, the system will append a structured specs block
-with measurements, ratios, and constraints. Do NOT duplicate numeric details or the constraints block.
+with measurements, ratios, and constraints. Keep per-product descriptions short and do NOT duplicate
+numeric details or the constraints block.
    ```
 
 ### Why This Matters
