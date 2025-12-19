@@ -331,7 +331,7 @@ export function ProductsSection() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 pl-2 pr-1">
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">
           {products.length} product{products.length !== 1 ? 's' : ''}
