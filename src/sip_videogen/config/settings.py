@@ -105,6 +105,30 @@ class Settings(BaseSettings):
         description="Background music volume (0.0-1.0)",
     )
 
+    # Product Reference Accuracy settings (Phase 0-3)
+    sip_generation_debug_mode: bool = Field(
+        default=False,
+        description="Keep failed attempt images for debugging",
+    )
+    sip_generation_metrics_enabled: bool = Field(
+        default=True,
+        description="Enable generation metrics logging to JSONL",
+    )
+    sip_product_ref_images_per_product: int = Field(
+        default=1,
+        ge=1,
+        le=4,
+        description="Number of reference images per product (1-4)",
+    )
+    sip_product_specs_injection: bool = Field(
+        default=True,
+        description="Inject product specs (measurements, materials) into Gemini prompt",
+    )
+    sip_proportion_validation: bool = Field(
+        default=True,
+        description="Enable measurement/proportion validation in retry loop",
+    )
+
     @field_validator("sip_output_dir", mode="before")
     @classmethod
     def validate_output_dir(cls, v: str | Path) -> Path:
