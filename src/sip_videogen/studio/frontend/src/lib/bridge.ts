@@ -133,9 +133,27 @@ export interface ChatAttachment {
   source?: 'upload' | 'asset'
 }
 
+// Image generation metadata for debugging visibility
+export interface ImageGenerationMetadata {
+  prompt: string
+  model: string
+  aspect_ratio: string
+  image_size: string
+  reference_image: string | null
+  product_slugs: string[]
+  validate_identity: boolean
+  generated_at: string
+  generation_time_ms: number
+}
+
+export interface GeneratedImage {
+  url: string
+  metadata?: ImageGenerationMetadata | null
+}
+
 interface ChatResponse {
   response: string
-  images: string[]
+  images: GeneratedImage[]
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null

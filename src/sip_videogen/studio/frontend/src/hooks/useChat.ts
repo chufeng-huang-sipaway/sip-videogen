@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage } from '@/lib/bridge'
 
 export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
-  images: string[]
+  images: GeneratedImage[] | string[]
   timestamp: Date
   status: 'sending' | 'sent' | 'error'
   error?: string

@@ -102,7 +102,9 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading, onRe
 
     try {
       for (let i = 0; i < message.images.length; i++) {
-        const url = message.images[i]
+        const img = message.images[i]
+        // Support both string and GeneratedImage formats
+        const url = typeof img === 'string' ? img : img.url
         const filename = `brand-studio-${i + 1}.png`
 
         // Handle data URLs

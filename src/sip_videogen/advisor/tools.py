@@ -50,6 +50,42 @@ logger = get_logger(__name__)
 
 
 # =============================================================================
+# Image Generation Metadata
+# =============================================================================
+
+from dataclasses import asdict, dataclass
+
+
+@dataclass
+class ImageGenerationMetadata:
+    """Metadata captured during image generation for debugging visibility."""
+
+    prompt: str
+    model: str  # "gemini-3-pro-image-preview"
+    aspect_ratio: str  # "1:1", "16:9", etc.
+    image_size: str  # "4K"
+    reference_image: str | None  # Path if used
+    product_slugs: list[str]  # Products referenced
+    validate_identity: bool
+    generated_at: str  # ISO timestamp
+    generation_time_ms: int
+
+
+# Module-level storage for metadata (keyed by output path)
+_image_metadata: dict[str, dict] = {}
+
+
+def store_image_metadata(path: str, metadata: ImageGenerationMetadata) -> None:
+    """Store metadata for a generated image."""
+    _image_metadata[path] = asdict(metadata)
+
+
+def get_image_metadata(path: str) -> dict | None:
+    """Get and remove metadata for a generated image."""
+    return _image_metadata.pop(path, None)
+
+
+# =============================================================================
 # Filename Generation Helper
 # =============================================================================
 
@@ -320,11 +356,16 @@ async def _impl_generate_image(
             f"{len(generation_images)} total reference images (max {max_retries} retries)..."
         )
 
+        import time
+        from datetime import datetime
+
+        start_time = time.time()
+
         try:
             from google import genai
 
             client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
-            return await generate_with_multi_validation(
+            result_path = await generate_with_multi_validation(
                 client=client,
                 prompt=generation_prompt,
                 product_references=product_references,  # For validation (1 per product)
@@ -335,6 +376,24 @@ async def _impl_generate_image(
                 max_retries=max_retries,
                 product_slugs=product_slugs,  # Phase 0: Pass for metrics
             )
+
+            # Store metadata for multi-product path (if successful)
+            if not result_path.startswith("Error"):
+                actual_path = result_path.split(" [Warning:")[0].strip()
+                metadata = ImageGenerationMetadata(
+                    prompt=generation_prompt,
+                    model="gemini-3-pro-image-preview",
+                    aspect_ratio=aspect_ratio,
+                    image_size="4K",
+                    reference_image=None,  # Multi-product uses multiple references
+                    product_slugs=product_slugs,
+                    validate_identity=True,
+                    generated_at=datetime.utcnow().isoformat(),
+                    generation_time_ms=int((time.time() - start_time) * 1000),
+                )
+                store_image_metadata(actual_path, metadata)
+
+            return result_path
         except Exception as e:
             logger.error(f"Multi-product image generation failed: {e}")
             return f"Error generating multi-product image: {str(e)}"
@@ -386,6 +445,11 @@ async def _impl_generate_image(
         except Exception as e:
             return f"Error reading reference image: {e}"
 
+    import time
+    from datetime import datetime
+
+    start_time = time.time()
+
     try:
         client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
 
@@ -394,7 +458,7 @@ async def _impl_generate_image(
             from sip_videogen.advisor.validation import generate_with_validation
 
             logger.info(f"Generating with validation (max {max_retries} retries)...")
-            return await generate_with_validation(
+            result_path = await generate_with_validation(
                 client=client,
                 prompt=generation_prompt,  # Phase 1: Use specs-injected prompt
                 reference_image_bytes=reference_image_bytes,
@@ -403,6 +467,25 @@ async def _impl_generate_image(
                 aspect_ratio=aspect_ratio,
                 max_retries=max_retries,
             )
+
+            # Store metadata for validation path (if successful)
+            if not result_path.startswith("Error"):
+                # Extract actual path (may include warning suffix)
+                actual_path = result_path.split(" [Warning:")[0].strip()
+                metadata = ImageGenerationMetadata(
+                    prompt=generation_prompt,
+                    model="gemini-3-pro-image-preview",
+                    aspect_ratio=aspect_ratio,
+                    image_size="4K",
+                    reference_image=reference_image,
+                    product_slugs=product_slugs or ([product_slug] if product_slug else []),
+                    validate_identity=validate_identity,
+                    generated_at=datetime.utcnow().isoformat(),
+                    generation_time_ms=int((time.time() - start_time) * 1000),
+                )
+                store_image_metadata(actual_path, metadata)
+
+            return result_path
 
         # Standard generation (with or without reference)
         if reference_image_bytes:
@@ -432,6 +515,21 @@ async def _impl_generate_image(
                 image = part.as_image()
                 image.save(str(output_path))
                 logger.info(f"Saved image to: {output_path}")
+
+                # Store metadata for debugging visibility
+                metadata = ImageGenerationMetadata(
+                    prompt=generation_prompt,
+                    model="gemini-3-pro-image-preview",
+                    aspect_ratio=aspect_ratio,
+                    image_size="4K",
+                    reference_image=reference_image,
+                    product_slugs=product_slugs or ([product_slug] if product_slug else []),
+                    validate_identity=validate_identity,
+                    generated_at=datetime.utcnow().isoformat(),
+                    generation_time_ms=int((time.time() - start_time) * 1000),
+                )
+                store_image_metadata(str(output_path), metadata)
+
                 return str(output_path)
 
         return "Error: No image generated in response"

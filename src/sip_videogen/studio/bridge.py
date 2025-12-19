@@ -10,6 +10,7 @@ from typing import Any
 
 from sip_videogen.config.logging import get_logger
 from sip_videogen.advisor.agent import AdvisorProgress, BrandAdvisor
+from sip_videogen.advisor.tools import get_image_metadata
 
 logger = get_logger(__name__)
 from sip_videogen.brands.memory import list_brand_assets
@@ -2277,8 +2278,8 @@ class StudioBridge:
             after = {a["path"] for a in list_brand_assets(slug, category="generated")}
             new_paths = sorted(after - before)
 
-            # Convert new images to base64 data URLs (cap to avoid huge responses)
-            image_data_urls: list[str] = []
+            # Convert new images to base64 data URLs with metadata (cap to avoid huge responses)
+            image_data: list[dict] = []
             for img_path in new_paths[:4]:
                 try:
                     path = Path(img_path)
@@ -2294,7 +2295,14 @@ class StudioBridge:
                         ".jpeg": "image/jpeg",
                         ".webp": "image/webp",
                     }.get(path.suffix.lower(), "image/png")
-                    image_data_urls.append(f"data:{mime};base64,{encoded}")
+
+                    # Get metadata for this image (if available)
+                    metadata = get_image_metadata(img_path)
+
+                    image_data.append({
+                        "url": f"data:{mime};base64,{encoded}",
+                        "metadata": metadata,  # Will be None for non-AI images
+                    })
                 except Exception:
                     pass
 
@@ -2302,7 +2310,7 @@ class StudioBridge:
                 success=True,
                 data={
                     "response": response,
-                    "images": image_data_urls,
+                    "images": image_data,
                     "execution_trace": self._execution_trace,
                     "interaction": interaction,
                     "memory_update": memory_update,
