@@ -234,13 +234,18 @@ class ProductContextBuilder:
 This product must appear IDENTICAL to its reference image.
 Preserve: exact shape, materials, colors, textures, and proportions.
 
-**Slug**: {p.slug}
+**Slug**: `{p.slug}`
 **Description**: {p.description}
 
 {attributes_str}
 
 **Reference Images**:
 {images_str}
+
+**HOW TO USE THIS PRODUCT IN IMAGES**:
+→ Call `generate_image(product_slug="{p.slug}", prompt="...")`
+→ DO NOT manually copy the reference image path
+→ The product_slug parameter auto-loads the reference AND injects product specs
 """
         return context.strip()
 
