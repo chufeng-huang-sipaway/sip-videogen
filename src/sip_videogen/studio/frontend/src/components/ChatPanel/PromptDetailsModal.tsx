@@ -85,6 +85,16 @@ export function PromptDetailsModal({ metadata, onClose }: Props) {
             </div>
           )}
 
+          {/* API Call Code */}
+          {metadata.api_call_code && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-1">Python API Call</h4>
+              <pre className="bg-zinc-900 text-zinc-100 p-3 rounded-lg text-xs whitespace-pre-wrap font-mono overflow-x-auto">
+                {metadata.api_call_code}
+              </pre>
+            </div>
+          )}
+
           {/* Timestamp */}
           <div className="text-xs text-muted-foreground border-t pt-3 mt-4">
             Generated: {new Date(metadata.generated_at).toLocaleString()}

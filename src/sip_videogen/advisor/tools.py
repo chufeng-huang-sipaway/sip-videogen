@@ -69,6 +69,47 @@ class ImageGenerationMetadata:
     validate_identity: bool
     generated_at: str  # ISO timestamp
     generation_time_ms: int
+    api_call_code: str  # The actual Python code executed
+
+
+def _build_api_call_code(
+    prompt: str,
+    has_reference: bool,
+    reference_count: int,
+    aspect_ratio: str,
+) -> str:
+    """Build a string representation of the actual API call for debugging."""
+    # Truncate prompt for readability if very long
+    prompt_display = prompt if len(prompt) <= 500 else prompt[:500] + "..."
+    prompt_escaped = prompt_display.replace('"""', '\\"\\"\\"')
+
+    if has_reference:
+        if reference_count > 1:
+            contents_repr = f'''[
+    """{prompt_escaped}""",
+    <PIL.Image: reference_image_1>,
+    <PIL.Image: reference_image_2>,
+    ... ({reference_count} total reference images)
+]'''
+        else:
+            contents_repr = f'''[
+    """{prompt_escaped}""",
+    <PIL.Image: reference_image>
+]'''
+    else:
+        contents_repr = f'"""{prompt_escaped}"""'
+
+    return f'''client.models.generate_content(
+    model="gemini-3-pro-image-preview",
+    contents={contents_repr},
+    config=types.GenerateContentConfig(
+        response_modalities=["IMAGE"],
+        image_config=types.ImageConfig(
+            aspect_ratio="{aspect_ratio}",
+            image_size="4K",
+        ),
+    ),
+)'''
 
 
 # Module-level storage for metadata (keyed by output path)
@@ -390,6 +431,12 @@ async def _impl_generate_image(
                     validate_identity=True,
                     generated_at=datetime.utcnow().isoformat(),
                     generation_time_ms=int((time.time() - start_time) * 1000),
+                    api_call_code=_build_api_call_code(
+                        prompt=generation_prompt,
+                        has_reference=True,
+                        reference_count=len(generation_images),
+                        aspect_ratio=aspect_ratio,
+                    ),
                 )
                 store_image_metadata(actual_path, metadata)
 
@@ -482,6 +529,12 @@ async def _impl_generate_image(
                     validate_identity=validate_identity,
                     generated_at=datetime.utcnow().isoformat(),
                     generation_time_ms=int((time.time() - start_time) * 1000),
+                    api_call_code=_build_api_call_code(
+                        prompt=generation_prompt,
+                        has_reference=True,
+                        reference_count=1,
+                        aspect_ratio=aspect_ratio,
+                    ),
                 )
                 store_image_metadata(actual_path, metadata)
 
@@ -527,6 +580,12 @@ async def _impl_generate_image(
                     validate_identity=validate_identity,
                     generated_at=datetime.utcnow().isoformat(),
                     generation_time_ms=int((time.time() - start_time) * 1000),
+                    api_call_code=_build_api_call_code(
+                        prompt=generation_prompt,
+                        has_reference=reference_image_bytes is not None,
+                        reference_count=1 if reference_image_bytes else 0,
+                        aspect_ratio=aspect_ratio,
+                    ),
                 )
                 store_image_metadata(str(output_path), metadata)
 

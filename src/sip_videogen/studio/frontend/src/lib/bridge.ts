@@ -144,6 +144,7 @@ export interface ImageGenerationMetadata {
   validate_identity: boolean
   generated_at: string
   generation_time_ms: number
+  api_call_code: string
 }
 
 export interface GeneratedImage {
