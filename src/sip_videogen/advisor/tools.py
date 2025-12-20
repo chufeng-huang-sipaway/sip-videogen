@@ -22,6 +22,7 @@ then wrapped with @function_tool for agent use.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -325,6 +326,64 @@ def _resolve_brand_path(relative_path: str) -> Path | None:
         return None
 
     return resolved
+
+
+# =============================================================================
+# Input Validation Helpers (Path Traversal Prevention)
+# =============================================================================
+
+# Slug pattern: lowercase alphanumeric with hyphens, no leading/trailing hyphens
+SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
+
+# Product images are used as reference images for generation (Pillow-based).
+# Do NOT allow SVG here (Pillow can't open it for reference-based generation).
+ALLOWED_PRODUCT_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
+# Maximum product image file size (10MB)
+MAX_PRODUCT_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _validate_slug(slug: str) -> str | None:
+    """Validate slug is safe for filesystem and URL use.
+
+    Args:
+        slug: The slug to validate.
+
+    Returns:
+        Error message if invalid, None if valid.
+    """
+    if not slug:
+        return "Slug cannot be empty"
+    if not SLUG_PATTERN.match(slug):
+        return (
+            f"Invalid slug '{slug}': must be lowercase alphanumeric with hyphens, "
+            "no leading/trailing hyphens"
+        )
+    if ".." in slug or "/" in slug or "\\" in slug:
+        return f"Invalid slug '{slug}': contains forbidden characters"
+    return None
+
+
+def _validate_filename(filename: str) -> str | None:
+    """Validate filename is safe for product images.
+
+    Args:
+        filename: The filename to validate.
+
+    Returns:
+        Error message if invalid, None if valid.
+    """
+    if not filename:
+        return "Filename cannot be empty"
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return f"Invalid filename '{filename}': contains forbidden characters"
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_PRODUCT_IMAGE_EXTS:
+        return (
+            f"Invalid file extension '{ext}': allowed are "
+            f"{sorted(ALLOWED_PRODUCT_IMAGE_EXTS)} (product images must be raster)"
+        )
+    return None
 
 
 # =============================================================================
