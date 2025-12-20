@@ -830,12 +830,12 @@ async def generate_with_multi_validation(
     aspect_ratio: str = "1:1",
     max_retries: int = 3,
     product_slugs: list[str] | None = None,
-    generation_images: list[bytes] | None = None,
+    grouped_generation_images: list[tuple[str, list[bytes]]] | None = None,
 ) -> MultiValidationGenerationResult | str:
     """Generate image with multiple products and validate each one.
 
     This function implements a retry loop that:
-    1. Generates an image using all reference images (including multi-angle)
+    1. Generates an image using all reference images with explicit product labels
     2. Validates each product individually using GPT-4o vision (primary refs only)
     3. If any product fails validation, improves the prompt and retries
     4. Returns the best attempt if all retries are exhausted
@@ -850,8 +850,9 @@ async def generate_with_multi_validation(
         aspect_ratio: Image aspect ratio.
         max_retries: Maximum validation attempts.
         product_slugs: Optional list of product slugs for metrics.
-        generation_images: Optional list of all image bytes for GENERATION.
-            Can include multiple angles per product. If None, uses product_references.
+        grouped_generation_images: Optional list of (product_name, [image_bytes, ...]) tuples
+            for GENERATION. Groups images by product so we can add explicit labels in the
+            API call. If None, uses product_references (one image per product).
 
     Returns:
         MultiValidationGenerationResult with path and attempt details, or an error string.
@@ -861,9 +862,14 @@ async def generate_with_multi_validation(
 
     settings = get_settings()
 
-    # If generation_images not provided, extract from product_references
-    if generation_images is None:
-        generation_images = [img_bytes for _, img_bytes in product_references]
+    # If grouped_generation_images not provided, extract from product_references
+    if grouped_generation_images is None:
+        grouped_generation_images = [
+            (name, [img_bytes]) for name, img_bytes in product_references
+        ]
+
+    # Count total images for logging
+    total_images = sum(len(imgs) for _, imgs in grouped_generation_images)
 
     attempts: list[MultiValidationAttempt] = []
     attempts_metadata: list[dict] = []
@@ -888,15 +894,24 @@ async def generate_with_multi_validation(
         metrics.total_attempts = attempt_number
         logger.info(
             f"Multi-product generation attempt {attempt_number}/{max_retries} "
-            f"({len(product_references)} products, {len(generation_images)} reference images)"
+            f"({len(product_references)} products, {total_images} reference images)"
         )
 
         try:
-            # Build contents with ALL reference images (including multi-angle)
+            # Build contents with interleaved text labels and images
+            # This helps Gemini understand which images belong to which product
             contents: list = [current_prompt]
-            for ref_bytes in generation_images:
-                ref_pil = PILImage.open(io.BytesIO(ref_bytes))
-                contents.append(ref_pil)
+
+            for product_name, product_images in grouped_generation_images:
+                img_count = len(product_images)
+                # Add explicit label before this product's images
+                plural = "s" if img_count > 1 else ""
+                label = f"[Reference images for {product_name} ({img_count} image{plural}):]"
+                contents.append(label)
+                # Add all images for this product
+                for ref_bytes in product_images:
+                    ref_pil = PILImage.open(io.BytesIO(ref_bytes))
+                    contents.append(ref_pil)
 
             # Generate image
             response = client.models.generate_content(

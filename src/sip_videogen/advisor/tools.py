@@ -87,17 +87,48 @@ def _build_api_call_code(
     aspect_ratio: str,
     image_size: str,
     reference_images: list[str] | None = None,
+    grouped_reference_images: list[tuple[str, list[str]]] | None = None,
 ) -> str:
     """Build a string representation of the actual API call for debugging.
 
     Shows the complete prompt and actual reference image path(s) so developers
     can understand exactly what was sent to the Gemini API.
+
+    Args:
+        prompt: The generation prompt.
+        model: Model name.
+        aspect_ratio: Image aspect ratio.
+        image_size: Image size.
+        reference_images: Flat list of image paths (legacy, for single product).
+        grouped_reference_images: Grouped structure [(product_name, [paths...]), ...]
+            for multi-product with interleaved labels.
     """
     # Escape triple quotes in prompt for valid Python syntax
     prompt_escaped = prompt.replace('"""', '\\"\\"\\"')
 
-    reference_images = [path for path in (reference_images or []) if path]
-    if reference_images:
+    # Use grouped structure if provided (shows interleaved labels)
+    if grouped_reference_images:
+        contents_lines = ['[', f'    """{prompt_escaped}""",']
+        img_idx = 1
+        for product_name, paths in grouped_reference_images:
+            img_count = len(paths)
+            plural = "s" if img_count > 1 else ""
+            # Add the label that's sent to Gemini
+            label = f"[Reference images for {product_name} ({img_count} image{plural}):]"
+            contents_lines.append(f'    "{label}",')
+            # Add all images for this product
+            for ref_path in paths:
+                ref_comment = f'  # Loaded from: {ref_path}'
+                contents_lines.append(
+                    f'    PILImage.open(io.BytesIO(reference_image_bytes_{img_idx})),'
+                    f'{ref_comment}'
+                )
+                img_idx += 1
+        contents_lines.append(']')
+        contents_repr = "\n".join(contents_lines)
+    elif reference_images:
+        # Legacy flat list (for single product or backward compatibility)
+        reference_images = [path for path in reference_images if path]
         contents_lines = ['[', f'    """{prompt_escaped}""",']
         for idx, ref_path in enumerate(reference_images, start=1):
             ref_comment = f'  # Loaded from: {ref_path}'
@@ -128,14 +159,39 @@ def _build_request_payload(
     aspect_ratio: str,
     image_size: str,
     reference_images: list[str] | None = None,
+    grouped_reference_images: list[tuple[str, list[str]]] | None = None,
 ) -> dict:
-    """Build a structured representation of the generate_content request."""
-    return {
-        "model": model,
-        "contents": {
+    """Build a structured representation of the generate_content request.
+
+    Args:
+        prompt: The generation prompt.
+        model: Model name.
+        aspect_ratio: Image aspect ratio.
+        image_size: Image size.
+        reference_images: Flat list of image paths (legacy).
+        grouped_reference_images: Grouped structure [(product_name, [paths...]), ...]
+    """
+    # Build contents structure
+    if grouped_reference_images:
+        # Show grouped structure with labels
+        contents_items: list[dict] = [{"type": "prompt", "text": prompt}]
+        for product_name, paths in grouped_reference_images:
+            img_count = len(paths)
+            plural = "s" if img_count > 1 else ""
+            label = f"[Reference images for {product_name} ({img_count} image{plural}):]"
+            contents_items.append({"type": "label", "text": label})
+            for path in paths:
+                contents_items.append({"type": "image", "path": path})
+        contents = {"items": contents_items}
+    else:
+        contents = {
             "prompt": prompt,
             "reference_images": reference_images or [],
-        },
+        }
+
+    return {
+        "model": model,
+        "contents": contents,
         "config": {
             "response_modalities": ["IMAGE"],
             "image_config": {
@@ -152,8 +208,18 @@ def _build_attempts_metadata(
     aspect_ratio: str,
     image_size: str,
     reference_images: list[str] | None = None,
+    grouped_reference_images: list[tuple[str, list[str]]] | None = None,
 ) -> list[dict]:
-    """Attach API call details to each attempt record."""
+    """Attach API call details to each attempt record.
+
+    Args:
+        attempts: List of attempt records.
+        model: Model name.
+        aspect_ratio: Image aspect ratio.
+        image_size: Image size.
+        reference_images: Flat list of image paths (legacy).
+        grouped_reference_images: Grouped structure [(product_name, [paths...]), ...]
+    """
     enriched_attempts: list[dict] = []
     for attempt in attempts:
         prompt = attempt.get("prompt")
@@ -165,6 +231,7 @@ def _build_attempts_metadata(
                 aspect_ratio=aspect_ratio,
                 image_size=image_size,
                 reference_images=reference_images,
+                grouped_reference_images=grouped_reference_images,
             )
             enriched["request_payload"] = _build_request_payload(
                 prompt=prompt,
@@ -172,6 +239,7 @@ def _build_attempts_metadata(
                 aspect_ratio=aspect_ratio,
                 image_size=image_size,
                 reference_images=reference_images,
+                grouped_reference_images=grouped_reference_images,
             )
         enriched_attempts.append(enriched)
     return enriched_attempts
@@ -361,15 +429,19 @@ async def _impl_generate_image(
         if not brand_slug:
             return "Error: No active brand - cannot load products"
 
-        # Phase 2: Load multiple reference images per product when available
+        # Load ALL reference images per product (no per-product limit)
         # We maintain two structures:
         # - product_references: one (name, bytes) per product for VALIDATION
-        # - generation_images: all images (including angles) for GEMINI generation
-        max_images_per_product = settings.sip_product_ref_images_per_product
-        max_total_images = 8  # Cap total images to avoid runaway payloads
+        # - grouped_generation_images: images grouped by product for GEMINI generation
+        #   This allows us to add explicit labels in the API call so Gemini knows
+        #   which images belong to which product.
+        max_total_images = 16  # Safety cap to avoid API payload issues
 
         product_references: list[tuple[str, bytes]] = []  # For validation (1 per product)
-        generation_images: list[bytes] = []  # For Gemini (all angles)
+        # Grouped structure: [(product_name, [image_bytes, ...]), ...]
+        grouped_generation_images: list[tuple[str, list[bytes]]] = []
+        # Grouped paths for metadata display: [(product_name, [paths, ...]), ...]
+        grouped_reference_image_paths: list[tuple[str, list[str]]] = []
         generation_image_paths: list[str] = []
         reference_images_detail: list[dict] = []
         total_images_loaded = 0
@@ -381,32 +453,32 @@ async def _impl_generate_image(
             if not product.primary_image:
                 return f"Error: Product '{slug}' has no primary image for reference"
 
-            # Determine how many images to load for this product
-            images_to_load = min(
-                max_images_per_product,
-                max_total_images - total_images_loaded,
-            )
-            if images_to_load <= 0:
-                logger.warning(
-                    f"Skipping additional images for '{slug}' - total image cap reached"
-                )
-                images_to_load = 1  # Always load at least primary
-
-            # Get list of images to load (primary first, then additional)
+            # Get ALL images for this product (primary first, then additional)
             product_images: list[str] = []
             if product.primary_image:
                 product_images.append(product.primary_image)
 
-            # Add additional images if available and enabled
-            if images_to_load > 1 and product.images:
+            # Add all additional images
+            if product.images:
                 for img in product.images:
-                    if img != product.primary_image and len(product_images) < images_to_load:
+                    if img != product.primary_image:
                         product_images.append(img)
 
-            # Load the images
+            # Load the images for this product
             images_loaded = 0
             primary_bytes: bytes | None = None
+            current_product_images: list[bytes] = []  # Image bytes for this product
+            current_product_paths: list[str] = []  # Image paths for this product
+
             for img_path in product_images:
+                # Safety cap: skip additional images if we've hit the total limit
+                if total_images_loaded >= max_total_images and images_loaded > 0:
+                    logger.warning(
+                        f"Total image cap ({max_total_images}) reached, "
+                        f"skipping remaining images for '{product.name}'"
+                    )
+                    break
+
                 ref_path = _resolve_brand_path(img_path)
                 if ref_path is None or not ref_path.exists():
                     if images_loaded == 0:
@@ -420,7 +492,8 @@ async def _impl_generate_image(
 
                 try:
                     ref_bytes = ref_path.read_bytes()
-                    generation_images.append(ref_bytes)  # All images go to Gemini
+                    current_product_images.append(ref_bytes)  # Add to this product's bytes
+                    current_product_paths.append(img_path)  # Add to this product's paths
                     generation_image_paths.append(img_path)
                     role = "primary" if img_path == product.primary_image else "additional"
                     used_for = "generation+validation" if role == "primary" else "generation"
@@ -450,6 +523,11 @@ async def _impl_generate_image(
             if primary_bytes:
                 product_references.append((product.name, primary_bytes))
 
+            # Add grouped images for this product (for Gemini generation with labels)
+            if current_product_images:
+                grouped_generation_images.append((product.name, current_product_images))
+                grouped_reference_image_paths.append((product.name, current_product_paths))
+
             if images_loaded > 1:
                 logger.info(
                     f"Loaded {images_loaded} reference images for '{product.name}' (multi-angle)"
@@ -470,9 +548,10 @@ async def _impl_generate_image(
         # Use multi-product validation
         from sip_videogen.advisor.validation import generate_with_multi_validation
 
+        total_gen_images = sum(len(imgs) for _, imgs in grouped_generation_images)
         logger.info(
             f"Generating multi-product image with {len(product_references)} products, "
-            f"{len(generation_images)} total reference images (max {max_retries} retries)..."
+            f"{total_gen_images} total reference images (max {max_retries} retries)..."
         )
 
         import time
@@ -488,7 +567,7 @@ async def _impl_generate_image(
                 client=client,
                 prompt=generation_prompt,
                 product_references=product_references,  # For validation (1 per product)
-                generation_images=generation_images,  # For Gemini (all angles)
+                grouped_generation_images=grouped_generation_images,  # Grouped by product
                 output_dir=output_dir,
                 filename=filename,
                 aspect_ratio=aspect_ratio,
@@ -510,6 +589,7 @@ async def _impl_generate_image(
                 aspect_ratio=aspect_ratio,
                 image_size=image_size,
                 reference_images=reference_images,
+                grouped_reference_images=grouped_reference_image_paths,
             )
             final_prompt = result.final_prompt
             final_api_call = _build_api_call_code(
@@ -518,6 +598,7 @@ async def _impl_generate_image(
                 aspect_ratio=aspect_ratio,
                 image_size=image_size,
                 reference_images=reference_images,
+                grouped_reference_images=grouped_reference_image_paths,
             )
             final_request_payload = _build_request_payload(
                 prompt=final_prompt,
@@ -525,6 +606,7 @@ async def _impl_generate_image(
                 aspect_ratio=aspect_ratio,
                 image_size=image_size,
                 reference_images=reference_images,
+                grouped_reference_images=grouped_reference_image_paths,
             )
             metadata = ImageGenerationMetadata(
                 prompt=final_prompt,
