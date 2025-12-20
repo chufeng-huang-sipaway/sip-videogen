@@ -133,9 +133,55 @@ export interface ChatAttachment {
   source?: 'upload' | 'asset'
 }
 
+export interface ReferenceImageDetail {
+  path: string
+  product_slug?: string | null
+  role?: string | null
+  used_for?: string | null
+}
+
+export interface GenerationAttemptMetadata {
+  attempt_number: number
+  prompt: string
+  api_call_code?: string
+  request_payload?: Record<string, unknown> | null
+  validation?: Record<string, unknown> | null
+  validation_passed?: boolean | null
+  image_path?: string
+  error?: string
+}
+
+// Image generation metadata for debugging visibility
+export interface ImageGenerationMetadata {
+  prompt: string
+  original_prompt?: string
+  model: string
+  aspect_ratio: string
+  image_size: string
+  reference_image: string | null
+  reference_images?: string[]
+  reference_images_detail?: ReferenceImageDetail[]
+  product_slugs: string[]
+  validate_identity: boolean
+  validation_passed?: boolean | null
+  validation_warning?: string | null
+  validation_attempts?: number | null
+  final_attempt_number?: number | null
+  attempts?: GenerationAttemptMetadata[] | null
+  request_payload?: Record<string, unknown> | null
+  generated_at: string
+  generation_time_ms: number
+  api_call_code: string
+}
+
+export interface GeneratedImage {
+  url: string
+  metadata?: ImageGenerationMetadata | null
+}
+
 interface ChatResponse {
   response: string
-  images: string[]
+  images: GeneratedImage[]
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null

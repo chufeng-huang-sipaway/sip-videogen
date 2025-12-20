@@ -14,6 +14,7 @@ from .storage import (
     load_product,
     load_project,
 )
+from sip_videogen.config.settings import get_settings
 
 # Description of each detail type for agent prompts
 DETAIL_DESCRIPTIONS = {
@@ -157,6 +158,8 @@ class ProductContextBuilder:
             to ensure exact reproduction of product appearance.
         """
         p = self.product
+        settings = get_settings()
+        specs_injection_enabled = settings.sip_product_specs_injection
 
         # Categorize attributes by importance for accurate reproduction
         measurements = []
@@ -229,18 +232,33 @@ class ProductContextBuilder:
         else:
             images_str = "  (No images)"
 
+        prompt_guidance = ""
+        if specs_injection_enabled:
+            prompt_guidance = (
+                "\n**PROMPT GUIDANCE (Specs Injection Enabled):**\n"
+                "- Keep the product description concise (1-2 visual identifiers)\n"
+                "- Use relative size cues (short/wide vs tall/slim)\n"
+                "- Omit numeric dimensions and do not restate constraint blocks\n"
+            )
+
         context = f"""### Product: {p.name}
 **CRITICAL - EXACT REPRODUCTION REQUIRED**
 This product must appear IDENTICAL to its reference image.
 Preserve: exact shape, materials, colors, textures, and proportions.
 
-**Slug**: {p.slug}
+**Slug**: `{p.slug}`
 **Description**: {p.description}
 
 {attributes_str}
 
 **Reference Images**:
 {images_str}
+{prompt_guidance}
+
+**HOW TO USE THIS PRODUCT IN IMAGES**:
+→ Call `generate_image(product_slug="{p.slug}", prompt="...")`
+→ DO NOT manually copy the reference image path
+→ The product_slug parameter auto-loads the reference AND injects product specs
 """
         return context.strip()
 
@@ -386,6 +404,9 @@ class HierarchicalContextBuilder:
                 # Project not found - skip silently
                 pass
 
+        settings = get_settings()
+        specs_injection_enabled = settings.sip_product_specs_injection
+
         # Attached products
         if self.product_slugs:
             product_sections = []
@@ -409,6 +430,12 @@ class HierarchicalContextBuilder:
                 else:
                     # Single product - just add with simple header
                     products_header = "### Attached Product"
+                    if specs_injection_enabled:
+                        products_header += (
+                            "\nNOTE: Product specs (measurements/materials/colors) will be appended "
+                            "automatically. Keep the prompt concise; omit numeric dimensions and "
+                            "do not restate the constraints block."
+                        )
                     sections.append(
                         products_header + "\n\n" + "\n\n".join(product_sections)
                     )
@@ -427,6 +454,36 @@ class HierarchicalContextBuilder:
         Returns:
             Formatted header with accuracy requirements.
         """
+        settings = get_settings()
+        specs_injection_enabled = settings.sip_product_specs_injection
+
+        if specs_injection_enabled:
+            size_guidance = "- Relative size cues only (e.g., short and wide vs tall and slim); omit numeric dimensions"
+            prompt_pattern = """[Scene description].
+Feature EXACTLY these products:
+1. [Product A name]: [concise visual identifiers only; omit numeric dimensions]
+2. [Product B name]: [concise visual identifiers only; omit numeric dimensions]
+...
+"""
+            note = (
+                "NOTE: Product specs (measurements/materials/colors) will be appended automatically. "
+                "Keep per-product descriptions short and do not repeat numeric dimensions or restate the constraints block."
+            )
+        else:
+            size_guidance = "- Exact size/dimensions if available"
+            prompt_pattern = """[Scene description].
+Feature EXACTLY these products:
+1. [Product A name]: [exact material], [exact color], [exact size], [distinctive features]
+2. [Product B name]: [exact material], [exact color], [exact size], [distinctive features]
+...
+
+CRITICAL: Each product must appear IDENTICAL to its reference image.
+Preserve all materials, colors, textures, and proportions exactly.
+"""
+            note = ""
+
+        note_block = f"\n\n{note}\n" if note else "\n"
+
         return f"""### MULTI-PRODUCT ACCURACY REQUIREMENTS
 
 You have {product_count} products attached. Each must be reproduced with PIXEL-PERFECT accuracy.
@@ -442,21 +499,14 @@ You have {product_count} products attached. Each must be reproduced with PIXEL-P
 **When generating the prompt, include for EACH product:**
 - Exact material description from attributes
 - Exact color specification
-- Exact size/dimensions if available
+{size_guidance}
 - Distinctive features that differentiate it from other products
 
 **PROMPT PATTERN for multi-product images:**
 ```
-[Scene description].
-Feature EXACTLY these products:
-1. [Product A name]: [exact material], [exact color], [distinctive features]
-2. [Product B name]: [exact material], [exact color], [distinctive features]
-...
-
-CRITICAL: Each product must appear IDENTICAL to its reference image.
-Preserve all materials, colors, textures, and proportions exactly.
+{prompt_pattern}
 ```
-
+{note_block}
 **WARNING:** Accuracy is paramount. Our brand's reputation depends on showing
 products exactly as they are. A "similar-looking" product is a FAILURE."""
 

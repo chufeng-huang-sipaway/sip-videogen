@@ -256,6 +256,35 @@ class ValidationAttempt:
     improvement_suggestions: str
 
 
+@dataclass
+class ValidationGenerationResult:
+    """Result of a reference-validated image generation run."""
+
+    path: str
+    attempts: list[dict]
+    final_prompt: str
+    final_attempt_number: int
+    validation_passed: bool
+    warning: str | None = None
+
+
+@dataclass
+class MultiValidationGenerationResult:
+    """Result of a multi-product validated image generation run."""
+
+    path: str
+    attempts: list[dict]
+    final_prompt: str
+    final_attempt_number: int
+    validation_passed: bool
+    warning: str | None = None
+
+
+def _validation_model_dump(model: BaseModel) -> dict:
+    """Return a JSON-serializable dict from a pydantic model."""
+    return model.model_dump()
+
+
 _VALIDATOR_PROMPT = """# Reference Image Identity Validator
 
 You are an expert at comparing images to determine if they show the SAME object/product.
@@ -545,7 +574,7 @@ async def generate_with_validation(
     filename: str,
     aspect_ratio: str = "1:1",
     max_retries: int = 3,
-) -> str:
+) -> ValidationGenerationResult | str:
     """Generate image with reference and validate for identity preservation.
 
     This function implements a retry loop that:
@@ -564,13 +593,13 @@ async def generate_with_validation(
         max_retries: Maximum validation attempts.
 
     Returns:
-        Path to generated image. If validation failed after all retries,
-        includes a warning message.
+        ValidationGenerationResult with path and attempt details, or an error string.
     """
     from google.genai import types
     from PIL import Image as PILImage
 
     attempts: list[ValidationAttempt] = []
+    attempts_metadata: list[dict] = []
     best_attempt: ValidationAttempt | None = None
     current_prompt = prompt
 
@@ -612,6 +641,12 @@ async def generate_with_validation(
 
             if not generated_bytes:
                 logger.warning(f"No image generated on attempt {attempt_number}")
+                attempts_metadata.append({
+                    "attempt_number": attempt_number,
+                    "prompt": current_prompt,
+                    "image_path": str(attempt_path),
+                    "error": "No image generated in response",
+                })
                 continue
 
             # Validate against reference
@@ -648,6 +683,14 @@ async def generate_with_validation(
                 and (validation.proportions_match or not settings.sip_proportion_validation)
             )
 
+            attempts_metadata.append({
+                "attempt_number": attempt_number,
+                "prompt": current_prompt,
+                "image_path": str(attempt_path),
+                "validation": _validation_model_dump(validation),
+                "validation_passed": validation_passed,
+            })
+
             if validation_passed:
                 # Success - rename to final filename
                 final_path = output_dir / f"{filename}.png"
@@ -656,7 +699,13 @@ async def generate_with_validation(
                     f"Validation passed on attempt {attempt_number} "
                     f"(score: {validation.similarity_score:.2f}, proportions: {prop_status})"
                 )
-                return str(final_path)
+                return ValidationGenerationResult(
+                    path=str(final_path),
+                    attempts=attempts_metadata,
+                    final_prompt=current_prompt,
+                    final_attempt_number=attempt_number,
+                    validation_passed=True,
+                )
 
             # Improve prompt for next attempt
             # Get proportion notes for prompt improvement if proportions failed
@@ -676,6 +725,11 @@ async def generate_with_validation(
 
         except Exception as e:
             logger.warning(f"Generation attempt {attempt_number} failed: {e}")
+            attempts_metadata.append({
+                "attempt_number": attempt_number,
+                "prompt": current_prompt,
+                "error": str(e),
+            })
             continue
 
     # All attempts exhausted - use best attempt as fallback
@@ -700,11 +754,18 @@ async def generate_with_validation(
             f"Using best attempt (score: {best_attempt.similarity_score:.2f}). "
             f"Note: Generated image may not be identical to reference."
         )
-        return (
-            f"{final_path}\n\n"
+        warning = (
             f"[Warning: Object identity validation did not pass after {max_retries} attempts. "
             f"Best similarity score: {best_attempt.similarity_score:.2f}. "
             f"The generated image may differ from the reference.]"
+        )
+        return ValidationGenerationResult(
+            path=str(final_path),
+            attempts=attempts_metadata,
+            final_prompt=best_attempt.prompt_used,
+            final_attempt_number=best_attempt.attempt_number,
+            validation_passed=False,
+            warning=warning,
         )
 
     return "Error: All generation attempts failed."
@@ -769,12 +830,12 @@ async def generate_with_multi_validation(
     aspect_ratio: str = "1:1",
     max_retries: int = 3,
     product_slugs: list[str] | None = None,
-    generation_images: list[bytes] | None = None,
-) -> str:
+    grouped_generation_images: list[tuple[str, list[bytes]]] | None = None,
+) -> MultiValidationGenerationResult | str:
     """Generate image with multiple products and validate each one.
 
     This function implements a retry loop that:
-    1. Generates an image using all reference images (including multi-angle)
+    1. Generates an image using all reference images with explicit product labels
     2. Validates each product individually using GPT-4o vision (primary refs only)
     3. If any product fails validation, improves the prompt and retries
     4. Returns the best attempt if all retries are exhausted
@@ -789,23 +850,29 @@ async def generate_with_multi_validation(
         aspect_ratio: Image aspect ratio.
         max_retries: Maximum validation attempts.
         product_slugs: Optional list of product slugs for metrics.
-        generation_images: Optional list of all image bytes for GENERATION.
-            Can include multiple angles per product. If None, uses product_references.
+        grouped_generation_images: Optional list of (product_name, [image_bytes, ...]) tuples
+            for GENERATION. Groups images by product so we can add explicit labels in the
+            API call. If None, uses product_references (one image per product).
 
     Returns:
-        Path to generated image. If validation failed after all retries,
-        includes a warning message with per-product scores.
+        MultiValidationGenerationResult with path and attempt details, or an error string.
     """
     from google.genai import types
     from PIL import Image as PILImage
 
     settings = get_settings()
 
-    # If generation_images not provided, extract from product_references
-    if generation_images is None:
-        generation_images = [img_bytes for _, img_bytes in product_references]
+    # If grouped_generation_images not provided, extract from product_references
+    if grouped_generation_images is None:
+        grouped_generation_images = [
+            (name, [img_bytes]) for name, img_bytes in product_references
+        ]
+
+    # Count total images for logging
+    total_images = sum(len(imgs) for _, imgs in grouped_generation_images)
 
     attempts: list[MultiValidationAttempt] = []
+    attempts_metadata: list[dict] = []
     best_attempt: MultiValidationAttempt | None = None
     current_prompt = prompt
 
@@ -827,15 +894,24 @@ async def generate_with_multi_validation(
         metrics.total_attempts = attempt_number
         logger.info(
             f"Multi-product generation attempt {attempt_number}/{max_retries} "
-            f"({len(product_references)} products, {len(generation_images)} reference images)"
+            f"({len(product_references)} products, {total_images} reference images)"
         )
 
         try:
-            # Build contents with ALL reference images (including multi-angle)
+            # Build contents with interleaved text labels and images
+            # This helps Gemini understand which images belong to which product
             contents: list = [current_prompt]
-            for ref_bytes in generation_images:
-                ref_pil = PILImage.open(io.BytesIO(ref_bytes))
-                contents.append(ref_pil)
+
+            for product_name, product_images in grouped_generation_images:
+                img_count = len(product_images)
+                # Add explicit label before this product's images
+                plural = "s" if img_count > 1 else ""
+                label = f"[Reference images for {product_name} ({img_count} image{plural}):]"
+                contents.append(label)
+                # Add all images for this product
+                for ref_bytes in product_images:
+                    ref_pil = PILImage.open(io.BytesIO(ref_bytes))
+                    contents.append(ref_pil)
 
             # Generate image
             response = client.models.generate_content(
@@ -864,6 +940,12 @@ async def generate_with_multi_validation(
 
             if not generated_bytes:
                 logger.warning(f"No image generated on attempt {attempt_number}")
+                attempts_metadata.append({
+                    "attempt_number": attempt_number,
+                    "prompt": current_prompt,
+                    "image_path": str(attempt_path),
+                    "error": "No image generated in response",
+                })
                 continue
 
             # Validate all products
@@ -916,6 +998,13 @@ async def generate_with_multi_validation(
                 validation.all_products_accurate
                 and (validation.all_proportions_match or not settings.sip_proportion_validation)
             )
+            attempts_metadata.append({
+                "attempt_number": attempt_number,
+                "prompt": current_prompt,
+                "image_path": str(attempt_path),
+                "validation": _validation_model_dump(validation),
+                "validation_passed": attempt_passed,
+            })
             metrics.add_attempt(
                 attempt_number=attempt_number,
                 prompt_used=current_prompt,
@@ -966,7 +1055,13 @@ async def generate_with_multi_validation(
                 # Clean up attempt files
                 _cleanup_attempt_files(attempts, None, final_path, output_dir)
 
-                return str(final_path)
+                return MultiValidationGenerationResult(
+                    path=str(final_path),
+                    attempts=attempts_metadata,
+                    final_prompt=current_prompt,
+                    final_attempt_number=attempt_number,
+                    validation_passed=True,
+                )
 
             # Improve prompt for next attempt
             current_prompt = _improve_multi_product_prompt(
@@ -981,6 +1076,11 @@ async def generate_with_multi_validation(
 
         except Exception as e:
             logger.warning(f"Multi-product generation attempt {attempt_number} failed: {e}")
+            attempts_metadata.append({
+                "attempt_number": attempt_number,
+                "prompt": current_prompt,
+                "error": str(e),
+            })
             continue
 
     # All attempts exhausted - use best attempt as fallback
@@ -1022,12 +1122,19 @@ async def generate_with_multi_validation(
             f"Using best attempt (overall: {best_attempt.overall_score:.2f}). "
             f"Per-product scores: {score_summary}"
         )
-        return (
-            f"{final_path}\n\n"
+        warning = (
             f"[Warning: Multi-product validation did not pass after {max_retries} attempts. "
             f"Overall score: {best_attempt.overall_score:.2f}. "
             f"Per-product scores: {score_summary}. "
             f"Some products may not match their reference images exactly.]"
+        )
+        return MultiValidationGenerationResult(
+            path=str(final_path),
+            attempts=attempts_metadata,
+            final_prompt=best_attempt.prompt_used,
+            final_attempt_number=best_attempt.attempt_number,
+            validation_passed=False,
+            warning=warning,
         )
 
     # Phase 0: Record failure metrics
