@@ -151,6 +151,17 @@ def _dedupe_forbidden_items(items: list[str]) -> list[str]:
     return result
 
 
+def _derive_required_from_forbidden(items: list[str]) -> list[str]:
+    required: list[str] = []
+    for item in items:
+        lowered = item.lower()
+        if "nozzle" in lowered or "spray" in lowered:
+            if "cap" in lowered or "cover" in lowered:
+                required.append("Spray nozzle fully exposed (capless)")
+                continue
+    return _dedupe_forbidden_items(required)
+
+
 def _clean_forbidden_sentence(sentence: str) -> str | None:
     cleaned = " ".join(sentence.strip().split())
     if not cleaned:
@@ -192,6 +203,35 @@ def _extract_forbidden_from_text(text: str) -> tuple[list[str], str]:
     return forbidden, cleaned_text
 
 
+def _extract_global_forbidden_from_prompt(prompt: str) -> list[str]:
+    """Extract clear negative instructions from a scene prompt."""
+    if not prompt:
+        return []
+
+    forbidden: list[str] = []
+    sentences = re.split(r"(?<=[.!?])\s+|\n+", prompt)
+
+    for sentence in sentences:
+        if not sentence or not sentence.strip():
+            continue
+        stripped = sentence.strip()
+
+        if re.match(r"^(do not|don't|never|avoid)\b", stripped, re.IGNORECASE):
+            cleaned = _clean_forbidden_sentence(stripped)
+            if cleaned:
+                forbidden.append(cleaned)
+            continue
+
+        for match in re.finditer(r"\(([^)]*)\)", stripped):
+            inner = match.group(1)
+            for no_match in re.finditer(r"\bno\s+[^,;.)]+", inner, re.IGNORECASE):
+                cleaned = _clean_forbidden_sentence(no_match.group(0))
+                if cleaned:
+                    forbidden.append(cleaned)
+
+    return _dedupe_forbidden_items(forbidden)
+
+
 # =============================================================================
 # Product Specs Data Structure
 # =============================================================================
@@ -225,6 +265,7 @@ class ProductSpecs:
     # Distinguishing features
     distinguishers: list[str] = field(default_factory=list)
     forbidden: list[str] = field(default_factory=list)
+    required: list[str] = field(default_factory=list)
 
     def compute_ratios(self) -> None:
         """Compute derived ratios from dimensions."""
@@ -297,6 +338,10 @@ class ProductSpecs:
         # Distinguishers
         if self.distinguishers:
             lines.append(f"  Key features: {', '.join(self.distinguishers)}")
+
+        # Required (explicit positives)
+        if self.required:
+            lines.append(f"  Required: {', '.join(self.required)}")
 
         # Forbidden (explicit negatives)
         if self.forbidden:
@@ -420,6 +465,7 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
     # Compute derived ratios
     specs.compute_ratios()
     specs.forbidden = _dedupe_forbidden_items(forbidden_items)
+    specs.required = _derive_required_from_forbidden(specs.forbidden)
 
     return specs
 
@@ -567,14 +613,14 @@ def inject_specs_into_prompt(
         include_constraints=include_constraints,
         include_description=include_description,
     )
-    global_forbidden, _ = _extract_forbidden_from_text(prompt)
+    global_forbidden = _extract_global_forbidden_from_prompt(prompt)
     forbidden_block = ""
     if global_forbidden:
         forbidden_block = "\n".join([
             "",
             "### FORBIDDEN (GLOBAL)",
             "",
-            *[f"- {item}" for item in _dedupe_forbidden_items(global_forbidden)],
+            *[f"- {item}" for item in global_forbidden],
             "",
         ])
 
