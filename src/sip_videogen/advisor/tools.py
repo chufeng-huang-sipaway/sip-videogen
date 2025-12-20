@@ -27,7 +27,12 @@ from pathlib import Path
 from typing import Literal
 
 from agents import function_tool
+from typing_extensions import NotRequired, TypedDict
 
+from sip_videogen.brands.models import ProductAttribute, ProductFull
+from sip_videogen.brands.storage import (
+    create_product as storage_create_product,
+)
 from sip_videogen.brands.storage import (
     get_active_brand,
     get_active_project,
@@ -48,6 +53,19 @@ from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# TypedDicts for Tool Input Parameters
+# =============================================================================
+
+
+class AttributeInput(TypedDict):
+    """Input type for product attributes in create_product/update_product tools."""
+
+    key: str
+    value: str
+    category: NotRequired[str]
 
 
 # =============================================================================
@@ -109,7 +127,7 @@ def _build_api_call_code(
 
     # Use grouped structure if provided (shows interleaved labels)
     if grouped_reference_images:
-        contents_lines = ['[', f'    """{prompt_escaped}""",']
+        contents_lines = ["[", f'    """{prompt_escaped}""",']
         img_idx = 1
         for product_name, paths in grouped_reference_images:
             img_count = len(paths)
@@ -119,24 +137,23 @@ def _build_api_call_code(
             contents_lines.append(f'    "{label}",')
             # Add all images for this product
             for ref_path in paths:
-                ref_comment = f'  # Loaded from: {ref_path}'
+                ref_comment = f"  # Loaded from: {ref_path}"
                 contents_lines.append(
-                    f'    PILImage.open(io.BytesIO(reference_image_bytes_{img_idx})),'
-                    f'{ref_comment}'
+                    f"    PILImage.open(io.BytesIO(reference_image_bytes_{img_idx})),{ref_comment}"
                 )
                 img_idx += 1
-        contents_lines.append(']')
+        contents_lines.append("]")
         contents_repr = "\n".join(contents_lines)
     elif reference_images:
         # Legacy flat list (for single product or backward compatibility)
         reference_images = [path for path in reference_images if path]
-        contents_lines = ['[', f'    """{prompt_escaped}""",']
+        contents_lines = ["[", f'    """{prompt_escaped}""",']
         for idx, ref_path in enumerate(reference_images, start=1):
-            ref_comment = f'  # Loaded from: {ref_path}'
+            ref_comment = f"  # Loaded from: {ref_path}"
             contents_lines.append(
-                f'    PILImage.open(io.BytesIO(reference_image_bytes_{idx})),{ref_comment}'
+                f"    PILImage.open(io.BytesIO(reference_image_bytes_{idx})),{ref_comment}"
             )
-        contents_lines.append(']')
+        contents_lines.append("]")
         contents_repr = "\n".join(contents_lines)
     else:
         contents_repr = f'"""{prompt_escaped}"""'
@@ -541,10 +558,7 @@ async def _impl_generate_image(
                 ref_path = _resolve_brand_path(img_path)
                 if ref_path is None or not ref_path.exists():
                     if images_loaded == 0:
-                        return (
-                            f"Error: Reference image not found for product '{slug}': "
-                            f"{img_path}"
-                        )
+                        return f"Error: Reference image not found for product '{slug}': {img_path}"
                     else:
                         logger.warning(f"Additional image not found, skipping: {img_path}")
                         continue
@@ -556,12 +570,14 @@ async def _impl_generate_image(
                     generation_image_paths.append(img_path)
                     role = "primary" if img_path == product.primary_image else "additional"
                     used_for = "generation+validation" if role == "primary" else "generation"
-                    reference_images_detail.append({
-                        "path": img_path,
-                        "product_slug": slug,
-                        "role": role,
-                        "used_for": used_for,
-                    })
+                    reference_images_detail.append(
+                        {
+                            "path": img_path,
+                            "product_slug": slug,
+                            "role": role,
+                            "used_for": used_for,
+                        }
+                    )
                     if images_loaded == 0:
                         primary_bytes = ref_bytes  # Keep primary for validation
                         logger.info(f"Loaded primary reference for '{product.name}': {img_path}")
@@ -777,12 +793,14 @@ async def _impl_generate_image(
             if reference_image:
                 role = "primary" if product_slug else "reference"
                 used_for = "generation+validation" if validate_identity else "generation"
-                reference_images_detail.append({
-                    "path": reference_image,
-                    "product_slug": product_slug,
-                    "role": role,
-                    "used_for": used_for,
-                })
+                reference_images_detail.append(
+                    {
+                        "path": reference_image,
+                        "product_slug": product_slug,
+                        "role": role,
+                        "used_for": used_for,
+                    }
+                )
 
             attempts = _build_attempts_metadata(
                 attempts=result.attempts,
@@ -865,12 +883,14 @@ async def _impl_generate_image(
                 reference_images_detail = []
                 if reference_image:
                     role = "primary" if product_slug else "reference"
-                    reference_images_detail.append({
-                        "path": reference_image,
-                        "product_slug": product_slug,
-                        "role": role,
-                        "used_for": "generation",
-                    })
+                    reference_images_detail.append(
+                        {
+                            "path": reference_image,
+                            "product_slug": product_slug,
+                            "role": role,
+                            "used_for": "generation",
+                        }
+                    )
 
                 final_api_call = _build_api_call_code(
                     prompt=generation_prompt,
@@ -886,13 +906,15 @@ async def _impl_generate_image(
                     image_size=image_size,
                     reference_images=reference_images,
                 )
-                attempts = [{
-                    "attempt_number": 1,
-                    "prompt": generation_prompt,
-                    "validation_passed": None,
-                    "api_call_code": final_api_call,
-                    "request_payload": final_request_payload,
-                }]
+                attempts = [
+                    {
+                        "attempt_number": 1,
+                        "prompt": generation_prompt,
+                        "validation_passed": None,
+                        "api_call_code": final_api_call,
+                        "request_payload": final_request_payload,
+                    }
+                ]
                 metadata = ImageGenerationMetadata(
                     prompt=generation_prompt,
                     original_prompt=prompt,
@@ -923,6 +945,69 @@ async def _impl_generate_image(
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         return f"Error generating image: {str(e)}"
+
+
+def _impl_create_product(
+    name: str,
+    description: str = "",
+    attributes: list[AttributeInput] | None = None,
+) -> str:
+    """Implementation of create_product tool.
+
+    Args:
+        name: Product name.
+        description: Product description.
+        attributes: Optional list of AttributeInput dicts with keys: key, value, category.
+
+    Returns:
+        Success message or error.
+    """
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    # Generate slug from name
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+    # Validate generated slug
+    slug_error = _validate_slug(slug)
+    if slug_error:
+        return f"Error: Cannot generate valid slug from name '{name}'. {slug_error}"
+
+    # Check product doesn't already exist
+    existing = load_product(brand_slug, slug)
+    if existing:
+        return f"Error: Product '{slug}' already exists. Use update_product() instead."
+
+    # Parse attributes if provided
+    parsed_attrs: list[ProductAttribute] = []
+    if attributes:
+        for attr in attributes:
+            parsed_attrs.append(
+                ProductAttribute(
+                    key=attr["key"],
+                    value=attr["value"],
+                    category=attr.get("category", "general"),
+                )
+            )
+
+    # Create product
+    product = ProductFull(
+        slug=slug,
+        name=name,
+        description=description,
+        attributes=parsed_attrs,
+    )
+
+    try:
+        storage_create_product(brand_slug, product)
+        logger.info(f"Created product '{slug}' for brand '{brand_slug}'")
+        return f"Created product **{name}** (`{slug}`)."
+    except ValueError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        logger.error(f"Failed to create product: {e}")
+        return f"Error creating product: {e}"
 
 
 def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
@@ -1839,6 +1924,45 @@ def update_memory(
     _pending_memory_update = {"message": display_message}
 
     return f"Memory updated: {key}"
+
+
+@function_tool
+def create_product(
+    name: str,
+    description: str = "",
+    attributes: list[AttributeInput] | None = None,
+) -> str:
+    """Create a new product for the active brand.
+
+    Use this to add products to the brand's product catalog. Products can have
+    images added separately using add_product_image().
+
+    Args:
+        name: Product name (e.g., "Night Cream", "Summer Collection T-Shirt").
+            A URL-safe slug will be generated from this name.
+        description: Optional product description. Keep it concise but informative.
+        attributes: Optional list of product attributes. Each attribute has:
+            - key: Attribute name (e.g., "dimensions", "material", "weight")
+            - value: Attribute value (e.g., "50ml", "organic cotton", "200g")
+            - category: Optional category (default: "general"). Common categories:
+              "measurements", "texture", "use_case", "ingredients"
+
+    Returns:
+        Success message with product name and slug, or error message.
+
+    Example:
+        create_product(
+            name="Restorative Night Cream",
+            description="A luxurious cream for overnight skin rejuvenation",
+            attributes=[
+                {"key": "size", "value": "50ml", "category": "measurements"},
+                {"key": "texture", "value": "rich, creamy", "category": "texture"},
+                {"key": "key_ingredients", "value": "retinol, hyaluronic acid"},
+            ]
+        )
+        # Returns: "Created product **Restorative Night Cream** (`restorative-night-cream`)."
+    """
+    return _impl_create_product(name, description, attributes)
 
 
 # =============================================================================
