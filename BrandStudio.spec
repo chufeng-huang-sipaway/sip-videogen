@@ -146,8 +146,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'Brand Studio',
         'CFBundleDisplayName': 'Brand Studio',
-        'CFBundleVersion': '0.4.0',
-        'CFBundleShortVersionString': '0.4.0',
+        'CFBundleVersion': '0.5.0',
+        'CFBundleShortVersionString': '0.5.0',
         'NSHighResolutionCapable': True,
         'LSMinimumSystemVersion': '10.13.0',
         'NSRequiresAquaSystemAppearance': False,  # Support dark mode
