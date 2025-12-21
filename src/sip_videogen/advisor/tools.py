@@ -31,7 +31,16 @@ from typing_extensions import NotRequired, TypedDict
 
 from sip_videogen.brands.models import ProductAttribute, ProductFull
 from sip_videogen.brands.storage import (
+    add_product_image as storage_add_product_image,
+)
+from sip_videogen.brands.storage import (
     create_product as storage_create_product,
+)
+from sip_videogen.brands.storage import (
+    save_product as storage_save_product,
+)
+from sip_videogen.brands.storage import (
+    delete_product as storage_delete_product,
 )
 from sip_videogen.brands.storage import (
     get_active_brand,
@@ -48,6 +57,12 @@ from sip_videogen.brands.storage import (
 )
 from sip_videogen.brands.storage import (
     load_brand as storage_load_brand,
+)
+from sip_videogen.brands.storage import (
+    set_primary_product_image as storage_set_primary_product_image,
+)
+from sip_videogen.brands.storage import (
+    delete_product as storage_delete_product,
 )
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
@@ -1010,6 +1025,301 @@ def _impl_create_product(
         return f"Error creating product: {e}"
 
 
+def _impl_add_product_image(
+    product_slug: str,
+    image_path: str,
+    set_as_primary: bool = False,
+) -> str:
+    """Implementation of add_product_image tool.
+
+    Args:
+        product_slug: Product identifier.
+        image_path: Path to image within brand directory (must be in uploads/).
+        set_as_primary: If True, set this image as the product's primary image.
+
+    Returns:
+        Success message or error.
+    """
+    import io
+
+    from PIL import Image as PILImage
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    # Validate product_slug
+    slug_error = _validate_slug(product_slug)
+    if slug_error:
+        return f"Error: {slug_error}"
+
+    # Require image_path to start with uploads/
+    if not image_path.startswith("uploads/"):
+        return (
+            "Error: image_path must be within the uploads/ folder. "
+            f"Got: '{image_path}'. Upload images first, then add them to products."
+        )
+
+    # Resolve path
+    resolved = _resolve_brand_path(image_path)
+    if resolved is None:
+        return f"Error: Invalid path or no active brand: {image_path}"
+
+    if not resolved.exists():
+        return f"Error: File not found: {image_path}"
+
+    # Get filename and validate
+    filename = resolved.name
+    filename_error = _validate_filename(filename)
+    if filename_error:
+        return f"Error: {filename_error}"
+
+    # Read file and check size
+    try:
+        data = resolved.read_bytes()
+    except Exception as e:
+        return f"Error reading file: {e}"
+
+    if len(data) > MAX_PRODUCT_IMAGE_SIZE_BYTES:
+        size_mb = len(data) / (1024 * 1024)
+        max_mb = MAX_PRODUCT_IMAGE_SIZE_BYTES / (1024 * 1024)
+        return f"Error: Image too large ({size_mb:.1f}MB). Maximum is {max_mb:.0f}MB."
+
+    # Validate it's a valid raster image using Pillow
+    try:
+        img = PILImage.open(io.BytesIO(data))
+        img.verify()  # Verify image integrity
+    except Exception as e:
+        return f"Error: Invalid or corrupted image file: {e}"
+
+    # Check product exists
+    product = load_product(brand_slug, product_slug)
+    if product is None:
+        return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+
+    # Handle filename collisions with timestamp suffix
+    from datetime import datetime
+
+    base_name = resolved.stem
+    ext = resolved.suffix.lower()
+    if any(img_path.endswith(f"/{filename}") for img_path in product.images):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{base_name}_{timestamp}{ext}"
+        logger.info(f"Filename collision detected, using: {filename}")
+
+    # Add image to product
+    try:
+        brand_relative_path = storage_add_product_image(brand_slug, product_slug, filename, data)
+        logger.info(f"Added image '{filename}' to product '{product_slug}'")
+    except ValueError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        logger.error(f"Failed to add product image: {e}")
+        return f"Error adding image: {e}"
+
+    # Set as primary if requested
+    if set_as_primary:
+        success = storage_set_primary_product_image(brand_slug, product_slug, brand_relative_path)
+        if success:
+            return (
+                f"Added image `{filename}` to product **{product.name}** and set as primary image."
+            )
+        else:
+            return (
+                f"Added image `{filename}` to product **{product.name}**, "
+                "but failed to set as primary."
+            )
+
+    return f"Added image `{filename}` to product **{product.name}** (`{product_slug}`)."
+
+
+def _impl_update_product(
+    product_slug: str,
+    name: str | None = None,
+    description: str | None = None,
+    attributes: list[AttributeInput] | None = None,
+    replace_attributes: bool = False,
+) -> str:
+    """Implementation of update_product tool.
+
+    Args:
+        product_slug: Product identifier.
+        name: Optional new name.
+        description: Optional new description.
+        attributes: Optional list of AttributeInput dicts. If replace_attributes=False (default),
+            merges with existing attributes by (category, key) case-insensitive. If True,
+            replaces all existing attributes.
+        replace_attributes: If True, replace all attributes. If False (default), merge.
+
+    Returns:
+        Success message or error.
+    """
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    # Validate product_slug
+    slug_error = _validate_slug(product_slug)
+    if slug_error:
+        return f"Error: {slug_error}"
+
+    # Load existing product
+    product = load_product(brand_slug, product_slug)
+    if product is None:
+        return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+
+    # Update fields
+    if name is not None:
+        product.name = name
+    if description is not None:
+        product.description = description
+
+    # Handle attributes
+    if attributes is not None:
+        if replace_attributes:
+            # Replace all attributes
+            product.attributes = [
+                ProductAttribute(
+                    key=attr["key"],
+                    value=attr["value"],
+                    category=attr.get("category", "general"),
+                )
+                for attr in attributes
+            ]
+        else:
+            # Merge attributes by (category, key) case-insensitive
+            # Build a dict of existing attributes for quick lookup
+            existing_by_key = {}
+            for attr in product.attributes:
+                key = (attr.category.lower(), attr.key.lower())
+                existing_by_key[key] = attr
+
+            # Update or add attributes
+            for attr in attributes:
+                key = (attr.get("category", "general").lower(), attr["key"].lower())
+                if key in existing_by_key:
+                    # Update existing
+                    existing_by_key[key].value = attr["value"]
+                    existing_by_key[key].category = attr.get("category", "general")
+                else:
+                    # Add new
+                    product.attributes.append(
+                        ProductAttribute(
+                            key=attr["key"],
+                            value=attr["value"],
+                            category=attr.get("category", "general"),
+                        )
+                    )
+
+    try:
+        storage_save_product(brand_slug, product)
+        logger.info(f"Updated product '{product_slug}' for brand '{brand_slug}'")
+        return f"Updated product **{product.name}** (`{product_slug}`)."
+    except Exception as e:
+        logger.error(f"Failed to update product: {e}")
+        return f"Error updating product: {e}"
+
+
+def _impl_delete_product(
+    product_slug: str,
+    confirm: bool = False,
+) -> str:
+    """Implementation of delete_product tool.
+
+    Args:
+        product_slug: Product identifier.
+        confirm: Must be True to actually delete the product. If False,
+            returns a warning message with product name and image count.
+
+    Returns:
+        Success message or error/warning.
+    """
+    from sip_videogen.brands.storage import load_product as storage_load_product
+
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    # Validate product_slug
+    slug_error = _validate_slug(product_slug)
+    if slug_error:
+        return f"Error: {slug_error}"
+
+    # Load product to check if it exists and get details
+    product = storage_load_product(brand_slug, product_slug)
+    if product is None:
+        return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+
+    # If confirm=False, return warning message
+    if not confirm:
+        image_count = len(product.images)
+        warning_msg = (
+            f"This will permanently delete **{product.name}** and all {image_count} images.\n\n"
+            "To confirm, call `delete_product(product_slug, confirm=True)`."
+        )
+        return warning_msg
+
+    # If confirm=True, proceed with deletion
+    try:
+        storage_delete_product(brand_slug, product_slug)
+        logger.info(f"Deleted product '{product_slug}' from brand '{brand_slug}'")
+        return f"Deleted product **{product.name}** (`{product_slug}`)."
+    except Exception as e:
+        logger.error(f"Failed to delete product: {e}")
+        return f"Error deleting product: {e}"
+
+
+def _impl_set_product_primary_image(
+    product_slug: str,
+    image_path: str,
+) -> str:
+    """Implementation of set_product_primary_image tool.
+
+    Args:
+        product_slug: Product identifier.
+        image_path: Path to image within product.images list.
+
+    Returns:
+        Success message or error.
+    """
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+
+    # Validate product_slug
+    slug_error = _validate_slug(product_slug)
+    if slug_error:
+        return f"Error: {slug_error}"
+
+    # Load product to check if it exists
+    product = load_product(brand_slug, product_slug)
+    if product is None:
+        return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+
+    # Verify image exists in product.images
+    if image_path not in product.images:
+        available_images = "\n".join(f"- {img}" for img in product.images)
+        return (
+            f"Error: Image '{image_path}' not found in product '{product_slug}'.\n"
+            f"Available images:\n{available_images}"
+        )
+
+    # Set as primary image
+    try:
+        success = storage_set_primary_product_image(brand_slug, product_slug, image_path)
+        if success:
+            return (
+                f"Set `{image_path}` as primary image for product **{product.name}** (`{product_slug}`)."
+            )
+        else:
+            return (
+                f"Error: Failed to set `{image_path}` as primary image for product **{product.name}**."
+            )
+    except Exception as e:
+        logger.error(f"Failed to set primary product image: {e}")
+        return f"Error setting primary image: {e}"
+
+
 def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
     """Implementation of read_file tool with chunking support.
 
@@ -1364,7 +1674,7 @@ def _impl_list_products() -> str:
     products = storage_list_products(brand_slug)
 
     if not products:
-        return f"No products found for brand '{brand_slug}'. Use the bridge to create products."
+        return f"No products found for brand '{brand_slug}'. Use create_product() to add products."
 
     lines = [f"Products for brand '{brand_slug}':\n"]
     for product in products:
@@ -1965,6 +2275,163 @@ def create_product(
     return _impl_create_product(name, description, attributes)
 
 
+@function_tool
+def add_product_image(
+    product_slug: str,
+    image_path: str,
+    set_as_primary: bool = False,
+) -> str:
+    """Add an image to a product from the uploads folder.
+
+    Use this after a user uploads an image (which goes to uploads/) to associate
+    it with a product. The image will be copied to the product's images folder.
+
+    Args:
+        product_slug: The product's slug identifier (e.g., "night-cream").
+            Use list_products() to see available products.
+        image_path: Path to the image within the brand directory.
+            MUST be within the uploads/ folder (e.g., "uploads/product-photo.png").
+            Use list_files("uploads") to see available uploaded images.
+        set_as_primary: If True, set this image as the product's primary image.
+            The primary image is used as the reference for generate_image(product_slug=...).
+
+    Returns:
+        Success message with the added filename, or error message.
+
+    Example:
+        # After user uploads an image, add it to a product:
+        add_product_image(
+            product_slug="night-cream",
+            image_path="uploads/cream-photo.jpg",
+            set_as_primary=True
+        )
+        # Returns: "Added image `cream-photo.jpg` to product **Night Cream**
+        #          and set as primary image."
+    """
+    return _impl_add_product_image(product_slug, image_path, set_as_primary)
+
+
+@function_tool
+def update_product(
+    product_slug: str,
+    name: str | None = None,
+    description: str | None = None,
+    attributes: list[AttributeInput] | None = None,
+    replace_attributes: bool = False,
+) -> str:
+    """Update an existing product's details. Attributes merge by default.
+
+    Use this to modify product information without creating a new product.
+    Attributes are merged by (category, key) case-insensitively by default.
+    To replace all attributes, set replace_attributes=True.
+
+    Args:
+        product_slug: The product's slug identifier (e.g., "night-cream").
+            Use list_products() to see available products.
+        name: Optional new product name.
+        description: Optional new product description.
+        attributes: Optional list of product attributes to merge or replace.
+            Each attribute has:
+            - key: Attribute name (e.g., "dimensions", "material")
+            - value: Attribute value (e.g., "50ml", "organic cotton")
+            - category: Optional category (default: "general")
+        replace_attributes: If True, replace all existing attributes with the provided list.
+            If False (default), merge existing attributes by (category, key).
+
+    Returns:
+        Success message with the updated product name and slug, or error message.
+
+    Example:
+        # Merge attributes (default behavior)
+        update_product(
+            product_slug="night-cream",
+            description="A richer formula for overnight rejuvenation",
+            attributes=[
+                {"key": "texture", "value": "ultra-creamy", "category": "texture"},
+                {"key": "new_feature", "value": "vitamin C", "category": "ingredients"},
+            ]
+        )
+
+        # Replace all attributes
+        update_product(
+            product_slug="night-cream",
+            replace_attributes=True,
+            attributes=[
+                {"key": "size", "value": "30ml"},
+                {"key": "skin_type", "value": "dry"},
+            ]
+        )
+    """
+    return _impl_update_product(product_slug, name, description, attributes, replace_attributes)
+
+
+@function_tool
+def delete_product(
+    product_slug: str,
+    confirm: bool = False,
+) -> str:
+    """Delete a product and all its files. Requires confirm=True.
+
+    Use this to remove products from the brand's catalog. This operation is
+    destructive and cannot be undone. Requires explicit confirmation.
+
+    Args:
+        product_slug: The product's slug identifier (e.g., "night-cream").
+            Use list_products() to see available products.
+        confirm: Must be True to actually delete the product. If False,
+            returns a warning message with product name and image count.
+
+    Returns:
+        Success message or error/warning.
+
+    Example:
+        # First call to see what will be deleted
+        delete_product(product_slug="old-product")
+        # Returns: "This will permanently delete **Old Product** and all 3 images.
+        #          To confirm, call `delete_product(product_slug, confirm=True)`."
+
+        # Second call to confirm deletion
+        delete_product(product_slug="old-product", confirm=True)
+        # Returns: "Deleted product **Old Product** (`old-product`)."
+    """
+    return _impl_delete_product(product_slug, confirm)
+
+
+@function_tool
+def set_product_primary_image(
+    product_slug: str,
+    image_path: str,
+) -> str:
+    """Set the primary image for a product.
+
+    Use this to designate which image should be used as the reference for
+    generate_image(product_slug=...). The primary image is also displayed
+    prominently in the product catalog.
+
+    Args:
+        product_slug: The product's slug identifier (e.g., "night-cream").
+            Use list_products() to see available products.
+        image_path: Path to the image within the product's images list.
+            Use get_product_detail(product_slug) to see available images.
+
+    Returns:
+        Success message or error message.
+
+    Example:
+        # First see what images are available
+        get_product_detail(product_slug="night-cream")
+        # Shows: images: ["images/main.png", "images/alt.png"]
+
+        # Then set the primary image
+        set_product_primary_image(
+            product_slug="night-cream",
+            image_path="images/main.png"
+        )
+        # Returns: "Set `images/main.png` as primary image for product **Night Cream** (`night-cream`)."
+    """
+    return _impl_set_product_primary_image(product_slug, image_path)
+
+
 # =============================================================================
 # Tool List for Agent
 # =============================================================================
@@ -1984,4 +2451,10 @@ ADVISOR_TOOLS = [
     list_projects,
     get_product_detail,
     get_project_detail,
+    # Product management tools
+    create_product,
+    update_product,
+    delete_product,
+    add_product_image,
+    set_product_primary_image,
 ]

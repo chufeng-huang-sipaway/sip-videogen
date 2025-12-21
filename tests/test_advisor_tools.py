@@ -1588,3 +1588,709 @@ class TestGetProjectDetail:
         assert "15 generated assets" in result
         # Should indicate more assets
         assert "...and 5 more" in result
+
+
+class TestCreateProduct:
+    """Tests for _impl_create_product function."""
+
+    def test_create_product_success(self) -> None:
+        """Test creating a product successfully."""
+        from sip_videogen.advisor.tools import _impl_create_product
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_create_product"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = _impl_create_product(
+                name="Test Product",
+                description="A test product",
+                attributes=[
+                    {"key": "size", "value": "50ml", "category": "measurements"},
+                    {"key": "color", "value": "blue", "category": "appearance"},
+                ],
+            )
+
+        assert "Created product **Test Product**" in result
+        assert "`test-product`" in result
+
+    def test_create_product_no_active_brand(self) -> None:
+        """Test create_product with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_create_product
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_create_product(name="Test Product")
+
+        assert "Error: No active brand selected" in result
+
+    def test_create_product_slug_already_exists(self) -> None:
+        """Test create_product with existing slug returns error."""
+        from sip_videogen.advisor.tools import _impl_create_product
+
+        mock_product = MagicMock()
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+        ):
+            result = _impl_create_product(name="Test Product")
+
+        assert "Error: Product 'test-product' already exists" in result
+
+    def test_create_product_invalid_name_generates_bad_slug(self) -> None:
+        """Test create_product with name that generates invalid slug."""
+        from sip_videogen.advisor.tools import _impl_create_product
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = _impl_create_product(name="")
+
+        assert "Error: Cannot generate valid slug" in result
+
+    def test_create_product_with_empty_attributes(self) -> None:
+        """Test create_product with empty attributes list."""
+        from sip_videogen.advisor.tools import _impl_create_product
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_create_product"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = _impl_create_product(
+                name="Test Product",
+                description="A test product",
+                attributes=[],
+            )
+
+        assert "Created product **Test Product**" in result
+
+    def test_create_product_with_attributes_default_category(self) -> None:
+        """Test create_product assigns default category to attributes without category."""
+        from sip_videogen.advisor.tools import _impl_create_product
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.storage_create_product") as mock_create,
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = _impl_create_product(
+                name="Test Product",
+                attributes=[
+                    {"key": "size", "value": "50ml"},  # No category specified
+                    {"key": "color", "value": "blue", "category": "appearance"},
+                ],
+            )
+
+        assert "Created product **Test Product**" in result
+        # Verify that storage_create_product was called with ProductFull having attributes
+        call_args = mock_create.call_args
+        created_product = call_args[1]["product"]
+        assert len(created_product.attributes) == 2
+        # Check that default category was assigned
+        size_attr = next(attr for attr in created_product.attributes if attr.key == "size")
+        assert size_attr.category == "general"
+        # Check that explicit category was preserved
+        color_attr = next(attr for attr in created_product.attributes if attr.key == "color")
+        assert color_attr.category == "appearance"
+
+
+class TestUpdateProduct:
+    """Tests for _impl_update_product function."""
+
+    def test_update_product_success(self) -> None:
+        """Test updating a product successfully."""
+        from sip_videogen.advisor.tools import _impl_update_product
+
+        mock_product = MagicMock()
+        mock_product.name = "Original Product"
+        mock_product.description = "Original description"
+        mock_product.attributes = []
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_save_product"),
+        ):
+            result = _impl_update_product(
+                product_slug="test-product",
+                name="Updated Product",
+                description="Updated description",
+                attributes=[
+                    {"key": "size", "value": "100ml", "category": "measurements"},
+                ],
+            )
+
+        assert "Updated product **Updated Product**" in result
+        assert "`test-product`" in result
+
+    def test_update_product_no_active_brand(self) -> None:
+        """Test update_product with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_update_product
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_update_product(product_slug="test-product")
+
+        assert "Error: No active brand selected" in result
+
+    def test_update_product_not_found(self) -> None:
+        """Test update_product with non-existent product returns error."""
+        from sip_videogen.advisor.tools import _impl_update_product
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = _impl_update_product(product_slug="nonexistent")
+
+        assert "Error: Product 'nonexistent' not found" in result
+
+    def test_update_product_merge_attributes(self) -> None:
+        """Test update_product merges attributes by default."""
+        from sip_videogen.advisor.tools import _impl_update_product
+        from sip_videogen.brands.models import ProductAttribute
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.description = "Original description"
+        mock_product.attributes = [
+            ProductAttribute(key="size", value="50ml", category="measurements"),
+            ProductAttribute(key="color", value="red", category="appearance"),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_save_product"),
+        ):
+            result = _impl_update_product(
+                product_slug="test-product",
+                description="Updated description",
+                attributes=[
+                    {"key": "size", "value": "100ml", "category": "measurements"},  # Update existing
+                    {"key": "material", "value": "cotton", "category": "materials"},  # New attribute
+                ],
+                replace_attributes=False,
+            )
+
+        assert "Updated product **Test Product**" in result
+        # Verify attributes were merged
+        assert len(mock_product.attributes) == 3
+        # Check that existing attribute was updated
+        size_attr = next(attr for attr in mock_product.attributes if attr.key == "size")
+        assert size_attr.value == "100ml"
+        # Check that new attribute was added
+        material_attr = next(attr for attr in mock_product.attributes if attr.key == "material")
+        assert material_attr.value == "cotton"
+
+    def test_update_product_replace_attributes(self) -> None:
+        """Test update_product replaces all attributes when replace_attributes=True."""
+        from sip_videogen.advisor.tools import _impl_update_product
+        from sip_videogen.brands.models import ProductAttribute
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.attributes = [
+            ProductAttribute(key="size", value="50ml", category="measurements"),
+            ProductAttribute(key="color", value="red", category="appearance"),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_save_product"),
+        ):
+            result = _impl_update_product(
+                product_slug="test-product",
+                attributes=[
+                    {"key": "material", "value": "cotton", "category": "materials"},
+                ],
+                replace_attributes=True,
+            )
+
+        assert "Updated product **Test Product**" in result
+        # Verify all attributes were replaced
+        assert len(mock_product.attributes) == 1
+        material_attr = mock_product.attributes[0]
+        assert material_attr.key == "material"
+        assert material_attr.value == "cotton"
+
+    def test_update_product_case_insensitive_merge(self) -> None:
+        """Test update_product merges attributes case-insensitively."""
+        from sip_videogen.advisor.tools import _impl_update_product
+        from sip_videogen.brands.models import ProductAttribute
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.attributes = [
+            ProductAttribute(key="SIZE", value="50ml", category="MEASUREMENTS"),
+        ]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_save_product"),
+        ):
+            result = _impl_update_product(
+                product_slug="test-product",
+                attributes=[
+                    {"key": "size", "value": "100ml", "category": "measurements"},  # Same case-insensitive
+                ],
+                replace_attributes=False,
+            )
+
+        assert "Updated product **Test Product**" in result
+        # Verify the existing attribute was updated (not duplicated)
+        assert len(mock_product.attributes) == 1
+        size_attr = mock_product.attributes[0]
+        assert size_attr.value == "100ml"
+
+    def test_update_product_invalid_slug(self) -> None:
+        """Test update_product with invalid slug returns error."""
+        from sip_videogen.advisor.tools import _impl_update_product
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+        ):
+            result = _impl_update_product(product_slug="../etc/passwd")
+
+        assert "Error: Invalid slug" in result
+
+
+class TestAddProductImage:
+    """Tests for _impl_add_product_image function."""
+
+    def test_add_product_image_success(self) -> None:
+        """Test adding a product image successfully."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image", return_value="products/test/images/photo.jpg"),
+        ):
+            # Mock the resolved path
+            mock_path = MagicMock()
+            mock_path.exists.return_value = True
+            mock_path.name = "photo.jpg"
+            mock_resolve.return_value = mock_path
+            # Mock reading file bytes
+            with patch("pathlib.Path.read_bytes", return_value=b"fake image data"):
+                result = _impl_add_product_image(
+                    product_slug="test-product",
+                    image_path="uploads/photo.jpg",
+                )
+
+        assert "Added image `photo.jpg` to product **Test Product**" in result
+        assert "`test-product`" in result
+
+    def test_add_product_image_no_active_brand(self) -> None:
+        """Test add_product_image with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_add_product_image(
+                product_slug="test-product",
+                image_path="uploads/photo.jpg",
+            )
+
+        assert "Error: No active brand selected" in result
+
+    def test_add_product_image_invalid_slug(self) -> None:
+        """Test add_product_image with invalid product_slug returns error."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+        ):
+            result = _impl_add_product_image(
+                product_slug="../etc/passwd",
+                image_path="uploads/photo.jpg",
+            )
+
+        assert "Error: Invalid slug" in result
+
+    def test_add_product_image_not_in_uploads(self) -> None:
+        """Test add_product_image with path not in uploads/ returns error."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+        ):
+            result = _impl_add_product_image(
+                product_slug="test-product",
+                image_path="assets/logo.png",  # Not in uploads/
+            )
+
+        assert "Error: image_path must be within the uploads/ folder" in result
+
+    def test_add_product_image_not_found(self) -> None:
+        """Test add_product_image with non-existent file returns error."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        mock_product = MagicMock()
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+        ):
+            mock_path = MagicMock()
+            mock_path.exists.return_value = False
+            mock_resolve.return_value = mock_path
+            result = _impl_add_product_image(
+                product_slug="test-product",
+                image_path="uploads/photo.jpg",
+            )
+
+        assert "Error: File not found" in result
+
+    def test_add_product_image_too_large(self) -> None:
+        """Test add_product_image with file too large returns error."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+        ):
+            mock_path = MagicMock()
+            mock_path.exists.return_value = True
+            mock_path.name = "photo.jpg"
+            mock_resolve.return_value = mock_path
+            # Mock reading large file bytes
+            large_data = b"x" * (11 * 1024 * 1024)  # 11MB
+            with patch("pathlib.Path.read_bytes", return_value=large_data):
+                result = _impl_add_product_image(
+                    product_slug="test-product",
+                    image_path="uploads/photo.jpg",
+                )
+
+        assert "Error: Image too large" in result
+
+    def test_add_product_image_invalid_format(self) -> None:
+        """Test add_product_image with invalid file format returns error."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+        ):
+            mock_path = MagicMock()
+            mock_path.exists.return_value = True
+            mock_path.name = "photo.txt"  # Invalid extension
+            mock_resolve.return_value = mock_path
+            with patch("pathlib.Path.read_bytes", return_value=b"not an image"):
+                result = _impl_add_product_image(
+                    product_slug="test-product",
+                    image_path="uploads/photo.txt",
+                )
+
+        assert "Error: Invalid file extension" in result
+
+    def test_add_product_image_set_as_primary(self) -> None:
+        """Test add_product_image with set_as_primary=True."""
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image", return_value="products/test/images/photo.jpg"),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image", return_value=True),
+        ):
+            mock_path = MagicMock()
+            mock_path.exists.return_value = True
+            mock_path.name = "photo.jpg"
+            mock_resolve.return_value = mock_path
+            with patch("pathlib.Path.read_bytes", return_value=b"fake image data"):
+                result = _impl_add_product_image(
+                    product_slug="test-product",
+                    image_path="uploads/photo.jpg",
+                    set_as_primary=True,
+                )
+
+        assert "set as primary image" in result
+
+    def test_add_product_image_filename_collision(self) -> None:
+        """Test add_product_image handles filename collision with timestamp."""
+        from datetime import datetime
+        from unittest.mock import patch
+
+        from sip_videogen.advisor.tools import _impl_add_product_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = ["products/test/images/photo.jpg"]  # Existing image
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image", return_value="products/test/images/photo_20241215_120000.jpg"),
+        ):
+            mock_path = MagicMock()
+            mock_path.exists.return_value = True
+            mock_path.name = "photo.jpg"
+            mock_path.stem = "photo"
+            mock_path.suffix = ".jpg"
+            mock_resolve.return_value = mock_path
+            # Mock datetime to control the timestamp suffix
+            with (
+                patch("pathlib.Path.read_bytes", return_value=b"fake image data"),
+                patch("sip_videogen.advisor.tools.datetime") as mock_datetime,
+            ):
+                mock_now = datetime(2024, 12, 15, 12, 0, 0)
+                mock_datetime.now.return_value = mock_now
+                result = _impl_add_product_image(
+                    product_slug="test-product",
+                    image_path="uploads/photo.jpg",
+                )
+
+        assert "photo_20241215_120000.jpg" in result
+        assert "Filename collision detected" in result
+
+
+class TestDeleteProduct:
+    """Tests for _impl_delete_product function."""
+
+    def test_delete_product_no_confirm(self) -> None:
+        """Test delete_product without confirm shows warning."""
+        from sip_videogen.advisor.tools import _impl_delete_product
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = ["image1.jpg", "image2.jpg"]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.storage_load_product", return_value=mock_product),
+        ):
+            result = _impl_delete_product(product_slug="test-product", confirm=False)
+
+        assert "This will permanently delete **Test Product**" in result
+        assert "all 2 images" in result
+        assert "confirm=True" in result
+
+    def test_delete_product_with_confirm(self) -> None:
+        """Test delete_product with confirm=True deletes successfully."""
+        from sip_videogen.advisor.tools import _impl_delete_product
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.storage_load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_delete_product"),
+        ):
+            result = _impl_delete_product(product_slug="test-product", confirm=True)
+
+        assert "Deleted product **Test Product**" in result
+        assert "`test-product`" in result
+
+    def test_delete_product_no_active_brand(self) -> None:
+        """Test delete_product with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_delete_product
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_delete_product(product_slug="test-product")
+
+        assert "Error: No active brand selected" in result
+
+    def test_delete_product_invalid_slug(self) -> None:
+        """Test delete_product with invalid slug returns error."""
+        from sip_videogen.advisor.tools import _impl_delete_product
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value="Invalid slug"),
+        ):
+            result = _impl_delete_product(product_slug="invalid/slug")
+
+        assert "Error: Invalid slug" in result
+
+    def test_delete_product_not_found(self) -> None:
+        """Test delete_product with non-existent product returns error."""
+        from sip_videogen.advisor.tools import _impl_delete_product
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.storage_load_product", return_value=None),
+        ):
+            result = _impl_delete_product(product_slug="nonexistent")
+
+        assert "Error: Product 'nonexistent' not found" in result
+
+    def test_delete_product_without_confirm_shows_image_count(self) -> None:
+        """Test delete_product without confirm shows exact image count."""
+        from sip_videogen.advisor.tools import _impl_delete_product
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []  # No images
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.storage_load_product", return_value=mock_product),
+        ):
+            result = _impl_delete_product(product_slug="test-product", confirm=False)
+
+        assert "all 0 images" in result
+
+    def test_delete_product_error_handling(self) -> None:
+        """Test delete_product handles deletion errors gracefully."""
+        from sip_videogen.advisor.tools import _impl_delete_product
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.storage_load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_delete_product", side_effect=Exception("Delete failed")),
+        ):
+            result = _impl_delete_product(product_slug="test-product", confirm=True)
+
+        assert "Error deleting product" in result
+
+
+class TestSetProductPrimaryImage:
+    """Tests for _impl_set_product_primary_image function."""
+
+    def test_set_product_primary_image_success(self) -> None:
+        """Test setting product primary image successfully."""
+        from sip_videogen.advisor.tools import _impl_set_product_primary_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = ["image1.jpg", "image2.jpg"]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image", return_value=True),
+        ):
+            result = _impl_set_product_primary_image(
+                product_slug="test-product",
+                image_path="image1.jpg",
+            )
+
+        assert "Set `image1.jpg` as primary image" in result
+        assert "**Test Product**" in result
+        assert "`test-product`" in result
+
+    def test_set_product_primary_image_no_active_brand(self) -> None:
+        """Test set_product_primary_image with no active brand returns error."""
+        from sip_videogen.advisor.tools import _impl_set_product_primary_image
+
+        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+            result = _impl_set_product_primary_image(
+                product_slug="test-product",
+                image_path="image1.jpg",
+            )
+
+        assert "Error: No active brand selected" in result
+
+    def test_set_product_primary_image_invalid_slug(self) -> None:
+        """Test set_product_primary_image with invalid slug returns error."""
+        from sip_videogen.advisor.tools import _impl_set_product_primary_image
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value="Invalid slug"),
+        ):
+            result = _impl_set_product_primary_image(
+                product_slug="invalid/slug",
+                image_path="image1.jpg",
+            )
+
+        assert "Error: Invalid slug" in result
+
+    def test_set_product_primary_image_not_found(self) -> None:
+        """Test set_product_primary_image with non-existent product returns error."""
+        from sip_videogen.advisor.tools import _impl_set_product_primary_image
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+        ):
+            result = _impl_set_product_primary_image(
+                product_slug="nonexistent",
+                image_path="image1.jpg",
+            )
+
+        assert "Error: Product 'nonexistent' not found" in result
+
+    def test_set_product_primary_image_invalid_image(self) -> None:
+        """Test set_product_primary_image with image not in product returns error."""
+        from sip_videogen.advisor.tools import _impl_set_product_primary_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = ["image1.jpg", "image2.jpg"]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+        ):
+            result = _impl_set_product_primary_image(
+                product_slug="test-product",
+                image_path="image3.jpg",  # Not in product.images
+            )
+
+        assert "Error: Image 'image3.jpg' not found in product" in result
+        assert "Available images:" in result
+        assert "image1.jpg" in result
+        assert "image2.jpg" in result
+
+    def test_set_product_primary_image_failure(self) -> None:
+        """Test set_product_primary_image handles failure gracefully."""
+        from sip_videogen.advisor.tools import _impl_set_product_primary_image
+
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = ["image1.jpg", "image2.jpg"]
+
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image", return_value=False),
+        ):
+            result = _impl_set_product_primary_image(
+                product_slug="test-product",
+                image_path="image1.jpg",
+            )
+
+        assert "Error: Failed to set `image1.jpg` as primary image" in result
+        assert "**Test Product**" in result
+        assert "`test-product`" in result

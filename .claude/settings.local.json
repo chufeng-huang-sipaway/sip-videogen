@@ -123,7 +123,8 @@
       "Bash(log show:*)",
       "Bash(unzip:*)",
       "Bash(pkill:*)",
-      "Bash(./scripts/build-release.sh:*)"
+      "Bash(./scripts/build-release.sh:*)",
+      "Bash(gh release list:*)"
     ]
   }
 }
