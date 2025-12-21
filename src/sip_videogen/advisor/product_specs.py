@@ -17,6 +17,7 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from sip_videogen.brands.product_description import extract_attributes_from_description
 from sip_videogen.brands.storage import load_product
 from sip_videogen.config.logging import get_logger
 
@@ -380,10 +381,13 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
     Returns:
         ProductSpecs with parsed measurements and constraints.
     """
+    description_text, desc_attrs = extract_attributes_from_description(product.description or "")
+    attributes = product.attributes or desc_attrs
+
     specs = ProductSpecs(
         product_name=product.name,
         product_slug=product.slug,
-        description=product.description or "",
+        description=description_text,
     )
 
     forbidden_items: list[str] = []
@@ -393,8 +397,8 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
         specs.description = cleaned
 
     # Parse attributes
-    if product.attributes:
-        for attr in product.attributes:
+    if attributes:
+        for attr in attributes:
             key_lower = attr.key.lower()
             value = attr.value
             cat_lower = (attr.category or "").lower()

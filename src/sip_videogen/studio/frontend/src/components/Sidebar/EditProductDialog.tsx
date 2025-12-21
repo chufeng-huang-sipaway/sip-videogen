@@ -201,8 +201,7 @@ export function EditProductDialog({
       await updateProduct(
         productSlug,
         name.trim(),
-        description.trim(),
-        originalProduct?.attributes
+        description.trim()
       )
 
       // 2. Delete marked images
