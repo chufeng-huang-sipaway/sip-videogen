@@ -1,0 +1,207 @@
+"""Image analyzer for extracting product information using Gemini Vision.
+
+This module provides functionality to analyze product images and extract
+structured information (name, measurements, colors, materials) before
+sending to the Brand Advisor agent.
+"""
+
+import json
+from pathlib import Path
+from typing import TypedDict
+
+from google import genai
+from google.genai import types
+from PIL import Image as PILImage
+
+from sip_videogen.config.logging import get_logger
+from sip_videogen.config.settings import get_settings
+
+logger = get_logger(__name__)
+
+
+class ExtractedAttribute(TypedDict):
+    """Single extracted attribute from an image."""
+
+    key: str
+    value: str
+    category: str  # measurements, texture, surface, appearance, distinguishers
+
+
+class ImageAnalysisResult(TypedDict):
+    """Result of analyzing a product image."""
+
+    product_name: str | None
+    image_type: str  # product_photo, screenshot, document, label
+    is_suitable_reference: bool  # True if clean product photo
+    attributes: list[ExtractedAttribute]
+    description: str
+    visible_text: str
+
+
+_ANALYSIS_PROMPT = """Analyze this image and extract all visible product information.
+
+Return a JSON object with this exact structure:
+{
+  "product_name": "Name of the product if visible, or null if not clear",
+  "image_type": "product_photo" | "screenshot" | "document" | "label",
+  "is_suitable_reference": true/false,
+  "attributes": [
+    {"key": "...", "value": "...", "category": "..."}
+  ],
+  "description": "Brief description of what's shown",
+  "visible_text": "Key text/numbers visible in the image"
+}
+
+Classification rules for image_type:
+- "product_photo": Clean shot of a product, suitable for reference
+- "screenshot": Screenshot of a webpage, app, or e-commerce page
+- "document": Text-heavy document, spec sheet, or manual
+- "label": Nutrition label, ingredient list, or product specifications
+
+is_suitable_reference should be TRUE only if:
+- The image shows the COMPLETE product
+- The product is the primary subject (not part of a webpage)
+- Clean angle suitable for AI image generation reference
+
+For attributes, extract with these categories:
+- measurements: dimensions, weight, volume (e.g., "50ml", "2.5 lb", "150mm tall")
+- texture: materials visible (e.g., "glass jar", "plastic bottle", "fabric bag")
+- surface: finish visible (e.g., "matte", "glossy", "frosted")
+- appearance: colors (e.g., "deep blue", "rose gold", "transparent")
+- distinguishers: distinctive features (e.g., "pump dispenser", "twist cap", "embossed logo")
+
+Be precise with measurements and use specific color names when visible.
+Return ONLY valid JSON, no markdown formatting."""
+
+
+async def analyze_image(image_path: Path) -> ImageAnalysisResult | None:
+    """Analyze an image to extract product information.
+
+    Args:
+        image_path: Path to the image file to analyze.
+
+    Returns:
+        ImageAnalysisResult with extracted information, or None if analysis fails.
+    """
+    try:
+        settings = get_settings()
+
+        # Initialize Gemini client
+        client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
+
+        # Load image
+        pil_image = PILImage.open(image_path)
+        logger.debug(f"Analyzing image: {image_path.name} ({pil_image.size})")
+
+        # Call Gemini Vision
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[_ANALYSIS_PROMPT, pil_image],
+            config=types.GenerateContentConfig(
+                temperature=0.1,  # Low temperature for consistent JSON output
+            ),
+        )
+
+        # Parse response
+        response_text = response.text.strip()
+
+        # Handle potential markdown code blocks
+        if response_text.startswith("```"):
+            # Remove markdown code fences
+            lines = response_text.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            response_text = "\n".join(lines)
+
+        result = json.loads(response_text)
+        logger.info(
+            f"Image analysis complete: {image_path.name} -> "
+            f"type={result.get('image_type')}, "
+            f"suitable_ref={result.get('is_suitable_reference')}, "
+            f"attrs={len(result.get('attributes', []))}"
+        )
+
+        return ImageAnalysisResult(
+            product_name=result.get("product_name"),
+            image_type=result.get("image_type", "unknown"),
+            is_suitable_reference=result.get("is_suitable_reference", False),
+            attributes=result.get("attributes", []),
+            description=result.get("description", ""),
+            visible_text=result.get("visible_text", ""),
+        )
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse Gemini response as JSON: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Image analysis failed for {image_path}: {e}")
+        return None
+
+
+def format_analysis_for_message(
+    analyses: list[tuple[str, str, ImageAnalysisResult | None]],
+) -> str:
+    """Format multiple image analyses as markdown for the agent message.
+
+    Args:
+        analyses: List of (filename, rel_path, analysis_result) tuples.
+
+    Returns:
+        Markdown-formatted string with extracted information.
+    """
+    if not analyses:
+        return ""
+
+    sections = []
+    attachment_paths = []
+    has_any_analysis = False
+
+    for filename, rel_path, result in analyses:
+        attachment_paths.append(f"- {filename} (path: {rel_path})")
+
+        if result is None:
+            continue
+
+        has_any_analysis = True
+        type_label = {
+            "product_photo": "clean product image",
+            "screenshot": "screenshot",
+            "document": "document",
+            "label": "product label/specs",
+        }.get(result["image_type"], result["image_type"])
+
+        ref_note = ""
+        if result["is_suitable_reference"]:
+            ref_note = " - **suitable as reference image**"
+
+        lines = [f"**From: {filename}** ({type_label}{ref_note})"]
+
+        if result["product_name"]:
+            lines.append(f"- Product Name: {result['product_name']}")
+
+        # Group attributes by category for cleaner output
+        for attr in result["attributes"]:
+            key = attr.get("key", "")
+            value = attr.get("value", "")
+            if key and value:
+                lines.append(f"- {key.title()}: {value}")
+
+        if result["description"]:
+            lines.append(f"- Description: {result['description']}")
+
+        sections.append("\n".join(lines))
+
+    # Build final output
+    output_parts = []
+
+    if has_any_analysis:
+        output_parts.append("## Product Information Extracted from Attachments\n")
+        output_parts.append("\n\n".join(sections))
+        output_parts.append("")
+
+    output_parts.append("Attachments provided (paths are relative to the brand folder):")
+    output_parts.append("\n".join(attachment_paths))
+
+    return "\n".join(output_parts)

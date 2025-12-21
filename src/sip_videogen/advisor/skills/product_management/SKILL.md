@@ -94,6 +94,109 @@ add_product_image(
 )
 ```
 
+## Reference Image Selection Criteria
+
+### CRITICAL: Only Add True Product Appearance Images
+
+When a user provides images while adding a product, you MUST evaluate each image carefully. The reference image is used for AI image generation and MUST accurately represent the product's full appearance.
+
+### What IS a Valid Reference Image
+
+A valid reference image must show:
+- The **complete product** from a clear angle (like a profile picture)
+- A **clean product shot** where the product is the primary subject
+- **Studio/catalog-style** photos showing the whole product
+- **Product packaging** showing the entire package design
+
+### What is NOT a Valid Reference Image
+
+Do NOT add these as reference images:
+- **Screenshots of webpages** or e-commerce product pages
+- **Product information pages** showing specs, descriptions, or reviews
+- **Partial views** (cropped details, zoomed-in textures, close-ups of labels)
+- **Marketing collages** with multiple elements or busy compositions
+- **Images with UI elements** (browser chrome, navigation bars, buttons)
+- **Text-heavy images** (ingredient lists, instruction pages)
+- **Lifestyle photos** where the product is small or partially visible
+
+### Decision Flow for Multiple Images
+
+When a user provides multiple images:
+
+1. **Analyze each image** - Ask yourself: "Does this show the complete product appearance?"
+2. **Filter strictly** - Only select images that pass ALL criteria above
+3. **If none qualify** - Inform the user: "I didn't find any images showing the complete product appearance. Could you provide a clean product photo?"
+4. **If some qualify** - Add only the qualifying images silently (no need to explain exclusions)
+
+### Example Scenarios
+
+**Scenario 1: User uploads 3 images**
+- Image 1: Amazon product page screenshot → Skip (webpage screenshot)
+- Image 2: Clean product photo on white background → Add as primary
+- Image 3: Nutrition label close-up → Skip (partial view, text-heavy)
+
+**Scenario 2: User uploads product page screenshot only**
+- Response: "This appears to be a screenshot of a product page rather than a product photo. For accurate image generation, I need a clean photo showing the complete product. Could you provide one?"
+
+### Primary Image Selection
+
+When multiple valid reference images exist:
+1. **Prefer** clean backgrounds (white/solid color)
+2. **Prefer** good lighting with minimal shadows
+3. **Prefer** full product visibility (no cropping)
+4. **Prefer** higher resolution images
+
+## Attribute Extraction Priority
+
+When creating or updating a product, extract attributes in this priority order:
+
+### ESSENTIAL: Appearance Ground Truth (Priority 1)
+
+These attributes are used by the image generation system and MUST be captured accurately:
+
+| Category | Keys to Extract | Example Values |
+|----------|-----------------|----------------|
+| `measurements` | height, width, depth, diameter, size | "50mm tall", "30ml", "3 inches wide" |
+| `texture` | material, texture, made of | "glass jar", "matte plastic", "brushed aluminum" |
+| `surface` | finish, surface | "frosted", "glossy", "satin" |
+| `appearance` | color, colour | "deep blue", "rose gold", "transparent" |
+| `distinguishers` | cap, lid, label, shape, style | "twist-off cap", "embossed logo", "cylindrical" |
+
+**Extraction guidance:**
+- Look for measurements in screenshots, product descriptions, or user text
+- Parse dimensions even if in different units (inches, cm, ml, oz)
+- Capture exact color names as stated (not just "blue" but "navy blue" or "ocean blue")
+- Note material composition precisely ("borosilicate glass" not just "glass")
+
+### OPTIONAL: Functional/Marketing Info (Priority 2)
+
+These are helpful for context but not essential for image generation:
+
+| Category | Keys to Extract | Example Values |
+|----------|-----------------|----------------|
+| `use_case` | purpose, usage, for | "night use", "outdoor", "daily moisturizing" |
+| `ingredients` | ingredients, contains, formulation | "retinol, vitamin C" |
+| `benefits` | benefits, features | "anti-aging", "long-lasting" |
+| `general` | Any other info | "bestseller", "award-winning" |
+
+### Extraction from Screenshots
+
+When user provides screenshots (even if not suitable as reference images), extract:
+1. **Scan for measurements** - product dimensions, volume, weight
+2. **Note materials mentioned** - packaging material, texture descriptions
+3. **Capture exact colors** - from product descriptions or color swatches
+4. **Record distinguishing features** - unique design elements mentioned
+
+### Example: Extracting from an Amazon Screenshot
+
+User uploads Amazon product page screenshot showing:
+- "50ml / 1.7 fl oz" → `{"key": "size", "value": "50ml", "category": "measurements"}`
+- "Glass jar with pump" → `{"key": "material", "value": "glass jar", "category": "texture"}`
+- "Deep Blue" → `{"key": "color", "value": "deep blue", "category": "appearance"}`
+- "Matte finish" → `{"key": "finish", "value": "matte", "category": "surface"}`
+
+Even though the screenshot is NOT added as a reference image, the attributes ARE extracted and stored.
+
 ## Attribute Merge Behavior
 
 ### Default: Merge by (category, key) Case-Insensitive

@@ -42,6 +42,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     attachProduct,
     detachProduct,
     clearAttachments,
+    refresh: refreshProducts,
   } = useProducts()
 
   const {
@@ -250,9 +251,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             loadedSkills={loadedSkills}
             isLoading={isLoading}
             products={products}
-            onInteractionSelect={(messageId, selection) => {
+            onInteractionSelect={async (messageId, selection) => {
               resolveInteraction(messageId)
-              void sendMessage(selection)
+              await sendMessage(selection)
+              await refreshProducts()
             }}
             onRegenerate={regenerateMessage}
           />
@@ -340,12 +342,14 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
                   : 'Ask me to create something...'
                 : 'Select a brand to start...'
             }
-            onSend={(text) =>
-              sendMessage(text, {
+            onSend={async (text) => {
+              await sendMessage(text, {
                 project_slug: activeProject,
                 attached_products: attachedProducts.length > 0 ? attachedProducts : undefined,
               })
-            }
+              // Refresh products in case the agent created/modified any
+              await refreshProducts()
+            }}
             canSendWithoutText={attachments.length > 0}
             onSelectImages={handleSelectImages}
             onOpenProductPicker={() => setIsProductPickerOpen(true)}

@@ -10,6 +10,10 @@ from typing import Any
 
 from sip_videogen.config.logging import get_logger
 from sip_videogen.advisor.agent import AdvisorProgress, BrandAdvisor
+from sip_videogen.advisor.image_analyzer import (
+    analyze_image,
+    format_analysis_for_message,
+)
 from sip_videogen.advisor.tools import get_image_metadata
 
 logger = get_logger(__name__)
@@ -2207,7 +2211,8 @@ class StudioBridge:
                 logger.info("chat(): effective_project from storage: %s", effective_project)
 
             brand_dir = get_brand_dir(slug)
-            attachment_notes: list[str] = []
+            # Track attachments: (filename, rel_path, full_path, is_image)
+            saved_attachments: list[tuple[str, str, Path, bool]] = []
             prepared_message = message.strip() or "Please review the attached files."
             max_attachment_bytes = 8 * 1024 * 1024  # 8 MB cap per file
 
@@ -2221,6 +2226,7 @@ class StudioBridge:
                     name = attachment.get("name") or f"attachment-{idx+1}"
                     safe_name = Path(name).name or f"attachment-{idx+1}"
                     rel_path: str | None = None
+                    full_path: Path | None = None
 
                     data_b64 = attachment.get("data")
                     ref_path = attachment.get("path")
@@ -2229,7 +2235,6 @@ class StudioBridge:
                         try:
                             content = base64.b64decode(data_b64)
                             if len(content) > max_attachment_bytes:
-                                attachment_notes.append(f"- {safe_name} skipped (too large)")
                                 continue
                             suffix = Path(safe_name).suffix
                             allowed_exts = ALLOWED_IMAGE_EXTS | ALLOWED_TEXT_EXTS
@@ -2240,6 +2245,7 @@ class StudioBridge:
                             target = upload_dir / unique_name
                             target.write_bytes(content)
                             rel_path = target.relative_to(brand_dir).as_posix()
+                            full_path = target
                             safe_name = unique_name
                         except Exception:
                             continue
@@ -2249,16 +2255,33 @@ class StudioBridge:
                             resolved, error = self._resolve_docs_path(ref_path)
                         if not error and resolved and resolved.exists():
                             rel_path = resolved.relative_to(brand_dir).as_posix()
+                            full_path = resolved
                             safe_name = resolved.name
 
-                    if rel_path:
-                        attachment_notes.append(f"- {safe_name} (path: {rel_path})")
+                    if rel_path and full_path:
+                        is_image = full_path.suffix.lower() in ALLOWED_IMAGE_EXTS
+                        saved_attachments.append((safe_name, rel_path, full_path, is_image))
 
-            if attachment_notes:
-                prepared_message = (
-                    f"{prepared_message}\n\nAttachments provided "
-                    f"(paths are relative to the brand folder):\n" + "\n".join(attachment_notes)
-                ).strip()
+            # Analyze images with Gemini Vision to extract product information
+            if saved_attachments:
+                image_analyses = []
+                for filename, rel_path, full_path, is_image in saved_attachments:
+                    if is_image and full_path.suffix.lower() not in {".svg", ".gif"}:
+                        # Analyze raster images (skip SVG/GIF)
+                        try:
+                            analysis = asyncio.run(analyze_image(full_path))
+                            image_analyses.append((filename, rel_path, analysis))
+                        except Exception as e:
+                            logger.warning(f"Image analysis failed for {filename}: {e}")
+                            image_analyses.append((filename, rel_path, None))
+                    else:
+                        # Non-image attachments just get path noted
+                        image_analyses.append((filename, rel_path, None))
+
+                # Format analyses for the agent message
+                analysis_text = format_analysis_for_message(image_analyses)
+                if analysis_text:
+                    prepared_message = f"{prepared_message}\n\n{analysis_text}".strip()
 
             # Snapshot generated assets before running (robust vs relying on progress hook details)
             before = {a["path"] for a in list_brand_assets(slug, category="generated")}
