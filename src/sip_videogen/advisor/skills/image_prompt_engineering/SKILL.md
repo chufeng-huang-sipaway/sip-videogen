@@ -2,6 +2,7 @@
 name: image-prompt-engineering
 description: Craft effective prompts for Gemini image generation - MUST READ before any generate_image call
 triggers:
+  - image
   - generate_image
   - generate image
   - generate an image

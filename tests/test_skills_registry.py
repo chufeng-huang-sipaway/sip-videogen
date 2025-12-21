@@ -364,8 +364,8 @@ class TestBundledSkills:
             "brand-identity",
             "mascot-generation",
             "logo-design",
-            "lifestyle-imagery",
-            "marketing-materials",
+            "image-composer",
+            "image-prompt-engineering",
             "brand-evolution",
         ]
 
