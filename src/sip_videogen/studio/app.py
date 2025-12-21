@@ -94,7 +94,7 @@ def main():
         text_select=True,
     )
 
-    api._window = window
+    api.set_window(window)
     webview.start(debug=is_dev_mode())
 
 

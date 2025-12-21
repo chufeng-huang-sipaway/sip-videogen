@@ -298,7 +298,7 @@ rm -f "$0"
 
 def get_update_settings() -> dict:
     """Get update-related settings from config."""
-    from sip_videogen.studio.bridge import _load_config
+    from sip_videogen.studio.utils.config_store import _load_config
 
     config = _load_config()
     return {
@@ -313,7 +313,7 @@ def save_update_settings(
     skipped_version: str | None = None,
 ) -> None:
     """Save update-related settings to config."""
-    from sip_videogen.studio.bridge import _load_config, _save_config
+    from sip_videogen.studio.utils.config_store import _load_config, _save_config
 
     config = _load_config()
 
@@ -330,7 +330,7 @@ def mark_update_checked() -> None:
     """Mark that we just checked for updates (for rate limiting)."""
     import time
 
-    from sip_videogen.studio.bridge import _load_config, _save_config
+    from sip_videogen.studio.utils.config_store import _load_config, _save_config
 
     config = _load_config()
     config["last_update_check"] = int(time.time())
