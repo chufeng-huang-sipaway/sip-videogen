@@ -14,6 +14,7 @@ from .storage import (
     load_product,
     load_project,
 )
+from sip_videogen.brands.product_description import extract_attributes_from_description
 from sip_videogen.config.settings import get_settings
 
 # Description of each detail type for agent prompts
@@ -160,6 +161,8 @@ class ProductContextBuilder:
         p = self.product
         settings = get_settings()
         specs_injection_enabled = settings.sip_product_specs_injection
+        description_text, desc_attrs = extract_attributes_from_description(p.description or "")
+        attributes = p.attributes or desc_attrs
 
         # Categorize attributes by importance for accurate reproduction
         measurements = []
@@ -167,8 +170,8 @@ class ProductContextBuilder:
         colors = []
         other_attrs = []
 
-        if p.attributes:
-            for attr in p.attributes:
+        if attributes:
+            for attr in attributes:
                 key_lower = attr.key.lower()
                 cat_lower = attr.category.lower() if attr.category else ""
 
@@ -247,7 +250,7 @@ This product must appear IDENTICAL to its reference image.
 Preserve: exact shape, materials, colors, textures, and proportions.
 
 **Slug**: `{p.slug}`
-**Description**: {p.description}
+**Description**: {description_text}
 
 {attributes_str}
 

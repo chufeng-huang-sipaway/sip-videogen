@@ -62,7 +62,7 @@ Be proactive when intent is clear, but ALWAYS use `propose_choices(allow_custom=
 
 1. **Extract name from message** (or ask with `propose_choices(allow_custom=True)`)
 2. **Check existing products** using `list_products()`
-3. **Call `create_product()`** with name, description, and attributes
+3. **Call `create_product()`** with name and description (put attributes in description)
 4. **Call `add_product_image()`** with uploaded file from uploads/ folder
 5. **Use returned brand-relative path** for `set_product_primary_image()` if needed
 
@@ -76,14 +76,15 @@ propose_choices(
     allow_custom=True
 )
 
-# 3. Create product
+# 3. Create product (include attributes in description)
 create_product(
     name="Summer T-Shirt",
-    description="Comfortable cotton t-shirt for summer",
-    attributes=[
-        {"key": "color", "value": "blue", "category": "appearance"},
-        {"key": "size", "value": "M", "category": "measurements"}
-    ]
+    description=(
+        "Comfortable cotton t-shirt for summer.\n\n"
+        "Attributes:\n"
+        "- color: blue\n"
+        "- size: M"
+    )
 )
 
 # 4. Add uploaded image
@@ -146,9 +147,11 @@ When multiple valid reference images exist:
 3. **Prefer** full product visibility (no cropping)
 4. **Prefer** higher resolution images
 
-## Attribute Extraction Priority
+## Attribute Extraction Priority (Store in Description)
 
-When creating or updating a product, extract attributes in this priority order:
+When creating or updating a product, extract attributes in this priority order and
+append them to the description in an **Attributes** block. Do NOT use structured
+attributes unless explicitly requested.
 
 ### ESSENTIAL: Appearance Ground Truth (Priority 1)
 
@@ -190,31 +193,30 @@ When user provides screenshots (even if not suitable as reference images), extra
 ### Example: Extracting from an Amazon Screenshot
 
 User uploads Amazon product page screenshot showing:
-- "50ml / 1.7 fl oz" → `{"key": "size", "value": "50ml", "category": "measurements"}`
-- "Glass jar with pump" → `{"key": "material", "value": "glass jar", "category": "texture"}`
-- "Deep Blue" → `{"key": "color", "value": "deep blue", "category": "appearance"}`
-- "Matte finish" → `{"key": "finish", "value": "matte", "category": "surface"}`
+- "50ml / 1.7 fl oz" → `- size: 50ml`
+- "Glass jar with pump" → `- material: glass jar`
+- "Deep Blue" → `- color: deep blue`
+- "Matte finish" → `- finish: matte`
 
-Even though the screenshot is NOT added as a reference image, the attributes ARE extracted and stored.
+Even though the screenshot is NOT added as a reference image, the attributes ARE extracted
+and appended to the description in the Attributes block.
 
-## Attribute Merge Behavior
+## Attribute Merge Behavior (Description-Only)
 
-### Default: Merge by (category, key) Case-Insensitive
-- Existing attribute: `{"key": "color", "value": "red", "category": "appearance"}`
-- New attribute: `{"key": "COLOR", "value": "blue", "category": "APPEARANCE"}`
-- Result: `{"key": "color", "value": "blue", "category": "appearance"}` (updated)
-
-### Replace All: Use `replace_attributes=True`
-- Existing attributes: `[{color: red}, {size: M}]`
-- New attributes: `[{material: cotton}]`
-- Result: `[{material: cotton}]` (replaced)
+If you need to update attributes, edit the **Attributes** block in the description.
+Keep it as a simple bullet list:
+```
+Attributes:
+- color: blue
+- size: M
+```
 
 ## Quality Checklist
 
 - ✅ **Name clear**: Product name is unambiguous
 - ✅ **Slug URL-safe**: Generated slug follows pattern (lowercase, hyphens, no special chars)
 - ✅ **Primary image set**: Product has a primary image for reference generation
-- ✅ **Attributes meaningful**: Product attributes provide useful information for marketing
+- ✅ **Description complete**: Description includes key product details + Attributes block
 
 ## Error Handling
 
@@ -227,7 +229,7 @@ Even though the screenshot is NOT added as a reference image, the attributes ARE
 ## Integration with Other Skills
 
 - **Image Generation**: Use product's primary image as reference for `generate_image(product_slug=...)`
-- **Brand Identity**: Product attributes should align with brand positioning
+- **Brand Identity**: Product details should align with brand positioning
 - **Project Management**: Products can be tagged to projects for campaign organization
 
 ## Common Patterns

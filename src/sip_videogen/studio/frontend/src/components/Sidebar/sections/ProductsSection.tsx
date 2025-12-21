@@ -146,27 +146,9 @@ function ProductPreview({ productSlug }: ProductPreviewProps) {
         </div>
       )}
 
-      {/* Attributes */}
-      {product.attributes && product.attributes.length > 0 && (
-        <div className="space-y-1">
-          <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Attributes</span>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-            {product.attributes.map((attr, i) => (
-              <div key={i} className="text-xs">
-                <span className="text-gray-500">{attr.key}:</span>{' '}
-                <span className="text-gray-700 dark:text-gray-200">{attr.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Quick Stats */}
       <div className="flex items-center gap-3 text-[10px] text-gray-400 pt-1 border-t border-gray-200 dark:border-gray-700">
         <span>{images.length} image{images.length !== 1 ? 's' : ''}</span>
-        {product.attributes && product.attributes.length > 0 && (
-          <span>{product.attributes.length} attribute{product.attributes.length !== 1 ? 's' : ''}</span>
-        )}
       </div>
     </div>
   )

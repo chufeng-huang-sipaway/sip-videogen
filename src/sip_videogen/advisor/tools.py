@@ -32,6 +32,11 @@ from agents import function_tool
 from typing_extensions import NotRequired, TypedDict
 
 from sip_videogen.brands.models import ProductAttribute, ProductFull
+from sip_videogen.brands.product_description import (
+    extract_attributes_from_description,
+    has_attributes_block,
+    merge_attributes_into_description,
+)
 from sip_videogen.brands.storage import (
     add_product_image as storage_add_product_image,
 )
@@ -970,6 +975,7 @@ def _impl_create_product(
         name: Product name.
         description: Product description.
         attributes: Optional list of AttributeInput dicts with keys: key, value, category.
+            If provided, these are appended to the description in an Attributes block.
 
     Returns:
         Success message or error.
@@ -991,9 +997,11 @@ def _impl_create_product(
     if existing:
         return f"Error: Product '{slug}' already exists. Use update_product() instead."
 
-    # Parse attributes if provided
+    description_text = (description or "").strip()
+
+    # Parse attributes if provided, otherwise allow description to supply them.
     parsed_attrs: list[ProductAttribute] = []
-    if attributes:
+    if attributes is not None:
         for attr in attributes:
             parsed_attrs.append(
                 ProductAttribute(
@@ -1002,12 +1010,16 @@ def _impl_create_product(
                     category=attr.get("category", "general"),
                 )
             )
+    else:
+        description_text, parsed_attrs = extract_attributes_from_description(description_text)
+
+    description_text = merge_attributes_into_description(description_text, parsed_attrs)
 
     # Create product
     product = ProductFull(
         slug=slug,
         name=name,
-        description=description,
+        description=description_text,
         attributes=parsed_attrs,
     )
 
@@ -1190,6 +1202,7 @@ def _impl_update_product(
         attributes: Optional list of AttributeInput dicts. If replace_attributes=False (default),
             merges with existing attributes by (category, key) case-insensitive. If True,
             replaces all existing attributes.
+            Any resulting attributes are appended to the description in an "Attributes" block.
         replace_attributes: If True, replace all attributes. If False (default), merge.
 
     Returns:
@@ -1212,8 +1225,10 @@ def _impl_update_product(
     # Update fields
     if name is not None:
         product.name = name
+
+    description_text = product.description
     if description is not None:
-        product.description = description
+        description_text = description
 
     # Handle attributes
     if attributes is not None:
@@ -1252,6 +1267,12 @@ def _impl_update_product(
                     )
                     product.attributes.append(new_attr)
                     existing_by_key[key] = new_attr
+    elif description is not None and has_attributes_block(description_text):
+        # Allow a description-only edit to update structured attributes.
+        description_text, parsed_attrs = extract_attributes_from_description(description_text)
+        product.attributes = parsed_attrs
+
+    product.description = merge_attributes_into_description(description_text, product.attributes)
 
     try:
         storage_save_product(brand_slug, product)
@@ -1791,19 +1812,22 @@ def _impl_get_product_detail(product_slug: str) -> str:
     if product is None:
         return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
 
+    description_text, desc_attrs = extract_attributes_from_description(product.description or "")
+    attributes = product.attributes or desc_attrs
+
     lines = [f"# Product: {product.name}"]
     lines.append(f"*Slug: `{product.slug}`*\n")
 
     # Description
-    if product.description:
+    if description_text:
         lines.append("## Description")
-        lines.append(product.description)
+        lines.append(description_text)
         lines.append("")
 
     # Attributes
-    if product.attributes:
+    if attributes:
         lines.append("## Attributes")
-        for attr in product.attributes:
+        for attr in attributes:
             lines.append(f"- **{attr.key}** ({attr.category}): {attr.value}")
         lines.append("")
 
@@ -2298,6 +2322,7 @@ def create_product(
             - value: Attribute value (e.g., "50ml", "organic cotton", "200g")
             - category: Optional category (default: "general"). Common categories:
               "measurements", "texture", "use_case", "ingredients"
+            Attributes are appended to the description in an "Attributes" block for manual editing.
 
     Returns:
         Success message with product name and slug, or error message.
@@ -2383,6 +2408,7 @@ def update_product(
             - category: Optional category (default: "general")
         replace_attributes: If True, replace all existing attributes with the provided list.
             If False (default), merge existing attributes by (category, key).
+            Resulting attributes are appended to the description in an "Attributes" block.
 
     Returns:
         Success message with the updated product name and slug, or error message.

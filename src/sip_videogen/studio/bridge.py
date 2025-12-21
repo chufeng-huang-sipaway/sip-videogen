@@ -29,6 +29,11 @@ from sip_videogen.brands.models import (
     VisualIdentity,
     VoiceGuidelines,
 )
+from sip_videogen.brands.product_description import (
+    extract_attributes_from_description,
+    has_attributes_block,
+    merge_attributes_into_description,
+)
 from sip_videogen.brands.storage import (
     add_product_image,
     backup_brand_identity,
@@ -1386,12 +1391,17 @@ class StudioBridge:
                     success=False, error=f"Product '{product_slug}' not found"
                 ).to_dict()
 
+            description = merge_attributes_into_description(
+                product.description or "",
+                product.attributes,
+            )
+
             return BridgeResponse(
                 success=True,
                 data={
                     "slug": product.slug,
                     "name": product.name,
-                    "description": product.description,
+                    "description": description,
                     "images": product.images,
                     "primary_image": product.primary_image,
                     "attributes": [
@@ -1418,7 +1428,8 @@ class StudioBridge:
             name: Product name.
             description: Product description.
             images: List of dicts with {filename, data} where data is base64.
-            attributes: List of dicts with {key, value, category}.
+            attributes: List of dicts with {key, value, category}. These are appended
+                to the description in an Attributes block for manual editing.
 
         Returns:
             Success response with {"slug": product_slug}.
@@ -1446,9 +1457,11 @@ class StudioBridge:
                     success=False, error=f"Product '{product_slug}' already exists"
                 ).to_dict()
 
-            # Parse attributes
+            description_text = description.strip()
+
+            # Parse attributes (explicit list takes precedence over description block)
             parsed_attributes: list[ProductAttribute] = []
-            if attributes:
+            if attributes is not None:
                 for attr in attributes:
                     if not isinstance(attr, dict):
                         continue
@@ -1459,13 +1472,22 @@ class StudioBridge:
                         parsed_attributes.append(
                             ProductAttribute(key=key, value=value, category=category)
                         )
+            else:
+                description_text, parsed_attributes = extract_attributes_from_description(
+                    description_text
+                )
+
+            description_text = merge_attributes_into_description(
+                description_text,
+                parsed_attributes,
+            )
 
             # Create product
             now = datetime.utcnow()
             product = ProductFull(
                 slug=product_slug,
                 name=name.strip(),
-                description=description.strip(),
+                description=description_text,
                 images=[],
                 primary_image="",
                 attributes=parsed_attributes,
@@ -1511,7 +1533,8 @@ class StudioBridge:
             product_slug: Product identifier.
             name: New product name (optional).
             description: New product description (optional).
-            attributes: New attributes list (optional, replaces all).
+            attributes: New attributes list (optional, replaces all). Attributes are appended
+                to the description in an Attributes block for manual editing.
 
         Returns:
             Success response with updated product data.
@@ -1532,8 +1555,11 @@ class StudioBridge:
             # Update fields
             if name is not None:
                 product.name = name.strip()
+
+            description_text = product.description or ""
             if description is not None:
-                product.description = description.strip()
+                description_text = description.strip()
+
             if attributes is not None:
                 parsed_attributes: list[ProductAttribute] = []
                 for attr in attributes:
@@ -1547,6 +1573,16 @@ class StudioBridge:
                             ProductAttribute(key=key, value=value, category=category)
                         )
                 product.attributes = parsed_attributes
+            elif description is not None and has_attributes_block(description_text):
+                description_text, parsed_attributes = extract_attributes_from_description(
+                    description_text
+                )
+                product.attributes = parsed_attributes
+
+            product.description = merge_attributes_into_description(
+                description_text,
+                product.attributes,
+            )
 
             product.updated_at = datetime.utcnow()
             save_product(slug, product)
