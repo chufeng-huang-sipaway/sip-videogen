@@ -2271,6 +2271,16 @@ class StudioBridge:
                         try:
                             analysis = asyncio.run(analyze_image(full_path))
                             image_analyses.append((filename, rel_path, analysis))
+                            # Cache successful analyses alongside uploads so product tools can enforce
+                            # reference-image suitability without re-calling the vision model.
+                            if analysis is not None and rel_path.startswith("uploads/"):
+                                try:
+                                    analysis_path = full_path.with_name(f"{full_path.name}.analysis.json")
+                                    analysis_path.write_text(json.dumps(analysis, indent=2, ensure_ascii=False))
+                                except Exception as e:
+                                    logger.debug(
+                                        "Failed to write upload analysis cache for %s: %s", full_path, e
+                                    )
                         except Exception as e:
                             logger.warning(f"Image analysis failed for {filename}: {e}")
                             image_analyses.append((filename, rel_path, None))

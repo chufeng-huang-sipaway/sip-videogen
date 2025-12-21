@@ -23,6 +23,8 @@ then wrapped with @function_tool for agent use.
 from __future__ import annotations
 
 import re
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -35,9 +37,6 @@ from sip_videogen.brands.storage import (
 )
 from sip_videogen.brands.storage import (
     create_product as storage_create_product,
-)
-from sip_videogen.brands.storage import (
-    save_product as storage_save_product,
 )
 from sip_videogen.brands.storage import (
     delete_product as storage_delete_product,
@@ -59,10 +58,10 @@ from sip_videogen.brands.storage import (
     load_brand as storage_load_brand,
 )
 from sip_videogen.brands.storage import (
-    set_primary_product_image as storage_set_primary_product_image,
+    save_product as storage_save_product,
 )
 from sip_videogen.brands.storage import (
-    delete_product as storage_delete_product,
+    set_primary_product_image as storage_set_primary_product_image,
 )
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
@@ -86,8 +85,6 @@ class AttributeInput(TypedDict):
 # =============================================================================
 # Image Generation Metadata
 # =============================================================================
-
-from dataclasses import asdict, dataclass, field
 
 
 @dataclass
@@ -1029,6 +1026,7 @@ def _impl_add_product_image(
     product_slug: str,
     image_path: str,
     set_as_primary: bool = False,
+    allow_non_reference: bool = False,
 ) -> str:
     """Implementation of add_product_image tool.
 
@@ -1036,6 +1034,8 @@ def _impl_add_product_image(
         product_slug: Product identifier.
         image_path: Path to image within brand directory (must be in uploads/).
         set_as_primary: If True, set this image as the product's primary image.
+        allow_non_reference: If True, allow adding images classified as non-reference
+            (e.g., screenshots/documents) when a cached analysis exists.
 
     Returns:
         Success message or error.
@@ -1053,8 +1053,25 @@ def _impl_add_product_image(
     if slug_error:
         return f"Error: {slug_error}"
 
-    # Require image_path to start with uploads/
-    if not image_path.startswith("uploads/"):
+    # Require image_path to be within uploads/ and disallow traversal segments.
+    # Note: we treat tool paths as POSIX-style (forward slashes), which matches the
+    # brand-relative paths used across the app.
+    from pathlib import PurePosixPath
+
+    if "\\" in image_path:
+        return (
+            "Error: image_path must use forward slashes and be within the uploads/ folder. "
+            f"Got: '{image_path}'."
+        )
+
+    parsed_path = PurePosixPath(image_path)
+    if parsed_path.is_absolute() or not parsed_path.parts or parsed_path.parts[0] != "uploads":
+        return (
+            "Error: image_path must be within the uploads/ folder. "
+            f"Got: '{image_path}'. Upload images first, then add them to products."
+        )
+
+    if any(part in {".", ".."} for part in parsed_path.parts):
         return (
             "Error: image_path must be within the uploads/ folder. "
             f"Got: '{image_path}'. Upload images first, then add them to products."
@@ -1067,6 +1084,32 @@ def _impl_add_product_image(
 
     if not resolved.exists():
         return f"Error: File not found: {image_path}"
+
+    # If the Studio bridge cached a vision analysis for this upload, enforce reference
+    # suitability by default to avoid accidentally storing screenshots/docs as product images.
+    if not allow_non_reference:
+        import json
+
+        analysis_path = resolved.with_name(f"{resolved.name}.analysis.json")
+        if analysis_path.exists():
+            try:
+                analysis = json.loads(analysis_path.read_text())
+            except Exception:
+                analysis = None
+
+            if isinstance(analysis, dict):
+                image_type = str(analysis.get("image_type") or "").strip()
+                is_suitable_reference = analysis.get("is_suitable_reference")
+
+                if image_type in {"screenshot", "document", "label"} or is_suitable_reference is False:
+                    pretty_type = image_type or "non-reference"
+                    return (
+                        "Error: This upload was classified as "
+                        f"**{pretty_type}** and is not suitable as a product reference image. "
+                        "Use it for extracting information only, and upload a clean product photo instead. "
+                        "If you still want to store it in the product images anyway, call "
+                        "`add_product_image(..., allow_non_reference=True)`."
+                    )
 
     # Get filename and validate
     filename = resolved.name
@@ -1098,8 +1141,6 @@ def _impl_add_product_image(
         return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
 
     # Handle filename collisions with timestamp suffix
-    from datetime import datetime
-
     base_name = resolved.stem
     ext = resolved.suffix.lower()
     if any(img_path.endswith(f"/{filename}") for img_path in product.images):
@@ -1196,20 +1237,21 @@ def _impl_update_product(
 
             # Update or add attributes
             for attr in attributes:
-                key = (attr.get("category", "general").lower(), attr["key"].lower())
+                category = (attr.get("category") or "general").strip()
+                key = (category.lower(), attr["key"].lower())
                 if key in existing_by_key:
                     # Update existing
                     existing_by_key[key].value = attr["value"]
-                    existing_by_key[key].category = attr.get("category", "general")
+                    existing_by_key[key].category = category
                 else:
                     # Add new
-                    product.attributes.append(
-                        ProductAttribute(
-                            key=attr["key"],
-                            value=attr["value"],
-                            category=attr.get("category", "general"),
-                        )
+                    new_attr = ProductAttribute(
+                        key=attr["key"],
+                        value=attr["value"],
+                        category=category,
                     )
+                    product.attributes.append(new_attr)
+                    existing_by_key[key] = new_attr
 
     try:
         storage_save_product(brand_slug, product)
@@ -1234,8 +1276,6 @@ def _impl_delete_product(
     Returns:
         Success message or error/warning.
     """
-    from sip_videogen.brands.storage import load_product as storage_load_product
-
     brand_slug = get_active_brand()
     if not brand_slug:
         return "Error: No active brand selected. Use load_brand() first."
@@ -1246,7 +1286,7 @@ def _impl_delete_product(
         return f"Error: {slug_error}"
 
     # Load product to check if it exists and get details
-    product = storage_load_product(brand_slug, product_slug)
+    product = load_product(brand_slug, product_slug)
     if product is None:
         return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
 
@@ -1309,11 +1349,13 @@ def _impl_set_product_primary_image(
         success = storage_set_primary_product_image(brand_slug, product_slug, image_path)
         if success:
             return (
-                f"Set `{image_path}` as primary image for product **{product.name}** (`{product_slug}`)."
+                f"Set `{image_path}` as primary image for product **{product.name}** "
+                f"(`{product_slug}`)."
             )
         else:
             return (
-                f"Error: Failed to set `{image_path}` as primary image for product **{product.name}**."
+                f"Error: Failed to set `{image_path}` as primary image for product "
+                f"**{product.name}** (`{product_slug}`)."
             )
     except Exception as e:
         logger.error(f"Failed to set primary product image: {e}")
@@ -2280,6 +2322,7 @@ def add_product_image(
     product_slug: str,
     image_path: str,
     set_as_primary: bool = False,
+    allow_non_reference: bool = False,
 ) -> str:
     """Add an image to a product from the uploads folder.
 
@@ -2294,6 +2337,9 @@ def add_product_image(
             Use list_files("uploads") to see available uploaded images.
         set_as_primary: If True, set this image as the product's primary image.
             The primary image is used as the reference for generate_image(product_slug=...).
+        allow_non_reference: If True, allow adding images that were classified as screenshots,
+            documents, or otherwise not suitable as product reference images. Prefer leaving this
+            False so product images remain clean reference photos.
 
     Returns:
         Success message with the added filename, or error message.
@@ -2308,7 +2354,7 @@ def add_product_image(
         # Returns: "Added image `cream-photo.jpg` to product **Night Cream**
         #          and set as primary image."
     """
-    return _impl_add_product_image(product_slug, image_path, set_as_primary)
+    return _impl_add_product_image(product_slug, image_path, set_as_primary, allow_non_reference)
 
 
 @function_tool
@@ -2427,7 +2473,8 @@ def set_product_primary_image(
             product_slug="night-cream",
             image_path="images/main.png"
         )
-        # Returns: "Set `images/main.png` as primary image for product **Night Cream** (`night-cream`)."
+        # Returns: "Set `images/main.png` as primary image for product **Night Cream** "
+        #          (`night-cream`)."
     """
     return _impl_set_product_primary_image(product_slug, image_path)
 

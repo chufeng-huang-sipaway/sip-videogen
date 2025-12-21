@@ -156,12 +156,17 @@ def format_analysis_for_message(
 
     sections = []
     attachment_paths = []
+    reference_candidates: list[str] = []
+    info_only_attachments: list[str] = []
+    unknown_attachments: list[str] = []
     has_any_analysis = False
 
     for filename, rel_path, result in analyses:
-        attachment_paths.append(f"- {filename} (path: {rel_path})")
+        entry = f"- {filename} (path: {rel_path})"
+        attachment_paths.append(entry)
 
         if result is None:
+            unknown_attachments.append(entry)
             continue
 
         has_any_analysis = True
@@ -172,9 +177,18 @@ def format_analysis_for_message(
             "label": "product label/specs",
         }.get(result["image_type"], result["image_type"])
 
-        ref_note = ""
-        if result["is_suitable_reference"]:
-            ref_note = " - **suitable as reference image**"
+        is_reference_candidate = bool(result.get("is_suitable_reference")) and (
+            result.get("image_type") == "product_photo"
+        )
+        if is_reference_candidate:
+            reference_candidates.append(entry)
+        else:
+            info_only_attachments.append(entry)
+
+        if is_reference_candidate:
+            ref_note = " - **suitable as product reference image**"
+        else:
+            ref_note = " - **NOT suitable as product reference image (info-only)**"
 
         lines = [f"**From: {filename}** ({type_label}{ref_note})"]
 
@@ -195,6 +209,19 @@ def format_analysis_for_message(
 
     # Build final output
     output_parts = []
+
+    # Provide an explicit, easy-to-follow summary to reduce accidental misuse of screenshots/docs
+    output_parts.append("## Attachment Summary (Gemini Vision)\n")
+    output_parts.append("Reference-ready images (OK to store in product images):")
+    output_parts.append("\n".join(reference_candidates) if reference_candidates else "- (none)")
+    output_parts.append("")
+    output_parts.append("Info-only attachments (extract info, but DO NOT store in product images):")
+    output_parts.append("\n".join(info_only_attachments) if info_only_attachments else "- (none)")
+    if unknown_attachments:
+        output_parts.append("")
+        output_parts.append("Other attachments (not analyzed):")
+        output_parts.append("\n".join(unknown_attachments))
+    output_parts.append("")
 
     if has_any_analysis:
         output_parts.append("## Product Information Extracted from Attachments\n")
