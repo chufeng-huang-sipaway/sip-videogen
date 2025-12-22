@@ -1066,20 +1066,37 @@ async def _impl_generate_video_clip(
     brand_dir = get_brand_dir(brand_slug)
     output_dir = brand_dir / "assets" / "video"
     output_dir.mkdir(parents=True, exist_ok=True)
+    active_project = get_active_project(brand_slug)
+    video_filename_base = _generate_output_filename(active_project)
     #Build effective prompt and reference images
     effective_prompt = prompt
     reference_images: list = []
     image_metadata: dict | None = None
+    resolved_concept: Path | None = None
+
+    def _resolve_reference_path(path_value: str) -> Path | None:
+        if not path_value:
+            return None
+        candidate = Path(path_value)
+        if candidate.is_absolute():
+            return candidate if candidate.exists() else None
+        #Try assets-relative first (most common for generated images)
+        assets_path = brand_dir / "assets" / path_value
+        if assets_path.exists():
+            return assets_path
+        #Try brand-relative as fallback
+        brand_path = brand_dir / path_value
+        if brand_path.exists():
+            return brand_path
+        return None
+
     if concept_image_path:
         #Resolve the concept image path
-        if Path(concept_image_path).is_absolute():
-            resolved = Path(concept_image_path)
-        else:
-            resolved = _resolve_brand_path(concept_image_path)
-        if resolved is None or not resolved.exists():
+        resolved_concept = _resolve_reference_path(concept_image_path)
+        if resolved_concept is None:
             return f"Error: Concept image not found: {concept_image_path}"
         #Load metadata from the concept image
-        image_metadata = load_image_metadata(str(resolved))
+        image_metadata = load_image_metadata(str(resolved_concept))
         if image_metadata:
             #Use the stored prompt from image generation
             if not effective_prompt:
@@ -1089,14 +1106,70 @@ async def _impl_generate_video_clip(
             logger.info(f"Loaded prompt from concept image: {effective_prompt[:100]}...")
         if not effective_prompt:
             return "Error: No prompt and no prompt in concept image metadata"
-        #Use the concept image as a reference
-        from sip_videogen.models.assets import AssetType, GeneratedAsset
-        ref_asset = GeneratedAsset(
-            asset_type=AssetType.REFERENCE_IMAGE,
-            local_path=str(resolved),
-            element_id="concept"
-        )
-        reference_images.append(ref_asset)
+
+        #Build reference images: prioritize original product refs, then concept image
+        ref_details = image_metadata.get("reference_images_detail") if image_metadata else None
+        ref_images = image_metadata.get("reference_images") if image_metadata else None
+        product_primary: list[str] = []
+        product_secondary: list[str] = []
+        other_refs: list[str] = []
+
+        if isinstance(ref_details, list):
+            for detail in ref_details:
+                if not isinstance(detail, dict):
+                    continue
+                ref_path = detail.get("path")
+                if not ref_path:
+                    continue
+                used_for = str(detail.get("used_for") or "").lower()
+                is_identity_ref = "validation" in used_for
+                if detail.get("product_slug") or is_identity_ref:
+                    if detail.get("role") == "primary":
+                        product_primary.append(ref_path)
+                    else:
+                        product_secondary.append(ref_path)
+                else:
+                    other_refs.append(ref_path)
+        elif isinstance(ref_images, list):
+            other_refs.extend([p for p in ref_images if p])
+
+        max_refs = 3
+        seen_refs: set[str] = set()
+        resolved_refs: list[Path] = []
+
+        def add_ref(path_value: str) -> None:
+            if len(resolved_refs) >= max_refs:
+                return
+            resolved_path = _resolve_reference_path(path_value)
+            if resolved_path is None:
+                return
+            key = str(resolved_path)
+            if key in seen_refs:
+                return
+            seen_refs.add(key)
+            resolved_refs.append(resolved_path)
+
+        for ref in product_primary + product_secondary:
+            add_ref(ref)
+        if resolved_concept:
+            add_ref(str(resolved_concept))
+        for ref in other_refs:
+            add_ref(ref)
+
+        #Fallback: ensure the concept image is used if no refs were found
+        if not resolved_refs and resolved_concept:
+            resolved_refs.append(resolved_concept)
+
+        if resolved_refs:
+            from sip_videogen.models.assets import AssetType, GeneratedAsset
+            for idx, ref_path in enumerate(resolved_refs, start=1):
+                reference_images.append(
+                    GeneratedAsset(
+                        asset_type=AssetType.REFERENCE_IMAGE,
+                        local_path=str(ref_path),
+                        element_id=f"ref_{idx}",
+                    )
+                )
     if not effective_prompt:
         return "Error: prompt or concept_image_path with metadata required"
     #Validate provider
@@ -1119,7 +1192,7 @@ async def _impl_generate_video_clip(
             duration_seconds=duration,
             setting_description="",
             action_description=effective_prompt,
-            dialogue=None,
+            dialogue="",
             camera_direction=""
         )
         #Initialize VEO generator
@@ -1135,6 +1208,11 @@ async def _impl_generate_video_clip(
             aspect_ratio=aspect_ratio
         )
         if result and result.local_path:
+            #Rename output to a unique, project-prefixed filename
+            output_path = Path(result.local_path)
+            target_path = output_dir / f"{video_filename_base}.mp4"
+            if output_path != target_path:
+                output_path.replace(target_path)
             #Store video metadata
             gen_time = int((time_mod.time() - start_time) * 1000)
             video_meta = {
@@ -1143,14 +1221,15 @@ async def _impl_generate_video_clip(
                 "aspect_ratio": aspect_ratio,
                 "duration": duration,
                 "provider": provider,
+                "project_slug": active_project,
                 "generated_at": datetime.utcnow().isoformat(),
                 "generation_time_ms": gen_time
             }
             if image_metadata:
                 video_meta["source_image_metadata"] = image_metadata
-            store_video_metadata(result.local_path, video_meta)
-            logger.info(f"Video clip saved to: {result.local_path}")
-            return result.local_path
+            store_video_metadata(str(target_path), video_meta)
+            logger.info(f"Video clip saved to: {target_path}")
+            return str(target_path)
         return "Error: Video generation did not produce a file"
     except Exception as e:
         logger.error(f"Video generation failed: {e}")
