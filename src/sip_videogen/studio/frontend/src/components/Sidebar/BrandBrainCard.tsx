@@ -12,10 +12,9 @@ import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import { RegenerateConfirmDialog } from '@/components/BrandMemory/RegenerateConfirmDialog'
 import { BackupDialog } from '@/components/BrandMemory/BackupDialog'
+import { ALLOWED_IMAGE_EXTS, ALLOWED_TEXT_EXTS } from '@/lib/constants'
 import type { BrandIdentityFull } from '@/types/brand-identity'
 
-const ALLOWED_DOC_EXTS = ['.md', '.txt', '.json', '.yaml', '.yml']
-const ALLOWED_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
 
 interface BrandBrainCardProps {
   onOpenBrandMemory: () => void
@@ -54,7 +53,7 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
     try {
       for (const file of Array.from(e.target.files)) {
         const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
-        if (!ALLOWED_DOC_EXTS.includes(ext)) continue
+        if (!ALLOWED_TEXT_EXTS.includes(ext)) continue
 
         const reader = new FileReader()
         await new Promise<void>((resolve, reject) => {
@@ -249,7 +248,7 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
           type="file"
           className="hidden"
           multiple
-          accept={ALLOWED_DOC_EXTS.join(',')}
+          accept={ALLOWED_TEXT_EXTS.join(',')}
           onChange={handleDocUpload}
         />
         <input

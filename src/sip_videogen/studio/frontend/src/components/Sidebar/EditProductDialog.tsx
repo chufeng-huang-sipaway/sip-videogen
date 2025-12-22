@@ -14,9 +14,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
 import { useProducts } from '@/context/ProductContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
+import { ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 import type { ProductFull } from '@/lib/bridge'
 
-const ALLOWED_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
 
 interface ExistingImage {
   path: string // brand-relative path like "products/slug/images/main.png"

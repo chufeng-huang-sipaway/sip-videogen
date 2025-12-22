@@ -2,7 +2,6 @@
 from __future__ import annotations
 import asyncio
 import time
-from pathlib import Path
 from sip_videogen.advisor.agent import BrandAdvisor
 from sip_videogen.advisor.tools import get_image_metadata
 from sip_videogen.brands.memory import list_brand_assets
@@ -25,8 +24,8 @@ class ChatService:
             if skill_name not in self._state.matched_skills:self._state.matched_skills.append(skill_name)
         if progress.event_type=="tool_end":self._state.current_progress="";self._state.current_progress_type=""
         else:self._state.current_progress=progress.message;self._state.current_progress_type=progress.event_type
-    def _ensure_advisor(self,slug:str)->tuple[BrandAdvisor|None,str|None]:
-        """Initialize or get advisor for the given brand slug."""
+    def _ensure_advisor(self)->tuple[BrandAdvisor|None,str|None]:
+        """Initialize or get the brand advisor."""
         if self._state.advisor is None:
             active=get_active_brand()
             if not active:return None,"No brand selected"
@@ -44,8 +43,8 @@ class ChatService:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace=[];self._state.matched_skills=[]
         try:
-            advisor,err=self._ensure_advisor("")
-            if err:return bridge_error(err)
+            advisor,err=self._ensure_advisor()
+            if err or advisor is None:return bridge_error(err or "No brand selected")
             slug=self._state.get_active_slug()
             if not slug:return bridge_error("No brand selected")
             logger.debug("chat(): slug=%s, project_slug=%s",slug,project_slug)
@@ -62,7 +61,7 @@ class ChatService:
             #Snapshot generated assets before running
             before={a["path"]for a in list_brand_assets(slug,category="generated")}
             #Run advisor
-            result=asyncio.run(self._state.advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products))
+            result=asyncio.run(advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products))
             response=result["response"];interaction=result.get("interaction");memory_update=result.get("memory_update")
             images=self._collect_new_images(slug,before)
             return bridge_ok({"response":response,"images":images,"execution_trace":self._state.execution_trace,"interaction":interaction,"memory_update":memory_update})

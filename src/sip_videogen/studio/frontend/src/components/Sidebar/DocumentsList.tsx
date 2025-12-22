@@ -13,9 +13,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBrand } from '@/context/BrandContext'
 import { useDocuments } from '@/hooks/useDocuments'
 import { isPyWebView } from '@/lib/bridge'
+import { ALLOWED_TEXT_EXTS } from '@/lib/constants'
 import { MarkdownContent } from '../ChatPanel/MarkdownContent'
 
-const ALLOWED_DOC_EXTS = new Set(['.md', '.txt', '.json', '.yaml', '.yml'])
+const ALLOWED_DOC_EXTS = new Set(ALLOWED_TEXT_EXTS)
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

@@ -13,8 +13,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
 import { useProducts } from '@/context/ProductContext'
+import { ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 
-const ALLOWED_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
 
 interface UploadedImage {
   file: File

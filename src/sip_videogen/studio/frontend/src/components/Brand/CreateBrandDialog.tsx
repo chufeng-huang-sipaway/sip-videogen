@@ -12,9 +12,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
 import { bridge, isPyWebView } from '@/lib/bridge'
+import { ALLOWED_IMAGE_EXTS, ALLOWED_TEXT_EXTS } from '@/lib/constants'
 
-const ALLOWED_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
-const ALLOWED_DOC_EXTS = ['.md', '.txt']
 const MAX_DOC_SIZE = 50 * 1024 // 50KB
 
 interface UploadedFile {
@@ -55,14 +54,14 @@ export function CreateBrandDialog({
           reader.readAsDataURL(file)
         })
         processed.push({ file, type: 'image', dataUrl })
-      } else if (ALLOWED_DOC_EXTS.includes(ext)) {
+      } else if (ALLOWED_TEXT_EXTS.includes(ext)) {
         if (file.size > MAX_DOC_SIZE) {
           setError(`"${file.name}" is too large (max 50KB). Please use a shorter document.`)
           continue
         }
         processed.push({ file, type: 'document' })
       } else {
-        setError(`Unsupported file type: ${file.name}. Use images (PNG, JPG, SVG) or text (MD, TXT).`)
+        setError(`Unsupported file type: ${file.name}. Use images (PNG, JPG, SVG) or text (MD, TXT, JSON, YAML).`)
       }
     }
 
@@ -198,7 +197,7 @@ export function CreateBrandDialog({
                 <input
                   type="file"
                   multiple
-                  accept={[...ALLOWED_IMAGE_EXTS, ...ALLOWED_DOC_EXTS].join(',')}
+                  accept={[...ALLOWED_IMAGE_EXTS, ...ALLOWED_TEXT_EXTS].join(',')}
                   onChange={handleFileInputChange}
                   className="hidden"
                 />
