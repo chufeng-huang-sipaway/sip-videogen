@@ -1062,9 +1062,9 @@ async def _impl_generate_video_clip(
         return "Error: No active brand selected. Use load_brand() first."
     start_time = time_mod.time()
     settings = get_settings()
-    #Determine output directory
+    #Determine output directory (same as images - in generated folder for project visibility)
     brand_dir = get_brand_dir(brand_slug)
-    output_dir = brand_dir / "assets" / "video"
+    output_dir = brand_dir / "assets" / "generated"
     output_dir.mkdir(parents=True, exist_ok=True)
     active_project = get_active_project(brand_slug)
     video_filename_base = _generate_output_filename(active_project)

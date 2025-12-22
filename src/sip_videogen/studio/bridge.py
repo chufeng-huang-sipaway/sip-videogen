@@ -65,6 +65,8 @@ class StudioBridge:
     def delete_asset(self,relative_path:str)->dict:return self._asset.delete_asset(relative_path)
     def rename_asset(self,relative_path:str,new_name:str)->dict:return self._asset.rename_asset(relative_path,new_name)
     def open_asset_in_finder(self,relative_path:str)->dict:return self._asset.open_asset_in_finder(relative_path)
+    def get_video_path(self,relative_path:str)->dict:return self._asset.get_video_path(relative_path)
+    def get_video_data(self,relative_path:str)->dict:return self._asset.get_video_data(relative_path)
     #===========================================================================
     #Product Management
     #===========================================================================

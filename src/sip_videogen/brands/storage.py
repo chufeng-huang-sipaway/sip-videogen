@@ -12,7 +12,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS
+from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS
 from .models import (
     BrandIdentityFull,
     BrandIndex,
@@ -899,19 +899,24 @@ def save_project_index(brand_slug: str, index: ProjectIndex) -> None:
 def count_project_assets(brand_slug: str, project_slug: str) -> int:
     """Count assets belonging to a project by filename prefix.
 
-    Searches assets/generated/ for files prefixed with '{project_slug}__'.
+    Searches assets/generated/ and assets/video/ for files prefixed with '{project_slug}__'.
     """
     brand_dir = get_brand_dir(brand_slug)
-    generated_dir = brand_dir / "assets" / "generated"
-
-    if not generated_dir.exists():
-        return 0
+    asset_dirs = [
+        brand_dir / "assets" / "generated",
+        brand_dir / "assets" / "video",
+    ]
 
     prefix = f"{project_slug}__"
     count = 0
-    for file_path in generated_dir.iterdir():
-        if file_path.name.startswith(prefix):
-            count += 1
+    allowed_exts = ALLOWED_IMAGE_EXTS | ALLOWED_VIDEO_EXTS
+    for asset_dir in asset_dirs:
+        if not asset_dir.exists():
+            continue
+        for file_path in asset_dir.iterdir():
+            if file_path.is_file() and file_path.suffix.lower() in allowed_exts:
+                if file_path.name.startswith(prefix):
+                    count += 1
 
     return count
 
@@ -920,21 +925,25 @@ def list_project_assets(brand_slug: str, project_slug: str) -> list[str]:
     """List assets belonging to a project by filename prefix.
 
     Returns:
-        List of assets-relative paths (e.g., 'generated/project__file.png')
-        for UI compatibility with existing image loading.
+        List of assets-relative paths (e.g., 'generated/project__file.png',
+        'video/project__clip.mp4') for UI compatibility.
     """
     brand_dir = get_brand_dir(brand_slug)
-    generated_dir = brand_dir / "assets" / "generated"
-
-    if not generated_dir.exists():
-        return []
+    asset_dirs = {
+        "generated": brand_dir / "assets" / "generated",
+        "video": brand_dir / "assets" / "video",
+    }
 
     prefix = f"{project_slug}__"
     assets = []
-    for file_path in sorted(generated_dir.iterdir()):
-        if file_path.name.startswith(prefix):
-            # Return assets-relative path for UI compatibility
-            assets.append(f"generated/{file_path.name}")
+    allowed_exts = ALLOWED_IMAGE_EXTS | ALLOWED_VIDEO_EXTS
+    for category, asset_dir in asset_dirs.items():
+        if not asset_dir.exists():
+            continue
+        for file_path in sorted(asset_dir.iterdir()):
+            if file_path.is_file() and file_path.suffix.lower() in allowed_exts:
+                if file_path.name.startswith(prefix):
+                    assets.append(f"{category}/{file_path.name}")
 
     return assets
 

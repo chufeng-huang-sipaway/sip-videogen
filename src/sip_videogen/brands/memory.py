@@ -117,7 +117,11 @@ def list_brand_videos(slug: str) -> list[dict]:
     Returns:
         List of video asset dicts with path, category, name.
     """
-    return [a for a in list_brand_assets(slug, category="video") if a.get("type") == "video"]
+    #Check both 'generated' and 'video' folders since videos can be in either
+    videos=[]
+    for cat in ["generated","video"]:
+        videos.extend([a for a in list_brand_assets(slug,category=cat)if a.get("type")=="video"])
+    return videos
 
 
 # =============================================================================

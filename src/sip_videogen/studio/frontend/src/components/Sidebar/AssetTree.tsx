@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronRight, ChevronDown, Folder, Image, X } from 'lucide-react'
+import { ChevronRight, ChevronDown, Folder, Image, Film, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -14,6 +14,7 @@ import { useAssets } from '@/hooks/useAssets'
 import { bridge, isPyWebView, type AssetNode } from '@/lib/bridge'
 import { ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 import { ImageViewer } from '../ui/image-viewer'
+import { VideoViewer } from '../ui/video-viewer'
 
 const ALLOWED_IMAGE_EXTS_SET = new Set(ALLOWED_IMAGE_EXTS)
 
@@ -58,10 +59,11 @@ interface TreeItemProps {
   onDelete: (path: string) => void
   onRename: (path: string) => void
   onPreview: (path: string) => void
+  onPreviewVideo: (path: string) => void
   onReveal: (path: string) => void
 }
 
-function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: TreeItemProps) {
+function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onPreviewVideo, onReveal }: TreeItemProps) {
   const [isOpen, setIsOpen] = useState(depth === 0)
   const hasChildren = node.type === 'folder' && node.children && node.children.length > 0
 
@@ -70,6 +72,8 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
       setIsOpen(!isOpen)
     } else if (node.type === 'image') {
       onPreview(node.path)
+    } else if (node.type === 'video') {
+      onPreviewVideo(node.path)
     }
   }
 
@@ -110,8 +114,10 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
             )}
             {node.type === 'folder' ? (
               <Folder className="h-4 w-4 text-gray-500 shrink-0" />
-            ) : isPyWebView() ? (
+            ) : node.type === 'image' && isPyWebView() ? (
               <AssetThumbnail path={node.path} />
+            ) : node.type === 'video' ? (
+              <Film className="h-4 w-4 text-gray-500 shrink-0" />
             ) : (
               <Image className="h-4 w-4 text-gray-500 shrink-0" />
             )}
@@ -124,7 +130,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          {node.type === 'image' && (
+          {node.type !== 'folder' && (
             <>
               <ContextMenuItem onClick={() => onReveal(node.path)}>
                 Reveal in Finder
@@ -132,7 +138,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
               <ContextMenuSeparator />
             </>
           )}
-          {node.type === 'image' && (
+          {node.type !== 'folder' && (
             <>
               <ContextMenuItem onClick={() => onRename(node.path)}>
                 Rename
@@ -153,6 +159,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onReveal }: 
           onDelete={onDelete}
           onRename={onRename}
           onPreview={onPreview}
+          onPreviewVideo={onPreviewVideo}
           onReveal={onReveal}
         />
       ))}
@@ -166,6 +173,7 @@ export function AssetTree() {
   const [isDragging, setIsDragging] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<{ src: string; path: string } | null>(null)
+  const [previewVideo, setPreviewVideo] = useState<{ src: string; path: string } | null>(null)
 
   // Auto-clear upload error after 5 seconds
   useEffect(() => {
@@ -182,6 +190,16 @@ export function AssetTree() {
       setPreviewImage({ src: dataUrl, path })
     } catch (err) {
       console.error('Failed to load preview:', err)
+    }
+  }, [])
+
+  const handlePreviewVideo = useCallback(async (path: string) => {
+    if (!isPyWebView()) return
+    try {
+      const fileUrl = await bridge.getVideoPath(path)
+      setPreviewVideo({ src: fileUrl, path })
+    } catch (err) {
+      console.error('Failed to load video preview:', err)
     }
   }, [])
 
@@ -294,6 +312,7 @@ export function AssetTree() {
               onDelete={handleDelete}
               onRename={handleRename}
               onPreview={handlePreview}
+              onPreviewVideo={handlePreviewVideo}
               onReveal={handleReveal}
             />
           ))}
@@ -304,6 +323,11 @@ export function AssetTree() {
         filePath={previewImage?.path}
         fileType="asset"
         onClose={() => setPreviewImage(null)}
+      />
+      <VideoViewer
+        src={previewVideo?.src ?? null}
+        filePath={previewVideo?.path}
+        onClose={() => setPreviewVideo(null)}
       />
     </div>
   )
