@@ -35,7 +35,7 @@ export interface BrandEntry {
 export interface AssetNode {
   name: string
   path: string
-  type: 'folder' | 'image'
+  type: 'folder' | 'image' | 'video'
   children?: AssetNode[]
   size?: number
 }
@@ -179,9 +179,30 @@ export interface GeneratedImage {
   metadata?: ImageGenerationMetadata | null
 }
 
+//Video generation metadata
+export interface VideoGenerationMetadata {
+  prompt: string
+  concept_image_path?: string | null
+  aspect_ratio: string
+  duration: number
+  provider: string
+  project_slug?: string | null
+  generated_at: string
+  generation_time_ms: number
+  source_image_metadata?: ImageGenerationMetadata | null
+}
+
+export interface GeneratedVideo {
+  url: string
+  path: string
+  filename: string
+  metadata?: VideoGenerationMetadata | null
+}
+
 interface ChatResponse {
   response: string
   images: GeneratedImage[]
+  videos?: GeneratedVideo[]
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null
@@ -238,7 +259,7 @@ interface PyWebViewAPI {
   rename_document(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
   upload_document(filename: string, data: string): Promise<BridgeResponse<{ path: string }>>
 
-  // Assets (images)
+  // Assets (images/video)
   get_assets(slug?: string): Promise<BridgeResponse<{ tree: AssetNode[] }>>
   get_asset_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   get_asset_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
@@ -246,6 +267,8 @@ interface PyWebViewAPI {
   delete_asset(path: string): Promise<BridgeResponse<void>>
   rename_asset(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
   upload_asset(filename: string, data: string, category: string): Promise<BridgeResponse<{ path: string }>>
+  get_video_path(path: string): Promise<BridgeResponse<{ path: string; filename: string; file_url: string }>>
+  get_video_data(path: string): Promise<BridgeResponse<{ dataUrl: string; path: string; filename: string }>>
   get_progress(): Promise<BridgeResponse<ProgressStatus>>
   chat(
     message: string,
@@ -384,6 +407,8 @@ export const bridge = {
   deleteAsset: (p: string) => callBridge(() => window.pywebview!.api.delete_asset(p)),
   renameAsset: async (p: string, n: string) => (await callBridge(() => window.pywebview!.api.rename_asset(p, n))).newPath,
   uploadAsset: async (f: string, d: string, c: string) => (await callBridge(() => window.pywebview!.api.upload_asset(f, d, c))).path,
+  getVideoPath: async (p: string) => (await callBridge(() => window.pywebview!.api.get_video_path(p))).file_url,
+  getVideoData: async (p: string) => (await callBridge(() => window.pywebview!.api.get_video_data(p))).dataUrl,
   getProgress: async () => await callBridge(() => window.pywebview!.api.get_progress()),
   chat: (m: string, attachments?: ChatAttachment[], context?: ChatContext) =>
     callBridge(() =>

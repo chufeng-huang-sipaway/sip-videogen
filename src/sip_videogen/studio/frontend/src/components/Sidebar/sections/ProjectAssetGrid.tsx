@@ -1,13 +1,21 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Image, Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Image, Loader2, RefreshCw, AlertTriangle, Play, Film } from 'lucide-react'
 import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import { ImageViewer } from '@/components/ui/image-viewer'
+import { VideoViewer } from '@/components/ui/video-viewer'
 import { Button } from '@/components/ui/button'
 
 // Thumbnail cache for the session (Map<assetPath, dataUrl>)
 const thumbnailCache = new Map<string, string>()
+const VIDEO_EXTS = new Set(['.mp4', '.mov', '.webm'])
+
+function isVideoAsset(path: string): boolean {
+  const dot = path.lastIndexOf('.')
+  if (dot < 0) return false
+  return VIDEO_EXTS.has(path.slice(dot).toLowerCase())
+}
 
 // Concurrency limiter for thumbnail loading
 const MAX_CONCURRENT_THUMBNAILS = 4
@@ -166,6 +174,28 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
   )
 }
 
+function VideoThumbnail({ path: _path, onClick }: { path: string; onClick?: () => void }) {
+  return (
+    <div
+      className="group relative aspect-square rounded-md overflow-hidden bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 dark:from-indigo-500/30 dark:via-purple-500/30 dark:to-pink-500/30 border-2 border-indigo-400/50 hover:border-indigo-500 hover:shadow-md transition-all duration-200 cursor-pointer"
+      onClick={onClick}
+      title="Click to preview video"
+    >
+      {/* Video icon badge */}
+      <div className="absolute top-1 left-1 flex items-center gap-0.5 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-medium">
+        <Film className="h-2.5 w-2.5" />
+        <span>MP4</span>
+      </div>
+      {/* Play button center */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+          <Play className="w-5 h-5 text-indigo-600 ml-0.5" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ProjectAssetGridProps {
   projectSlug: string
   expectedAssetCount?: number // Used to detect when assets have changed
@@ -183,6 +213,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<{ src: string; path: string } | null>(null)
+  const [previewVideo, setPreviewVideo] = useState<{ src: string; path: string } | null>(null)
   const [missingAssetsBanner, setMissingAssetsBanner] = useState(false)
   const [thumbnailReloadNonce, setThumbnailReloadNonce] = useState(0)
 
@@ -350,6 +381,20 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     }
   }, [handleThumbnailError])
 
+  const handlePreviewVideo = useCallback(async (path: string) => {
+    if (!isPyWebView()) return
+    try {
+      const dataUrl = await bridge.getVideoData(path)
+      setPreviewVideo({ src: dataUrl, path })
+    } catch (err) {
+      console.error('Failed to load video preview:', err)
+      const message = getErrorMessage(err)
+      if (isNotFoundError(message)) {
+        handleThumbnailError(path)
+      }
+    }
+  }, [handleThumbnailError])
+
   const handleManualRefresh = useCallback(() => {
     // Clear failed assets to retry them
     failedAssetsRef.current.clear()
@@ -446,12 +491,20 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(60px,1fr))] gap-1.5 py-1">
         {sortedAssets.map((path) => (
-          <AssetThumbnail
-            key={`${path}:${thumbnailReloadNonce}`}
-            path={path}
-            onClick={() => handlePreview(path)}
-            onLoadError={handleThumbnailError}
-          />
+          isVideoAsset(path) ? (
+            <VideoThumbnail
+              key={`${path}:${thumbnailReloadNonce}`}
+              path={path}
+              onClick={() => handlePreviewVideo(path)}
+            />
+          ) : (
+            <AssetThumbnail
+              key={`${path}:${thumbnailReloadNonce}`}
+              path={path}
+              onClick={() => handlePreview(path)}
+              onLoadError={handleThumbnailError}
+            />
+          )
         ))}
       </div>
       <ImageViewer
@@ -459,6 +512,11 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
         filePath={previewImage?.path}
         fileType="asset"
         onClose={() => setPreviewImage(null)}
+      />
+      <VideoViewer
+        src={previewVideo?.src ?? null}
+        filePath={previewVideo?.path}
+        onClose={() => setPreviewVideo(null)}
       />
     </>
   )

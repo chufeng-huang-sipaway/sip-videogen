@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Package, Paperclip, Bot, User } from 'lucide-react'
+import { Package, Paperclip, Bot, User, Play, Film } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { bridge, isPyWebView, type ProductEntry } from '@/lib/bridge'
+import { bridge, isPyWebView, type ProductEntry, type GeneratedVideo } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
@@ -13,6 +13,55 @@ import { useBrand } from '@/context/BrandContext'
 import { Button } from '@/components/ui/button'
 import { BrandSelector } from './BrandSelector'
 import { Sparkles, Download, Copy, RefreshCw, XCircle, Check } from 'lucide-react'
+
+
+//Video gallery component for rendering generated videos
+function ChatVideoGallery({ videos }: { videos: GeneratedVideo[] }) {
+  if (!videos || videos.length === 0) return null
+  return (
+    <div className="grid gap-4 mt-4">
+      {videos.map((video, idx) => (
+        <Dialog key={idx}>
+          <DialogTrigger asChild>
+            <div className="cursor-pointer group relative overflow-hidden rounded-xl ring-1 ring-border/20 shadow-sm hover:ring-primary/40 transition-all bg-black/5">
+              <div className="relative aspect-video">
+                <video
+                  src={video.url}
+                  className="w-full h-full object-contain"
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+                  <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Play className="w-6 h-6 text-black ml-1" />
+                  </div>
+                </div>
+              </div>
+              {video.filename && (
+                <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 text-[10px] text-white/90 bg-black/50 rounded-md px-2 py-1">
+                  <Film className="w-3 h-3" />
+                  <span className="truncate">{video.filename}</span>
+                </div>
+              )}
+            </div>
+          </DialogTrigger>
+          <DialogContent className="max-w-screen-lg p-0 overflow-hidden bg-black border-none">
+            <div className="relative flex items-center justify-center min-h-[50vh]">
+              <video
+                src={video.url}
+                className="max-w-full max-h-[90vh] object-contain shadow-2xl"
+                controls
+                autoPlay
+                playsInline
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      ))}
+    </div>
+  )
+}
 
 
 interface MessageListProps {
@@ -245,11 +294,20 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading, onRe
           </div>
         )}
 
-        {/* Gallery */}
+        {/* Image Gallery */}
         {message.images.length > 0 && (
           <div className="mt-4">
             <div className="p-1 rounded-2xl border border-border/40 bg-background/50 backdrop-blur-sm shadow-sm">
               <ChatImageGallery images={message.images} />
+            </div>
+          </div>
+        )}
+
+        {/* Video Gallery */}
+        {message.videos && message.videos.length > 0 && (
+          <div className="mt-4">
+            <div className="p-1 rounded-2xl border border-border/40 bg-background/50 backdrop-blur-sm shadow-sm">
+              <ChatVideoGallery videos={message.videos} />
             </div>
           </div>
         )}
@@ -336,6 +394,7 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading, onRe
 /** Transform tool names to friendly messages */
 const TOOL_FRIENDLY_NAMES: Record<string, { label: string; description: string }> = {
   generate_image: { label: 'Creating Image', description: 'Generating visual content with AI' },
+  generate_video_clip: { label: 'Creating Video', description: 'Generating video clip with VEO (2-3 mins)' },
   search_web: { label: 'Searching Web', description: 'Looking up information online' },
   read_file: { label: 'Reading File', description: 'Processing document contents' },
   write_file: { label: 'Saving File', description: 'Writing content to disk' },

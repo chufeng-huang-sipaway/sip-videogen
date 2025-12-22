@@ -124,7 +124,8 @@
       "Bash(unzip:*)",
       "Bash(pkill:*)",
       "Bash(./scripts/build-release.sh:*)",
-      "Bash(gh release list:*)"
+      "Bash(gh release list:*)",
+      "WebFetch(domain:googleapis.github.io)"
     ]
   }
 }

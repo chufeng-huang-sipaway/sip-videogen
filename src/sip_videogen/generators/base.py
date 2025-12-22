@@ -63,6 +63,7 @@ class BaseVideoGenerator(ABC):
         generate_audio: bool = True,
         total_scenes: int | None = None,
         script: VideoScript | None = None,
+        constraints_context: str | None = None,
     ) -> GeneratedAsset:
         """Generate a single video clip for a scene.
 
@@ -74,6 +75,7 @@ class BaseVideoGenerator(ABC):
             generate_audio: Whether to generate audio.
             total_scenes: Total number of scenes for flow context.
             script: Full VideoScript for element lookups.
+            constraints_context: Optional constraints block to append to the prompt.
 
         Returns:
             GeneratedAsset with path to the generated video.

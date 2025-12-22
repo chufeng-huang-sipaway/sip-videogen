@@ -11,7 +11,7 @@ Also provides access to Product and Project memory layers.
 from __future__ import annotations
 import logging
 from typing import Literal
-from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS
+from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS
 from .models import (
     BrandSummary,
     ProductFull,
@@ -85,24 +85,43 @@ def list_brand_assets(slug: str, category: str | None = None) -> list[dict]:
 
     Args:
         slug: Brand identifier
-        category: Optional filter by category (logo, packaging, lifestyle, mascot, marketing)
+        category: Optional filter by category (logo, packaging, lifestyle, mascot, marketing, video)
 
     Returns:
-        List of asset info dicts with path, category, name.
+        List of asset info dicts with path, category, name, type (image/video).
     """
     brand_dir = get_brand_dir(slug)
     assets_dir = brand_dir / "assets"
-
     if not assets_dir.exists():return []
     assets=[]
     cats=[category]if category else ASSET_CATEGORIES
+    allowed_exts=ALLOWED_IMAGE_EXTS|ALLOWED_VIDEO_EXTS
     for cat in cats:
         cat_dir=assets_dir/cat
         if not cat_dir.exists():continue
         for fp in cat_dir.glob("*"):
-            if fp.is_file()and fp.suffix.lower()in ALLOWED_IMAGE_EXTS:
-                assets.append({"path":str(fp),"category":cat,"name":fp.stem,"filename":fp.name})
+            if not fp.is_file():continue
+            ext=fp.suffix.lower()
+            if ext in allowed_exts:
+                asset_type="video"if ext in ALLOWED_VIDEO_EXTS else"image"
+                assets.append({"path":str(fp),"category":cat,"name":fp.stem,"filename":fp.name,"type":asset_type})
     return assets
+
+
+def list_brand_videos(slug: str) -> list[dict]:
+    """List only video assets for a brand.
+
+    Args:
+        slug: Brand identifier
+
+    Returns:
+        List of video asset dicts with path, category, name.
+    """
+    #Check both 'generated' and 'video' folders since videos can be in either
+    videos=[]
+    for cat in ["generated","video"]:
+        videos.extend([a for a in list_brand_assets(slug,category=cat)if a.get("type")=="video"])
+    return videos
 
 
 # =============================================================================

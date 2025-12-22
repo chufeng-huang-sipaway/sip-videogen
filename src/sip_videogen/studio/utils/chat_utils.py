@@ -72,3 +72,28 @@ def encode_new_images(paths:list[str],get_image_metadata_fn:Callable)->list[dict
             image_data.append({"url":f"data:{mime};base64,{encoded}","metadata":metadata})
         except Exception:pass
     return image_data
+
+
+def encode_new_videos(paths:list[str],get_video_metadata_fn:Callable)->list[dict]:
+    """Encode newly generated videos to base64 with metadata.
+
+    Args:
+        paths: List of video file paths
+        get_video_metadata_fn: Function to get video metadata by path
+
+    Returns:
+        List of dicts with url (base64 data URL) and metadata
+    """
+    video_exts={".mp4",".mov",".webm"}
+    mime_types={".mp4":"video/mp4",".mov":"video/quicktime",".webm":"video/webm"}
+    video_data:list[dict]=[]
+    for vid_path in paths[:4]:  #Limit to 4 videos
+        try:
+            path=Path(vid_path)
+            if not path.exists()or path.suffix.lower()not in video_exts:continue
+            content=path.read_bytes();encoded=base64.b64encode(content).decode("utf-8")
+            mime=mime_types.get(path.suffix.lower(),"video/mp4")
+            metadata=get_video_metadata_fn(vid_path)
+            video_data.append({"url":f"data:{mime};base64,{encoded}","path":str(path),"filename":path.name,"metadata":metadata})
+        except Exception:pass
+    return video_data

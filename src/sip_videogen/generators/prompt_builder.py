@@ -177,6 +177,7 @@ def build_structured_scene_prompt(
     flow_context: str | None = None,
     reference_context: str | None = None,
     audio_instruction: str | None = None,
+    constraints_context: str | None = None,
     max_length: int | None = None,
 ) -> str:
     """Build a structured prompt string for a scene."""
@@ -211,6 +212,14 @@ def build_structured_scene_prompt(
     shot_lines = _build_shot_lines(scene, setting_anchor, roles, atmosphere)
     if shot_lines:
         sections.append("Shots:\n" + "\n".join(shot_lines))
+
+    if constraints_context:
+        clean_constraints = constraints_context.strip()
+        if clean_constraints:
+            if clean_constraints.startswith("#"):
+                sections.append(clean_constraints)
+            else:
+                sections.append("Constraints:\n" + clean_constraints)
 
     if audio_instruction:
         sections.append(audio_instruction)
