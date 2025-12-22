@@ -93,6 +93,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
         generate_audio: bool = True,
         total_scenes: int | None = None,
         script: VideoScript | None = None,
+        constraints_context: str | None = None,
     ) -> GeneratedAsset:
         """Generate a video clip for a scene.
 
@@ -109,6 +110,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
             script: Optional VideoScript for element lookups when building reference
                    linking context. When provided with reference_images, adds explicit
                    phrases linking characters to their reference images.
+            constraints_context: Optional constraints block to append to the prompt.
 
         Returns:
             GeneratedAsset with the local path to the generated video.
@@ -133,6 +135,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
             total_scenes=total_scenes,
             reference_images=reference_images,
             script=script,
+            constraints_context=constraints_context,
         )
         logger.debug(f"Video prompt: {prompt}")
 
@@ -351,42 +354,61 @@ class VEOVideoGenerator(BaseVideoGenerator):
         if not reference_images or not script:
             return None
 
-        # Collect element names for the opening phrase
-        element_names = []
-        element_details = []
-
-        for idx, ref in enumerate(reference_images):
+        # Group references by element ID to support multi-angle refs
+        element_to_indices: dict[str, list[int]] = {}
+        for idx, ref in enumerate(reference_images, start=1):
             if not ref.element_id:
                 continue
+            element_to_indices.setdefault(ref.element_id, []).append(idx)
 
-            element = script.get_element_by_id(ref.element_id)
+        if not element_to_indices:
+            return None
+
+        element_names: list[str] = []
+        element_details: list[str] = []
+        seen_names: set[str] = set()
+
+        def _format_indices(indices: list[int]) -> str:
+            if len(indices) == 1:
+                return f"reference image {indices[0]}"
+            if len(indices) == 2:
+                return f"reference images {indices[0]} and {indices[1]}"
+            return (
+                "reference images "
+                + ", ".join(str(i) for i in indices[:-1])
+                + f", and {indices[-1]}"
+            )
+
+        def _ensure_the(label: str) -> str:
+            clean = label.strip()
+            if not clean:
+                return clean
+            return clean if clean.lower().startswith("the ") else f"the {clean}"
+
+        for element_id, indices in element_to_indices.items():
+            element = script.get_element_by_id(element_id)
             if not element:
                 continue
 
-            # Use role_descriptor if available, otherwise fall back to name
             descriptor = element.role_descriptor or element.name
-
-            # Collect names for opening phrase
             if element.element_type.value == "character":
-                element_names.append(descriptor)
-                element_details.append(
-                    f"{descriptor.capitalize()}'s appearance matches reference image {idx + 1}"
-                )
+                name = descriptor
+                detail = f"{descriptor.capitalize()}'s appearance matches {_format_indices(indices)}"
             elif element.element_type.value == "environment":
-                element_names.append(f"the {element.name.lower()}")
-                element_details.append(
-                    f"The {element.name.lower()} matches reference image {idx + 1}"
-                )
-            elif element.element_type.value == "prop":
-                element_names.append(f"the {element.name.lower()}")
-                element_details.append(
-                    f"The {element.name.lower()} matches reference image {idx + 1}"
-                )
+                name = _ensure_the(descriptor)
+                detail = f"{name.capitalize()} matches {_format_indices(indices)}"
+            else:
+                name = _ensure_the(descriptor)
+                detail = f"{name.capitalize()} matches {_format_indices(indices)}"
+
+            if name not in seen_names:
+                element_names.append(name)
+                seen_names.add(name)
+            element_details.append(detail)
 
         if not element_names:
             return None
 
-        # Build Google-style opening phrase
         if len(element_names) == 1:
             opening = f"Using the provided image for {element_names[0]}"
         elif len(element_names) == 2:
@@ -397,6 +419,9 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 f"and {element_names[-1]}"
             )
 
+        if element_details:
+            return f"{opening}. Reference mapping: " + "; ".join(element_details)
+
         return opening
 
     def _build_prompt(
@@ -406,6 +431,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
         exclude_background_music: bool = True,
         reference_images: list[GeneratedAsset] | None = None,
         script: VideoScript | None = None,
+        constraints_context: str | None = None,
     ) -> str:
         """Build a generation prompt from scene details.
 
@@ -423,6 +449,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 Used to build reference linking context.
             script: Optional VideoScript for element lookups when building
                 reference linking context.
+            constraints_context: Optional constraints block to append to the prompt.
 
         Returns:
             A detailed prompt string for video generation.
@@ -440,6 +467,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
             flow_context=flow_context,
             reference_context=linking_context,
             audio_instruction=audio_instruction,
+            constraints_context=constraints_context,
         )
 
         return self._sanitize_prompt_for_vertex(raw_prompt)

@@ -174,6 +174,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
         generate_audio: bool = True,
         total_scenes: int | None = None,
         script: VideoScript | None = None,
+        constraints_context: str | None = None,
     ) -> GeneratedAsset:
         """Generate a video clip using Sora API.
 
@@ -185,6 +186,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
             generate_audio: Whether to generate audio (Sora includes audio).
             total_scenes: Total number of scenes for flow context.
             script: Full VideoScript for element lookups.
+            constraints_context: Optional constraints block to append to the prompt.
 
         Returns:
             GeneratedAsset with path to the generated video.
@@ -193,7 +195,9 @@ class SoraVideoGenerator(BaseVideoGenerator):
             VideoGenerationError: If generation fails.
             PromptSafetyError: If the prompt is rejected for safety reasons.
         """
-        prompt = self._build_prompt(scene, total_scenes, reference_images, script)
+        prompt = self._build_prompt(
+            scene, total_scenes, reference_images, script, constraints_context
+        )
         duration = self.map_duration(scene.duration_seconds)
         size = self._map_aspect_ratio_to_size(aspect_ratio)
 
@@ -307,6 +311,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
         total_scenes: int | None = None,
         reference_images: list[GeneratedAsset] | None = None,
         script: VideoScript | None = None,
+        constraints_context: str | None = None,
     ) -> str:
         """Build a generation prompt from scene details.
 
@@ -315,6 +320,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
             total_scenes: Total number of scenes in the video (for flow context).
             reference_images: Optional reference images (not used in prompt for Sora).
             script: Optional VideoScript for element lookups.
+            constraints_context: Optional constraints block to append to the prompt.
 
         Returns:
             A detailed prompt string for video generation.
@@ -327,6 +333,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
             flow_context=flow_context,
             reference_context=None,  # Sora uses first-frame image, not text reference
             audio_instruction=None,  # Sora always generates audio
+            constraints_context=constraints_context,
             max_length=DEFAULT_MAX_PROMPT_CHARS,
         )
 

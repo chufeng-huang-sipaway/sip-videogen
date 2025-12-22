@@ -1073,6 +1073,10 @@ async def _impl_generate_video_clip(
     reference_images: list = []
     image_metadata: dict | None = None
     resolved_concept: Path | None = None
+    constraints_context: str | None = None
+    product_slugs: list[str] = []
+    shared_elements: dict = {}
+    scene_element_ids: list[str] = []
 
     def _resolve_reference_path(path_value: str) -> Path | None:
         if not path_value:
@@ -1090,6 +1094,50 @@ async def _impl_generate_video_clip(
             return brand_path
         return None
 
+    def _split_product_specs_block(text: str) -> tuple[str, str | None]:
+        if not text:
+            return "", None
+        marker = "### PRODUCT SPECS"
+        idx = text.find(marker)
+        if idx == -1:
+            return text.strip(), None
+        prompt_core = text[:idx].rstrip()
+        specs_block = text[idx:].strip()
+        return prompt_core, specs_block if specs_block else None
+
+    def _normalize_element_id(value: str) -> str:
+        clean = re.sub(r"[^a-z0-9_]+", "_", value.lower()).strip("_")
+        return clean or "ref"
+
+    def _derive_product_role_descriptor(product_name: str, index: int) -> str:
+        name_lower = (product_name or "").lower()
+        if any(keyword in name_lower for keyword in ["jar", "pot"]):
+            return "the product jar"
+        if "bottle" in name_lower:
+            return "the product bottle"
+        if "tube" in name_lower:
+            return "the product tube"
+        if "pump" in name_lower:
+            return "the pump bottle"
+        for keyword in ["cream", "serum", "toner", "lotion", "oil", "mask", "gel"]:
+            if keyword in name_lower:
+                return f"the {keyword}"
+        return f"product {index}"
+
+    def _build_placeholder_music_brief():
+        from sip_videogen.models.music import MusicBrief, MusicGenre, MusicMood
+
+        return MusicBrief(
+            prompt=(
+                "Placeholder brief for single-clip generation; no background music is needed."
+            ),
+            mood=MusicMood.CALM,
+            genre=MusicGenre.AMBIENT,
+            tempo="moderate",
+            instruments=[],
+            rationale="Placeholder brief for prompt construction only.",
+        )
+
     if concept_image_path:
         #Resolve the concept image path
         resolved_concept = _resolve_reference_path(concept_image_path)
@@ -1103,16 +1151,21 @@ async def _impl_generate_video_clip(
                 effective_prompt = image_metadata.get("prompt")
                 if not effective_prompt:
                     effective_prompt = image_metadata.get("original_prompt")
-            logger.info(f"Loaded prompt from concept image: {effective_prompt[:100]}...")
+            if effective_prompt:
+                logger.info(f"Loaded prompt from concept image: {effective_prompt[:100]}...")
         if not effective_prompt:
             return "Error: No prompt and no prompt in concept image metadata"
 
-        #Build reference images: prioritize original product refs, then concept image
+        #Collect product slugs (for specs injection and reference labeling)
+        raw_product_slugs = image_metadata.get("product_slugs") if image_metadata else None
+        if isinstance(raw_product_slugs, list):
+            product_slugs = [str(s).strip() for s in raw_product_slugs if str(s).strip()]
+            product_slugs = list(dict.fromkeys(product_slugs))
+
+        #Build reference images: prioritize product refs, then concept image, then other refs
         ref_details = image_metadata.get("reference_images_detail") if image_metadata else None
         ref_images = image_metadata.get("reference_images") if image_metadata else None
-        product_primary: list[str] = []
-        product_secondary: list[str] = []
-        other_refs: list[str] = []
+        ref_candidates: list[dict] = []
 
         if isinstance(ref_details, list):
             for detail in ref_details:
@@ -1121,48 +1174,147 @@ async def _impl_generate_video_clip(
                 ref_path = detail.get("path")
                 if not ref_path:
                     continue
-                used_for = str(detail.get("used_for") or "").lower()
-                is_identity_ref = "validation" in used_for
-                if detail.get("product_slug") or is_identity_ref:
-                    if detail.get("role") == "primary":
-                        product_primary.append(ref_path)
-                    else:
-                        product_secondary.append(ref_path)
-                else:
-                    other_refs.append(ref_path)
+                product_slug = detail.get("product_slug")
+                role = detail.get("role")
+                kind = "product" if product_slug else "other"
+                ref_candidates.append(
+                    {
+                        "path": ref_path,
+                        "kind": kind,
+                        "product_slug": product_slug,
+                        "role": role,
+                    }
+                )
         elif isinstance(ref_images, list):
-            other_refs.extend([p for p in ref_images if p])
+            for ref_path in ref_images:
+                if ref_path:
+                    ref_candidates.append(
+                        {
+                            "path": ref_path,
+                            "kind": "other",
+                            "product_slug": None,
+                            "role": None,
+                        }
+                    )
 
         max_refs = 3
+        selected_refs: list[dict] = []
         seen_refs: set[str] = set()
-        resolved_refs: list[Path] = []
 
-        def add_ref(path_value: str) -> None:
-            if len(resolved_refs) >= max_refs:
+        def add_ref(candidate: dict) -> None:
+            if len(selected_refs) >= max_refs:
                 return
-            resolved_path = _resolve_reference_path(path_value)
+            resolved_path = candidate.get("resolved_path")
+            if not resolved_path:
+                resolved_path = _resolve_reference_path(candidate.get("path") or "")
             if resolved_path is None:
                 return
             key = str(resolved_path)
             if key in seen_refs:
                 return
             seen_refs.add(key)
-            resolved_refs.append(resolved_path)
+            candidate = {**candidate, "resolved_path": resolved_path}
+            selected_refs.append(candidate)
 
-        #Only attach product reference images (not concept image or other refs)
-        for ref in product_primary + product_secondary:
-            add_ref(ref)
+        product_primary = [
+            c for c in ref_candidates if c["kind"] == "product" and c.get("role") == "primary"
+        ]
+        product_secondary = [
+            c for c in ref_candidates if c["kind"] == "product" and c.get("role") != "primary"
+        ]
+        other_refs = [c for c in ref_candidates if c["kind"] == "other"]
 
-        if resolved_refs:
+        for candidate in product_primary:
+            add_ref(candidate)
+        if resolved_concept:
+            add_ref(
+                {
+                    "path": str(resolved_concept),
+                    "kind": "concept",
+                    "product_slug": None,
+                    "role": None,
+                    "resolved_path": resolved_concept,
+                }
+            )
+        for candidate in product_secondary:
+            add_ref(candidate)
+        for candidate in other_refs:
+            add_ref(candidate)
+
+        if selected_refs:
             from sip_videogen.models.assets import AssetType, GeneratedAsset
-            for idx, ref_path in enumerate(resolved_refs, start=1):
+            from sip_videogen.models.script import ElementType, SharedElement
+
+            product_index = 0
+            for idx, ref in enumerate(selected_refs, start=1):
+                kind = ref.get("kind")
+                if kind == "product":
+                    slug = str(ref.get("product_slug") or "product")
+                    element_id = _normalize_element_id(f"product_{slug}")
+                    if element_id not in shared_elements:
+                        product_index += 1
+                        product = load_product(brand_slug, slug)
+                        product_name = product.name if product else slug
+                        shared_elements[element_id] = SharedElement(
+                            id=element_id,
+                            element_type=ElementType.PROP,
+                            name=product_name,
+                            visual_description="Matches the provided reference image exactly.",
+                            role_descriptor=_derive_product_role_descriptor(
+                                product_name, product_index
+                            ),
+                            appears_in_scenes=[1],
+                        )
+                        scene_element_ids.append(element_id)
+                elif kind == "concept":
+                    element_id = "env_concept_scene"
+                    if element_id not in shared_elements:
+                        shared_elements[element_id] = SharedElement(
+                            id=element_id,
+                            element_type=ElementType.ENVIRONMENT,
+                            name="scene setting",
+                            visual_description=(
+                                "Overall lighting, composition, and environment match the "
+                                "reference image."
+                            ),
+                            role_descriptor="",
+                            appears_in_scenes=[1],
+                        )
+                        scene_element_ids.append(element_id)
+                else:
+                    element_id = _normalize_element_id(f"ref_{idx}")
+                    if element_id not in shared_elements:
+                        shared_elements[element_id] = SharedElement(
+                            id=element_id,
+                            element_type=ElementType.PROP,
+                            name="style reference",
+                            visual_description="Style and texture anchor from the reference image.",
+                            role_descriptor="",
+                            appears_in_scenes=[1],
+                        )
+                        scene_element_ids.append(element_id)
+
                 reference_images.append(
                     GeneratedAsset(
                         asset_type=AssetType.REFERENCE_IMAGE,
-                        local_path=str(ref_path),
-                        element_id=f"ref_{idx}",
+                        local_path=str(ref["resolved_path"]),
+                        element_id=element_id,
                     )
                 )
+    if effective_prompt:
+        effective_prompt, extracted_specs = _split_product_specs_block(effective_prompt)
+        if settings.sip_product_specs_injection and product_slugs:
+            from sip_videogen.advisor.product_specs import build_product_specs_block
+
+            constraints_context = build_product_specs_block(
+                brand_slug=brand_slug,
+                product_slugs=product_slugs,
+                include_description=False,
+                include_constraints=True,
+            )
+        elif extracted_specs:
+            constraints_context = extracted_specs
+
     if not effective_prompt:
         return "Error: prompt or concept_image_path with metadata required"
     #Validate provider
@@ -1179,15 +1331,27 @@ async def _impl_generate_video_clip(
         logger.debug(f"Adjusted duration to {duration}s (valid: {valid_durations})")
     try:
         #Create minimal VideoScript with one scene
-        from sip_videogen.models.script import SceneAction
+        from sip_videogen.models.script import SceneAction, VideoScript
         scene = SceneAction(
             scene_number=1,
             duration_seconds=duration,
             setting_description="",
             action_description=effective_prompt,
             dialogue="",
-            camera_direction=""
+            camera_direction="",
+            shared_element_ids=scene_element_ids,
         )
+        script_context = None
+        if shared_elements:
+            script_context = VideoScript(
+                title="Single clip",
+                logline="Single clip generation",
+                tone="",
+                visual_style="",
+                shared_elements=list(shared_elements.values()),
+                scenes=[scene],
+                music_brief=_build_placeholder_music_brief(),
+            )
         #Initialize VEO generator
         from sip_videogen.generators.video_generator import VEOVideoGenerator
         generator = VEOVideoGenerator(api_key=settings.gemini_api_key)
@@ -1198,7 +1362,9 @@ async def _impl_generate_video_clip(
             scene=scene,
             output_dir=str(output_dir),
             reference_images=refs,
-            aspect_ratio=aspect_ratio
+            aspect_ratio=aspect_ratio,
+            script=script_context,
+            constraints_context=constraints_context,
         )
         if result and result.local_path:
             #Rename output to a unique, project-prefixed filename
@@ -1218,6 +1384,12 @@ async def _impl_generate_video_clip(
                 "generated_at": datetime.utcnow().isoformat(),
                 "generation_time_ms": gen_time
             }
+            if reference_images:
+                video_meta["reference_images"] = [
+                    asset.local_path for asset in reference_images
+                ]
+            if constraints_context:
+                video_meta["constraints_context"] = constraints_context
             if image_metadata:
                 video_meta["source_image_metadata"] = image_metadata
             store_video_metadata(str(target_path), video_meta)
