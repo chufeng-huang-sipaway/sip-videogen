@@ -2896,6 +2896,50 @@ def browse_brand_assets(category: str | None = None) -> str:
     return _impl_browse_brand_assets(category)
 
 
+@function_tool
+def get_recent_generated_images(limit: int = 5) -> str:
+    """Get the most recently generated images, sorted by newest first.
+
+    Use this tool when you need to find a concept image you just generated,
+    especially when following up on a user's request to generate a video
+    from a previously created concept image.
+
+    Args:
+        limit: Maximum number of images to return. Defaults to 5.
+
+    Returns:
+        JSON array of recent images with path, filename, and modified time.
+        Paths can be passed directly to generate_video_clip as concept_image_path.
+    """
+    return _impl_get_recent_generated_images(limit)
+
+
+def _impl_get_recent_generated_images(limit: int = 5) -> str:
+    """Implementation of get_recent_generated_images."""
+    import os
+    slug = get_active_brand()
+    if not slug:
+        return "Error: No brand context set."
+    brand_dir = get_brand_dir(slug)
+    gen_dir = brand_dir / "assets" / "generated"
+    if not gen_dir.exists():
+        return "[]"
+    #Get all image files with modification time
+    images = []
+    for fp in gen_dir.glob("*"):
+        if fp.is_file() and fp.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}:
+            mtime = fp.stat().st_mtime
+            images.append({"path": str(fp), "filename": fp.name, "modified": mtime})
+    #Sort by modification time (newest first) and limit
+    images.sort(key=lambda x: x["modified"], reverse=True)
+    result = images[:limit]
+    #Format modified time for readability
+    from datetime import datetime
+    for img in result:
+        img["modified"] = datetime.fromtimestamp(img["modified"]).isoformat()
+    return json.dumps(result, indent=2)
+
+
 # =============================================================================
 # Tool List for Agent
 # =============================================================================
@@ -2904,6 +2948,7 @@ def browse_brand_assets(category: str | None = None) -> str:
 ADVISOR_TOOLS = [
     generate_image,
     generate_video_clip,
+    get_recent_generated_images,
     read_file,
     write_file,
     list_files,

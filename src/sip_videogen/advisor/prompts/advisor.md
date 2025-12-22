@@ -231,8 +231,24 @@ When user asks for a video:
    - Question: "Ready to generate the video from this concept?"
    - Options: ["Generate video", "Let me revise", "Skip preview next time"]
 3. **On confirmation**, call `generate_video_clip`
-   - Use the concept image path as `concept_image_path`
-   - The video will use the stored prompt from that image
+   - **CRITICAL: First call `get_recent_generated_images()` to find the concept image path**
+   - Use the returned path as `concept_image_path`
+   - The video will use the stored prompt from that image's metadata
+
+### Finding the Concept Image Path
+
+**IMPORTANT:** Between conversation turns, you may lose track of the concept image path. Always use `get_recent_generated_images()` to retrieve it:
+
+```python
+# Step 1: Get recent images to find the concept image
+recent = get_recent_generated_images(limit=5)
+# Returns paths like: generated/christmas-campaign/concept_001.png
+
+# Step 2: Use the path in generate_video_clip
+generate_video_clip(concept_image_path="generated/christmas-campaign/concept_001.png")
+```
+
+**NEVER say "the concept image is not available"** - call `get_recent_generated_images()` to find it.
 
 ### Skip Preview Path
 
