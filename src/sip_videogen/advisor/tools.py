@@ -284,14 +284,49 @@ def _build_attempts_metadata(
 _image_metadata: dict[str, dict] = {}
 
 
+def _get_metadata_path(image_path: str) -> Path:
+    """Get the .meta.json path for an image."""
+    p = Path(image_path)
+    return p.with_suffix(".meta.json")
+
+
 def store_image_metadata(path: str, metadata: ImageGenerationMetadata) -> None:
-    """Store metadata for a generated image."""
-    _image_metadata[path] = asdict(metadata)
+    """Store metadata for a generated image (in memory and on disk)."""
+    import json
+    data = asdict(metadata)
+    _image_metadata[path] = data
+    #Persist to .meta.json file
+    try:
+        meta_path = _get_metadata_path(path)
+        meta_path.write_text(json.dumps(data, indent=2))
+        logger.debug(f"Saved image metadata to {meta_path}")
+    except Exception as e:
+        logger.warning(f"Failed to save image metadata: {e}")
 
 
 def get_image_metadata(path: str) -> dict | None:
-    """Get and remove metadata for a generated image."""
+    """Get and remove metadata for a generated image from memory."""
     return _image_metadata.pop(path, None)
+
+
+def load_image_metadata(path: str) -> dict | None:
+    """Load metadata for an image from disk (.meta.json file).
+
+    Args:
+        path: Path to the image file.
+
+    Returns:
+        Metadata dict or None if not found.
+    """
+    import json
+    meta_path = _get_metadata_path(path)
+    if not meta_path.exists():
+        return None
+    try:
+        return json.loads(meta_path.read_text())
+    except Exception as e:
+        logger.warning(f"Failed to load image metadata from {meta_path}: {e}")
+        return None
 
 
 # =============================================================================
@@ -962,6 +997,164 @@ async def _impl_generate_image(
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         return f"Error generating image: {str(e)}"
+
+
+# =============================================================================
+# Video Generation Implementation
+# =============================================================================
+
+#Module-level storage for video metadata (keyed by output path)
+_video_metadata: dict[str, dict] = {}
+
+
+def store_video_metadata(path: str, metadata: dict) -> None:
+    """Store metadata for a generated video (in memory and on disk)."""
+    import json
+    _video_metadata[path] = metadata
+    try:
+        meta_path = Path(path).with_suffix(".meta.json")
+        meta_path.write_text(json.dumps(metadata, indent=2))
+        logger.debug(f"Saved video metadata to {meta_path}")
+    except Exception as e:
+        logger.warning(f"Failed to save video metadata: {e}")
+
+
+def get_video_metadata(path: str) -> dict | None:
+    """Get and remove video metadata from memory."""
+    return _video_metadata.pop(path, None)
+
+
+def load_video_metadata(path: str) -> dict | None:
+    """Load video metadata from disk (.meta.json file)."""
+    import json
+    meta_path = Path(path).with_suffix(".meta.json")
+    if not meta_path.exists():
+        return None
+    try:
+        return json.loads(meta_path.read_text())
+    except Exception as e:
+        logger.warning(f"Failed to load video metadata from {meta_path}: {e}")
+        return None
+
+
+async def _impl_generate_video_clip(
+    prompt: str | None = None,
+    concept_image_path: str | None = None,
+    aspect_ratio: str = "16:9",
+    duration: int | None = None,
+    provider: str = "veo",
+) -> str:
+    """Implementation of generate_video_clip tool.
+
+    Args:
+        prompt: Video description. Uses stored prompt from concept image if provided.
+        concept_image_path: Path to concept image (from generate_image).
+        aspect_ratio: Video aspect ratio ("16:9" or "9:16").
+        duration: Clip duration in seconds (4, 6, or 8). Forced to 8 with refs.
+        provider: Video provider (only "veo" supported).
+
+    Returns:
+        Path to saved video, or error message.
+    """
+    import time as time_mod
+    brand_slug = get_active_brand()
+    if not brand_slug:
+        return "Error: No active brand selected. Use load_brand() first."
+    start_time = time_mod.time()
+    settings = get_settings()
+    #Determine output directory
+    brand_dir = get_brand_dir(brand_slug)
+    output_dir = brand_dir / "assets" / "video"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    #Build effective prompt and reference images
+    effective_prompt = prompt
+    reference_images: list = []
+    image_metadata: dict | None = None
+    if concept_image_path:
+        #Resolve the concept image path
+        if Path(concept_image_path).is_absolute():
+            resolved = Path(concept_image_path)
+        else:
+            resolved = _resolve_brand_path(concept_image_path)
+        if resolved is None or not resolved.exists():
+            return f"Error: Concept image not found: {concept_image_path}"
+        #Load metadata from the concept image
+        image_metadata = load_image_metadata(str(resolved))
+        if image_metadata:
+            #Use the stored prompt from image generation
+            if not effective_prompt:
+                effective_prompt = image_metadata.get("prompt")
+                if not effective_prompt:
+                    effective_prompt = image_metadata.get("original_prompt")
+            logger.info(f"Loaded prompt from concept image: {effective_prompt[:100]}...")
+        if not effective_prompt:
+            return "Error: No prompt and no prompt in concept image metadata"
+        #Use the concept image as a reference
+        from sip_videogen.models.assets import AssetType, GeneratedAsset
+        ref_asset = GeneratedAsset(
+            asset_type=AssetType.REFERENCE_IMAGE,
+            local_path=str(resolved),
+            element_id="concept"
+        )
+        reference_images.append(ref_asset)
+    if not effective_prompt:
+        return "Error: prompt or concept_image_path with metadata required"
+    #Validate provider
+    if provider != "veo":
+        return f"Error: Provider '{provider}' not supported. Only 'veo' available."
+    #VEO constraints
+    valid_durations = [4, 6, 8]
+    if reference_images:
+        duration = 8  #VEO forces 8s with reference images
+    elif duration is None:
+        duration = 8  #Default
+    elif duration not in valid_durations:
+        duration = min(valid_durations, key=lambda x: abs(x - duration))
+        logger.debug(f"Adjusted duration to {duration}s (valid: {valid_durations})")
+    try:
+        #Create minimal VideoScript with one scene
+        from sip_videogen.models.script import SceneAction
+        scene = SceneAction(
+            scene_number=1,
+            duration_seconds=duration,
+            setting_description="",
+            action_description=effective_prompt,
+            dialogue=None,
+            camera_direction=""
+        )
+        #Initialize VEO generator
+        from sip_videogen.generators.video_generator import VEOVideoGenerator
+        generator = VEOVideoGenerator(api_key=settings.gemini_api_key)
+        #Generate the video clip
+        logger.info(f"Generating video with VEO ({duration}s, {aspect_ratio})")
+        refs = reference_images if reference_images else None
+        result = await generator.generate_video_clip(
+            scene=scene,
+            output_dir=str(output_dir),
+            reference_images=refs,
+            aspect_ratio=aspect_ratio
+        )
+        if result and result.local_path:
+            #Store video metadata
+            gen_time = int((time_mod.time() - start_time) * 1000)
+            video_meta = {
+                "prompt": effective_prompt,
+                "concept_image_path": concept_image_path,
+                "aspect_ratio": aspect_ratio,
+                "duration": duration,
+                "provider": provider,
+                "generated_at": datetime.utcnow().isoformat(),
+                "generation_time_ms": gen_time
+            }
+            if image_metadata:
+                video_meta["source_image_metadata"] = image_metadata
+            store_video_metadata(result.local_path, video_meta)
+            logger.info(f"Video clip saved to: {result.local_path}")
+            return result.local_path
+        return "Error: Video generation did not produce a file"
+    except Exception as e:
+        logger.error(f"Video generation failed: {e}")
+        return f"Error generating video: {str(e)}"
 
 
 def _impl_create_product(
@@ -2074,6 +2267,42 @@ async def generate_image(
 
 
 @function_tool
+async def generate_video_clip(
+    prompt: str | None = None,
+    concept_image_path: str | None = None,
+    aspect_ratio: Literal["16:9", "9:16"] = "16:9",
+    duration: int | None = None,
+    provider: Literal["veo"] = "veo",
+) -> str:
+    """Generate a single video clip using VEO 3.1.
+
+    Creates a short video clip from a text prompt. Use for product videos, lifestyle scenes, and marketing content. Video generation takes 2-3 minutes.
+
+    **Preview-First Workflow (Recommended)**:
+    1. First generate a concept image using generate_image
+    2. Show the image and get user confirmation
+    3. Call generate_video_clip with concept_image_path to use that image as reference
+
+    Args:
+        prompt: Video description with motion/action details. If concept_image_path is provided and prompt is None, uses the stored prompt from the concept image generation.
+        concept_image_path: Path to a concept image generated by generate_image. When provided:
+            - Loads the stored prompt from that image's metadata
+            - Uses the image as a visual reference for the video
+            - Duration is forced to 8 seconds (VEO constraint)
+        aspect_ratio: Video aspect ratio.
+            - "16:9" for landscape (default)
+            - "9:16" for portrait/vertical
+        duration: Clip duration in seconds. Valid values: 4, 6, or 8.
+            Forced to 8 when using reference images. Defaults to 8.
+        provider: Video generation provider. Only "veo" is supported.
+
+    Returns:
+        Path to the saved video file (.mp4), or error message if generation fails.
+    """
+    return await _impl_generate_video_clip(prompt,concept_image_path,aspect_ratio,duration,provider)
+
+
+@function_tool
 def read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
     """Read a file from the brand directory.
 
@@ -2595,6 +2824,7 @@ def browse_brand_assets(category: str | None = None) -> str:
 # All tools available to the Brand Marketing Advisor
 ADVISOR_TOOLS = [
     generate_image,
+    generate_video_clip,
     read_file,
     write_file,
     list_files,

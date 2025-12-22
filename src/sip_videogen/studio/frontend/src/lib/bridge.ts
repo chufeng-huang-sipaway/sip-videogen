@@ -35,7 +35,7 @@ export interface BrandEntry {
 export interface AssetNode {
   name: string
   path: string
-  type: 'folder' | 'image'
+  type: 'folder' | 'image' | 'video'
   children?: AssetNode[]
   size?: number
 }
@@ -179,9 +179,29 @@ export interface GeneratedImage {
   metadata?: ImageGenerationMetadata | null
 }
 
+//Video generation metadata
+export interface VideoGenerationMetadata {
+  prompt: string
+  concept_image_path?: string | null
+  aspect_ratio: string
+  duration: number
+  provider: string
+  generated_at: string
+  generation_time_ms: number
+  source_image_metadata?: ImageGenerationMetadata | null
+}
+
+export interface GeneratedVideo {
+  url: string
+  path: string
+  filename: string
+  metadata?: VideoGenerationMetadata | null
+}
+
 interface ChatResponse {
   response: string
   images: GeneratedImage[]
+  videos?: GeneratedVideo[]
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null

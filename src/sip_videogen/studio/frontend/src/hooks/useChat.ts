@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo } from '@/lib/bridge'
 import { ALLOWED_ATTACHMENT_EXTS, ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 
 export interface Message {
@@ -7,6 +7,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   images: GeneratedImage[] | string[]
+  videos?: GeneratedVideo[]
   timestamp: Date
   status: 'sending' | 'sent' | 'error'
   error?: string
@@ -238,6 +239,7 @@ export function useChat(brandSlug: string | null) {
               ...m,
               content: result.response,
               images: result.images,
+              videos: result.videos || [],
               executionTrace: result.execution_trace || [],
               interaction: result.interaction,
               memoryUpdate: result.memory_update,
