@@ -174,19 +174,22 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
   )
 }
 
-function VideoThumbnail({ path, onClick }: { path: string; onClick?: () => void }) {
+function VideoThumbnail({ path: _path, onClick }: { path: string; onClick?: () => void }) {
   return (
     <div
-      className="group relative aspect-square rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 border border-transparent hover:border-blue-500/50 hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="group relative aspect-square rounded-md overflow-hidden bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 dark:from-indigo-500/30 dark:via-purple-500/30 dark:to-pink-500/30 border-2 border-indigo-400/50 hover:border-indigo-500 hover:shadow-md transition-all duration-200 cursor-pointer"
       onClick={onClick}
-      title="Click to preview"
+      title="Click to preview video"
     >
-      <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-        <Film className="h-5 w-5" />
+      {/* Video icon badge */}
+      <div className="absolute top-1 left-1 flex items-center gap-0.5 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-medium">
+        <Film className="h-2.5 w-2.5" />
+        <span>MP4</span>
       </div>
-      <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors">
-        <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow">
-          <Play className="w-4 h-4 text-black ml-0.5" />
+      {/* Play button center */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+          <Play className="w-5 h-5 text-indigo-600 ml-0.5" />
         </div>
       </div>
     </div>
