@@ -211,7 +211,6 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
             # Extract and save video
             from pathlib import Path
-            import httpx
 
             output_path = Path(output_dir)
             output_path.mkdir(parents=True, exist_ok=True)
@@ -220,14 +219,10 @@ class VEOVideoGenerator(BaseVideoGenerator):
             video_filename = f"scene_{scene.scene_number:03d}.mp4"
             video_path = output_path / video_filename
 
-            # Download video from the returned URI
-            video_uri = video_data.video.uri
-            logger.info(f"Downloading video for scene {scene.scene_number} from: {video_uri}")
-
-            async with httpx.AsyncClient(follow_redirects=True) as http_client:
-                response = await http_client.get(video_uri, timeout=120.0)
-                response.raise_for_status()
-                video_path.write_bytes(response.content)
+            # Download video via Files API (handles authentication)
+            logger.info(f"Downloading video for scene {scene.scene_number} via Files API...")
+            self.client.files.download(file=video_data.video)
+            video_data.video.save(str(video_path))
 
             logger.info(f"Video clip for scene {scene.scene_number} saved to: {video_path}")
 
