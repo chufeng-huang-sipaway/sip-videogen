@@ -1,23 +1,16 @@
+import { useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
-import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain } from 'lucide-react'
+import {Tooltip,TooltipContent,TooltipProvider,TooltipTrigger,} from '@/components/ui/tooltip'
+import {Accordion,AccordionContent,AccordionItem,AccordionTrigger,} from '@/components/ui/accordion'
+import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain, Plus } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { BrandBrainCard } from './BrandBrainCard'
 import { ProductsSection } from './sections/ProductsSection'
 import { ProjectsSection } from './sections/ProjectsSection'
+import { CreateProductDialog } from './CreateProductDialog'
+import { CreateProjectDialog } from './CreateProjectDialog'
 import { useBrand } from '@/context/BrandContext'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
@@ -35,6 +28,8 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const { activeBrand } = useBrand()
   const { products } = useProducts()
   const { projects } = useProjects()
+  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
 
   const width = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH
 
@@ -158,30 +153,36 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
         <div className="px-3 py-2">
           <Accordion type="multiple" defaultValue={["products", "projects"]} className="space-y-1">
             <AccordionItem value="products" className="border-none mb-1">
-              <AccordionTrigger className="px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
-                <div className="flex items-center gap-3 text-left">
-                  <Package className="w-4 h-4 text-muted-foreground/70" />
-                  <div className="flex flex-col">
-                    <span className="font-medium text-sm text-foreground/80 leading-snug">Products</span>
-                    <span className="text-[10px] text-muted-foreground/60 font-normal">Context for generation</span>
+              <div className="flex items-center gap-1">
+                <AccordionTrigger className="flex-1 px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
+                  <div className="flex items-center gap-3 text-left">
+                    <Package className="w-4 h-4 text-muted-foreground/70" />
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm text-foreground/80 leading-snug">Products</span>
+                      <span className="text-[10px] text-muted-foreground/60 font-normal">Context for generation</span>
+                    </div>
                   </div>
-                </div>
-              </AccordionTrigger>
+                </AccordionTrigger>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-md hover:bg-muted/50" onClick={()=>setIsCreateProductOpen(true)} title="Add product"><Plus className="h-4 w-4"/></Button>
+              </div>
               <AccordionContent className="px-0 pb-1 pt-0">
                 <ProductsSection />
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="projects" className="border-none mb-1">
-              <AccordionTrigger className="px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
-                <div className="flex items-center gap-3 text-left">
-                  <FolderOpen className="w-4 h-4 text-muted-foreground/70" />
-                  <div className="flex flex-col">
-                    <span className="font-medium text-sm text-foreground/80 leading-snug">Projects</span>
-                    <span className="text-[10px] text-muted-foreground/60 font-normal">Organize your work</span>
+              <div className="flex items-center gap-1">
+                <AccordionTrigger className="flex-1 px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
+                  <div className="flex items-center gap-3 text-left">
+                    <FolderOpen className="w-4 h-4 text-muted-foreground/70" />
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm text-foreground/80 leading-snug">Projects</span>
+                      <span className="text-[10px] text-muted-foreground/60 font-normal">Organize your work</span>
+                    </div>
                   </div>
-                </div>
-              </AccordionTrigger>
+                </AccordionTrigger>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-md hover:bg-muted/50" onClick={()=>setIsCreateProjectOpen(true)} title="Add project"><Plus className="h-4 w-4"/></Button>
+              </div>
               <AccordionContent className="px-0 pb-1 pt-0">
                 <ProjectsSection />
               </AccordionContent>
@@ -192,16 +193,13 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
       {/* Collapse button at bottom */}
       <div className="p-3 border-t border-border/40">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2"
-          onClick={onToggleCollapse}
-        >
+        <Button variant="ghost" size="sm" className="w-full h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2" onClick={onToggleCollapse}>
           <PanelLeftClose className="w-4 h-4" />
           <span className="text-sm">Collapse</span>
         </Button>
       </div>
+      <CreateProductDialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen}/>
+      <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}/>
     </aside>
   )
 }

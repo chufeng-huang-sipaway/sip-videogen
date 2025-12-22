@@ -718,19 +718,25 @@ class TestGenerateImage:
         product_images_dir.mkdir(parents=True)
         primary_image_path = product_images_dir / "main.png"
         primary_image_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)  # Fake PNG
+        secondary_image_path = product_images_dir / "texture.png"
+        secondary_image_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)  # Fake PNG
 
         # Create mock product
         mock_product = ProductFull(
             slug="night-cream",
             name="Night Cream",
             description="A luxurious night cream",
-            images=["products/night-cream/images/main.png"],
+            images=[
+                "products/night-cream/images/main.png",
+                "products/night-cream/images/texture.png",
+            ],
             primary_image="products/night-cream/images/main.png",
             attributes=[],
         )
 
         mock_settings = MagicMock()
         mock_settings.gemini_api_key = "test-key"
+        mock_settings.sip_product_ref_images_per_product = 2
 
         # Mock generate_with_validation since validate_identity=True is auto-enabled
         expected_output = str(brand_dir / "assets" / "generated" / "image.png")
@@ -759,6 +765,7 @@ class TestGenerateImage:
         # Verify reference_image_bytes was passed (loaded from product)
         assert call_kwargs["reference_image_bytes"] is not None
         assert len(call_kwargs["reference_image_bytes"]) > 0
+        assert len(call_kwargs["reference_images_bytes"]) == 2
         assert result == expected_output
 
     @pytest.mark.asyncio

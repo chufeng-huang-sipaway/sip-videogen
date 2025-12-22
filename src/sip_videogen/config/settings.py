@@ -115,7 +115,7 @@ class Settings(BaseSettings):
         description="Enable generation metrics logging to JSONL",
     )
     sip_product_ref_images_per_product: int = Field(
-        default=1,
+        default=2,
         ge=1,
         le=4,
         description="Number of reference images per product (1-4)",

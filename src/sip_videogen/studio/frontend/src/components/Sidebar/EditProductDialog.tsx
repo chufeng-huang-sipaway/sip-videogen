@@ -111,6 +111,6 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" d
 <Dropzone accept={{'image/*':ALLOWED_IMAGE_EXTS.map(e=>e)}} maxFiles={20} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed p-3">
 <DropzoneEmptyState><div className="flex flex-col items-center"><p className="text-xs mb-1">Drop images to add</p></div></DropzoneEmptyState>
 </Dropzone>
-<p className="text-xs text-muted-foreground">Click the star to set the primary image. The primary image is used as reference for AI generation.</p>
+                <p className="text-xs text-muted-foreground">Click the star to set the primary image. The primary image is used first, with additional images included as extra references.</p>
 </div>
 </FormDialog>)}

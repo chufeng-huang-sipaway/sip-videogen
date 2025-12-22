@@ -502,7 +502,8 @@ async def _impl_generate_image(
         aspect_ratio: Image aspect ratio.
         filename: Optional output filename (without extension).
         reference_image: Optional path to reference image within brand directory.
-        product_slug: Optional product slug - auto-loads product's primary image as reference.
+        product_slug: Optional product slug - auto-loads the product's primary image
+            plus additional reference images (up to the per-product cap) for generation.
         product_slugs: Optional list of product slugs for multi-product generation.
             When provided with 2+ products, uses multi-product validation.
         validate_identity: When True with reference_image, validates that the
@@ -557,7 +558,7 @@ async def _impl_generate_image(
         if not brand_slug:
             return "Error: No active brand - cannot load products"
 
-        # Load ALL reference images per product (no per-product limit)
+        # Load reference images per product (primary + additional, capped)
         # We maintain two structures:
         # - product_references: one (name, bytes) per product for VALIDATION
         # - grouped_generation_images: images grouped by product for GEMINI generation
@@ -581,7 +582,7 @@ async def _impl_generate_image(
             if not product.primary_image:
                 return f"Error: Product '{slug}' has no primary image for reference"
 
-            # Get ALL images for this product (primary first, then additional)
+            # Get product images (primary first, then additional)
             product_images: list[str] = []
             if product.primary_image:
                 product_images.append(product.primary_image)
@@ -591,6 +592,14 @@ async def _impl_generate_image(
                 for img in product.images:
                     if img != product.primary_image:
                         product_images.append(img)
+
+            max_refs = min(settings.sip_product_ref_images_per_product, len(product_images))
+            if max_refs < len(product_images):
+                logger.info(
+                    f"Limiting '{product.name}' references to {max_refs} "
+                    f"of {len(product_images)} available"
+                )
+                product_images = product_images[:max_refs]
 
             # Load the images for this product
             images_loaded = 0
@@ -612,7 +621,7 @@ async def _impl_generate_image(
                     if images_loaded == 0:
                         return f"Error: Reference image not found for product '{slug}': {img_path}"
                     else:
-                        logger.warning(f"Additional image not found, skipping: {img_path}")
+                        logger.warning(f"Image not found for '{product.name}': {img_path} → resolved to {ref_path}")
                         continue
 
                 try:
@@ -643,7 +652,7 @@ async def _impl_generate_image(
                     if images_loaded == 0:
                         return f"Error reading reference image for '{slug}': {e}"
                     else:
-                        logger.warning(f"Failed to read additional image: {e}")
+                        logger.warning(f"Failed to read image for '{product.name}': {img_path} - {type(e).__name__}: {e}")
                         continue
 
             # Add ONE entry per product to validation refs (primary only)
@@ -655,10 +664,9 @@ async def _impl_generate_image(
                 grouped_generation_images.append((product.name, current_product_images))
                 grouped_reference_image_paths.append((product.name, current_product_paths))
 
-            if images_loaded > 1:
-                logger.info(
-                    f"Loaded {images_loaded} reference images for '{product.name}' (multi-angle)"
-                )
+            logger.info(f"Loaded {images_loaded}/{len(product_images)} images for '{product.name}'")
+            if images_loaded != len(product_images):
+                logger.warning(f"Some images failed to load for '{product.name}': expected {len(product_images)}, got {images_loaded}")
 
         # Phase 1: Inject product specs into prompt if enabled
         generation_prompt = prompt
@@ -676,10 +684,18 @@ async def _impl_generate_image(
         from sip_videogen.advisor.validation import generate_with_multi_validation
 
         total_gen_images = sum(len(imgs) for _, imgs in grouped_generation_images)
-        logger.info(
-            f"Generating multi-product image with {len(product_references)} products, "
-            f"{total_gen_images} total reference images (max {max_retries} retries)..."
-        )
+        expected_images = 0
+        for slug in product_slugs:
+            product = load_product(brand_slug, slug)
+            if not product:
+                continue
+            expected_images += min(
+                len(product.images),
+                settings.sip_product_ref_images_per_product,
+            )
+        if total_gen_images < expected_images:
+            logger.warning(f"Reference image mismatch: expected {expected_images} total images, but only loaded {total_gen_images}. Some images may have failed to load.")
+        logger.info(f"Generating multi-product image with {len(product_references)} products, {total_gen_images} total reference images (max {max_retries} retries)...")
 
         import time
         from datetime import datetime
@@ -763,8 +779,14 @@ async def _impl_generate_image(
             logger.error(f"Multi-product image generation failed: {e}")
             return f"Error generating multi-product image: {str(e)}"
 
-    # Auto-load product's primary image as reference if product_slug provided (single product)
+    # Single-product reference handling (primary + additional images)
     generation_prompt = prompt  # Will be modified if specs injection is enabled
+    reference_candidates: list[dict] = []
+    reference_images: list[str] = []
+    reference_images_detail: list[dict] = []
+    reference_images_bytes: list[bytes] = []
+    reference_image_bytes: bytes | None = None
+
     if product_slug and not reference_image:
         if not brand_slug:
             return "Error: No active brand - cannot load product"
@@ -772,14 +794,37 @@ async def _impl_generate_image(
         if product is None:
             return f"Error: Product not found: {product_slug}"
         if product.primary_image:
-            # primary_image is brand-relative (e.g., "products/night-cream/images/main.png")
-            # Pass directly - _resolve_brand_path will handle it
-            reference_image = product.primary_image
-            # Enable identity validation for product consistency
+            product_images = [product.primary_image]
+            if product.images:
+                for img in product.images:
+                    if img != product.primary_image:
+                        product_images.append(img)
+            max_refs = min(settings.sip_product_ref_images_per_product, len(product_images))
+            selected_images = product_images[:max_refs]
+            if len(selected_images) < len(product_images):
+                logger.info(
+                    f"Limiting '{product_slug}' reference images to {max_refs} "
+                    f"of {len(product_images)} available"
+                )
+
+            reference_image = selected_images[0]
             validate_identity = True
             logger.info(
-                f"Using product '{product_slug}' primary image as reference: {reference_image}"
+                f"Using product '{product_slug}' reference images: {', '.join(selected_images)}"
             )
+
+            for img_path in selected_images:
+                role = "primary" if img_path == product.primary_image else "additional"
+                used_for = "generation+validation" if role == "primary" else "generation"
+                reference_candidates.append(
+                    {
+                        "path": img_path,
+                        "product_slug": product_slug,
+                        "role": role,
+                        "used_for": used_for,
+                        "is_primary": role == "primary",
+                    }
+                )
 
             # Phase 1: Inject product specs into prompt if enabled
             if settings.sip_product_specs_injection:
@@ -794,21 +839,56 @@ async def _impl_generate_image(
         else:
             logger.warning(f"Product '{product_slug}' has no primary image")
 
-    # Resolve and load reference image if provided
-    reference_image_bytes: bytes | None = None
-    if reference_image:
-        reference_path = _resolve_brand_path(reference_image)
-        if reference_path is None:
-            return f"Error: No active brand or invalid path: {reference_image}"
-        if not reference_path.exists():
-            return f"Error: Reference image not found: {reference_image}"
+    if reference_image and not reference_candidates:
+        role = "primary" if product_slug else "reference"
+        used_for = "generation+validation" if validate_identity else "generation"
+        reference_candidates.append(
+            {
+                "path": reference_image,
+                "product_slug": product_slug,
+                "role": role,
+                "used_for": used_for,
+                "is_primary": True,
+            }
+        )
+
+    for candidate in reference_candidates:
+        img_path = candidate["path"]
+        ref_path = _resolve_brand_path(img_path)
+        if ref_path is None:
+            if candidate["is_primary"]:
+                return f"Error: No active brand or invalid path: {img_path}"
+            logger.warning(f"Skipping reference image (invalid path): {img_path}")
+            continue
+        if not ref_path.exists():
+            if candidate["is_primary"]:
+                return f"Error: Reference image not found: {img_path}"
+            logger.warning(f"Skipping missing reference image: {img_path}")
+            continue
         try:
-            reference_image_bytes = reference_path.read_bytes()
-            logger.info(
-                f"Loaded reference image: {reference_image} ({len(reference_image_bytes)} bytes)"
-            )
+            ref_bytes = ref_path.read_bytes()
         except Exception as e:
-            return f"Error reading reference image: {e}"
+            if candidate["is_primary"]:
+                return f"Error reading reference image: {e}"
+            logger.warning(
+                f"Failed to read reference image {img_path}: {type(e).__name__}: {e}"
+            )
+            continue
+
+        reference_images.append(img_path)
+        reference_images_bytes.append(ref_bytes)
+        reference_images_detail.append(
+            {
+                "path": img_path,
+                "product_slug": candidate.get("product_slug"),
+                "role": candidate.get("role"),
+                "used_for": candidate.get("used_for"),
+            }
+        )
+        if candidate["is_primary"]:
+            reference_image = img_path
+            reference_image_bytes = ref_bytes
+            logger.info(f"Loaded reference image: {img_path} ({len(ref_bytes)} bytes)")
 
     import time
     from datetime import datetime
@@ -827,6 +907,7 @@ async def _impl_generate_image(
                 client=client,
                 prompt=generation_prompt,  # Phase 1: Use specs-injected prompt
                 reference_image_bytes=reference_image_bytes,
+                reference_images_bytes=reference_images_bytes or None,
                 output_dir=output_dir,
                 filename=filename,
                 aspect_ratio=aspect_ratio,
@@ -839,20 +920,6 @@ async def _impl_generate_image(
             return_value = actual_path
             if result.warning:
                 return_value = f"{actual_path}\n\n{result.warning}"
-
-            reference_images = [reference_image] if reference_image else []
-            reference_images_detail = []
-            if reference_image:
-                role = "primary" if product_slug else "reference"
-                used_for = "generation+validation" if validate_identity else "generation"
-                reference_images_detail.append(
-                    {
-                        "path": reference_image,
-                        "product_slug": product_slug,
-                        "role": role,
-                        "used_for": used_for,
-                    }
-                )
 
             attempts = _build_attempts_metadata(
                 attempts=result.attempts,
@@ -902,11 +969,16 @@ async def _impl_generate_image(
             return return_value
 
         # Standard generation (with or without reference)
-        if reference_image_bytes:
-            # Include reference image in contents
-            ref_pil = PILImage.open(io.BytesIO(reference_image_bytes))
-            contents = [generation_prompt, ref_pil]  # Phase 1: Use specs-injected prompt
-            logger.info(f"Generating image with reference: {generation_prompt[:100]}...")
+        if reference_images_bytes:
+            # Include reference image(s) in contents
+            ref_pils = [
+                PILImage.open(io.BytesIO(ref_bytes)) for ref_bytes in reference_images_bytes
+            ]
+            contents = [generation_prompt, *ref_pils]  # Phase 1: Use specs-injected prompt
+            logger.info(
+                f"Generating image with {len(reference_images_bytes)} reference image(s): "
+                f"{generation_prompt[:100]}..."
+            )
         else:
             contents = generation_prompt
             logger.info(f"Generating image: {generation_prompt[:100]}...")
@@ -931,19 +1003,6 @@ async def _impl_generate_image(
                 logger.info(f"Saved image to: {output_path}")
 
                 # Store metadata for debugging visibility
-                reference_images = [reference_image] if reference_image else []
-                reference_images_detail = []
-                if reference_image:
-                    role = "primary" if product_slug else "reference"
-                    reference_images_detail.append(
-                        {
-                            "path": reference_image,
-                            "product_slug": product_slug,
-                            "role": role,
-                            "used_for": "generation",
-                        }
-                    )
-
                 final_api_call = _build_api_call_code(
                     prompt=generation_prompt,
                     model=model,
@@ -2475,14 +2534,16 @@ async def generate_image(
             this reference to maintain consistency. Path should be relative to the
             brand folder (e.g., "uploads/product.png", "assets/logo/main.png").
         product_slug: Optional product slug. When provided without reference_image,
-            automatically loads the product's primary image as reference and enables
-            identity validation. Use this when generating images featuring a specific
-            product - the product's actual appearance will be preserved.
+            automatically loads the product's primary image plus additional reference
+            images (up to the per-product cap) and enables identity validation. Use
+            this when generating images featuring a specific product - the product's
+            actual appearance will be preserved.
         product_slugs: Optional list of product slugs for MULTI-PRODUCT images.
             Use this when the user wants to generate an image featuring 2-3 products.
-            Each product's primary image will be used as reference, and multi-product
-            validation ensures EVERY product appears accurately. The prompt should
-            describe each product with specific details (materials, colors, etc.).
+            Each product's primary image (plus any additional product images) will be
+            used as references, and multi-product validation ensures EVERY product
+            appears accurately. The prompt should describe each product with specific
+            details (materials, colors, etc.).
             Example: product_slugs=["night-cream", "day-serum", "toner"]
         validate_identity: When True AND reference_image is provided, enables a
             validation loop that ensures the generated image preserves the identity
@@ -2641,7 +2702,8 @@ def list_products() -> str:
     or using them in image generation.
 
     Products can be used with generate_image(product_slug="...") to automatically
-    use their primary image as a reference for consistent generation.
+    use their primary image (plus any additional product images) as references
+    for consistent generation.
 
     Returns:
         Formatted markdown list of products, or error message if no brand is active.
@@ -2834,7 +2896,8 @@ def add_product_image(
             MUST be within the uploads/ folder (e.g., "uploads/product-photo.png").
             Use list_files("uploads") to see available uploaded images.
         set_as_primary: If True, set this image as the product's primary image.
-            The primary image is used as the reference for generate_image(product_slug=...).
+            The primary image is used first for generate_image(product_slug=...),
+            with additional product images included as supplemental references.
         allow_non_reference: If True, allow adding images that were classified as screenshots,
             documents, or otherwise not suitable as product reference images. Prefer leaving this
             False so product images remain clean reference photos.
@@ -2949,8 +3012,9 @@ def set_product_primary_image(
 ) -> str:
     """Set the primary image for a product.
 
-    Use this to designate which image should be used as the reference for
-    generate_image(product_slug=...). The primary image is also displayed
+    Use this to designate which image should be used first for
+    generate_image(product_slug=...). Additional product images are included
+    as supplemental references. The primary image is also displayed
     prominently in the product catalog.
 
     Args:

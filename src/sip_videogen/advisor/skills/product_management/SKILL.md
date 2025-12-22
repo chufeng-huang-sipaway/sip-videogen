@@ -114,7 +114,9 @@ A valid reference image must show:
 Do NOT add these as reference images:
 - **Screenshots of webpages** or e-commerce product pages
 - **Product information pages** showing specs, descriptions, or reviews
-- **Partial views** (cropped details, zoomed-in textures, close-ups of labels)
+- **Partial views** (cropped details, zoomed-in textures, close-ups of labels) as
+  PRIMARY references; these can be added as supplemental images only when a full
+  product shot exists
 - **Marketing collages** with multiple elements or busy compositions
 - **Images with UI elements** (browser chrome, navigation bars, buttons)
 - **Text-heavy images** (ingredient lists, instruction pages)
@@ -215,7 +217,7 @@ Attributes:
 
 - ✅ **Name clear**: Product name is unambiguous
 - ✅ **Slug URL-safe**: Generated slug follows pattern (lowercase, hyphens, no special chars)
-- ✅ **Primary image set**: Product has a primary image for reference generation
+- ✅ **Primary image set**: Product has a primary image (full product) for reference generation
 - ✅ **Description complete**: Description includes key product details + Attributes block
 
 ## Error Handling
@@ -228,7 +230,8 @@ Attributes:
 
 ## Integration with Other Skills
 
-- **Image Generation**: Use product's primary image as reference for `generate_image(product_slug=...)`
+- **Image Generation**: The primary image is used first, with additional product
+  images included as supplemental references for `generate_image(product_slug=...)`
 - **Brand Identity**: Product details should align with brand positioning
 - **Project Management**: Products can be tagged to projects for campaign organization
 
