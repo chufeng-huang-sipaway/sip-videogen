@@ -1,5 +1,5 @@
 """Auto-update system for Brand Studio using GitHub Releases."""
-
+import logging
 import os
 import subprocess
 import sys
@@ -12,6 +12,8 @@ import httpx
 from packaging import version
 
 from sip_videogen.studio import __version__ as current_version_str
+
+logger=logging.getLogger(__name__)
 
 # GitHub repository info - update this to match your repo
 GITHUB_OWNER = "chufeng-huang-sipaway"
@@ -121,7 +123,7 @@ async def check_for_updates() -> UpdateInfo | None:
             )
 
     except Exception as e:
-        print(f"[UPDATER] Error checking for updates: {e}")
+        logger.error("Error checking for updates: %s",e)
         return None
 
 
@@ -169,7 +171,7 @@ async def download_update(
         return dmg_path
 
     except Exception as e:
-        print(f"[UPDATER] Error downloading update: {e}")
+        logger.error("Error downloading update: %s",e)
         return None
 
 
@@ -203,7 +205,7 @@ def install_update(dmg_path: Path) -> bool:
         return True
 
     except Exception as e:
-        print(f"[UPDATER] Error starting update: {e}")
+        logger.error("Error starting update: %s",e)
         return False
 
 
@@ -298,7 +300,7 @@ rm -f "$0"
 
 def get_update_settings() -> dict:
     """Get update-related settings from config."""
-    from sip_videogen.studio.bridge import _load_config
+    from sip_videogen.studio.utils.config_store import _load_config
 
     config = _load_config()
     return {
@@ -313,7 +315,7 @@ def save_update_settings(
     skipped_version: str | None = None,
 ) -> None:
     """Save update-related settings to config."""
-    from sip_videogen.studio.bridge import _load_config, _save_config
+    from sip_videogen.studio.utils.config_store import _load_config, _save_config
 
     config = _load_config()
 
@@ -330,7 +332,7 @@ def mark_update_checked() -> None:
     """Mark that we just checked for updates (for rate limiting)."""
     import time
 
-    from sip_videogen.studio.bridge import _load_config, _save_config
+    from sip_videogen.studio.utils.config_store import _load_config, _save_config
 
     config = _load_config()
     config["last_update_check"] = int(time.time())

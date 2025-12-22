@@ -32,7 +32,6 @@ from .memory import (
     get_project_summary,
     list_brand_assets,
 )
-
 from .models import (
     AudienceProfile,
     BrandCoreIdentity,
@@ -63,13 +62,8 @@ from .storage import (
     update_brand_summary_stats,
 )
 
-# Agent tools (Task 2.2)
-from .tools import (
-    browse_brand_assets,
-    fetch_brand_detail,
-    get_brand_context,
-    set_brand_context,
-)
+# Agent tools (Task 2.2) - lazily imported via __getattr__ to avoid circular import
+# Direct access: from sip_videogen.brands.tools import browse_brand_assets, etc.
 
 __all__ = [
     # Models - L0 Summary (Task 1.2)
@@ -134,3 +128,9 @@ __all__ = [
     "HierarchicalContextBuilder",
     "build_turn_context",
 ]
+#Lazy loading for tools to avoid circular import with advisor.tools
+def __getattr__(name):
+    if name in("browse_brand_assets","fetch_brand_detail","get_brand_context","set_brand_context"):
+        from . import tools
+        return getattr(tools,name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { bridge, isPyWebView, waitForPyWebViewReady, type AssetNode } from '@/lib/bridge'
+import { ASSET_CATEGORIES } from '@/lib/constants'
 
 export function useAssets(brandSlug: string | null) {
   const [tree, setTree] = useState<AssetNode[]>([])
@@ -18,22 +19,11 @@ export function useAssets(brandSlug: string | null) {
     try {
       const ready = await waitForPyWebViewReady()
       if (!ready) {
-        // Mock data for dev
-        setTree([
-          {
-            name: 'logo',
-            type: 'folder',
-            path: 'logo',
-            children: [
-              { name: 'primary.png', type: 'image', path: 'logo/primary.png', size: 24000 },
-            ],
-          },
-          { name: 'mascot', type: 'folder', path: 'mascot', children: [] },
-          { name: 'marketing', type: 'folder', path: 'marketing', children: [] },
-          { name: 'lifestyle', type: 'folder', path: 'lifestyle', children: [] },
-          { name: 'packaging', type: 'folder', path: 'packaging', children: [] },
-          { name: 'generated', type: 'folder', path: 'generated', children: [] },
-        ])
+        //Mock data for dev
+        setTree(ASSET_CATEGORIES.map(cat=>({
+          name:cat,type:'folder'as const,path:cat,
+          children:cat==='logo'?[{name:'primary.png',type:'image'as const,path:'logo/primary.png',size:24000}]:[]
+        })))
         return
       }
 

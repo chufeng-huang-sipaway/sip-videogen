@@ -21,8 +21,6 @@ export interface MemorySectionProps {
   onEditModeChange?: (isEditing: boolean) => void
   /** Controlled edit mode (optional). If provided, MemorySection will use this state. */
   isEditing?: boolean
-  /** @deprecated No longer used - kept for backward compatibility */
-  defaultExpanded?: boolean
 }
 
 /**

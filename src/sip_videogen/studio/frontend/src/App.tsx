@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Sidebar } from '@/components/Sidebar'
-import { ChatPanel } from '@/components/ChatPanel'
-import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
-import { UpdateModal } from '@/components/Update'
-import { BrandMemory } from '@/components/BrandMemory'
-import { useBrand } from '@/context/BrandContext'
-import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
-import type { UpdateCheckResult } from '@/lib/bridge'
-import { useTheme } from '@/hooks/useTheme'
+import{useCallback,useEffect,useState}from'react'
+import{Sidebar}from'@/components/Sidebar'
+import{ChatPanel}from'@/components/ChatPanel'
+import{ApiKeySetup}from'@/components/Setup/ApiKeySetup'
+import{UpdateModal}from'@/components/Update'
+import{BrandMemory}from'@/components/BrandMemory'
+import{Toaster}from'@/components/ui/toaster'
+import{useBrand}from'@/context/BrandContext'
+import{bridge,waitForPyWebViewReady}from'@/lib/bridge'
+import type{UpdateCheckResult}from'@/lib/bridge'
+import{useTheme}from'@/hooks/useTheme'
 
 const SIDEBAR_COLLAPSED_KEY = 'brand-studio-sidebar-collapsed'
 
@@ -100,16 +101,10 @@ function App() {
       {/* Brand Memory modal - keeps ChatPanel mounted underneath */}
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
 
-      {/* Update notification modal */}
-      {updateInfo && (
-        <UpdateModal
-          updateInfo={updateInfo}
-          onClose={() => setUpdateInfo(null)}
-          onSkipVersion={handleSkipVersion}
-        />
-      )}
-    </div>
-  )
+{/* Update notification modal */}
+{updateInfo&&(<UpdateModal updateInfo={updateInfo} onClose={()=>setUpdateInfo(null)} onSkipVersion={handleSkipVersion}/>)}
+<Toaster/>
+</div>)
 }
 
 export default App

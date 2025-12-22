@@ -15,6 +15,10 @@ from unittest.mock import patch
 
 import pytest
 
+from sip_videogen.advisor.tools import (
+    _impl_browse_brand_assets,
+    _impl_fetch_brand_detail,
+)
 from sip_videogen.brands.context import BrandContextBuilder, build_brand_context
 from sip_videogen.brands.models import (
     AudienceProfile,
@@ -30,18 +34,11 @@ from sip_videogen.brands.storage import (
     create_brand,
     delete_brand,
     get_active_brand,
-    get_brand_dir,
     list_brands,
     load_brand,
     load_brand_summary,
     save_brand,
     set_active_brand,
-)
-from sip_videogen.brands.tools import (
-    _impl_browse_brand_assets,
-    _impl_fetch_brand_detail,
-    get_brand_context,
-    set_brand_context,
 )
 
 
@@ -300,7 +297,7 @@ Generate marketing copy for the brand."""
     ) -> None:
         """Test that _impl_fetch_brand_detail returns correct sections for agents."""
         create_brand(complete_brand_identity)
-        set_brand_context("summit-coffee")
+        set_active_brand("summit-coffee")
 
         # Test visual identity
         visual_json = _impl_fetch_brand_detail("visual_identity")
@@ -402,7 +399,7 @@ class TestBrowseAssetsIntegration:
         self, brand_with_assets: BrandIdentityFull
     ) -> None:
         """Test that _impl_browse_brand_assets returns all assets."""
-        set_brand_context("summit-coffee")
+        set_active_brand("summit-coffee")
 
         result = _impl_browse_brand_assets()
         assets = json.loads(result)
@@ -415,7 +412,7 @@ class TestBrowseAssetsIntegration:
         self, brand_with_assets: BrandIdentityFull
     ) -> None:
         """Test filtering assets by category."""
-        set_brand_context("summit-coffee")
+        set_active_brand("summit-coffee")
 
         result = _impl_browse_brand_assets(category="logo")
         assets = json.loads(result)
@@ -427,7 +424,7 @@ class TestBrowseAssetsIntegration:
         self, brand_with_assets: BrandIdentityFull, temp_brands_dir: Path
     ) -> None:
         """Test that asset paths are correct."""
-        set_brand_context("summit-coffee")
+        set_active_brand("summit-coffee")
 
         result = _impl_browse_brand_assets(category="logo")
         assets = json.loads(result)
