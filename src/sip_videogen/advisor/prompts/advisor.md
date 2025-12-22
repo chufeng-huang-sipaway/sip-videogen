@@ -156,6 +156,7 @@ When products are attached to the conversation (shown in "Current Context"), the
 ### Single Product Attached
 - Use `generate_image` with `product_slug` parameter to auto-load reference
 - Enable `validate_identity=True` to ensure exact reproduction
+- If the product has multiple images, they are all passed as references (primary first)
 - If product specs injection is enabled (default), do NOT repeat numeric measurements or the constraints block in the prompt; focus on concise qualitative identifiers and relative size cues
 - If specs injection is disabled, include exact measurements in the prompt
 - Read the product's attributes carefully - materials and colors are marked [PRESERVE EXACTLY]

@@ -574,6 +574,7 @@ async def generate_with_validation(
     filename: str,
     aspect_ratio: str = "1:1",
     max_retries: int = 3,
+    reference_images_bytes: list[bytes] | None = None,
 ) -> ValidationGenerationResult | str:
     """Generate image with reference and validate for identity preservation.
 
@@ -586,7 +587,9 @@ async def generate_with_validation(
     Args:
         client: Gemini API client.
         prompt: Generation prompt.
-        reference_image_bytes: Reference image bytes.
+        reference_image_bytes: Primary reference image bytes (used for validation).
+        reference_images_bytes: Optional list of reference image bytes to guide
+            generation (primary first). When omitted, uses the primary only.
         output_dir: Directory to save output.
         filename: Base filename (without extension).
         aspect_ratio: Image aspect ratio.
@@ -608,9 +611,13 @@ async def generate_with_validation(
         logger.info(f"Reference generation attempt {attempt_number}/{max_retries}")
 
         try:
-            # Build contents with reference image
-            ref_pil = PILImage.open(io.BytesIO(reference_image_bytes))
-            contents = [current_prompt, ref_pil]
+            # Build contents with reference image(s)
+            image_bytes_list = reference_images_bytes or [reference_image_bytes]
+            if reference_image_bytes not in image_bytes_list:
+                image_bytes_list = [reference_image_bytes, *image_bytes_list]
+
+            ref_pils = [PILImage.open(io.BytesIO(img_bytes)) for img_bytes in image_bytes_list]
+            contents = [current_prompt, *ref_pils]
 
             # Generate image
             response = client.models.generate_content(

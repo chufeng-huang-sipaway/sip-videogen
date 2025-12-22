@@ -229,7 +229,7 @@ class ProductContextBuilder:
         if p.images:
             image_lines = []
             for img in p.images:
-                is_primary = " [PRIMARY - use as reference]" if img == p.primary_image else ""
+                is_primary = " [PRIMARY - used first]" if img == p.primary_image else ""
                 image_lines.append(f"  - {img}{is_primary}")
             images_str = "\n".join(image_lines)
         else:
@@ -256,6 +256,7 @@ Preserve: exact shape, materials, colors, textures, and proportions.
 
 **Reference Images**:
 {images_str}
+Primary image anchors identity; additional images provide texture/angle context.
 {prompt_guidance}
 
 **HOW TO USE THIS PRODUCT IN IMAGES**:
