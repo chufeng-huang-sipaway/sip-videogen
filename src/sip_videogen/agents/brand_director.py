@@ -23,12 +23,12 @@ from tenacity import (
     wait_exponential,
 )
 
+from sip_videogen.advisor.tools import browse_brand_assets, fetch_brand_detail
 from sip_videogen.agents.brand_guardian import brand_guardian_agent
 from sip_videogen.agents.brand_strategist import brand_strategist_agent
 from sip_videogen.agents.brand_voice import brand_voice_agent
 from sip_videogen.agents.visual_designer import visual_designer_agent
 from sip_videogen.brands.models import BrandIdentityFull
-from sip_videogen.brands.tools import browse_brand_assets, fetch_brand_detail
 from sip_videogen.config.logging import get_logger
 from sip_videogen.models.brand_agent_outputs import BrandDirectorOutput
 
@@ -235,7 +235,7 @@ async def develop_brand(
         ValueError: If input validation fails.
     """
     from sip_videogen.brands.context import build_brand_context
-    from sip_videogen.brands.tools import set_brand_context
+    from sip_videogen.brands.storage import set_active_brand
 
     # Validate inputs
     if not concept or not concept.strip():
@@ -249,9 +249,9 @@ async def develop_brand(
         f"(existing: {existing_brand_slug or 'none'})"
     )
 
-    # Set up brand context for memory tools
+    # Build brand context for memory tools
     if existing_brand_slug:
-        set_brand_context(existing_brand_slug)
+        set_active_brand(existing_brand_slug)
         brand_context = build_brand_context(existing_brand_slug)
         context_section = f"""## Existing Brand Context
 
@@ -268,7 +268,6 @@ Use the memory tools to understand the current brand state before making changes
             "Respect established elements while implementing requested changes."
         )
     else:
-        set_brand_context(None)
         context_section = """## New Brand Creation
 
 You are creating a NEW brand from scratch. Be bold and distinctive.
@@ -365,7 +364,7 @@ async def develop_brand_with_output(
         ValueError: If input validation fails.
     """
     from sip_videogen.brands.context import build_brand_context
-    from sip_videogen.brands.tools import set_brand_context
+    from sip_videogen.brands.storage import set_active_brand
 
     # Validate inputs
     if not concept or not concept.strip():
@@ -379,9 +378,9 @@ async def develop_brand_with_output(
         f"(existing: {existing_brand_slug or 'none'})"
     )
 
-    # Set up brand context for memory tools
+    # Build brand context for memory tools
     if existing_brand_slug:
-        set_brand_context(existing_brand_slug)
+        set_active_brand(existing_brand_slug)
         brand_context = build_brand_context(existing_brand_slug)
         context_section = f"""## Existing Brand Context
 
@@ -394,7 +393,6 @@ You are EVOLVING an existing brand, not creating from scratch.
 """
         task_description = "evolve this existing brand"
     else:
-        set_brand_context(None)
         context_section = ""
         task_description = "create a complete brand identity"
 

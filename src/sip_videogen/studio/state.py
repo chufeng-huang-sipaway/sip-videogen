@@ -1,13 +1,16 @@
 """Shared state for bridge services."""
 from __future__ import annotations
-from dataclasses import dataclass,field
+
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:from sip_videogen.advisor.agent import BrandAdvisor
+
+if TYPE_CHECKING:
+    from pathlib import Path
+    from sip_videogen.advisor.agent import BrandAdvisor
 @dataclass
 class BridgeState:
     """Shared state across bridge services."""
     advisor:"BrandAdvisor|None"=None
-    current_brand:str|None=None
     current_progress:str=""
     current_progress_type:str=""
     matched_skills:list[str]=field(default_factory=list)
@@ -15,12 +18,11 @@ class BridgeState:
     update_progress:dict|None=None
     window:object=None
     def get_active_slug(self)->str|None:
-        """Get the active brand slug (bridge-local, falling back to global)."""
+        """Get the active brand slug from storage."""
         from sip_videogen.brands.storage import get_active_brand
-        return self.current_brand or get_active_brand()
+        return get_active_brand()
     def get_brand_dir(self)->"tuple[Path|None,str|None]":
         """Get the active brand directory."""
-        from pathlib import Path
         from sip_videogen.brands.storage import get_brand_dir
         s=self.get_active_slug()
         if not s:return None,"No brand selected"

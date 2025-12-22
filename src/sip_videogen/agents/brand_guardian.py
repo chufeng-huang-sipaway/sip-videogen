@@ -9,7 +9,7 @@ from pathlib import Path
 
 from agents import Agent
 
-from sip_videogen.brands.tools import browse_brand_assets, fetch_brand_detail
+from sip_videogen.advisor.tools import browse_brand_assets, fetch_brand_detail
 from sip_videogen.models.brand_agent_outputs import BrandGuardianOutput
 
 # Load the detailed prompt from the prompts directory
@@ -70,11 +70,11 @@ async def validate_brand_identity(
     from agents import Runner
 
     from sip_videogen.brands.context import build_brand_context
-    from sip_videogen.brands.tools import set_brand_context
+    from sip_videogen.brands.storage import set_active_brand
 
-    # Set up brand context for memory tools if validating existing brand
+    # Build brand context for memory tools if validating existing brand
     if brand_slug:
-        set_brand_context(brand_slug)
+        set_active_brand(brand_slug)
         brand_context = build_brand_context(brand_slug)
         context_section = f"""
 ## Existing Brand Context
@@ -88,7 +88,6 @@ against the established brand to ensure consistency and appropriate evolution.
 
 """
     else:
-        set_brand_context(None)
         context_section = """
 ## New Brand Validation
 
@@ -155,11 +154,11 @@ async def validate_brand_work(
     from agents import Runner
 
     from sip_videogen.brands.context import build_brand_context
-    from sip_videogen.brands.tools import set_brand_context
+    from sip_videogen.brands.storage import set_active_brand
 
-    # Set up brand context
+    # Build brand context
     if brand_slug:
-        set_brand_context(brand_slug)
+        set_active_brand(brand_slug)
         brand_context = build_brand_context(brand_slug)
         context_section = f"""
 ## Existing Brand Context
@@ -172,7 +171,6 @@ You are validating specialist work for an EXISTING brand.
 
 """
     else:
-        set_brand_context(None)
         context_section = """
 ## New Brand Validation
 

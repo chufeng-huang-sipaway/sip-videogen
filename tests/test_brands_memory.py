@@ -6,6 +6,12 @@ from unittest.mock import patch
 
 import pytest
 
+from sip_videogen.advisor.tools import (
+    _impl_browse_brand_assets as browse_brand_assets,
+)
+from sip_videogen.advisor.tools import (
+    _impl_fetch_brand_detail as fetch_brand_detail,
+)
 from sip_videogen.brands.context import (
     DETAIL_DESCRIPTIONS,
     BrandContextBuilder,
@@ -44,16 +50,11 @@ from sip_videogen.brands.models import (
     VoiceGuidelines,
 )
 from sip_videogen.brands.storage import (
-    add_product_image,
     create_brand,
     create_product,
     create_project,
-)
-from sip_videogen.brands.tools import (
-    _impl_browse_brand_assets as browse_brand_assets,
-    _impl_fetch_brand_detail as fetch_brand_detail,
-    get_brand_context,
-    set_brand_context,
+    get_active_brand,
+    set_active_brand,
 )
 
 
@@ -310,23 +311,21 @@ class TestListBrandAssets:
 
 class TestBrandContext:
     """Tests for brand context management."""
-
-    def test_set_and_get_brand_context(self) -> None:
+    def test_set_and_get_active_brand(self,temp_brands_dir:Path,sample_brand_identity:BrandIdentityFull)->None:
         """Test setting and getting brand context."""
-        set_brand_context("my-brand")
-        assert get_brand_context() == "my-brand"
-
-    def test_clear_brand_context(self) -> None:
+        create_brand(sample_brand_identity)
+        set_active_brand("test-brand")
+        assert get_active_brand()=="test-brand"
+    def test_clear_brand_context(self,temp_brands_dir:Path,sample_brand_identity:BrandIdentityFull)->None:
         """Test clearing brand context."""
-        set_brand_context("my-brand")
-        set_brand_context(None)
-        assert get_brand_context() is None
-
-    def test_initial_context_is_none(self) -> None:
+        create_brand(sample_brand_identity)
+        set_active_brand("test-brand")
+        set_active_brand(None)
+        assert get_active_brand() is None
+    def test_initial_context_is_none(self,temp_brands_dir:Path)->None:
         """Test that initial context is None."""
-        # Reset first
-        set_brand_context(None)
-        assert get_brand_context() is None
+        set_active_brand(None)
+        assert get_active_brand() is None
 
 
 class TestFetchBrandDetailTool:
@@ -334,7 +333,7 @@ class TestFetchBrandDetailTool:
 
     def test_returns_error_without_context(self) -> None:
         """Test that fetch_brand_detail returns error without brand context."""
-        set_brand_context(None)
+        set_active_brand(None)
 
         result = fetch_brand_detail("visual_identity")
 
@@ -346,7 +345,7 @@ class TestFetchBrandDetailTool:
     ) -> None:
         """Test fetching detail with brand context set."""
         create_brand(sample_brand_identity)
-        set_brand_context("test-brand")
+        set_active_brand("test-brand")
 
         result = fetch_brand_detail("visual_identity")
 
@@ -354,14 +353,11 @@ class TestFetchBrandDetailTool:
         data = json.loads(result)
         assert "primary_colors" in data
 
-    def test_returns_error_for_nonexistent_brand(self, temp_brands_dir: Path) -> None:
-        """Test that nonexistent brand returns error."""
-        set_brand_context("nonexistent")
-
-        result = fetch_brand_detail("visual_identity")
-
-        assert result.startswith("Error:")
-        assert "not found" in result
+    def test_set_active_brand_raises_for_nonexistent(self,temp_brands_dir:Path)->None:
+        """Test that set_active_brand raises for nonexistent brand."""
+        import pytest
+        with pytest.raises(ValueError,match="not found"):
+            set_active_brand("nonexistent")
 
 
 class TestBrowseBrandAssetsTool:
@@ -369,7 +365,7 @@ class TestBrowseBrandAssetsTool:
 
     def test_returns_error_without_context(self) -> None:
         """Test that browse_brand_assets returns error without brand context."""
-        set_brand_context(None)
+        set_active_brand(None)
 
         result = browse_brand_assets()
 
@@ -381,7 +377,7 @@ class TestBrowseBrandAssetsTool:
     ) -> None:
         """Test that brand without assets returns appropriate message."""
         create_brand(sample_brand_identity)
-        set_brand_context("test-brand")
+        set_active_brand("test-brand")
 
         result = browse_brand_assets()
 
@@ -389,7 +385,7 @@ class TestBrowseBrandAssetsTool:
 
     def test_returns_json_with_assets(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test that assets are returned as JSON."""
-        set_brand_context("test-brand")
+        set_active_brand("test-brand")
 
         result = browse_brand_assets()
 
@@ -399,7 +395,7 @@ class TestBrowseBrandAssetsTool:
 
     def test_filters_by_category(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test that category filter works."""
-        set_brand_context("test-brand")
+        set_active_brand("test-brand")
 
         result = browse_brand_assets(category="logo")
 
@@ -411,7 +407,7 @@ class TestBrowseBrandAssetsTool:
         self, brand_with_assets: BrandIdentityFull
     ) -> None:
         """Test message when category has no assets."""
-        set_brand_context("test-brand")
+        set_active_brand("test-brand")
 
         result = browse_brand_assets(category="mascot")
 

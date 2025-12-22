@@ -1,5 +1,5 @@
 """Auto-update system for Brand Studio using GitHub Releases."""
-
+import logging
 import os
 import subprocess
 import sys
@@ -12,6 +12,8 @@ import httpx
 from packaging import version
 
 from sip_videogen.studio import __version__ as current_version_str
+
+logger=logging.getLogger(__name__)
 
 # GitHub repository info - update this to match your repo
 GITHUB_OWNER = "chufeng-huang-sipaway"
@@ -121,7 +123,7 @@ async def check_for_updates() -> UpdateInfo | None:
             )
 
     except Exception as e:
-        print(f"[UPDATER] Error checking for updates: {e}")
+        logger.error("Error checking for updates: %s",e)
         return None
 
 
@@ -169,7 +171,7 @@ async def download_update(
         return dmg_path
 
     except Exception as e:
-        print(f"[UPDATER] Error downloading update: {e}")
+        logger.error("Error downloading update: %s",e)
         return None
 
 
@@ -203,7 +205,7 @@ def install_update(dmg_path: Path) -> bool:
         return True
 
     except Exception as e:
-        print(f"[UPDATER] Error starting update: {e}")
+        logger.error("Error starting update: %s",e)
         return False
 
 

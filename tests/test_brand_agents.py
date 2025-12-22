@@ -361,36 +361,19 @@ class TestBrandStrategistAgent:
             assert result.core_identity.name == "Summit Coffee Co."
 
     @pytest.mark.asyncio
-    async def test_develop_brand_strategy_with_existing_brand(
-        self, sample_brand_strategy_output: BrandStrategyOutput
-    ) -> None:
+    async def test_develop_brand_strategy_with_existing_brand(self,sample_brand_strategy_output:BrandStrategyOutput)->None:
         """Test brand strategy development with existing brand context."""
-        mock_result = MagicMock()
-        mock_result.final_output = sample_brand_strategy_output
-
+        mock_result=MagicMock()
+        mock_result.final_output=sample_brand_strategy_output
         with (
-            patch(
-                "agents.Runner.run",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch(
-                "sip_videogen.brands.context.build_brand_context",
-                return_value="## Brand Context\nExisting brand info...",
-            ),
-            patch(
-                "sip_videogen.brands.tools.set_brand_context",
-            ) as mock_set_context,
+            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
+            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.brand_strategist import develop_brand_strategy
-
-            result = await develop_brand_strategy(
-                concept="Evolve the brand to target younger audience",
-                existing_brand_slug="test-brand",
-            )
-
-            assert isinstance(result, BrandStrategyOutput)
-            mock_set_context.assert_called_once_with("test-brand")
+            result=await develop_brand_strategy(concept="Evolve the brand to target younger audience",existing_brand_slug="test-brand")
+            assert isinstance(result,BrandStrategyOutput)
+            mock_set_active.assert_called_once_with("test-brand")
 
 
 # ============================================================================
@@ -424,36 +407,19 @@ class TestVisualDesignerAgent:
             assert result.visual_identity is not None
 
     @pytest.mark.asyncio
-    async def test_develop_visual_identity_with_existing_brand(
-        self, sample_visual_identity_output: VisualIdentityOutput
-    ) -> None:
+    async def test_develop_visual_identity_with_existing_brand(self,sample_visual_identity_output:VisualIdentityOutput)->None:
         """Test visual identity development with existing brand context."""
-        mock_result = MagicMock()
-        mock_result.final_output = sample_visual_identity_output
-
+        mock_result=MagicMock()
+        mock_result.final_output=sample_visual_identity_output
         with (
-            patch(
-                "agents.Runner.run",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch(
-                "sip_videogen.brands.context.build_brand_context",
-                return_value="## Brand Context\nExisting brand info...",
-            ),
-            patch(
-                "sip_videogen.brands.tools.set_brand_context",
-            ) as mock_set_context,
+            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
+            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.visual_designer import develop_visual_identity
-
-            result = await develop_visual_identity(
-                brand_strategy="Update visual identity for summer campaign",
-                existing_brand_slug="test-brand",
-            )
-
-            assert isinstance(result, VisualIdentityOutput)
-            mock_set_context.assert_called_once_with("test-brand")
+            result=await develop_visual_identity(brand_strategy="Update visual identity for summer campaign",existing_brand_slug="test-brand")
+            assert isinstance(result,VisualIdentityOutput)
+            mock_set_active.assert_called_once_with("test-brand")
 
 
 # ============================================================================
@@ -487,36 +453,19 @@ class TestBrandVoiceAgent:
             assert len(result.sample_copy) == 2
 
     @pytest.mark.asyncio
-    async def test_develop_brand_voice_with_existing_brand(
-        self, sample_brand_voice_output: BrandVoiceOutput
-    ) -> None:
+    async def test_develop_brand_voice_with_existing_brand(self,sample_brand_voice_output:BrandVoiceOutput)->None:
         """Test brand voice development with existing brand context."""
-        mock_result = MagicMock()
-        mock_result.final_output = sample_brand_voice_output
-
+        mock_result=MagicMock()
+        mock_result.final_output=sample_brand_voice_output
         with (
-            patch(
-                "agents.Runner.run",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch(
-                "sip_videogen.brands.context.build_brand_context",
-                return_value="## Brand Context\nExisting brand info...",
-            ),
-            patch(
-                "sip_videogen.brands.tools.set_brand_context",
-            ) as mock_set_context,
+            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
+            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.brand_voice import develop_brand_voice
-
-            result = await develop_brand_voice(
-                brand_strategy="Refine voice for social media campaigns",
-                existing_brand_slug="test-brand",
-            )
-
-            assert isinstance(result, BrandVoiceOutput)
-            mock_set_context.assert_called_once_with("test-brand")
+            result=await develop_brand_voice(brand_strategy="Refine voice for social media campaigns",existing_brand_slug="test-brand")
+            assert isinstance(result,BrandVoiceOutput)
+            mock_set_active.assert_called_once_with("test-brand")
 
 
 # ============================================================================
@@ -723,36 +672,19 @@ class TestBrandDirectorAgent:
             # The mock bypasses the hooks, so we just verify the callback was passed
 
     @pytest.mark.asyncio
-    async def test_develop_brand_with_existing_brand(
-        self, sample_brand_director_output: BrandDirectorOutput
-    ) -> None:
+    async def test_develop_brand_with_existing_brand(self,sample_brand_director_output:BrandDirectorOutput)->None:
         """Test brand development with existing brand context."""
-        mock_result = MagicMock()
-        mock_result.final_output = sample_brand_director_output
-
+        mock_result=MagicMock()
+        mock_result.final_output=sample_brand_director_output
         with (
-            patch(
-                "agents.Runner.run",
-                new_callable=AsyncMock,
-                return_value=mock_result,
-            ),
-            patch(
-                "sip_videogen.brands.context.build_brand_context",
-                return_value="## Brand Context\nExisting brand info...",
-            ),
-            patch(
-                "sip_videogen.brands.tools.set_brand_context",
-            ) as mock_set_context,
+            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
+            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.brand_director import develop_brand
-
-            result = await develop_brand(
-                concept="Evolve the brand for younger audience",
-                existing_brand_slug="test-brand",
-            )
-
-            assert isinstance(result, BrandIdentityFull)
-            mock_set_context.assert_called_once_with("test-brand")
+            result=await develop_brand(concept="Evolve the brand for younger audience",existing_brand_slug="test-brand")
+            assert isinstance(result,BrandIdentityFull)
+            mock_set_active.assert_called_once_with("test-brand")
 
 
 # ============================================================================

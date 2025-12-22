@@ -9,7 +9,7 @@ from pathlib import Path
 
 from agents import Agent
 
-from sip_videogen.brands.tools import browse_brand_assets, fetch_brand_detail
+from sip_videogen.advisor.tools import browse_brand_assets, fetch_brand_detail
 from sip_videogen.models.brand_agent_outputs import BrandVoiceOutput
 
 # Load the detailed prompt from the prompts directory
@@ -59,11 +59,11 @@ async def develop_brand_voice(
     from agents import Runner
 
     from sip_videogen.brands.context import build_brand_context
-    from sip_videogen.brands.tools import set_brand_context
+    from sip_videogen.brands.storage import set_active_brand
 
-    # Set up brand context for memory tools if evolving existing brand
+    # Build brand context for memory tools if evolving existing brand
     if existing_brand_slug:
-        set_brand_context(existing_brand_slug)
+        set_active_brand(existing_brand_slug)
         brand_context = build_brand_context(existing_brand_slug)
         context_section = f"""
 ## Existing Brand Context
@@ -76,7 +76,6 @@ You are EVOLVING the voice for an existing brand, not creating from scratch.
 
 """
     else:
-        set_brand_context(None)
         context_section = """
 ## New Brand Voice
 

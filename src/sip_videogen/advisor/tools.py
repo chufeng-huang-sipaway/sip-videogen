@@ -2506,6 +2506,89 @@ def set_product_primary_image(
 
 
 # =============================================================================
+# Brand Memory Tools (migrated from brands.tools)
+# =============================================================================
+
+
+def _impl_fetch_brand_detail(
+    detail_type: Literal[
+        "visual_identity",
+        "voice_guidelines",
+        "audience_profile",
+        "positioning",
+        "full_identity",
+    ],
+) -> str:
+    """Implementation of fetch_brand_detail."""
+    from sip_videogen.brands.memory import get_brand_detail
+    slug = get_active_brand()
+    if not slug:
+        return "Error: No brand context set. Cannot fetch brand details."
+    logger.info("Agent fetching brand detail: %s for %s", detail_type, slug)
+    return get_brand_detail(slug, detail_type)
+
+
+def _impl_browse_brand_assets(category: str | None = None) -> str:
+    """Implementation of browse_brand_assets."""
+    import json
+
+    from sip_videogen.brands.memory import list_brand_assets
+    slug = get_active_brand()
+    if not slug:
+        return "Error: No brand context set. Cannot browse assets."
+    logger.info("Agent browsing brand assets: category=%s for %s", category, slug)
+    assets = list_brand_assets(slug, category)
+    if not assets:
+        return f"No assets found{' in category ' + category if category else ''}."
+    return json.dumps(assets, indent=2)
+
+
+@function_tool
+def fetch_brand_detail(
+    detail_type: Literal[
+        "visual_identity",
+        "voice_guidelines",
+        "audience_profile",
+        "positioning",
+        "full_identity",
+    ],
+) -> str:
+    """Fetch detailed brand information.
+    Use this tool to get comprehensive information about a specific aspect
+    of the brand before making creative decisions.
+    Args:
+        detail_type: The type of detail to fetch:
+            - "visual_identity": Colors, typography, imagery guidelines
+            - "voice_guidelines": Tone, messaging, copy examples
+            - "audience_profile": Target audience demographics and psychographics
+            - "positioning": Market position and competitive differentiation
+            - "full_identity": Complete brand identity (use sparingly)
+    Returns:
+        JSON string containing the requested brand details.
+    """
+    return _impl_fetch_brand_detail(detail_type)
+
+
+@function_tool
+def browse_brand_assets(category: str | None = None) -> str:
+    """Browse existing brand assets.
+    Use this tool to see what assets have already been generated for the brand.
+    This helps maintain consistency and avoid recreating existing work.
+    Args:
+        category: Optional category filter. One of:
+            - "logo": Brand logos
+            - "packaging": Product packaging images
+            - "lifestyle": Lifestyle/in-use photography
+            - "mascot": Brand mascot images
+            - "marketing": Marketing materials
+            - None: Return all assets
+    Returns:
+        JSON string listing available assets with paths and metadata.
+    """
+    return _impl_browse_brand_assets(category)
+
+
+# =============================================================================
 # Tool List for Agent
 # =============================================================================
 
@@ -2530,4 +2613,7 @@ ADVISOR_TOOLS = [
     delete_product,
     add_product_image,
     set_product_primary_image,
+    # Brand memory tools (migrated from brands.tools)
+    fetch_brand_detail,
+    browse_brand_assets,
 ]

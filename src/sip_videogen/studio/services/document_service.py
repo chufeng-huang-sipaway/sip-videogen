@@ -1,23 +1,28 @@
 """Document management service."""
 from __future__ import annotations
+
 import base64
 from pathlib import Path
-from sip_videogen.brands.storage import get_active_brand,get_brand_dir
+
+from sip_videogen.brands.storage import get_active_brand, get_brand_dir
+
 from ..state import BridgeState
-from ..utils.bridge_types import ALLOWED_TEXT_EXTS,BridgeResponse
+from ..utils.bridge_types import ALLOWED_TEXT_EXTS, BridgeResponse
 from ..utils.path_utils import resolve_docs_path
+
+
 class DocumentService:
     """Document (text file) operations."""
     def __init__(self,state:BridgeState):self._state=state
     def _get_docs_dir(self,slug:str|None=None)->tuple[Path|None,str|None]:
         """Get docs directory for target slug."""
-        target_slug=slug or self._state.current_brand or get_active_brand()
+        target_slug=slug or get_active_brand()
         if not target_slug:return None,"No brand selected"
         return get_brand_dir(target_slug)/"docs",None
     def get_documents(self,slug:str|None=None)->dict:
         """List brand documents (text files) under docs/."""
         try:
-            target_slug=slug or self._state.current_brand or get_active_brand()
+            target_slug=slug or get_active_brand()
             if not target_slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             docs_dir=get_brand_dir(target_slug)/"docs"
             if not docs_dir.exists():return BridgeResponse(success=True,data={"documents":[]}).to_dict()

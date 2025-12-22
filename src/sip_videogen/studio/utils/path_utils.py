@@ -1,6 +1,9 @@
 """Path resolution and safety utilities."""
 from pathlib import Path
-from sip_videogen.brands.storage import get_active_brand,get_brand_dir
+
+from sip_videogen.brands.storage import get_active_brand, get_brand_dir
+
+
 def resolve_in_dir(base_dir:Path,relative_path:str)->tuple[Path|None,str|None]:
     """Resolve a path safely within a base directory (prevents path traversal)."""
     try:
@@ -8,9 +11,9 @@ def resolve_in_dir(base_dir:Path,relative_path:str)->tuple[Path|None,str|None]:
         if not r.is_relative_to(base_dir.resolve()):return None,"Invalid path: outside allowed directory"
         return r,None
     except(ValueError,OSError)as e:return None,f"Invalid path: {e}"
-def get_brand_dir_for_slug(slug:str|None,current_brand:str|None)->tuple[Path|None,str|None]:
+def get_brand_dir_for_slug(slug:str|None)->tuple[Path|None,str|None]:
     """Get brand directory for a given or active slug."""
-    s=slug or current_brand or get_active_brand()
+    s=slug or get_active_brand()
     if not s:return None,"No brand selected"
     return get_brand_dir(s),None
 def resolve_assets_path(brand_dir:Path,relative_path:str)->tuple[Path|None,str|None]:

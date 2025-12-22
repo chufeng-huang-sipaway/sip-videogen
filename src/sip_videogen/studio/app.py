@@ -1,8 +1,10 @@
 """PyWebView application setup."""
-
+import logging
 import os
 import sys
 from pathlib import Path
+
+logger=logging.getLogger(__name__)
 
 
 def is_dev_mode() -> bool:
@@ -62,8 +64,7 @@ def get_frontend_url() -> str:
     studio_dir = Path(__file__).parent
     dist_path = studio_dir / "frontend" / "dist" / "index.html"
     if not dist_path.exists():
-        print("ERROR: Frontend not built.")
-        print("Run: cd src/sip_videogen/studio/frontend && npm run build")
+        logger.error("Frontend not built. Run: npm run build in studio/frontend")
         sys.exit(1)
     return str(dist_path)
 
@@ -73,8 +74,7 @@ def main():
     try:
         import webview
     except ImportError:
-        print("ERROR: pywebview is not installed.")
-        print("Run: pip install pywebview>=5.0")
+        logger.error("pywebview is not installed. Run: pip install pywebview>=5.0")
         sys.exit(1)
 
     from sip_videogen.studio.bridge import StudioBridge

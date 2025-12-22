@@ -1,19 +1,25 @@
 """Asset (image) management service."""
 from __future__ import annotations
-import base64,io
+
+import base64
+import io
 from pathlib import Path
+
 from sip_videogen.brands.memory import list_brand_assets
-from sip_videogen.brands.storage import get_active_brand,get_brand_dir
+from sip_videogen.brands.storage import get_active_brand, get_brand_dir
+
 from ..state import BridgeState
-from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,BridgeResponse
+from ..utils.bridge_types import ALLOWED_IMAGE_EXTS, BridgeResponse
 from ..utils.path_utils import resolve_assets_path
+
+
 class AssetService:
     """Asset (image) file operations."""
     def __init__(self,state:BridgeState):self._state=state
     def get_assets(self,slug:str|None=None)->dict:
         """Get asset tree for a brand."""
         try:
-            target_slug=slug or self._state.current_brand or get_active_brand()
+            target_slug=slug or get_active_brand()
             if not target_slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             categories=["logo","packaging","lifestyle","mascot","marketing","generated"]
             tree=[]
@@ -106,7 +112,7 @@ class AssetService:
     def upload_asset(self,filename:str,data_base64:str,category:str="generated")->dict:
         """Upload a file to brand's assets directory."""
         try:
-            slug=self._state.current_brand or get_active_brand()
+            slug=get_active_brand()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             valid_categories=["logo","packaging","lifestyle","mascot","marketing","generated"]
             if category not in valid_categories:return BridgeResponse(success=False,error="Invalid category").to_dict()

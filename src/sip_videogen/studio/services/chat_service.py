@@ -1,16 +1,29 @@
 """Chat coordination service."""
 from __future__ import annotations
-import asyncio,time
-from pathlib import Path
+
+import asyncio
+import time
+
 from sip_videogen.advisor.agent import BrandAdvisor
 from sip_videogen.advisor.tools import get_image_metadata
 from sip_videogen.brands.memory import list_brand_assets
-from sip_videogen.brands.storage import get_active_brand,get_active_project,get_brand_dir,set_active_project
+from sip_videogen.brands.storage import (
+    get_active_brand,
+    get_active_project,
+    get_brand_dir,
+    set_active_project,
+)
 from sip_videogen.config.logging import get_logger
+
 from ..state import BridgeState
 from ..utils.bridge_types import BridgeResponse
-from ..utils.chat_utils import analyze_and_format_attachments,encode_new_images,process_attachments
-from ..utils.path_utils import resolve_assets_path,resolve_docs_path
+from ..utils.chat_utils import (
+    analyze_and_format_attachments,
+    encode_new_images,
+    process_attachments,
+)
+from ..utils.path_utils import resolve_assets_path, resolve_docs_path
+
 logger=get_logger(__name__)
 class ChatService:
     """Chat coordination with BrandAdvisor."""
@@ -33,13 +46,11 @@ class ChatService:
         try:
             if self._state.advisor is None:
                 active=get_active_brand()
-                if active:self._state.advisor=BrandAdvisor(brand_slug=active,progress_callback=self._progress_callback);self._state.current_brand=active
+                if active:self._state.advisor=BrandAdvisor(brand_slug=active,progress_callback=self._progress_callback)
                 else:return BridgeResponse(success=False,error="No brand selected").to_dict()
             slug=self._state.get_active_slug()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
-            global_active_brand=get_active_brand()
-            logger.debug("chat(): slug=%s, global_active_brand=%s, project_slug=%s",slug,global_active_brand,project_slug)
-            if slug!=global_active_brand:logger.warning("BRAND MISMATCH: _get_active_slug()=%s but get_active_brand()=%s",slug,global_active_brand)
+            logger.debug("chat(): slug=%s, project_slug=%s",slug,project_slug)
             if project_slug is not None:logger.debug("chat(): Setting active project to %s",project_slug);set_active_project(slug,project_slug)
             effective_project=project_slug if project_slug is not None else get_active_project(slug)
             if project_slug is None:logger.info("chat(): effective_project from storage: %s",effective_project)
@@ -74,7 +85,7 @@ class ChatService:
     def refresh_brand_memory(self)->dict:
         """Refresh the agent's brand context."""
         try:
-            slug=self._state.current_brand or get_active_brand()
+            slug=get_active_brand()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             if self._state.advisor is None:self._state.advisor=BrandAdvisor(brand_slug=slug,progress_callback=self._progress_callback)
             else:self._state.advisor.set_brand(slug,preserve_history=True)

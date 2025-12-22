@@ -1,13 +1,39 @@
 """Brand management service."""
 from __future__ import annotations
-import asyncio,base64
+
+import asyncio
+import base64
+import logging
 from datetime import datetime
 from pathlib import Path
-from sip_videogen.brands.models import AudienceProfile,BrandCoreIdentity,BrandIndexEntry,CompetitivePositioning,VisualIdentity,VoiceGuidelines
-from sip_videogen.brands.storage import(backup_brand_identity,get_active_brand,get_brand_dir,list_brand_backups,list_brands,load_brand,load_brand_summary,restore_brand_backup,save_brand,set_active_brand)
-from sip_videogen.brands.storage import create_brand as storage_create_brand,delete_brand as storage_delete_brand
+
+from sip_videogen.brands.models import (
+    AudienceProfile,
+    BrandCoreIdentity,
+    BrandIndexEntry,
+    CompetitivePositioning,
+    VisualIdentity,
+    VoiceGuidelines,
+)
+from sip_videogen.brands.storage import (
+    backup_brand_identity,
+    get_active_brand,
+    get_brand_dir,
+    list_brand_backups,
+    list_brands,
+    load_brand,
+    load_brand_summary,
+    restore_brand_backup,
+    save_brand,
+    set_active_brand,
+)
+from sip_videogen.brands.storage import create_brand as storage_create_brand
+from sip_videogen.brands.storage import delete_brand as storage_delete_brand
+
 from ..state import BridgeState
-from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,ALLOWED_TEXT_EXTS,BridgeResponse
+from ..utils.bridge_types import ALLOWED_IMAGE_EXTS, ALLOWED_TEXT_EXTS, BridgeResponse
+
+logger=logging.getLogger(__name__)
 class BrandService:
     """Brand CRUD and identity management."""
     def __init__(self,state:BridgeState):self._state=state
@@ -17,16 +43,15 @@ class BrandService:
             self._sync_brand_index()
             entries=list_brands();brands=[{"slug":e.slug,"name":e.name,"category":e.category}for e in entries]
             active=get_active_brand()
-            print(f"[GET_BRANDS] Found {len(brands)} brands: {[b['slug'] for b in brands]}")
-            print(f"[GET_BRANDS] Active brand: {active}")
+            logger.info("Found %d brands: %s",len(brands),[b['slug']for b in brands])
+            logger.info("Active brand: %s",active)
             return BridgeResponse(success=True,data={"brands":brands,"active":active}).to_dict()
         except Exception as e:
-            print(f"[GET_BRANDS] ERROR: {e}")
-            import traceback;traceback.print_exc()
+            logger.exception("Error getting brands: %s",e)
             return BridgeResponse(success=False,error=str(e)).to_dict()
     def _sync_brand_index(self)->None:
         """Sync index.json with actual brand directories on disk."""
-        from sip_videogen.brands.storage import get_brands_dir,load_index,save_index
+        from sip_videogen.brands.storage import get_brands_dir, load_index, save_index
         try:
             brands_dir=get_brands_dir()
             if not brands_dir.exists():return
@@ -34,29 +59,29 @@ class BrandService:
             for entry in index.brands:
                 brand_dir=brands_dir/entry.slug
                 if brand_dir.exists()and(brand_dir/"identity.json").exists():valid_entries.append(entry)
-                else:print(f"[SYNC_INDEX] Removing orphaned entry: {entry.slug}");changed=True
+                else:logger.info("Removing orphaned entry: %s",entry.slug);changed=True
             for item in brands_dir.iterdir():
                 if not item.is_dir()or item.name.startswith("."):continue
                 if item.name not in[e.slug for e in valid_entries]:
                     summary=load_brand_summary(item.name)
                     if summary:
-                        print(f"[SYNC_INDEX] Adding missing entry: {item.name}")
+                        logger.info("Adding missing entry: %s",item.name)
                         entry=BrandIndexEntry(slug=summary.slug,name=summary.name,category=summary.category,created_at=datetime.utcnow(),updated_at=datetime.utcnow())
                         valid_entries.append(entry);changed=True
             if changed:
                 index.brands=valid_entries
                 if index.active_brand and index.active_brand not in[e.slug for e in valid_entries]:
-                    print(f"[SYNC_INDEX] Clearing invalid active brand: {index.active_brand}")
+                    logger.info("Clearing invalid active brand: %s",index.active_brand)
                     index.active_brand=valid_entries[0].slug if valid_entries else None
-                save_index(index);print(f"[SYNC_INDEX] Index updated with {len(valid_entries)} brands")
-        except Exception as e:print(f"[SYNC_INDEX] Error syncing index: {e}")
+                save_index(index);logger.info("Index updated with %d brands",len(valid_entries))
+        except Exception as e:logger.error("Error syncing index: %s",e)
     def set_brand(self,slug:str)->dict:
         """Set the active brand and initialize advisor."""
         from sip_videogen.advisor.agent import BrandAdvisor
         try:
             entries=list_brands()
             if slug not in[e.slug for e in entries]:return BridgeResponse(success=False,error=f"Brand '{slug}' not found").to_dict()
-            set_active_brand(slug);self._state.current_brand=slug
+            set_active_brand(slug)
             if self._state.advisor is None:self._state.advisor=BrandAdvisor(brand_slug=slug,progress_callback=self._get_progress_callback())
             else:self._state.advisor.set_brand(slug,preserve_history=False)
             return BridgeResponse(success=True,data={"slug":slug}).to_dict()
@@ -76,7 +101,7 @@ class BrandService:
     def get_brand_info(self,slug:str|None=None)->dict:
         """Get detailed brand information."""
         try:
-            target_slug=slug or self._state.current_brand or get_active_brand()
+            target_slug=slug or get_active_brand()
             if not target_slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             summary=load_brand_summary(target_slug)
             if not summary:return BridgeResponse(success=False,error=f"Brand '{target_slug}' not found").to_dict()
@@ -85,7 +110,7 @@ class BrandService:
     def get_brand_identity(self)->dict:
         """Get full brand identity (L1 data) for the active brand."""
         try:
-            slug=self._state.current_brand or get_active_brand()
+            slug=get_active_brand()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             identity=load_brand(slug)
             if not identity:return BridgeResponse(success=False,error=f"Brand '{slug}' not found").to_dict()
@@ -94,7 +119,7 @@ class BrandService:
     def update_brand_identity_section(self,section:str,data:dict)->dict:
         """Update a specific section of the brand identity."""
         try:
-            slug=self._state.current_brand or get_active_brand()
+            slug=get_active_brand()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             identity=load_brand(slug)
             if not identity:return BridgeResponse(success=False,error=f"Brand '{slug}' not found").to_dict()
@@ -121,7 +146,7 @@ class BrandService:
         from sip_videogen.agents.brand_director import develop_brand_with_output
         try:
             if not confirm:return BridgeResponse(success=False,error="Regeneration requires confirm=True. This will overwrite the current identity.").to_dict()
-            slug=self._state.current_brand or get_active_brand()
+            slug=get_active_brand()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             identity=load_brand(slug)
             if not identity:return BridgeResponse(success=False,error=f"Brand '{slug}' not found").to_dict()
@@ -138,22 +163,22 @@ class BrandService:
             if not concept_parts:return BridgeResponse(success=False,error="No readable documents found in docs/ folder.").to_dict()
             concept="\n\n---\n\n".join(concept_parts)
             if len(concept)>4800:concept=concept[:4800]+"\n...[truncated]"
-            try:backup_filename=backup_brand_identity(slug);print(f"[REGENERATE_BRAND] Backed up identity to: {backup_filename}")
+            try:backup_filename=backup_brand_identity(slug);logger.info("Backed up identity to: %s",backup_filename)
             except Exception as be:return BridgeResponse(success=False,error=f"Failed to backup current identity: {be}").to_dict()
-            print(f"[REGENERATE_BRAND] Starting regeneration for {slug}...")
+            logger.info("Starting regeneration for %s...",slug)
             output=asyncio.run(develop_brand_with_output(concept,existing_brand_slug=slug))
             new_identity=output.brand_identity;new_identity.slug=slug
-            print(f"[REGENERATE_BRAND] AI completed! Brand name: {new_identity.core.name}")
+            logger.info("AI completed! Brand name: %s",new_identity.core.name)
             save_brand(new_identity)
             if self._state.advisor:self._state.advisor.set_brand(slug,preserve_history=True)
             return BridgeResponse(success=True,data=new_identity.model_dump(mode="json")).to_dict()
         except Exception as e:
-            import traceback;print(f"[REGENERATE_BRAND] ERROR: {e}");traceback.print_exc()
+            logger.exception("Regeneration error: %s",e)
             return BridgeResponse(success=False,error=str(e)).to_dict()
     def list_identity_backups(self)->dict:
         """List all identity backups for the active brand."""
         try:
-            slug=self._state.current_brand or get_active_brand()
+            slug=get_active_brand()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             backups=list_brand_backups(slug)
             return BridgeResponse(success=True,data={"backups":backups}).to_dict()
@@ -161,25 +186,25 @@ class BrandService:
     def restore_identity_backup(self,filename:str)->dict:
         """Restore brand identity from a backup file."""
         try:
-            slug=self._state.current_brand or get_active_brand()
+            slug=get_active_brand()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             if "/"in filename or"\\"in filename:return BridgeResponse(success=False,error="Invalid filename: path separators not allowed").to_dict()
             if not filename.endswith(".json"):return BridgeResponse(success=False,error="Invalid filename: must end with .json").to_dict()
             try:restored_identity=restore_brand_backup(slug,filename)
             except ValueError as e:return BridgeResponse(success=False,error=str(e)).to_dict()
             restored_identity.slug=slug;save_brand(restored_identity)
-            print(f"[RESTORE_IDENTITY] Restored identity from backup: {filename}")
+            logger.info("Restored identity from backup: %s",filename)
             if self._state.advisor:self._state.advisor.set_brand(slug,preserve_history=True)
             return BridgeResponse(success=True,data=restored_identity.model_dump(mode="json")).to_dict()
         except Exception as e:
-            import traceback;print(f"[RESTORE_IDENTITY] ERROR: {e}");traceback.print_exc()
+            logger.exception("Restore identity error: %s",e)
             return BridgeResponse(success=False,error=str(e)).to_dict()
     def delete_brand(self,slug:str)->dict:
         """Delete a brand and all its files."""
         try:
             entries=list_brands()
             if slug not in[e.slug for e in entries]:return BridgeResponse(success=False,error=f"Brand '{slug}' not found").to_dict()
-            if self._state.current_brand==slug:self._state.current_brand=None;self._state.advisor=None
+            if self._state.get_active_slug()==slug:self._state.advisor=None
             if get_active_brand()==slug:set_active_brand(None)
             deleted=storage_delete_brand(slug)
             if not deleted:return BridgeResponse(success=False,error=f"Failed to delete brand '{slug}'").to_dict()
@@ -188,72 +213,63 @@ class BrandService:
     def create_brand_from_materials(self,description:str,images:list[dict],documents:list[dict])->dict:
         """Create a new brand using AI agents with user-provided materials."""
         from sip_videogen.agents.brand_director import develop_brand_with_output
-        print("\n"+"="*60)
-        print("[CREATE_BRAND] Starting brand creation...")
-        print(f"[CREATE_BRAND] Description length: {len(description)} chars")
-        print(f"[CREATE_BRAND] Images count: {len(images)}")
-        print(f"[CREATE_BRAND] Documents count: {len(documents)}")
-        for img in images:print(f"[CREATE_BRAND]   Image: {img.get('filename','unknown')}")
-        for doc in documents:print(f"[CREATE_BRAND]   Document: {doc.get('filename','unknown')}")
-        print("="*60)
+        logger.info("Starting brand creation - desc:%d chars, images:%d, docs:%d",len(description),len(images),len(documents))
         try:
             concept_parts=[]
-            if description.strip():concept_parts.append(f"## Brand Description\n\n{description.strip()}");print("[CREATE_BRAND] Added description to concept")
+            if description.strip():concept_parts.append(f"## Brand Description\n\n{description.strip()}");logger.debug("Added description to concept")
             for doc in documents:
                 filename=doc.get("filename","unknown");data_b64=doc.get("data","")
                 try:
                     content=base64.b64decode(data_b64).decode("utf-8",errors="replace")
-                    print(f"[CREATE_BRAND] Extracted {len(content)} chars from {filename}")
-                    if len(content)>50*1024:content=content[:50*1024]+"\n...[truncated]";print("[CREATE_BRAND]   Truncated to 50KB")
+                    logger.debug("Extracted %d chars from %s",len(content),filename)
+                    if len(content)>50*1024:content=content[:50*1024]+"\n...[truncated]";logger.debug("Truncated to 50KB")
                     concept_parts.append(f"## From: {filename}\n\n{content}")
-                except Exception as e:print(f"[CREATE_BRAND] ERROR reading {filename}: {e}")
-            if not concept_parts:print("[CREATE_BRAND] ERROR: No concept parts");return BridgeResponse(success=False,error="Please provide a description or upload documents.").to_dict()
+                except Exception as e:logger.error("Error reading %s: %s",filename,e)
+            if not concept_parts:logger.error("No concept parts");return BridgeResponse(success=False,error="Please provide a description or upload documents.").to_dict()
             concept="\n\n---\n\n".join(concept_parts)
-            print(f"[CREATE_BRAND] Combined concept length: {len(concept)} chars")
+            logger.debug("Combined concept length: %d chars",len(concept))
             max_concept_len=4800
             if len(concept)>max_concept_len:
-                print(f"[CREATE_BRAND] Concept too long ({len(concept)}), truncating...")
+                logger.debug("Concept too long (%d), truncating...",len(concept))
                 if description.strip():
                     desc_part=f"## Brand Description\n\n{description.strip()}";remaining=max_concept_len-len(desc_part)-100
                     if remaining>500:doc_summary=concept[len(desc_part):][:remaining];concept=desc_part+"\n\n---\n\n"+doc_summary+"\n...[truncated]"
                     else:concept=desc_part[:max_concept_len]
                 else:concept=concept[:max_concept_len]+"\n...[truncated]"
-                print(f"[CREATE_BRAND] Final concept length: {len(concept)} chars")
+                logger.debug("Final concept length: %d chars",len(concept))
             self._state.current_progress="Creating brand identity..."
-            print("[CREATE_BRAND] Calling AI brand director...")
+            logger.info("Calling AI brand director...")
             output=asyncio.run(develop_brand_with_output(concept))
             brand_identity=output.brand_identity
-            print(f"[CREATE_BRAND] AI completed! Brand name: {brand_identity.core.name}")
+            logger.info("AI completed! Brand name: %s",brand_identity.core.name)
             self._state.current_progress="Saving brand..."
             storage_create_brand(brand_identity)
             slug=brand_identity.slug
             brand_dir=get_brand_dir(slug);assets_dir=brand_dir/"assets";docs_dir=brand_dir/"docs"
-            print(f"[CREATE_BRAND] Saving {len(images)} images...")
+            logger.debug("Saving %d images...",len(images))
             for img in images:
                 filename=img.get("filename","");data_b64=img.get("data","")
                 if not filename or not data_b64:continue
                 ext=Path(filename).suffix.lower()
-                if ext not in ALLOWED_IMAGE_EXTS:print(f"[CREATE_BRAND]   Skipping {filename} (unsupported ext)");continue
+                if ext not in ALLOWED_IMAGE_EXTS:logger.debug("Skipping %s (unsupported ext)",filename);continue
                 category="logo"if"logo"in filename.lower()else"marketing"
                 target_dir=assets_dir/category;target_dir.mkdir(parents=True,exist_ok=True)
                 target_path=target_dir/filename
-                if not target_path.exists():target_path.write_bytes(base64.b64decode(data_b64));print(f"[CREATE_BRAND]   Saved: {category}/{filename}")
-            print(f"[CREATE_BRAND] Saving {len(documents)} documents...")
+                if not target_path.exists():target_path.write_bytes(base64.b64decode(data_b64));logger.debug("Saved: %s/%s",category,filename)
+            logger.debug("Saving %d documents...",len(documents))
             docs_dir.mkdir(parents=True,exist_ok=True)
             for doc in documents:
                 filename=doc.get("filename","");data_b64=doc.get("data","")
                 if not filename or not data_b64:continue
                 ext=Path(filename).suffix.lower()
-                if ext not in ALLOWED_TEXT_EXTS:print(f"[CREATE_BRAND]   Skipping {filename} (unsupported ext)");continue
+                if ext not in ALLOWED_TEXT_EXTS:logger.debug("Skipping %s (unsupported ext)",filename);continue
                 target_path=docs_dir/filename
-                if not target_path.exists():target_path.write_bytes(base64.b64decode(data_b64));print(f"[CREATE_BRAND]   Saved: docs/{filename}")
+                if not target_path.exists():target_path.write_bytes(base64.b64decode(data_b64));logger.debug("Saved: docs/%s",filename)
             self._state.current_progress=""
-            print("[CREATE_BRAND] "+"="*40)
-            print(f"[CREATE_BRAND] SUCCESS! Brand '{brand_identity.core.name}' created")
-            print("[CREATE_BRAND] "+"="*40+"\n")
+            logger.info("SUCCESS! Brand '%s' created",brand_identity.core.name)
             return BridgeResponse(success=True,data={"slug":slug,"name":brand_identity.core.name}).to_dict()
-        except ValueError as e:print(f"[CREATE_BRAND] ValueError: {e}");return BridgeResponse(success=False,error=str(e)).to_dict()
+        except ValueError as e:logger.error("ValueError: %s",e);return BridgeResponse(success=False,error=str(e)).to_dict()
         except Exception as e:
-            import traceback;print(f"[CREATE_BRAND] EXCEPTION: {type(e).__name__}: {e}");traceback.print_exc()
+            logger.exception("Exception during brand creation: %s",e)
             self._state.current_progress=""
             return BridgeResponse(success=False,error=f"Failed to create brand: {e}").to_dict()
