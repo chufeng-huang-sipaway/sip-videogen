@@ -1149,16 +1149,9 @@ async def _impl_generate_video_clip(
             seen_refs.add(key)
             resolved_refs.append(resolved_path)
 
+        #Only attach product reference images (not concept image or other refs)
         for ref in product_primary + product_secondary:
             add_ref(ref)
-        if resolved_concept:
-            add_ref(str(resolved_concept))
-        for ref in other_refs:
-            add_ref(ref)
-
-        #Fallback: ensure the concept image is used if no refs were found
-        if not resolved_refs and resolved_concept:
-            resolved_refs.append(resolved_concept)
 
         if resolved_refs:
             from sip_videogen.models.assets import AssetType, GeneratedAsset
