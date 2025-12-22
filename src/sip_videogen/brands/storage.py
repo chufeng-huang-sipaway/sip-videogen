@@ -12,6 +12,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS
 from .models import (
     BrandIdentityFull,
     BrandIndex,
@@ -110,15 +111,12 @@ def create_brand(identity: BrandIdentityFull) -> BrandSummary:
     if brand_dir.exists():
         raise ValueError(f"Brand '{identity.slug}' already exists")
 
-    # Create directory structure (matches file structure in spec)
-    brand_dir.mkdir(parents=True, exist_ok=True)
-    (brand_dir / "assets").mkdir(exist_ok=True)
-    (brand_dir / "assets" / "logo").mkdir(exist_ok=True)
-    (brand_dir / "assets" / "packaging").mkdir(exist_ok=True)
-    (brand_dir / "assets" / "lifestyle").mkdir(exist_ok=True)
-    (brand_dir / "assets" / "mascot").mkdir(exist_ok=True)
-    (brand_dir / "assets" / "marketing").mkdir(exist_ok=True)
-    (brand_dir / "history").mkdir(exist_ok=True)
+    #Create directory structure
+    brand_dir.mkdir(parents=True,exist_ok=True)
+    (brand_dir/"assets").mkdir(exist_ok=True)
+    for cat in ASSET_CATEGORIES:
+        if cat!="generated":(brand_dir/"assets"/cat).mkdir(exist_ok=True)
+    (brand_dir/"history").mkdir(exist_ok=True)
 
     # Save identity files
     summary = identity.to_summary()
@@ -295,17 +293,14 @@ def update_brand_summary_stats(slug: str) -> bool:
         logger.debug("Brand summary not found for stats update: %s", slug)
         return False
 
-    # Count assets directly (avoid circular import with memory.py)
-    assets_dir = brand_dir / "assets"
-    asset_count = 0
-    image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
-
+    #Count assets directly (avoid circular import with memory.py)
+    assets_dir=brand_dir/"assets"
+    asset_count=0
     if assets_dir.exists():
-        for category_dir in assets_dir.iterdir():
-            if category_dir.is_dir():
-                for file_path in category_dir.iterdir():
-                    if file_path.suffix.lower() in image_extensions:
-                        asset_count += 1
+        for cat_dir in assets_dir.iterdir():
+            if cat_dir.is_dir():
+                for fp in cat_dir.iterdir():
+                    if fp.suffix.lower()in ALLOWED_IMAGE_EXTS:asset_count+=1
 
     # Load, update, and save summary
     try:
@@ -728,17 +723,11 @@ def list_product_images(brand_slug: str, product_slug: str) -> list[str]:
     product_dir = get_product_dir(brand_slug, product_slug)
     images_dir = product_dir / "images"
 
-    if not images_dir.exists():
-        return []
-
-    image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
-    images = []
-
-    for file_path in sorted(images_dir.iterdir()):
-        if file_path.suffix.lower() in image_extensions:
-            # Return brand-relative path
-            brand_relative = f"products/{product_slug}/images/{file_path.name}"
-            images.append(brand_relative)
+    if not images_dir.exists():return []
+    images=[]
+    for fp in sorted(images_dir.iterdir()):
+        if fp.suffix.lower()in ALLOWED_IMAGE_EXTS:
+            images.append(f"products/{product_slug}/images/{fp.name}")
 
     return images
 

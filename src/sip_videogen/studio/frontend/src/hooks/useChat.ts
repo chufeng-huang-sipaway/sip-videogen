@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage } from '@/lib/bridge'
+import { ALLOWED_ATTACHMENT_EXTS, ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 
 export interface Message {
   id: string
@@ -29,19 +30,6 @@ interface PendingAttachment extends ChatAttachment {
   preview?: string
 }
 
-const ALLOWED_ATTACHMENT_EXTS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.svg',
-  '.md',
-  '.txt',
-  '.json',
-  '.yaml',
-  '.yml',
-])
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -121,7 +109,7 @@ export function useChat(brandSlug: string | null) {
   const addAttachmentReference = useCallback(async (path: string, name?: string) => {
     const fileName = name || path.split('/').pop() || path
     const ext = getExt(fileName).toLowerCase()
-    const isImage = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext)
+    const isImage=(ALLOWED_IMAGE_EXTS as readonly string[]).includes(ext)
 
     let preview: string | undefined
     if (isImage && isPyWebView()) {

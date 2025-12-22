@@ -9,10 +9,9 @@ Also provides access to Product and Project memory layers.
 """
 
 from __future__ import annotations
-
 import logging
 from typing import Literal
-
+from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS
 from .models import (
     BrandSummary,
     ProductFull,
@@ -94,39 +93,15 @@ def list_brand_assets(slug: str, category: str | None = None) -> list[dict]:
     brand_dir = get_brand_dir(slug)
     assets_dir = brand_dir / "assets"
 
-    if not assets_dir.exists():
-        return []
-
-    assets = []
-    categories = (
-        [category]
-        if category
-        else ["logo", "packaging", "lifestyle", "mascot", "marketing", "generated"]
-    )
-
-    for cat in categories:
-        cat_dir = assets_dir / cat
-        if not cat_dir.exists():
-            continue
-
-        for file_path in cat_dir.glob("*"):
-            if file_path.is_file() and file_path.suffix.lower() in [
-                ".png",
-                ".jpg",
-                ".jpeg",
-                ".webp",
-                ".gif",
-                ".svg",
-            ]:
-                assets.append(
-                    {
-                        "path": str(file_path),
-                        "category": cat,
-                        "name": file_path.stem,
-                        "filename": file_path.name,
-                    }
-                )
-
+    if not assets_dir.exists():return []
+    assets=[]
+    cats=[category]if category else ASSET_CATEGORIES
+    for cat in cats:
+        cat_dir=assets_dir/cat
+        if not cat_dir.exists():continue
+        for fp in cat_dir.glob("*"):
+            if fp.is_file()and fp.suffix.lower()in ALLOWED_IMAGE_EXTS:
+                assets.append({"path":str(fp),"category":cat,"name":fp.stem,"filename":fp.name})
     return assets
 
 
