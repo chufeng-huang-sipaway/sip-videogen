@@ -37,8 +37,16 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Added image ops: `get_template_images`, `upload_template_image`, `delete_template_image`, `set_primary_template_image`
   - Added thumbnail/full ops: `get_template_image_thumbnail`, `get_template_image_full`
 
+- [x] **Task 5: Frontend Bridge Types** - Added TypeScript interfaces in `src/sip_videogen/studio/frontend/src/lib/bridge.ts`
+  - Added complete template type interfaces (TemplateAnalysis, TemplateSummary, TemplateFull)
+  - Added sub-model interfaces (CanvasSpec, MessageSpec, StyleSpec, GeometrySpec, etc.)
+  - Added AttachedTemplate interface for chat integration
+  - Added PyWebViewAPI template method signatures (11 methods)
+  - Added bridge wrapper functions for all template operations
+  - Extended ChatContext with `attached_templates: AttachedTemplate[]`
+
 ### Next Task
-- [ ] **Task 5: Frontend Bridge Types** - Add TypeScript interfaces in `src/sip_videogen/studio/frontend/src/lib/bridge.ts`
+- [ ] **Task 6: Frontend Template Context** - Create `src/sip_videogen/studio/frontend/src/context/TemplateContext.tsx`
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -46,7 +54,8 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/services/template_service.py` - New TemplateService (160+ lines)
 - `src/sip_videogen/studio/services/__init__.py` - Export TemplateService
 - `src/sip_videogen/studio/bridge.py` - Added template bridge methods (12 methods)
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-4 marked complete
+- `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added 137 lines of template TypeScript types
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-5 marked complete
 
 ## Testing
 ```bash
