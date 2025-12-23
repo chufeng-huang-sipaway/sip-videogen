@@ -187,7 +187,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Loose mode: preserve message intent + key composition, allow variation
 - Used by `TemplateContextBuilder` to format constraints for the agent
 
-### - [ ] 15. Agent Prompt Integration
+### - [x] 15. Agent Prompt Integration
 **File:** `src/sip_videogen/advisor/prompts/advisor.md`
 
 - Add template handling rules:
