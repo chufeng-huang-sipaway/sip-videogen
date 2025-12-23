@@ -4,16 +4,18 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import {Tooltip,TooltipContent,TooltipProvider,TooltipTrigger,} from '@/components/ui/tooltip'
 import {Accordion,AccordionContent,AccordionItem,AccordionTrigger,} from '@/components/ui/accordion'
-import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain, Plus, Settings } from 'lucide-react'
+import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain, Plus, Settings, Layout } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { BrandBrainCard } from './BrandBrainCard'
 import { ProductsSection } from './sections/ProductsSection'
+import { TemplatesSection } from './sections/TemplatesSection'
 import { ProjectsSection } from './sections/ProjectsSection'
 import { CreateProductDialog } from './CreateProductDialog'
 import { CreateProjectDialog } from './CreateProjectDialog'
 import { SettingsDialog } from '@/components/Settings/SettingsDialog'
 import { useBrand } from '@/context/BrandContext'
 import { useProducts } from '@/context/ProductContext'
+import { useTemplates } from '@/context/TemplateContext'
 import { useProjects } from '@/context/ProjectContext'
 
 const SIDEBAR_EXPANDED_WIDTH = 320
@@ -28,6 +30,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: SidebarProps) {
   const { activeBrand } = useBrand()
   const { products } = useProducts()
+  const { templates } = useTemplates()
   const { projects } = useProjects()
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
@@ -84,6 +87,16 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
               <TooltipContent side="right">
                 <p>Products ({products.length})</p>
               </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 relative" disabled={!activeBrand} onClick={()=>{if(activeBrand)onToggleCollapse()}}>
+                  <Layout className="w-5 h-5"/>
+                  {templates.length>0&&(<span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">{templates.length}</span>)}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right"><p>Templates ({templates.length})</p></TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -155,7 +168,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
       <ScrollArea className="flex-1">
         <div className="px-3 py-2">
-          <Accordion type="multiple" defaultValue={["products", "projects"]} className="space-y-1">
+          <Accordion type="multiple" defaultValue={["products","templates","projects"]} className="space-y-1">
             <AccordionItem value="products" className="border-none mb-1">
               <div className="flex items-center gap-1">
                 <AccordionTrigger className="flex-1 px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
@@ -171,6 +184,23 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
               </div>
               <AccordionContent className="px-0 pb-1 pt-0">
                 <ProductsSection />
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="templates" className="border-none mb-1">
+              <div className="flex items-center gap-1">
+                <AccordionTrigger className="flex-1 px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
+                  <div className="flex items-center gap-3 text-left">
+                    <Layout className="w-4 h-4 text-muted-foreground/70"/>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm text-foreground/80 leading-snug">Templates</span>
+                      <span className="text-[10px] text-muted-foreground/60 font-normal">Reusable layouts</span>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+              </div>
+              <AccordionContent className="px-0 pb-1 pt-0">
+                <TemplatesSection/>
               </AccordionContent>
             </AccordionItem>
 

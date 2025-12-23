@@ -92,7 +92,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Track attached templates with strict toggle: `attachedTemplates: { slug, strict }[]`
 - Methods: `attachTemplate`, `detachTemplate`, `setTemplateStrictness`, `clearTemplateAttachments`
 
-### - [ ] 7. Frontend: Sidebar Templates Section
+### - [x] 7. Frontend: Sidebar Templates Section
 **File:** `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/TemplatesSection.tsx` (new)
 
 - Template list component (similar to ProductsSection)
