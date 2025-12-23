@@ -90,12 +90,28 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Edit/Delete action buttons
   - Modal overlay triggered via context menu "View Details"
 
+- [x] **Task 12: Chat Context Extension** - Extended ChatContext with attached_templates
+  - Frontend types already wired in `bridge.ts` with `AttachedTemplate` interface
+  - `useChat.ts` stores attached templates in message history
+  - `ChatPanel/index.tsx` passes templates via context to `sendMessage`
+  - `bridge.py` accepts and forwards `attached_templates` to ChatService
+  - `chat_service.py` passes templates to `BrandAdvisor.chat_with_metadata`
+  - `MessageList.tsx` renders attached templates with Lock/Unlock icons
+
+- [x] **Task 13: Template Context Builder** - Added `TemplateContextBuilder` in `src/sip_videogen/brands/context.py`
+  - `TemplateContextBuilder` class builds context from TemplateAnalysis
+  - Strict mode: exact layout constraints, preserve all elements
+  - Loose mode: preserve intent, allow controlled variation
+  - Integrated into `HierarchicalContextBuilder.build_turn_context()`
+  - Supports multiple attached templates with per-template strictness
+
 ### Next Task
-- [ ] **Task 12: Chat Context Extension** - Extend ChatContext with attached_templates
+- [ ] **Task 14: Template Prompt Helper** - Create template_prompt.py with constraint builders
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
 - `src/sip_videogen/brands/storage.py` - Added 300+ lines of template storage functions
+- `src/sip_videogen/brands/context.py` - Added TemplateContextBuilder + HierarchicalContextBuilder integration
 - `src/sip_videogen/studio/services/template_service.py` - TemplateService with analyzer integration (180+ lines)
 - `src/sip_videogen/studio/services/__init__.py` - Export TemplateService
 - `src/sip_videogen/studio/bridge.py` - Added template bridge methods (13 methods)
@@ -108,13 +124,14 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/EditTemplateDialog.tsx` - New EditTemplateDialog (130+ lines)
 - `src/sip_videogen/advisor/template_analyzer.py` - New Gemini Vision analyzer (110+ lines)
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx` - New TemplateDetailView (160+ lines)
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-11 marked complete
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-13 marked complete
 
 ## Testing
 ```bash
 source .venv/bin/activate
 python3 -c "from sip_videogen.brands.models import TemplateAnalysis, TemplateSummary, TemplateFull, TemplateIndex; print('OK')"
 python3 -c "from sip_videogen.brands.storage import get_templates_dir, create_template, load_template, list_templates; print('OK')"
+python3 -c "from sip_videogen.brands.context import TemplateContextBuilder, build_template_context; print('OK')"
 python3 -c "from sip_videogen.studio.services import TemplateService; print('OK')"
 python3 -c "from sip_videogen.advisor.template_analyzer import analyze_template; print('OK')"
 python3 -c "from sip_videogen.studio.bridge import StudioBridge; b = StudioBridge(); print('Template methods:', [m for m in dir(b) if 'template' in m.lower()])"
