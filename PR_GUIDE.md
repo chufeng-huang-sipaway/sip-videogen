@@ -53,8 +53,16 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Auto-refresh on brand change with mock data fallback for dev mode
   - Wired `TemplateProvider` into `main.tsx` provider hierarchy
 
+- [x] **Task 7: Frontend Sidebar Templates Section** - Created `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/TemplatesSection.tsx`
+  - `TemplatesSection` component following ProductsSection pattern
+  - `TemplateCard` with draggable support (`application/x-brand-template` payload)
+  - `TemplateThumbnail` and `TemplatePreview` components for inline expansion
+  - Context menu with attach/detach, strict toggle, edit, delete actions
+  - Lock/Unlock icons indicating strict/loose mode for attached templates
+  - Wired into `Sidebar/index.tsx` with Layout icon and accordion section
+
 ### Next Task
-- [ ] **Task 7: Frontend Sidebar Templates Section** - Create `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/TemplatesSection.tsx`
+- [ ] **Task 8: Frontend Create/Edit Dialogs** - Create `CreateTemplateDialog.tsx` and `EditTemplateDialog.tsx`
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -65,7 +73,9 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added 137 lines of template TypeScript types
 - `src/sip_videogen/studio/frontend/src/context/TemplateContext.tsx` - New TemplateProvider (115 lines)
 - `src/sip_videogen/studio/frontend/src/main.tsx` - Wired TemplateProvider
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-6 marked complete
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/TemplatesSection.tsx` - New TemplatesSection (200+ lines)
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Added Templates accordion section
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-7 marked complete
 
 ## Testing
 ```bash
