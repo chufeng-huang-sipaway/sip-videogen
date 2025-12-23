@@ -119,8 +119,22 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Template + product combination usage patterns
   - Critical rules: JSON-only reference, aspect ratio lock, respect locked elements
 
+- [x] **Task 16: Frontend Chat Template Attachment** - Created `src/sip_videogen/studio/frontend/src/components/ChatPanel/AttachedTemplates.tsx`
+  - Template card display with thumbnail + name in chat input area
+  - "Strictly Follow" toggle (Lock/Unlock icons) per attached template
+  - Remove template button with X icon
+  - Toggle state stored in chat context via `attachedTemplates`
+
+- [x] **Task 17: Frontend Drag and Drop to Chat** - Wired in `ChatPanel/index.tsx`
+  - `handleNativeDragOver` includes `application/x-brand-template` type detection
+  - `handleNativeDrop` handles template drop and calls `attachTemplate()`
+  - Default strict=ON when dropping from sidebar
+
+### Phase 2 Complete
+All Phase 2 tasks (Tasks 12-17) are now complete. The chat integration for templates is fully functional.
+
 ### Next Task
-- [ ] **Task 16: Frontend Chat Template Attachment** - Create AttachedTemplates.tsx component
+- [ ] **Task 18: Loose Mode Refinement** - Manual testing and prompt tuning required
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -140,7 +154,8 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/advisor/template_prompt.py` - Template constraint builder (100+ lines)
 - `src/sip_videogen/advisor/prompts/advisor.md` - Added Template-Based Generation section (70+ lines)
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx` - New TemplateDetailView (160+ lines)
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-15 marked complete
+- `src/sip_videogen/studio/frontend/src/components/ChatPanel/AttachedTemplates.tsx` - Template attachment display component (45 lines)
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-17 marked complete
 
 ## Testing
 ```bash
