@@ -138,7 +138,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Store analysis result in `template_full.json`
 - Add `reanalyze_template` to re-run analysis on demand
 
-### - [ ] 11. Frontend: Template Detail View
+### - [x] 11. Frontend: Template Detail View
 **File:** `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx` (new)
 
 - Show template images

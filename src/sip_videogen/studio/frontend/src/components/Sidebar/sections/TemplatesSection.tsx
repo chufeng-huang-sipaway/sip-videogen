@@ -8,6 +8,7 @@ import {useBrand} from '@/context/BrandContext'
 import {bridge,isPyWebView,type TemplateSummary,type TemplateFull} from '@/lib/bridge'
 import {CreateTemplateDialog} from '../CreateTemplateDialog'
 import {EditTemplateDialog} from '../EditTemplateDialog'
+import {TemplateDetailView} from '../TemplateDetailView'
 //Thumbnail component for template images
 function TemplateThumbnail({path,size='sm'}:{path:string;size?:'sm'|'lg'}){
 const [src,setSrc]=useState<string|null>(null)
@@ -88,9 +89,10 @@ onToggleExpand:()=>void
 onAttach:()=>void
 onDetach:()=>void
 onToggleStrict:()=>void
+onViewDetail:()=>void
 onEdit:()=>void
 onDelete:()=>void}
-function TemplateCard({template,isAttached,attachedStrict,isExpanded,onToggleExpand,onAttach,onDetach,onToggleStrict,onEdit,onDelete}:TemplateCardProps){
+function TemplateCard({template,isAttached,attachedStrict,isExpanded,onToggleExpand,onAttach,onDetach,onToggleStrict,onViewDetail,onEdit,onDelete}:TemplateCardProps){
 const handleDragStart=(e:React.DragEvent)=>{
 e.dataTransfer.setData('application/x-brand-template',template.slug)
 e.dataTransfer.setData('text/plain',template.slug)
@@ -130,6 +132,7 @@ draggable onDragStart={handleDragStart} onClick={handleClick} title="Click to pr
 </>):(
 <ContextMenuItem onClick={onAttach}>Attach to Chat</ContextMenuItem>)}
 <ContextMenuSeparator/>
+<ContextMenuItem onClick={onViewDetail}><Layout className="h-4 w-4 mr-2"/>View Details</ContextMenuItem>
 <ContextMenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2"/>Edit Template</ContextMenuItem>
 <ContextMenuSeparator/>
 <ContextMenuItem onClick={onDelete} className="text-red-600">Delete Template</ContextMenuItem>
@@ -150,6 +153,7 @@ const [actionError,setActionError]=useState<string|null>(null)
 const [isCreateDialogOpen,setIsCreateDialogOpen]=useState(false)
 const [editingTemplateSlug,setEditingTemplateSlug]=useState<string|null>(null)
 const [expandedTemplate,setExpandedTemplate]=useState<string|null>(null)
+const [detailViewSlug,setDetailViewSlug]=useState<string|null>(null)
 useEffect(()=>{
 if(actionError){const timer=setTimeout(()=>setActionError(null),5000);return ()=>clearTimeout(timer)}},[actionError])
 const handleToggleExpand=(slug:string)=>{setExpandedTemplate(prev=>prev===slug?null:slug)}
@@ -158,8 +162,9 @@ const attached=attachedTemplates.find(t=>t.template_slug===slug)
 if(attached)setTemplateStrictness(slug,!attached.strict)}
 const handleDelete=async(slug:string)=>{
 if(confirm(`Delete template "${slug}"? This cannot be undone.`)){
-try{await deleteTemplate(slug);if(expandedTemplate===slug)setExpandedTemplate(null)}
+try{await deleteTemplate(slug);if(expandedTemplate===slug)setExpandedTemplate(null);if(detailViewSlug===slug)setDetailViewSlug(null)}
 catch(err){setActionError(err instanceof Error?err.message:'Failed to delete template')}}}
+const handleOpenDetail=(slug:string)=>{setDetailViewSlug(slug);setExpandedTemplate(null)}
 if(!activeBrand){return<div className="text-sm text-gray-500">Select a brand</div>}
 if(error){return(
 <div className="text-sm text-red-500">
@@ -197,8 +202,18 @@ onToggleExpand={()=>handleToggleExpand(template.slug)}
 onAttach={()=>attachTemplate(template.slug)}
 onDetach={()=>detachTemplate(template.slug)}
 onToggleStrict={()=>handleToggleStrict(template.slug)}
+onViewDetail={()=>handleOpenDetail(template.slug)}
 onEdit={()=>setEditingTemplateSlug(template.slug)}
 onDelete={()=>handleDelete(template.slug)}/>)})}</div>)}
+{/*Detail View Modal*/}
+{detailViewSlug&&(<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={()=>setDetailViewSlug(null)}>
+<div className="bg-background border rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-auto" onClick={e=>e.stopPropagation()}>
+<TemplateDetailView templateSlug={detailViewSlug}
+onEdit={()=>{setEditingTemplateSlug(detailViewSlug);setDetailViewSlug(null)}}
+onDelete={()=>setDetailViewSlug(null)}
+onClose={()=>setDetailViewSlug(null)}/>
+</div>
+</div>)}
 <CreateTemplateDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}/>
 {editingTemplateSlug&&<EditTemplateDialog open={!!editingTemplateSlug} onOpenChange={(open)=>{if(!open)setEditingTemplateSlug(null)}} templateSlug={editingTemplateSlug}/>}
 </div>)}
