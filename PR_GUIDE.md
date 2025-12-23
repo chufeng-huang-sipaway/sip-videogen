@@ -61,8 +61,16 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Lock/Unlock icons indicating strict/loose mode for attached templates
   - Wired into `Sidebar/index.tsx` with Layout icon and accordion section
 
+- [x] **Task 8: Frontend Create/Edit Dialogs** - Created `CreateTemplateDialog.tsx` and `EditTemplateDialog.tsx`
+  - `CreateTemplateDialog`: name, description, default_strict toggle, image upload (1-2 images)
+  - `EditTemplateDialog`: edit name, description, default_strict, manage images with primary selection
+  - Custom switch toggle for "Strictly Follow by Default" setting
+  - Show analysis summary in edit dialog when analysis exists
+  - Loading states during template operations
+  - Wired dialogs into `TemplatesSection.tsx`
+
 ### Next Task
-- [ ] **Task 8: Frontend Create/Edit Dialogs** - Create `CreateTemplateDialog.tsx` and `EditTemplateDialog.tsx`
+- [ ] **Task 9: Gemini Template Analyzer** - Create `src/sip_videogen/advisor/template_analyzer.py`
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -73,9 +81,11 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added 137 lines of template TypeScript types
 - `src/sip_videogen/studio/frontend/src/context/TemplateContext.tsx` - New TemplateProvider (115 lines)
 - `src/sip_videogen/studio/frontend/src/main.tsx` - Wired TemplateProvider
-- `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/TemplatesSection.tsx` - New TemplatesSection (200+ lines)
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/TemplatesSection.tsx` - TemplatesSection with dialog wiring
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Added Templates accordion section
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-7 marked complete
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/CreateTemplateDialog.tsx` - New CreateTemplateDialog (90+ lines)
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/EditTemplateDialog.tsx` - New EditTemplateDialog (130+ lines)
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-8 marked complete
 
 ## Testing
 ```bash
