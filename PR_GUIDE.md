@@ -45,8 +45,16 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Added bridge wrapper functions for all template operations
   - Extended ChatContext with `attached_templates: AttachedTemplate[]`
 
+- [x] **Task 6: Frontend Template Context** - Created `src/sip_videogen/studio/frontend/src/context/TemplateContext.tsx`
+  - `TemplateProvider` component with state management (templates, attachedTemplates, isLoading, error)
+  - CRUD wrappers: `createTemplate`, `updateTemplate`, `deleteTemplate`, `getTemplate`
+  - Attachment methods: `attachTemplate`, `detachTemplate`, `setTemplateStrictness`, `clearTemplateAttachments`
+  - Image ops: `getTemplateImages`, `uploadTemplateImage`, `deleteTemplateImage`, `setPrimaryTemplateImage`
+  - Auto-refresh on brand change with mock data fallback for dev mode
+  - Wired `TemplateProvider` into `main.tsx` provider hierarchy
+
 ### Next Task
-- [ ] **Task 6: Frontend Template Context** - Create `src/sip_videogen/studio/frontend/src/context/TemplateContext.tsx`
+- [ ] **Task 7: Frontend Sidebar Templates Section** - Create `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/TemplatesSection.tsx`
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -55,7 +63,9 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/services/__init__.py` - Export TemplateService
 - `src/sip_videogen/studio/bridge.py` - Added template bridge methods (12 methods)
 - `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added 137 lines of template TypeScript types
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-5 marked complete
+- `src/sip_videogen/studio/frontend/src/context/TemplateContext.tsx` - New TemplateProvider (115 lines)
+- `src/sip_videogen/studio/frontend/src/main.tsx` - Wired TemplateProvider
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-6 marked complete
 
 ## Testing
 ```bash
