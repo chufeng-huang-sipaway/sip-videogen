@@ -112,8 +112,15 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Helper functions: `format_element_summary()`, `format_product_slot_summary()`
   - Integrated into `TemplateContextBuilder` via import delegation
 
+- [x] **Task 15: Agent Prompt Integration** - Added template handling rules to `src/sip_videogen/advisor/prompts/advisor.md`
+  - New "Template-Based Generation" section with strict/loose mode documentation
+  - Strict mode rules: preserve exact layout, only product_slot changeable
+  - Loose mode rules: preserve intent, allow ±20% position variation
+  - Template + product combination usage patterns
+  - Critical rules: JSON-only reference, aspect ratio lock, respect locked elements
+
 ### Next Task
-- [ ] **Task 15: Agent Prompt Integration** - Add template handling rules to advisor.md
+- [ ] **Task 16: Frontend Chat Template Attachment** - Create AttachedTemplates.tsx component
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -131,8 +138,9 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/EditTemplateDialog.tsx` - New EditTemplateDialog (130+ lines)
 - `src/sip_videogen/advisor/template_analyzer.py` - New Gemini Vision analyzer (110+ lines)
 - `src/sip_videogen/advisor/template_prompt.py` - Template constraint builder (100+ lines)
+- `src/sip_videogen/advisor/prompts/advisor.md` - Added Template-Based Generation section (70+ lines)
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx` - New TemplateDetailView (160+ lines)
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-14 marked complete
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-15 marked complete
 
 ## Testing
 ```bash
