@@ -31,15 +31,22 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - `reanalyze_template` placeholder (analyzer in Phase 1)
   - Exported from `services/__init__.py`
 
+- [x] **Task 4: Bridge API** - Wired TemplateService to `src/sip_videogen/studio/bridge.py`
+  - Imported and instantiated `TemplateService` in `StudioBridge.__init__`
+  - Added bridge methods: `get_templates`, `get_template`, `create_template`, `update_template`, `delete_template`
+  - Added image ops: `get_template_images`, `upload_template_image`, `delete_template_image`, `set_primary_template_image`
+  - Added thumbnail/full ops: `get_template_image_thumbnail`, `get_template_image_full`
+
 ### Next Task
-- [ ] **Task 4: Bridge API** - Wire TemplateService methods to `src/sip_videogen/studio/bridge.py`
+- [ ] **Task 5: Frontend Bridge Types** - Add TypeScript interfaces in `src/sip_videogen/studio/frontend/src/lib/bridge.ts`
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
 - `src/sip_videogen/brands/storage.py` - Added 300+ lines of template storage functions
 - `src/sip_videogen/studio/services/template_service.py` - New TemplateService (160+ lines)
 - `src/sip_videogen/studio/services/__init__.py` - Export TemplateService
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-3 marked complete
+- `src/sip_videogen/studio/bridge.py` - Added template bridge methods (12 methods)
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-4 marked complete
 
 ## Testing
 ```bash
@@ -47,6 +54,7 @@ source .venv/bin/activate
 python3 -c "from sip_videogen.brands.models import TemplateAnalysis, TemplateSummary, TemplateFull, TemplateIndex; print('OK')"
 python3 -c "from sip_videogen.brands.storage import get_templates_dir, create_template, load_template, list_templates; print('OK')"
 python3 -c "from sip_videogen.studio.services import TemplateService; print('OK')"
+python3 -c "from sip_videogen.studio.bridge import StudioBridge; b = StudioBridge(); print('Template methods:', [m for m in dir(b) if 'template' in m.lower()])"
 python -m pytest tests/test_models.py -v
 ```
 
