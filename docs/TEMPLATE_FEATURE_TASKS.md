@@ -179,7 +179,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Build context string from TemplateAnalysis + strictness mode
 - Inject into `HierarchicalContextBuilder`
 
-### - [ ] 14. Template Prompt Helper
+### - [x] 14. Template Prompt Helper
 **File:** `src/sip_videogen/advisor/template_prompt.py` (new)
 
 - `build_template_constraints(analysis: TemplateAnalysis, strict: bool) -> str`

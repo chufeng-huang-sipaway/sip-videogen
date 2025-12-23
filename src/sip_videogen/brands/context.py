@@ -438,37 +438,12 @@ class TemplateContextBuilder:
 """
     def _build_strict_constraints(self,analysis:"TemplateAnalysis")->str:
         """Build strict mode constraints - exact reproduction."""
-        return """**STRICT MODE CONSTRAINTS**
-- Preserve EXACT layout positions and proportions
-- Keep ALL elements in their original locations
-- Match style (palette, lighting, mood) exactly
-- Only replace content in the product slot
-- Do NOT add, remove, or reposition any elements
-- Use the analyzed geometry as absolute constraints
-
-**HOW TO USE**:
-Call `generate_image(template_slug="[slug]", prompt="...")`
-The template constraints will be auto-applied."""
+        from sip_videogen.advisor.template_prompt import build_template_constraints
+        return build_template_constraints(analysis,strict=True)
     def _build_loose_constraints(self,analysis:"TemplateAnalysis")->str:
         """Build loose mode constraints - allow variation while preserving intent."""
-        return """**LOOSE MODE GUIDELINES**
-- Preserve the message INTENT (what the image communicates)
-- Keep the general composition style (centered/asymmetric/etc)
-- Maintain the mood and audience targeting
-- Allow variations in exact positioning and sizing
-- Can adjust colors within the palette family
-- Can modify minor elements for better composition
-
-**KEEP CONSISTENT**:
-- Overall message and key claims
-- Product slot prominence and focus
-- Visual hierarchy and flow
-
-**MAY VARY**:
-- Exact element positions (±20%)
-- Background details
-- Secondary element styling
-- Minor compositional adjustments"""
+        from sip_videogen.advisor.template_prompt import build_template_constraints
+        return build_template_constraints(analysis,strict=False)
 def build_template_context(brand_slug:str,template_slug:str,strict:bool=True)->str:
     """Convenience function to build template context.
     Args:
