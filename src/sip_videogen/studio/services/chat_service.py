@@ -44,7 +44,7 @@ class ChatService:
     def get_progress(self)->dict:
         """Get current operation progress."""
         return bridge_ok({"status":self._state.current_progress,"type":self._state.current_progress_type,"skills":self._state.matched_skills})
-    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None)->dict:
+    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None)->dict:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace=[];self._state.matched_skills=[]
         try:
@@ -67,7 +67,7 @@ class ChatService:
             before_images={a["path"]for a in list_brand_assets(slug,category="generated")}
             before_videos={a["path"]for a in list_brand_videos(slug)}
             #Run advisor
-            result=asyncio.run(advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products))
+            result=asyncio.run(advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products,attached_templates=attached_templates))
             response=result["response"];interaction=result.get("interaction");memory_update=result.get("memory_update")
             images=self._collect_new_images(slug,before_images)
             videos=self._collect_new_videos(slug,before_videos)

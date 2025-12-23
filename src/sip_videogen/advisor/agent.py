@@ -383,6 +383,7 @@ class BrandAdvisor:
         message: str,
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
+        attached_templates: list[dict] | None = None,
     ) -> dict:
         """Send a message and get a response plus UI metadata.
 
@@ -390,6 +391,7 @@ class BrandAdvisor:
             message: User message to process.
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
+            attached_templates: List of template dicts with template_slug and strict.
 
         Returns:
             Dict with response, interaction, and memory_update.
@@ -418,13 +420,14 @@ class BrandAdvisor:
         if self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=4000)
 
-        # Build per-turn context (project + attached products)
+        # Build per-turn context (project + attached products + templates)
         turn_context = ""
-        if self.brand_slug and (project_slug or attached_products):
+        if self.brand_slug and (project_slug or attached_products or attached_templates):
             builder = HierarchicalContextBuilder(
                 brand_slug=self.brand_slug,
                 product_slugs=attached_products,
                 project_slug=project_slug,
+                attached_templates=attached_templates,
             )
             turn_context = builder.build_turn_context()
 
@@ -512,6 +515,7 @@ class BrandAdvisor:
         message: str,
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
+        attached_templates: list[dict] | None = None,
     ) -> str:
         """Send a message and get a response.
 
@@ -519,6 +523,7 @@ class BrandAdvisor:
             message: User message to process.
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
+            attached_templates: List of template dicts with template_slug and strict.
 
         Returns:
             Agent's response text.
@@ -527,6 +532,7 @@ class BrandAdvisor:
             message,
             project_slug=project_slug,
             attached_products=attached_products,
+            attached_templates=attached_templates,
         )
         return result["response"]
 
@@ -535,6 +541,7 @@ class BrandAdvisor:
         message: str,
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
+        attached_templates: list[dict] | None = None,
     ) -> AsyncIterator[str]:
         """Send a message and stream the response.
 
@@ -542,6 +549,7 @@ class BrandAdvisor:
             message: User message to process.
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
+            attached_templates: List of template dicts with template_slug and strict.
 
         Yields:
             Response text chunks as they're generated.
@@ -570,13 +578,14 @@ class BrandAdvisor:
         if self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=4000)
 
-        # Build per-turn context (project + attached products)
+        # Build per-turn context (project + attached products + templates)
         turn_context = ""
-        if self.brand_slug and (project_slug or attached_products):
+        if self.brand_slug and (project_slug or attached_products or attached_templates):
             builder = HierarchicalContextBuilder(
                 brand_slug=self.brand_slug,
                 product_slugs=attached_products,
                 project_slug=project_slug,
+                attached_templates=attached_templates,
             )
             turn_context = builder.build_turn_context()
 

@@ -7,9 +7,11 @@ import { AlertCircle, Paperclip, X, Upload, MessageSquarePlus } from 'lucide-rea
 import { useChat } from '@/hooks/useChat'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
+import { useTemplates } from '@/context/TemplateContext'
 import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
 import { AttachedProducts } from './AttachedProducts'
+import { AttachedTemplates } from './AttachedTemplates'
 import { ProductPickerDialog } from './ProductPickerDialog'
 import { ProjectSelector } from './ProjectSelector'
 
@@ -50,6 +52,15 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     activeProject,
     setActiveProject,
   } = useProjects()
+
+  const {
+    templates,
+    attachedTemplates,
+    attachTemplate,
+    detachTemplate,
+    setTemplateStrictness,
+    clearTemplateAttachments,
+  } = useTemplates()
 
   const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
 
@@ -102,10 +113,11 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   // Handle native drag events for internal asset drags (not detected by react-dropzone)
   const handleNativeDragOver = useCallback((e: React.DragEvent) => {
-    // Check if this is an internal asset or product drag
+    // Check if this is an internal asset, product, or template drag
     if (
       e.dataTransfer.types.includes('application/x-brand-asset') ||
-      e.dataTransfer.types.includes('application/x-brand-product')
+      e.dataTransfer.types.includes('application/x-brand-product') ||
+      e.dataTransfer.types.includes('application/x-brand-template')
     ) {
       e.preventDefault()
       e.stopPropagation()
@@ -126,7 +138,22 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const handleNativeDrop = useCallback((e: React.DragEvent) => {
     setIsInternalDragOver(false)
 
-    // Check for product drag first
+    // Check for template drag first
+    const templateSlug = e.dataTransfer.getData('application/x-brand-template')
+    if (templateSlug && templateSlug.trim()) {
+      e.preventDefault()
+      e.stopPropagation()
+
+      if (!brandSlug) {
+        setAttachmentError('Select a brand before attaching templates.')
+        return
+      }
+
+      attachTemplate(templateSlug.trim())
+      return
+    }
+
+    // Check for product drag
     const productSlug = e.dataTransfer.getData('application/x-brand-product')
     if (productSlug && productSlug.trim()) {
       e.preventDefault()
@@ -154,7 +181,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       addAttachmentReference(assetPath.trim())
     }
-  }, [addAttachmentReference, attachProduct, brandSlug, setAttachmentError])
+  }, [addAttachmentReference, attachProduct, attachTemplate, brandSlug, setAttachmentError])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     noClick: true,
@@ -212,6 +239,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           onClick={() => {
             clearMessages()
             clearAttachments()
+            clearTemplateAttachments()
           }}
           disabled={isLoading || messages.length === 0}
           className="gap-2 text-muted-foreground/40 hover:text-foreground text-xs font-medium h-8 px-2 transition-colors"
@@ -267,6 +295,16 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           products={products}
           attachedSlugs={attachedProducts}
           onDetach={detachProduct}
+        />
+      </div>
+
+      {/* Attached templates display */}
+      <div className="px-6 max-w-4xl mx-auto w-full">
+        <AttachedTemplates
+          templates={templates}
+          attachedTemplates={attachedTemplates}
+          onDetach={detachTemplate}
+          onToggleStrict={setTemplateStrictness}
         />
       </div>
 
@@ -346,6 +384,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
               await sendMessage(text, {
                 project_slug: activeProject,
                 attached_products: attachedProducts.length > 0 ? attachedProducts : undefined,
+                attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined,
               })
               // Refresh products in case the agent created/modified any
               await refreshProducts()

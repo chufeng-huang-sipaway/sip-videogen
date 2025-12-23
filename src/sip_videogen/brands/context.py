@@ -354,14 +354,14 @@ def build_project_context(brand_slug: str, project_slug: str) -> str:
 
 
 class HierarchicalContextBuilder:
-    """Combines brand, product, and project context for per-turn injection.
+    """Combines brand, product, project, and template context for per-turn injection.
 
     This builder creates dynamic context to prepend to user messages each turn.
-    Unlike brand context (which is in the system prompt at init), project and
-    product context can change mid-conversation.
+    Unlike brand context (which is in the system prompt at init), project,
+    product, and template context can change mid-conversation.
 
     NOTE: Brand context is NOT included here - it's already in the system prompt.
-    This builder only handles project and attached products.
+    This builder only handles project, attached products, and attached templates.
     """
 
     def __init__(
@@ -369,17 +369,20 @@ class HierarchicalContextBuilder:
         brand_slug: str,
         product_slugs: list[str] | None = None,
         project_slug: str | None = None,
+        attached_templates: list[dict] | None = None,
     ):
-        """Initialize with brand slug and optional products/project.
+        """Initialize with brand slug and optional products/project/templates.
 
         Args:
             brand_slug: Brand identifier.
             product_slugs: List of product slugs to include (attached products).
             project_slug: Active project slug (if any).
+            attached_templates: List of template dicts with template_slug and strict.
         """
         self.brand_slug = brand_slug
         self.product_slugs = product_slugs or []
         self.project_slug = project_slug
+        self.attached_templates = attached_templates or []
 
     def build_turn_context(self) -> str:
         """Build context to prepend to user message each turn.

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Package, Paperclip, Bot, User, Play, Film } from 'lucide-react'
+import { Package, Paperclip, Bot, User, Play, Film, Layout, Lock, Unlock } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { bridge, isPyWebView, type ProductEntry, type GeneratedVideo } from '@/lib/bridge'
+import { bridge, isPyWebView, type ProductEntry, type GeneratedVideo, type TemplateSummary } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
@@ -10,6 +10,7 @@ import { MemoryUpdateBadge } from './MemoryUpdateBadge'
 import { ChatImageGallery } from './ChatImageGallery'
 import { cn } from '@/lib/utils'
 import { useBrand } from '@/context/BrandContext'
+import { useTemplates } from '@/context/TemplateContext'
 import { Button } from '@/components/ui/button'
 import { BrandSelector } from './BrandSelector'
 import { Sparkles, Download, Copy, RefreshCw, XCircle, Check } from 'lucide-react'
@@ -70,6 +71,7 @@ interface MessageListProps {
   loadedSkills: string[]
   isLoading: boolean
   products: ProductEntry[]
+  templates?: TemplateSummary[]
   onInteractionSelect: (messageId: string, selection: string) => void
   onRegenerate?: (messageId: string) => void
 }
@@ -114,9 +116,23 @@ function MessageProductThumbnail({ path }: { path: string }) {
   )
 }
 
-function MessageBubble({ message, products, onInteractionSelect, isLoading, onRegenerate }: {
+/** Thumbnail component for template images in message history */
+function MessageTemplateThumbnail({path}:{path:string}){
+const [src,setSrc]=useState<string|null>(null)
+useEffect(()=>{
+let cancelled=false
+async function load(){
+if(!isPyWebView()||!path)return
+try{const dataUrl=await bridge.getTemplateImageThumbnail(path);if(!cancelled)setSrc(dataUrl)}catch{}}
+load()
+return()=>{cancelled=true}},[path])
+if(!src){return(<div className="h-6 w-6 rounded bg-muted/20 flex items-center justify-center shrink-0"><Layout className="h-3 w-3 text-muted-foreground/60"/></div>)}
+return<img src={src}alt=""className="h-6 w-6 rounded object-cover shrink-0 border border-border/30"/>}
+
+function MessageBubble({ message, products, templates, onInteractionSelect, isLoading, onRegenerate }: {
   message: Message;
   products: ProductEntry[];
+  templates?: TemplateSummary[];
   onInteractionSelect: (id: string, sel: string) => void;
   isLoading: boolean;
   onRegenerate?: (id: string) => void;
@@ -293,6 +309,25 @@ function MessageBubble({ message, products, onInteractionSelect, isLoading, onRe
             </div>
           </div>
         )}
+
+        {/* Attached Templates (User only) */}
+        {message.role==='user'&&message.attachedTemplates&&message.attachedTemplates.length>0&&(
+<div className="mt-3 pt-3 border-t border-border/40">
+<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+<Layout className="h-3 w-3"/>
+<span>Templates referenced</span>
+</div>
+<div className="flex flex-wrap gap-2">
+{message.attachedTemplates.map(({template_slug,strict})=>{
+const template=templates?.find(t=>t.slug===template_slug)
+return(
+<div key={template_slug}className="flex items-center gap-2 rounded-md bg-muted/20 border border-border/30 px-2 py-1 transition hover:bg-muted/30">
+{template?.primary_image?(<MessageTemplateThumbnail path={template.primary_image}/>):(<div className="h-6 w-6 rounded bg-muted/20 flex items-center justify-center shrink-0"><Layout className="h-3 w-3 text-muted-foreground/60"/></div>)}
+<span className="text-xs text-foreground/90 max-w-[100px] truncate font-medium">{template?.name||template_slug}</span>
+{strict?<Lock className="h-3 w-3 text-amber-500"/>:<Unlock className="h-3 w-3 text-muted-foreground/60"/>}
+</div>)})}
+</div>
+</div>)}
 
         {/* Image Gallery */}
         {message.images.length > 0 && (
@@ -537,7 +572,7 @@ function ActivityCard({ progress, loadedSkills }: ActivityCardProps) {
   )
 }
 
-export function MessageList({ messages, progress, loadedSkills, isLoading, products, onInteractionSelect, onRegenerate }: MessageListProps) {
+export function MessageList({ messages, progress, loadedSkills, isLoading, products, templates, onInteractionSelect, onRegenerate }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -545,6 +580,8 @@ export function MessageList({ messages, progress, loadedSkills, isLoading, produ
   }, [messages, progress])
 
   const { brands, activeBrand, selectBrand } = useBrand()
+  const { templates: contextTemplates } = useTemplates()
+  const allTemplates = templates || contextTemplates
 
   if (messages.length === 0) {
     return (
@@ -627,6 +664,7 @@ export function MessageList({ messages, progress, loadedSkills, isLoading, produ
           key={message.id}
           message={message}
           products={products}
+          templates={allTemplates}
           onInteractionSelect={onInteractionSelect}
           isLoading={isLoading}
           onRegenerate={onRegenerate}

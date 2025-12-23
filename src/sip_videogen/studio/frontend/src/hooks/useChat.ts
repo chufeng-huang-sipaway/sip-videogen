@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate } from '@/lib/bridge'
 import { ALLOWED_ATTACHMENT_EXTS, ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 
 export interface Message {
@@ -24,6 +24,8 @@ export interface Message {
   }>
   /** Product slugs that were attached when this message was sent */
   attachedProductSlugs?: string[]
+  /** Templates that were attached when this message was sent */
+  attachedTemplates?: AttachedTemplate[]
 }
 
 interface PendingAttachment extends ChatAttachment {
@@ -179,6 +181,9 @@ export function useChat(brandSlug: string | null) {
       attachedProductSlugs: context?.attached_products?.length
         ? [...context.attached_products]
         : undefined,
+      attachedTemplates: context?.attached_templates?.length
+        ? [...context.attached_templates]
+        : undefined,
     }
 
     const assistantId = generateId()
@@ -310,6 +315,7 @@ export function useChat(brandSlug: string | null) {
     // Re-send the user message to get a new response
     await sendMessage(userMessage.content, {
       attached_products: userMessage.attachedProductSlugs,
+      attached_templates: userMessage.attachedTemplates,
     })
   }, [messages, isLoading, brandSlug, sendMessage])
 

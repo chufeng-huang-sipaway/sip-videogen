@@ -156,7 +156,7 @@ This feature adds reusable layout templates so users can start from proven visua
 
 ## Phase 2: Chat Integration (Target: Jan 20)
 
-### - [ ] 12. Chat Context Extension (Frontend + Bridge + Backend)
+### - [x] 12. Chat Context Extension (Frontend + Bridge + Backend)
 **Files:**
 - `src/sip_videogen/studio/frontend/src/lib/bridge.ts`
 - `src/sip_videogen/studio/frontend/src/hooks/useChat.ts`
