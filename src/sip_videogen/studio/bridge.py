@@ -6,6 +6,7 @@ from .services.chat_service import ChatService
 from .services.document_service import DocumentService
 from .services.product_service import ProductService
 from .services.project_service import ProjectService
+from .services.template_service import TemplateService
 from .services.update_service import UpdateService
 from .utils.bridge_types import BridgeResponse
 from .utils.config_store import check_api_keys as do_check_api_keys,load_api_keys_from_config,save_api_keys as do_save_api_keys
@@ -20,6 +21,7 @@ class StudioBridge:
         self._asset=AssetService(self._state)
         self._product=ProductService(self._state)
         self._project=ProjectService(self._state)
+        self._template=TemplateService(self._state)
         self._chat=ChatService(self._state)
         self._update=UpdateService(self._state)
     def set_window(self,window):self._state.window=window
@@ -81,6 +83,20 @@ class StudioBridge:
     def set_primary_product_image(self,product_slug:str,filename:str)->dict:return self._product.set_primary_product_image(product_slug,filename)
     def get_product_image_thumbnail(self,path:str)->dict:return self._product.get_product_image_thumbnail(path)
     def get_product_image_full(self,path:str)->dict:return self._product.get_product_image_full(path)
+    #===========================================================================
+    #Template Management
+    #===========================================================================
+    def get_templates(self,brand_slug:str|None=None)->dict:return self._template.get_templates(brand_slug)
+    def get_template(self,template_slug:str)->dict:return self._template.get_template(template_slug)
+    def create_template(self,name:str,description:str,images:list[dict]|None=None,default_strict:bool=True)->dict:return self._template.create_template(name,description,images,default_strict)
+    def update_template(self,template_slug:str,name:str|None=None,description:str|None=None,default_strict:bool|None=None)->dict:return self._template.update_template(template_slug,name,description,default_strict)
+    def delete_template(self,template_slug:str)->dict:return self._template.delete_template(template_slug)
+    def get_template_images(self,template_slug:str)->dict:return self._template.get_template_images(template_slug)
+    def upload_template_image(self,template_slug:str,filename:str,data_base64:str)->dict:return self._template.upload_template_image(template_slug,filename,data_base64)
+    def delete_template_image(self,template_slug:str,filename:str)->dict:return self._template.delete_template_image(template_slug,filename)
+    def set_primary_template_image(self,template_slug:str,filename:str)->dict:return self._template.set_primary_template_image(template_slug,filename)
+    def get_template_image_thumbnail(self,path:str)->dict:return self._template.get_template_image_thumbnail(path)
+    def get_template_image_full(self,path:str)->dict:return self._template.get_template_image_full(path)
     #===========================================================================
     #Project Management
     #===========================================================================

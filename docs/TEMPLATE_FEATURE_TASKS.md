@@ -61,7 +61,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - `get_template_image_thumbnail(path)`
 - `get_template_image_full(path)`
 
-### - [ ] 4. Bridge API
+### - [x] 4. Bridge API
 **File:** `src/sip_videogen/studio/bridge.py`
 
 - Instantiate `TemplateService` in `StudioBridge.__init__`
