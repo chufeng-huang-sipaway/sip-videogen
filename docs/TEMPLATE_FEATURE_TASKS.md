@@ -102,7 +102,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Add drag payload type `application/x-brand-template`
 - Wire into `Sidebar/index.tsx` with new section
 
-### - [ ] 8. Frontend: Create/Edit Dialogs
+### - [x] 8. Frontend: Create/Edit Dialogs
 **Files:**
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/CreateTemplateDialog.tsx` (new)
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/EditTemplateDialog.tsx` (new)

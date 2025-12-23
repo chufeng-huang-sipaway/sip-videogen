@@ -6,6 +6,8 @@ import {Alert,AlertDescription} from '@/components/ui/alert'
 import {useTemplates} from '@/context/TemplateContext'
 import {useBrand} from '@/context/BrandContext'
 import {bridge,isPyWebView,type TemplateSummary,type TemplateFull} from '@/lib/bridge'
+import {CreateTemplateDialog} from '../CreateTemplateDialog'
+import {EditTemplateDialog} from '../EditTemplateDialog'
 //Thumbnail component for template images
 function TemplateThumbnail({path,size='sm'}:{path:string;size?:'sm'|'lg'}){
 const [src,setSrc]=useState<string|null>(null)
@@ -197,7 +199,6 @@ onDetach={()=>detachTemplate(template.slug)}
 onToggleStrict={()=>handleToggleStrict(template.slug)}
 onEdit={()=>setEditingTemplateSlug(template.slug)}
 onDelete={()=>handleDelete(template.slug)}/>)})}</div>)}
-{/*TODO: Wire CreateTemplateDialog and EditTemplateDialog in Task 8*/}
-{isCreateDialogOpen&&<div className="hidden">{/*Placeholder for CreateTemplateDialog*/}</div>}
-{editingTemplateSlug&&<div className="hidden">{/*Placeholder for EditTemplateDialog*/}</div>}
+<CreateTemplateDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}/>
+{editingTemplateSlug&&<EditTemplateDialog open={!!editingTemplateSlug} onOpenChange={(open)=>{if(!open)setEditingTemplateSlug(null)}} templateSlug={editingTemplateSlug}/>}
 </div>)}
