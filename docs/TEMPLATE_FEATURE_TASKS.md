@@ -85,7 +85,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Add image ops: `getTemplateImages`, `uploadTemplateImage`, `deleteTemplateImage`, `setPrimaryTemplateImage`, `getTemplateImageThumbnail`, `getTemplateImageFull`
 - Extend `ChatContext` type to include `attached_templates: AttachedTemplate[]`
 
-### - [ ] 6. Frontend: Template Context
+### - [x] 6. Frontend: Template Context
 **File:** `src/sip_videogen/studio/frontend/src/context/TemplateContext.tsx` (new)
 
 - Provide list + CRUD wrappers (similar to ProductContext)
