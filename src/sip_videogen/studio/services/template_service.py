@@ -1,10 +1,11 @@
 """Template management service."""
 from __future__ import annotations
-import base64,io,re
+import asyncio,base64,io,re
 from datetime import datetime
 from pathlib import Path
 from sip_videogen.brands.models import TemplateFull
-from sip_videogen.brands.storage import(add_template_image,create_template,delete_template,delete_template_image,list_template_images,list_templates,load_template,save_template,set_primary_template_image)
+from sip_videogen.brands.storage import(add_template_image,create_template,delete_template,delete_template_image,get_template_dir,list_template_images,list_templates,load_template,save_template,set_primary_template_image)
+from sip_videogen.advisor.template_analyzer import analyze_template
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,BridgeResponse
 from ..utils.path_utils import resolve_in_dir
@@ -42,6 +43,7 @@ class TemplateService:
             now=datetime.utcnow()
             template=TemplateFull(slug=template_slug,name=name.strip(),description=description.strip(),images=[],primary_image="",default_strict=default_strict,analysis=None,created_at=now,updated_at=now)
             create_template(slug,template)
+            #Upload images
             if images:
                 for img in images:
                     filename=img.get("filename","");data_b64=img.get("data","")
@@ -50,6 +52,19 @@ class TemplateService:
                     if ext not in ALLOWED_IMAGE_EXTS:continue
                     try:content=base64.b64decode(data_b64);add_template_image(slug,template_slug,filename,content)
                     except Exception:pass
+            #Run analyzer on uploaded images
+            template=load_template(slug,template_slug)
+            if template and template.images:
+                template_dir=get_template_dir(slug,template_slug)
+                img_paths=[template_dir/"images"/Path(p).name for p in template.images if(template_dir/"images"/Path(p).name).exists()]
+                if img_paths:
+                    try:
+                        analysis=asyncio.get_event_loop().run_until_complete(analyze_template(img_paths[:2]))
+                        if analysis:template.analysis=analysis;template.updated_at=datetime.utcnow();save_template(slug,template)
+                    except RuntimeError:
+                        #No event loop, create new one
+                        analysis=asyncio.run(analyze_template(img_paths[:2]))
+                        if analysis:template.analysis=analysis;template.updated_at=datetime.utcnow();save_template(slug,template)
             return BridgeResponse(success=True,data={"slug":template_slug}).to_dict()
         except Exception as e:return BridgeResponse(success=False,error=str(e)).to_dict()
     def update_template(self,template_slug:str,name:str|None=None,description:str|None=None,default_strict:bool|None=None)->dict:
@@ -66,14 +81,23 @@ class TemplateService:
             return BridgeResponse(success=True,data={"slug":template.slug,"name":template.name,"description":template.description,"default_strict":template.default_strict}).to_dict()
         except Exception as e:return BridgeResponse(success=False,error=str(e)).to_dict()
     def reanalyze_template(self,template_slug:str)->dict:
-        """Re-run Gemini analysis on template (placeholder - analyzer not yet implemented)."""
+        """Re-run Gemini analysis on template images."""
         try:
             slug=self._state.get_active_slug()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
             template=load_template(slug,template_slug)
             if not template:return BridgeResponse(success=False,error=f"Template '{template_slug}' not found").to_dict()
-            #TODO: Call template analyzer when implemented in Phase 1
-            return BridgeResponse(success=False,error="Template analyzer not yet implemented").to_dict()
+            if not template.images:return BridgeResponse(success=False,error="No images to analyze").to_dict()
+            template_dir=get_template_dir(slug,template_slug)
+            img_paths=[template_dir/"images"/Path(p).name for p in template.images if(template_dir/"images"/Path(p).name).exists()]
+            if not img_paths:return BridgeResponse(success=False,error="No valid image files found").to_dict()
+            try:
+                analysis=asyncio.get_event_loop().run_until_complete(analyze_template(img_paths[:2]))
+            except RuntimeError:
+                analysis=asyncio.run(analyze_template(img_paths[:2]))
+            if not analysis:return BridgeResponse(success=False,error="Analysis failed - check Gemini API key").to_dict()
+            template.analysis=analysis;template.updated_at=datetime.utcnow();save_template(slug,template)
+            return BridgeResponse(success=True,data={"analysis":analysis.model_dump()}).to_dict()
         except Exception as e:return BridgeResponse(success=False,error=str(e)).to_dict()
     def delete_template(self,template_slug:str)->dict:
         """Delete a template and all its files."""

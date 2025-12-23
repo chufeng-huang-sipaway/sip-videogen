@@ -421,6 +421,7 @@ interface PyWebViewAPI {
   set_primary_template_image(template_slug: string, filename: string): Promise<BridgeResponse<void>>
   get_template_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   get_template_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  reanalyze_template(template_slug: string): Promise<BridgeResponse<{ analysis: TemplateAnalysis }>>
 
   // Project methods
   get_projects(brand_slug?: string): Promise<BridgeResponse<{ projects: ProjectEntry[]; active_project: string | null }>>
@@ -589,6 +590,8 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.get_template_image_thumbnail(path))).dataUrl,
   getTemplateImageFull: async (path: string) =>
     (await callBridge(() => window.pywebview!.api.get_template_image_full(path))).dataUrl,
+  reanalyzeTemplate: async (templateSlug: string) =>
+    (await callBridge(() => window.pywebview!.api.reanalyze_template(templateSlug))).analysis,
 
   // Projects
   getProjects: async (brandSlug?: string) => {

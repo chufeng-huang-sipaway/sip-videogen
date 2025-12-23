@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import {createContext,useContext,useState,useEffect,useCallback,type ReactNode} from 'react'
-import {bridge,waitForPyWebViewReady,type TemplateSummary,type TemplateFull,type AttachedTemplate} from '@/lib/bridge'
+import {bridge,waitForPyWebViewReady,type TemplateSummary,type TemplateFull,type AttachedTemplate,type TemplateAnalysis} from '@/lib/bridge'
 import {useBrand} from './BrandContext'
 export interface CreateTemplateInput {
 name:string
@@ -26,6 +26,7 @@ getTemplateImages:(slug:string)=>Promise<string[]>
 uploadTemplateImage:(slug:string,filename:string,dataBase64:string)=>Promise<string>
 deleteTemplateImage:(slug:string,filename:string)=>Promise<void>
 setPrimaryTemplateImage:(slug:string,filename:string)=>Promise<void>
+reanalyzeTemplate:(slug:string)=>Promise<TemplateAnalysis>
 }
 const TemplateContext=createContext<TemplateContextType|null>(null)
 export function TemplateProvider({children}:{children:ReactNode}){
@@ -104,8 +105,14 @@ const ready=await waitForPyWebViewReady()
 if(!ready)throw new Error('Not running in PyWebView')
 await bridge.setPrimaryTemplateImage(slug,filename)
 await refresh()},[refresh])
+const reanalyzeTemplate=useCallback(async(slug:string):Promise<TemplateAnalysis>=>{
+const ready=await waitForPyWebViewReady()
+if(!ready)throw new Error('Not running in PyWebView')
+const analysis=await bridge.reanalyzeTemplate(slug)
+await refresh()
+return analysis},[refresh])
 return(
-<TemplateContext.Provider value={{templates,attachedTemplates,isLoading,error,refresh,attachTemplate,detachTemplate,setTemplateStrictness,clearTemplateAttachments,createTemplate,updateTemplate,deleteTemplate,getTemplate,getTemplateImages,uploadTemplateImage,deleteTemplateImage,setPrimaryTemplateImage}}>
+<TemplateContext.Provider value={{templates,attachedTemplates,isLoading,error,refresh,attachTemplate,detachTemplate,setTemplateStrictness,clearTemplateAttachments,createTemplate,updateTemplate,deleteTemplate,getTemplate,getTemplateImages,uploadTemplateImage,deleteTemplateImage,setPrimaryTemplateImage,reanalyzeTemplate}}>
 {children}
 </TemplateContext.Provider>)}
 export function useTemplates(){

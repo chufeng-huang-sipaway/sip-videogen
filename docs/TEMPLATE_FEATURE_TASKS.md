@@ -123,7 +123,7 @@ This feature adds reusable layout templates so users can start from proven visua
 
 ## Phase 1: Template Analyzer (Target: Jan 10)
 
-### - [ ] 9. Gemini Template Analyzer
+### - [x] 9. Gemini Template Analyzer
 **File:** `src/sip_videogen/advisor/template_analyzer.py` (new)
 
 - `analyze_template(images: list[bytes | str]) -> TemplateAnalysis`
@@ -132,7 +132,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Parse response into TemplateAnalysis model
 - Add retry logic + error handling
 
-### - [ ] 10. Integration with Template Service
+### - [x] 10. Integration with Template Service
 
 - Wire `TemplateService.create_template` to call analyzer
 - Store analysis result in `template_full.json`

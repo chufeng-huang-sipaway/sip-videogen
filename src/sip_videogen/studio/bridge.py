@@ -97,6 +97,7 @@ class StudioBridge:
     def set_primary_template_image(self,template_slug:str,filename:str)->dict:return self._template.set_primary_template_image(template_slug,filename)
     def get_template_image_thumbnail(self,path:str)->dict:return self._template.get_template_image_thumbnail(path)
     def get_template_image_full(self,path:str)->dict:return self._template.get_template_image_full(path)
+    def reanalyze_template(self,template_slug:str)->dict:return self._template.reanalyze_template(template_slug)
     #===========================================================================
     #Project Management
     #===========================================================================
