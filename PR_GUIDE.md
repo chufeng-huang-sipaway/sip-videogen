@@ -82,8 +82,16 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Analysis stored in `template_full.json`
   - Added `reanalyze_template` bridge method and frontend wrapper
 
+- [x] **Task 11: Frontend Template Detail View** - Created `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx`
+  - Full template info display with collapsible sections
+  - Shows template images with primary indicator
+  - Analysis summary: Canvas, Message, Style, Elements, Product Slot
+  - Re-analyze button to regenerate Gemini analysis
+  - Edit/Delete action buttons
+  - Modal overlay triggered via context menu "View Details"
+
 ### Next Task
-- [ ] **Task 11: Frontend Template Detail View** - Create `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx`
+- [ ] **Task 12: Chat Context Extension** - Extend ChatContext with attached_templates
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -99,7 +107,8 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/CreateTemplateDialog.tsx` - New CreateTemplateDialog (90+ lines)
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/EditTemplateDialog.tsx` - New EditTemplateDialog (130+ lines)
 - `src/sip_videogen/advisor/template_analyzer.py` - New Gemini Vision analyzer (110+ lines)
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-10 marked complete
+- `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx` - New TemplateDetailView (160+ lines)
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-11 marked complete
 
 ## Testing
 ```bash
