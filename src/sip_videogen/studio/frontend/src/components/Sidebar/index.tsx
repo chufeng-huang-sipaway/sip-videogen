@@ -4,13 +4,14 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import {Tooltip,TooltipContent,TooltipProvider,TooltipTrigger,} from '@/components/ui/tooltip'
 import {Accordion,AccordionContent,AccordionItem,AccordionTrigger,} from '@/components/ui/accordion'
-import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain, Plus } from 'lucide-react'
+import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain, Plus, Settings } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { BrandBrainCard } from './BrandBrainCard'
 import { ProductsSection } from './sections/ProductsSection'
 import { ProjectsSection } from './sections/ProjectsSection'
 import { CreateProductDialog } from './CreateProductDialog'
 import { CreateProjectDialog } from './CreateProjectDialog'
+import { SettingsDialog } from '@/components/Settings/SettingsDialog'
 import { useBrand } from '@/context/BrandContext'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
@@ -30,6 +31,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const { projects } = useProjects()
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const width = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH
 
@@ -108,26 +110,28 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
               </TooltipContent>
             </Tooltip>
 
-            {/* Spacer to push expand button to bottom */}
+            {/* Spacer to push buttons to bottom */}
             <div className="flex-1" />
-
+            {/* Settings button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={()=>setIsSettingsOpen(true)}>
+                  <Settings className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right"><p>Settings</p></TooltipContent>
+            </Tooltip>
             {/* Expand button */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  onClick={onToggleCollapse}
-                >
+                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={onToggleCollapse}>
                   <PanelLeft className="w-5 h-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>Expand sidebar</p>
-              </TooltipContent>
+              <TooltipContent side="right"><p>Expand sidebar</p></TooltipContent>
             </Tooltip>
           </div>
+          <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}/>
         </aside>
       </TooltipProvider>
     )
@@ -191,15 +195,18 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
         </div>
       </ScrollArea>
 
-      {/* Collapse button at bottom */}
-      <div className="p-3 border-t border-border/40">
-        <Button variant="ghost" size="sm" className="w-full h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2" onClick={onToggleCollapse}>
-          <PanelLeftClose className="w-4 h-4" />
-          <span className="text-sm">Collapse</span>
+      {/* Bottom buttons */}
+      <div className="p-3 border-t border-border/40 flex gap-2">
+        <Button variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2" onClick={onToggleCollapse}>
+          <PanelLeftClose className="w-4 h-4" /><span className="text-sm">Collapse</span>
+        </Button>
+        <Button variant="ghost" size="sm" className="h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={()=>setIsSettingsOpen(true)} title="Settings">
+          <Settings className="w-4 h-4" />
         </Button>
       </div>
       <CreateProductDialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen}/>
       <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}/>
+      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}/>
     </aside>
   )
 }
