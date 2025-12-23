@@ -77,7 +77,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - `get_template_image_thumbnail(path)`
 - `get_template_image_full(path)`
 
-### - [ ] 5. Frontend Bridge Types
+### - [x] 5. Frontend Bridge Types
 **File:** `src/sip_videogen/studio/frontend/src/lib/bridge.ts`
 
 - Add `TemplateSummary`, `TemplateFull`, and `TemplateAnalysis` TypeScript interfaces
