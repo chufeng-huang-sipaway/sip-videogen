@@ -105,8 +105,15 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - Integrated into `HierarchicalContextBuilder.build_turn_context()`
   - Supports multiple attached templates with per-template strictness
 
+- [x] **Task 14: Template Prompt Helper** - Created `src/sip_videogen/advisor/template_prompt.py`
+  - `build_template_constraints(analysis, strict)` generates constraint strings
+  - Strict mode: lock all elements/palette/positions, only product_slot changeable
+  - Loose mode: preserve intent/audience/claims, allow ±20% position variation
+  - Helper functions: `format_element_summary()`, `format_product_slot_summary()`
+  - Integrated into `TemplateContextBuilder` via import delegation
+
 ### Next Task
-- [ ] **Task 14: Template Prompt Helper** - Create template_prompt.py with constraint builders
+- [ ] **Task 15: Agent Prompt Integration** - Add template handling rules to advisor.md
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -123,8 +130,9 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/CreateTemplateDialog.tsx` - New CreateTemplateDialog (90+ lines)
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/EditTemplateDialog.tsx` - New EditTemplateDialog (130+ lines)
 - `src/sip_videogen/advisor/template_analyzer.py` - New Gemini Vision analyzer (110+ lines)
+- `src/sip_videogen/advisor/template_prompt.py` - Template constraint builder (100+ lines)
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx` - New TemplateDetailView (160+ lines)
-- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-13 marked complete
+- `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-14 marked complete
 
 ## Testing
 ```bash
@@ -134,6 +142,7 @@ python3 -c "from sip_videogen.brands.storage import get_templates_dir, create_te
 python3 -c "from sip_videogen.brands.context import TemplateContextBuilder, build_template_context; print('OK')"
 python3 -c "from sip_videogen.studio.services import TemplateService; print('OK')"
 python3 -c "from sip_videogen.advisor.template_analyzer import analyze_template; print('OK')"
+python3 -c "from sip_videogen.advisor.template_prompt import build_template_constraints; print('OK')"
 python3 -c "from sip_videogen.studio.bridge import StudioBridge; b = StudioBridge(); print('Template methods:', [m for m in dir(b) if 'template' in m.lower()])"
 python -m pytest tests/test_models.py -v
 ```
