@@ -45,7 +45,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - `set_primary_template_image(brand_slug, template_slug, filename)`
 - (Optional) `sync_template_index(brand_slug)` -> reconcile index.json with filesystem
 
-### - [ ] 3. Template Service
+### - [x] 3. Template Service
 **File:** `src/sip_videogen/studio/services/template_service.py` (new)
 
 - `TemplateService` class wrapping storage + analysis calls (use active brand like ProductService)
