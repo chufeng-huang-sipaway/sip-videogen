@@ -28,7 +28,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Add `TemplateFull` (L1) model: all summary fields + images + analysis (nullable before analysis)
 - Add `TemplateIndex` model for `index.json`
 
-### - [ ] 2. Storage Layer
+### - [x] 2. Storage Layer
 **File:** `src/sip_videogen/brands/storage.py`
 
 - Add `get_templates_dir`, `get_template_dir`, `get_template_index_path`

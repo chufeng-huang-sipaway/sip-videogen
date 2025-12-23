@@ -24,6 +24,9 @@ from .models import (
     ProjectFull,
     ProjectIndex,
     ProjectSummary,
+    TemplateFull,
+    TemplateIndex,
+    TemplateSummary,
 )
 
 logger = logging.getLogger(__name__)
@@ -117,6 +120,10 @@ def create_brand(identity: BrandIdentityFull) -> BrandSummary:
     for cat in ASSET_CATEGORIES:
         if cat!="generated":(brand_dir/"assets"/cat).mkdir(exist_ok=True)
     (brand_dir/"history").mkdir(exist_ok=True)
+    #Initialize templates directory with empty index
+    templates_dir=brand_dir/"templates"
+    templates_dir.mkdir(exist_ok=True)
+    (templates_dir/"index.json").write_text(TemplateIndex().model_dump_json(indent=2))
 
     # Save identity files
     summary = identity.to_summary()
@@ -1135,3 +1142,317 @@ def set_active_project(brand_slug: str, project_slug: str | None) -> None:
         brand_slug,
         project_slug or "(none)",
     )
+
+
+# =============================================================================
+# Template Storage Functions
+# =============================================================================
+
+
+def get_templates_dir(brand_slug: str) -> Path:
+    """Get the templates directory for a brand."""
+    return get_brand_dir(brand_slug) / "templates"
+
+
+def get_template_dir(brand_slug: str, template_slug: str) -> Path:
+    """Get the directory for a specific template."""
+    return get_templates_dir(brand_slug) / template_slug
+
+
+def get_template_index_path(brand_slug: str) -> Path:
+    """Get the path to the template index file for a brand."""
+    return get_templates_dir(brand_slug) / "index.json"
+
+
+def load_template_index(brand_slug: str) -> TemplateIndex:
+    """Load the template index for a brand."""
+    index_path = get_template_index_path(brand_slug)
+    if index_path.exists():
+        try:
+            data = json.loads(index_path.read_text())
+            index = TemplateIndex.model_validate(data)
+            logger.debug("Loaded template index for %s with %d templates",
+                brand_slug,len(index.templates))
+            return index
+        except json.JSONDecodeError as e:
+            logger.warning("Invalid JSON in template index for %s: %s",brand_slug,e)
+        except Exception as e:
+            logger.warning("Failed to load template index for %s: %s",brand_slug,e)
+    logger.debug("Creating new template index for %s",brand_slug)
+    return TemplateIndex()
+
+
+def save_template_index(brand_slug: str, index: TemplateIndex) -> None:
+    """Save the template index for a brand."""
+    index_path = get_template_index_path(brand_slug)
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    index_path.write_text(index.model_dump_json(indent=2))
+    logger.debug("Saved template index for %s with %d templates",brand_slug,len(index.templates))
+
+
+def create_template(brand_slug: str, template: TemplateFull) -> TemplateSummary:
+    """Create a new template for a brand.
+
+    Args:
+        brand_slug: Brand identifier.
+        template: Complete template data.
+
+    Returns:
+        TemplateSummary extracted from the template.
+
+    Raises:
+        ValueError: If brand doesn't exist or template already exists.
+    """
+    brand_dir = get_brand_dir(brand_slug)
+    if not brand_dir.exists():
+        raise ValueError(f"Brand '{brand_slug}' not found")
+    template_dir = get_template_dir(brand_slug, template.slug)
+    if template_dir.exists():
+        raise ValueError(f"Template '{template.slug}' already exists in brand '{brand_slug}'")
+    #Create directory structure
+    template_dir.mkdir(parents=True, exist_ok=True)
+    (template_dir / "images").mkdir(exist_ok=True)
+    #Save template files
+    summary = template.to_summary()
+    (template_dir / "template.json").write_text(summary.model_dump_json(indent=2))
+    (template_dir / "template_full.json").write_text(template.model_dump_json(indent=2))
+    #Update index
+    index = load_template_index(brand_slug)
+    index.add_template(summary)
+    save_template_index(brand_slug, index)
+    logger.info("Created template %s for brand %s", template.slug, brand_slug)
+    return summary
+
+
+def load_template(brand_slug: str, template_slug: str) -> TemplateFull | None:
+    """Load a template's full details from disk.
+
+    Args:
+        brand_slug: Brand identifier.
+        template_slug: Template identifier.
+
+    Returns:
+        TemplateFull or None if not found.
+    """
+    template_dir = get_template_dir(brand_slug, template_slug)
+    template_path = template_dir / "template_full.json"
+    if not template_path.exists():
+        logger.debug("Template not found: %s/%s", brand_slug, template_slug)
+        return None
+    try:
+        data = json.loads(template_path.read_text())
+        return TemplateFull.model_validate(data)
+    except Exception as e:
+        logger.error("Failed to load template %s/%s: %s", brand_slug, template_slug, e)
+        return None
+
+
+def load_template_summary(brand_slug: str, template_slug: str) -> TemplateSummary | None:
+    """Load just the template summary (L0 layer).
+
+    This is faster than load_template() when you only need the summary.
+    """
+    template_dir = get_template_dir(brand_slug, template_slug)
+    summary_path = template_dir / "template.json"
+    if not summary_path.exists():
+        return None
+    try:
+        data = json.loads(summary_path.read_text())
+        return TemplateSummary.model_validate(data)
+    except Exception as e:
+        logger.error("Failed to load template summary %s/%s: %s", brand_slug, template_slug, e)
+        return None
+
+
+def save_template(brand_slug: str, template: TemplateFull) -> TemplateSummary:
+    """Save/update a template.
+
+    Args:
+        brand_slug: Brand identifier.
+        template: Updated template data.
+
+    Returns:
+        Updated TemplateSummary.
+    """
+    template_dir = get_template_dir(brand_slug, template.slug)
+    if not template_dir.exists():
+        return create_template(brand_slug, template)
+    #Update timestamp
+    template.updated_at = datetime.utcnow()
+    #Save files
+    summary = template.to_summary()
+    (template_dir / "template.json").write_text(summary.model_dump_json(indent=2))
+    (template_dir / "template_full.json").write_text(template.model_dump_json(indent=2))
+    #Update index
+    index = load_template_index(brand_slug)
+    index.add_template(summary)
+    save_template_index(brand_slug, index)
+    logger.info("Saved template %s for brand %s", template.slug, brand_slug)
+    return summary
+
+
+def delete_template(brand_slug: str, template_slug: str) -> bool:
+    """Delete a template and all its files.
+
+    Returns:
+        True if template was deleted, False if not found.
+    """
+    template_dir = get_template_dir(brand_slug, template_slug)
+    if not template_dir.exists():
+        return False
+    shutil.rmtree(template_dir)
+    #Update index
+    index = load_template_index(brand_slug)
+    index.remove_template(template_slug)
+    save_template_index(brand_slug, index)
+    logger.info("Deleted template %s from brand %s", template_slug, brand_slug)
+    return True
+
+
+def list_templates(brand_slug: str) -> list[TemplateSummary]:
+    """List all templates for a brand, sorted by name."""
+    index = load_template_index(brand_slug)
+    return sorted(index.templates, key=lambda t: t.name.lower())
+
+
+def list_template_images(brand_slug: str, template_slug: str) -> list[str]:
+    """List all images for a template.
+
+    Returns:
+        List of brand-relative image paths.
+    """
+    template_dir = get_template_dir(brand_slug, template_slug)
+    images_dir = template_dir / "images"
+    if not images_dir.exists():
+        return []
+    images = []
+    for fp in sorted(images_dir.iterdir()):
+        if fp.suffix.lower() in ALLOWED_IMAGE_EXTS:
+            images.append(f"templates/{template_slug}/images/{fp.name}")
+    return images
+
+
+def add_template_image(brand_slug: str, template_slug: str, filename: str, data: bytes) -> str:
+    """Add an image to a template.
+
+    Args:
+        brand_slug: Brand identifier.
+        template_slug: Template identifier.
+        filename: Image filename.
+        data: Image binary data.
+
+    Returns:
+        Brand-relative path to the saved image.
+
+    Raises:
+        ValueError: If template doesn't exist.
+    """
+    template_dir = get_template_dir(brand_slug, template_slug)
+    if not template_dir.exists():
+        raise ValueError(f"Template '{template_slug}' not found in brand '{brand_slug}'")
+    images_dir = template_dir / "images"
+    images_dir.mkdir(exist_ok=True)
+    #Save image
+    image_path = images_dir / filename
+    image_path.write_bytes(data)
+    #Return brand-relative path
+    brand_relative = f"templates/{template_slug}/images/{filename}"
+    #Update template's images list
+    template = load_template(brand_slug, template_slug)
+    if template:
+        if brand_relative not in template.images:
+            template.images.append(brand_relative)
+            #Set as primary if first image
+            if not template.primary_image:
+                template.primary_image = brand_relative
+            save_template(brand_slug, template)
+    logger.info("Added image %s to template %s/%s", filename, brand_slug, template_slug)
+    return brand_relative
+
+
+def delete_template_image(brand_slug: str, template_slug: str, filename: str) -> bool:
+    """Delete an image from a template.
+
+    Returns:
+        True if image was deleted, False if not found.
+    """
+    template_dir = get_template_dir(brand_slug, template_slug)
+    image_path = template_dir / "images" / filename
+    if not image_path.exists():
+        return False
+    image_path.unlink()
+    #Update template's images list
+    brand_relative = f"templates/{template_slug}/images/{filename}"
+    template = load_template(brand_slug, template_slug)
+    if template:
+        if brand_relative in template.images:
+            template.images.remove(brand_relative)
+            #Update primary if it was the deleted image
+            if template.primary_image == brand_relative:
+                template.primary_image = template.images[0] if template.images else ""
+            save_template(brand_slug, template)
+    logger.info("Deleted image %s from template %s/%s", filename, brand_slug, template_slug)
+    return True
+
+
+def set_primary_template_image(
+    brand_slug: str, template_slug: str, brand_relative_path: str
+) -> bool:
+    """Set the primary image for a template.
+
+    Args:
+        brand_slug: Brand identifier.
+        template_slug: Template identifier.
+        brand_relative_path: Brand-relative path to the image.
+
+    Returns:
+        True if primary was set, False if image not found in template.
+    """
+    template = load_template(brand_slug, template_slug)
+    if not template:
+        return False
+    if brand_relative_path not in template.images:
+        return False
+    template.primary_image = brand_relative_path
+    save_template(brand_slug, template)
+    logger.info("Set primary image for template %s/%s to %s",
+        brand_slug,template_slug,brand_relative_path)
+    return True
+
+
+def sync_template_index(brand_slug: str) -> int:
+    """Reconcile template index with filesystem.
+
+    Adds templates that exist on disk but not in index,
+    removes index entries for templates that no longer exist.
+
+    Returns:
+        Number of changes made (additions + removals).
+    """
+    templates_dir = get_templates_dir(brand_slug)
+    if not templates_dir.exists():
+        return 0
+    index = load_template_index(brand_slug)
+    changes = 0
+    #Find templates on disk
+    disk_slugs = set()
+    for item in templates_dir.iterdir():
+        if item.is_dir() and (item / "template_full.json").exists():
+            disk_slugs.add(item.name)
+    #Find templates in index
+    index_slugs = {t.slug for t in index.templates}
+    #Add missing to index
+    for slug in disk_slugs - index_slugs:
+        template = load_template(brand_slug, slug)
+        if template:
+            index.add_template(template.to_summary())
+            logger.info("Synced template %s to index for brand %s", slug, brand_slug)
+            changes += 1
+    #Remove orphaned from index
+    for slug in index_slugs - disk_slugs:
+        index.remove_template(slug)
+        logger.info("Removed orphaned template %s from index for brand %s", slug, brand_slug)
+        changes += 1
+    if changes > 0:
+        save_template_index(brand_slug, index)
+    return changes
