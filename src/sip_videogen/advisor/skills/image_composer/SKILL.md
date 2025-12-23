@@ -277,7 +277,7 @@ When composing an image, produce a brief following this structure:
 - **Brand alignment**: [how this reflects brand values]
 
 ### Platform Specs
-- **Aspect ratio**: [1:1 / 4:5 / 9:16 / 16:9]
+- **Aspect ratio**: 1:1 (default, unless user specifies otherwise)
 - **Platform**: [Instagram feed / Story / TikTok / Website / etc.]
 ```
 
@@ -319,7 +319,11 @@ Before generating the image, verify:
 
 ---
 
-## Platform Aspect Ratios
+## Aspect Ratio
+
+**Default: 1:1** — Always use 1:1 unless the user explicitly requests a different ratio.
+
+Only use other ratios when the user specifically mentions a platform or aspect ratio:
 
 | Platform | Format | Ratio |
 |----------|--------|-------|

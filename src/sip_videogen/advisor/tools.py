@@ -3170,6 +3170,65 @@ def _impl_get_recent_generated_images(limit: int = 5) -> str:
 
 
 # =============================================================================
+# URL Content Fetching (FireCrawl)
+# =============================================================================
+from time import time as _time
+import os as _os
+#URL content cache (10 min TTL)
+_url_cache:dict[str,tuple[str,float]]={}
+_CACHE_TTL=600
+def _impl_fetch_url_content(url:str)->str:
+    """Fetch URL content as LLM-friendly markdown with caching."""
+    logger.info(f"fetch_url_content called with url={url}")
+    #Check cache
+    if url in _url_cache:
+        content,ts=_url_cache[url]
+        if _time()-ts<_CACHE_TTL:
+            logger.info("Returning cached content")
+            return content
+    try:
+        from firecrawl import Firecrawl
+    except ImportError:
+        logger.error("firecrawl-py not installed")
+        return "Error: firecrawl-py not installed. Run: pip install firecrawl-py"
+    #Get API key directly from environment (settings may be cached)
+    api_key=_os.environ.get("FIRECRAWL_API_KEY","")
+    logger.info(f"FIRECRAWL_API_KEY from env: {'set ('+api_key[:8]+'...)' if api_key else 'NOT SET'}")
+    if not api_key:
+        return "Error: FireCrawl API key not configured. Please add your key in Brand Studio Settings (gear icon in sidebar)."
+    try:
+        logger.info("Calling FireCrawl API...")
+        fc=Firecrawl(api_key=api_key)
+        r=fc.scrape(url=url,formats=['markdown'],only_main_content=True)
+        #FireCrawl returns a Document object (Pydantic model), not a dict
+        md=getattr(r,'markdown','')or''
+        meta=getattr(r,'metadata',None)
+        title=meta.get('title','')if isinstance(meta,dict)else getattr(meta,'title','')if meta else''
+        if md:
+            content=f"# {title}\n\n{md}" if title else md
+            _url_cache[url]=(content,_time())
+            logger.info(f"Successfully fetched {len(content)} chars from {url}")
+            return content
+        logger.warning(f"No markdown content returned for {url}")
+        return f"Error: No content returned from URL"
+    except Exception as e:
+        logger.error(f"Exception in fetch_url_content: {e}")
+        return f"Error fetching URL: {e}"
+
+@function_tool
+def fetch_url_content(url:str)->str:
+    """Fetch content from a URL and return as markdown.
+    Use when user shares a URL and wants you to read or analyze its content.
+    The content is automatically converted to clean markdown suitable for analysis.
+    Args:
+        url: The full URL to fetch (must include https://)
+    Returns:
+        Clean markdown content from the webpage, or error message if fetch fails.
+    """
+    return _impl_fetch_url_content(url)
+
+
+# =============================================================================
 # Tool List for Agent
 # =============================================================================
 
@@ -3199,4 +3258,6 @@ ADVISOR_TOOLS = [
     # Brand memory tools (migrated from brands.tools)
     fetch_brand_detail,
     browse_brand_assets,
+    # URL content fetching
+    fetch_url_content,
 ]

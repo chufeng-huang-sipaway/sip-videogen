@@ -33,6 +33,7 @@ dependencies = [
     "PyJWT>=2.8.0",
     "packaging>=23.0",
     "Pillow>=10.0.0",
+    "firecrawl-py>=1.0.0",
 ]
 
 [project.urls]

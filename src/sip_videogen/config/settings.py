@@ -58,14 +58,10 @@ class Settings(BaseSettings):
     )
 
     # Kling API credentials (optional, for Kling video generation)
-    kling_access_key: str | None = Field(
-        default=None,
-        description="Kling API access key (optional)",
-    )
-    kling_secret_key: str | None = Field(
-        default=None,
-        description="Kling API secret key (optional)",
-    )
+    kling_access_key: str | None = Field(default=None,description="Kling API access key (optional)")
+    kling_secret_key: str | None = Field(default=None,description="Kling API secret key (optional)")
+    # FireCrawl API key (optional, for URL content fetching)
+    firecrawl_api_key: str | None = Field(default=None,description="FireCrawl API key (optional, enables URL reading)")
 
     # Local output directory for generated assets
     sip_output_dir: Path = Field(
@@ -153,18 +149,9 @@ class Settings(BaseSettings):
         self.sip_output_dir.mkdir(parents=True, exist_ok=True)
         return self.sip_output_dir
 
-    def is_configured(self) -> dict[str, bool]:
+    def is_configured(self)->dict[str,bool]:
         """Check which settings are properly configured."""
-        return {
-            "openai_api_key": bool(self.openai_api_key and self.openai_api_key != "sk-..."),
-            "gemini_api_key": bool(self.gemini_api_key and self.gemini_api_key != "..."),
-            "google_cloud_project": bool(
-                self.google_cloud_project
-                and self.google_cloud_project != "your-project-id"
-            ),
-            "kling_api": bool(self.kling_access_key and self.kling_secret_key),
-            "sora_api": bool(self.openai_api_key and self.openai_api_key != "sk-..."),
-        }
+        return {"openai_api_key":bool(self.openai_api_key and self.openai_api_key!="sk-..."),"gemini_api_key":bool(self.gemini_api_key and self.gemini_api_key!="..."),"google_cloud_project":bool(self.google_cloud_project and self.google_cloud_project!="your-project-id"),"kling_api":bool(self.kling_access_key and self.kling_secret_key),"sora_api":bool(self.openai_api_key and self.openai_api_key!="sk-..."),"firecrawl_api":bool(self.firecrawl_api_key)}
 
 
 @lru_cache
