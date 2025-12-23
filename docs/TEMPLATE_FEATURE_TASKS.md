@@ -195,7 +195,7 @@ This feature adds reusable layout templates so users can start from proven visua
   - Strict OFF: preserve message intent, allow variation
 - Reminder: template JSON is the only template reference (no image reference)
 
-### - [ ] 16. Frontend: Chat Template Attachment
+### - [x] 16. Frontend: Chat Template Attachment
 **File:** `src/sip_videogen/studio/frontend/src/components/ChatPanel/AttachedTemplates.tsx` (new)
 
 - Display attached template card in chat input area
@@ -203,7 +203,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Remove template button
 - Store toggle state in chat context
 
-### - [ ] 17. Frontend: Drag and Drop to Chat
+### - [x] 17. Frontend: Drag and Drop to Chat
 
 - Enable dragging template from sidebar to chat area
 - Add `application/x-brand-template` handling in `ChatPanel` native drop
