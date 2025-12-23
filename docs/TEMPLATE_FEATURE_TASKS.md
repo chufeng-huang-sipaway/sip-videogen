@@ -172,7 +172,7 @@ This feature adds reusable layout templates so users can start from proven visua
 - Pass `attached_templates` through `ChatService` to `BrandAdvisor.chat_with_metadata`
 - Store attached templates in message history and render in `MessageList`
 
-### - [ ] 13. Template Context Builder
+### - [x] 13. Template Context Builder
 **File:** `src/sip_videogen/brands/context.py`
 
 - `TemplateContextBuilder` class (similar to ProductContextBuilder)
