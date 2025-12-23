@@ -700,3 +700,173 @@ class ProjectIndex(BaseModel):
             self.active_project = None
 
         return len(self.projects) < original_len
+
+
+# =============================================================================
+# Template Models - Layout Templates for Visual Consistency
+# =============================================================================
+
+
+class CanvasSpec(BaseModel):
+    """Canvas specification for template layout."""
+    aspect_ratio: str = Field(description="Aspect ratio, e.g., '1:1', '16:9', '9:16'")
+    background: str = Field(default="", description="Background description or color")
+    width: int | None = Field(default=None, description="Optional width in pixels")
+    height: int | None = Field(default=None, description="Optional height in pixels")
+
+
+class MessageSpec(BaseModel):
+    """Message intent and audience for template."""
+    intent: str = Field(default="", description="Primary message intent, e.g., 'product launch'")
+    audience: str = Field(default="", description="Target audience for this layout")
+    key_claims: List[str] = Field(default_factory=list, description="Key claims or messages")
+
+
+class StyleSpec(BaseModel):
+    """Visual style specification for template."""
+    palette: List[str] = Field(default_factory=list, description="Color palette hex codes")
+    lighting: str = Field(default="", description="Lighting style, e.g., 'soft natural'")
+    mood: str = Field(default="", description="Overall mood, e.g., 'premium minimalist'")
+    materials: List[str] = Field(default_factory=list, description="Featured materials/textures")
+
+
+class GeometrySpec(BaseModel):
+    """Position and size specification for layout elements."""
+    x: float = Field(description="X position as fraction of canvas width (0-1)")
+    y: float = Field(description="Y position as fraction of canvas height (0-1)")
+    width: float = Field(description="Width as fraction of canvas width (0-1)")
+    height: float = Field(description="Height as fraction of canvas height (0-1)")
+    rotation: float = Field(default=0.0, description="Rotation in degrees")
+    z_index: int = Field(default=0, description="Layer order (higher = front)")
+
+
+class AppearanceSpec(BaseModel):
+    """Visual appearance specification for layout elements."""
+    fill: str = Field(default="", description="Fill color or gradient")
+    stroke: str = Field(default="", description="Stroke/border color")
+    opacity: float = Field(default=1.0, description="Opacity 0-1")
+    blur: float = Field(default=0.0, description="Blur amount")
+    shadow: str = Field(default="", description="Shadow specification")
+
+
+class ContentSpec(BaseModel):
+    """Content specification for layout elements."""
+    text: str = Field(default="", description="Text content if applicable")
+    font_family: str = Field(default="", description="Font family")
+    font_size: str = Field(default="", description="Font size relative to canvas")
+    font_weight: str = Field(default="", description="Font weight")
+    alignment: str = Field(default="", description="Text alignment")
+    image_description: str = Field(default="", description="Image content description")
+
+
+class ConstraintSpec(BaseModel):
+    """Constraints for layout elements during generation."""
+    locked_position: bool = Field(default=False, description="Position cannot change")
+    locked_size: bool = Field(default=False, description="Size cannot change")
+    locked_aspect: bool = Field(default=False, description="Aspect ratio must be preserved")
+    min_margin: float = Field(default=0.0, description="Minimum margin from edges (0-1)")
+    semantic_role: str = Field(default="", description="Semantic role for strict mode")
+
+
+class LayoutElement(BaseModel):
+    """Single element in the template layout."""
+    id: str = Field(description="Unique element identifier")
+    type: str = Field(description="Element type: 'image', 'text', 'shape', 'product'")
+    role: str = Field(default="", description="Semantic role, e.g., 'headline'")
+    geometry: GeometrySpec = Field(default_factory=GeometrySpec, description="Position/size")
+    appearance: AppearanceSpec = Field(default_factory=AppearanceSpec, description="Visual style")
+    content: ContentSpec = Field(default_factory=ContentSpec, description="Content spec")
+    constraints: ConstraintSpec = Field(default_factory=ConstraintSpec, description="Constraints")
+
+
+class InteractionSpec(BaseModel):
+    """Interaction specification for product slot."""
+    replacement_mode: str = Field(default="replace", description="replace or overlay")
+    preserve_shadow: bool = Field(default=True, description="Preserve original shadow")
+    preserve_reflection: bool = Field(default=False, description="Preserve reflection")
+    scale_mode: str = Field(default="fit", description="fit, fill, or stretch")
+
+
+class ProductSlot(BaseModel):
+    """Product slot specification in template."""
+    id: str = Field(description="Slot identifier")
+    geometry: GeometrySpec = Field(description="Position and size for product")
+    appearance: AppearanceSpec = Field(default_factory=AppearanceSpec, description="Visual style")
+    interaction: InteractionSpec = Field(default_factory=InteractionSpec, description="Behavior")
+
+
+class TemplateAnalysis(BaseModel):
+    """Complete template analysis from Gemini Vision.
+
+    This is the structured JSON representation of a template image,
+    containing geometry, semantics, and style information.
+    """
+    version: str = Field(default="1.0", description="Analysis schema version")
+    canvas: CanvasSpec = Field(description="Canvas specification")
+    message: MessageSpec = Field(default_factory=MessageSpec, description="Message intent")
+    style: StyleSpec = Field(default_factory=StyleSpec, description="Visual style")
+    elements: List[LayoutElement] = Field(default_factory=list, description="Layout elements")
+    product_slot: ProductSlot | None = Field(default=None, description="Product slot")
+
+
+class TemplateSummary(BaseModel):
+    """Compact template summary - L0 layer for quick loading.
+
+    Used for template list display and sidebar.
+    """
+    slug: str = Field(description="URL-safe identifier, e.g., 'hero-centered'")
+    name: str = Field(description="Template name, e.g., 'Hero Centered Layout'")
+    description: str = Field(default="", description="Template description")
+    primary_image: str = Field(default="", description="Brand-relative path to primary image")
+    default_strict: bool = Field(default=True, description="Default strict toggle state")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Created at")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Updated at")
+
+
+class TemplateFull(BaseModel):
+    """Complete template details - L1 layer loaded on demand.
+
+    Contains template images and analysis results.
+    """
+    slug: str = Field(description="URL-safe identifier")
+    name: str = Field(description="Template name")
+    description: str = Field(default="", description="Template description")
+    images: List[str] = Field(default_factory=list, description="Template image paths")
+    primary_image: str = Field(default="", description="Primary image path")
+    default_strict: bool = Field(default=True, description="Default strict toggle state")
+    analysis: TemplateAnalysis | None = Field(default=None, description="Gemini analysis")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Created at")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Updated at")
+
+    def to_summary(self) -> TemplateSummary:
+        """Extract a TemplateSummary from this full template."""
+        return TemplateSummary(slug=self.slug, name=self.name, description=self.description,
+            primary_image=self.primary_image, default_strict=self.default_strict,
+            created_at=self.created_at, updated_at=self.updated_at)
+
+
+class TemplateIndex(BaseModel):
+    """Registry of all templates for a brand.
+
+    Stored at ~/.sip-videogen/brands/{brand-slug}/templates/index.json
+    """
+    version: str = Field(default="1.0", description="Index format version")
+    templates: List[TemplateSummary] = Field(default_factory=list, description="Templates")
+
+    def get_template(self, slug: str) -> TemplateSummary | None:
+        """Find a template by slug."""
+        for t in self.templates:
+            if t.slug == slug:
+                return t
+        return None
+
+    def add_template(self, entry: TemplateSummary) -> None:
+        """Add or update a template in the index."""
+        self.templates = [t for t in self.templates if t.slug != entry.slug]
+        self.templates.append(entry)
+
+    def remove_template(self, slug: str) -> bool:
+        """Remove a template from the index. Returns True if found and removed."""
+        n = len(self.templates)
+        self.templates = [t for t in self.templates if t.slug != slug]
+        return len(self.templates) < n
