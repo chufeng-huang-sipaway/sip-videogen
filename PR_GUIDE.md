@@ -369,8 +369,34 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Generation completes normally → input unlocks
 - Restart app → input is unlocked (fresh React state)
 
+#### Task 15: Export Actions ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/ExportActions.tsx` - Export actions component
+- Updated `src/sip_videogen/studio/bridge.py` - Added copy_image_to_clipboard and share_image methods
+- Updated `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added TypeScript types and bridge functions
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Integrated ExportActions
+
+**Features:**
+- Copy to clipboard button using macOS osascript (supports PNG and JPEG)
+- Share button that reveals image in Finder for native sharing
+- Drag-out functionality: drag image to Finder or other apps
+- Visual feedback: spinner during copy, checkmark on success
+- Tooltips on hover for each action
+- ExportActions positioned in workstation header on left side
+
+**Bridge Methods Added:**
+- `copy_image_to_clipboard(image_path)` - Copy image to system clipboard (macOS)
+- `share_image(image_path)` - Reveal image in Finder for sharing
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Copy button copies image to clipboard (paste in Preview works)
+- Share button opens Finder at image location
+- Can drag image out to Finder or other apps
+- Copy shows spinner while copying, then checkmark on success
+
 ### Pending Tasks
-- Task 15: Export Actions
 - Task 16: Trash Management UI
 - Task 17: Migration and First Launch
 - Task 18: Undo Toast
@@ -393,6 +419,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 12. `c82df7a` - feat(workstation): Add ContextPanel for image metadata display
 13. `5686d10` - feat(workstation): Add compact mode for chat panel image gallery
 14. `bcfb7c1` - feat(workstation): Add input lock during generation with cancel button
+15. `2a0dd29` - feat(workstation): Add ExportActions for copy, share, and drag-out
 
 ## Related Files
 
@@ -417,3 +444,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 14. (For Task 12) Click info icon in top-right corner - panel should expand with prompt, source, timestamp; Copy button should copy prompt
 15. (For Task 13) Generate images via chat - compact "Generated N images" displays with tiny thumbnails; clicking opens in Workstation
 16. (For Task 14) Start generation - input should disable, send button becomes cancel with spinner; clicking Cancel stops and shows "Generation cancelled."
+17. (For Task 15) With images loaded, click copy button → image copied to clipboard (paste in Preview works); click share → Finder opens at image; drag image out → export works
