@@ -451,8 +451,30 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - All existing generated images should appear as unsorted in workstation
 - `image_status.json` is created with correct entries
 
+#### Task 18: Undo Toast ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Added undo toast after keep/trash actions
+
+**Features:**
+- After swiping to keep or trash, shows toast notification with "Undo" button
+- Toast message: "Image moved to Kept" or "Image moved to Trash"
+- Clicking "Undo" restores image to unsorted and adds back to current batch
+- Image is placed at the beginning of the batch for immediate viewing
+- Toast auto-dismisses after 5 seconds (Sonner default)
+- New action replaces existing toast (only one at a time via toast.dismiss)
+- Uses existing Sonner toast system with action button support
+- Success toast shown after successful undo: "Image restored to unsorted"
+- Error toast shown if undo fails
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Swipe to keep → toast appears with "Undo" button
+- Click Undo → image returns to current batch at position 0
+- Wait 5 seconds → toast disappears
+- New swipe action replaces existing toast
+
 ### Pending Tasks
-- Task 18: Undo Toast
 - Task 19: Animations and Polish
 - Task 20: Testing and Edge Cases
 
@@ -475,6 +497,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 15. `2a0dd29` - feat(workstation): Add ExportActions for copy, share, and drag-out
 16. `0d8ee53` - feat(workstation): Add trash management UI with restore and empty
 17. `6ad793c` - feat(workstation): Add migration and first launch backfill
+18. `6690dfc` - feat(workstation): Add undo toast for keep/trash actions
 
 ## Related Files
 
@@ -502,3 +525,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 17. (For Task 15) With images loaded, click copy button → image copied to clipboard (paste in Preview works); click share → Finder opens at image; drag image out → export works
 18. (For Task 16) Click trash icon in sidebar footer → trash view opens; each image shows days remaining; Restore and Empty Trash buttons work
 19. (For Task 17) Delete `~/.sip-videogen/brands/{slug}/image_status.json`, select that brand → existing images should auto-appear in workstation
+20. (For Task 18) Swipe to keep → toast appears with "Undo" button; click Undo → image returns to batch; wait 5 seconds → toast auto-dismisses
