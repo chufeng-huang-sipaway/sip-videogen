@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from sip_videogen.brands.models import TemplateFull
 from sip_videogen.brands.storage import(add_template_image,create_template,delete_template,delete_template_image,get_template_dir,list_template_images,list_templates,load_template,save_template,set_primary_template_image)
-from sip_videogen.advisor.template_analyzer import analyze_template
+from sip_videogen.advisor.template_analyzer import analyze_template_v2
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,BridgeResponse
 from ..utils.path_utils import resolve_in_dir
@@ -52,18 +52,17 @@ class TemplateService:
                     if ext not in ALLOWED_IMAGE_EXTS:continue
                     try:content=base64.b64decode(data_b64);add_template_image(slug,template_slug,filename,content)
                     except Exception:pass
-            #Run analyzer on uploaded images
+            #Run V2 analyzer on uploaded images
             template=load_template(slug,template_slug)
             if template and template.images:
                 template_dir=get_template_dir(slug,template_slug)
                 img_paths=[template_dir/"images"/Path(p).name for p in template.images if(template_dir/"images"/Path(p).name).exists()]
                 if img_paths:
                     try:
-                        analysis=asyncio.get_event_loop().run_until_complete(analyze_template(img_paths[:2]))
+                        analysis=asyncio.get_event_loop().run_until_complete(analyze_template_v2(img_paths[:2]))
                         if analysis:template.analysis=analysis;template.updated_at=datetime.utcnow();save_template(slug,template)
                     except RuntimeError:
-                        #No event loop, create new one
-                        analysis=asyncio.run(analyze_template(img_paths[:2]))
+                        analysis=asyncio.run(analyze_template_v2(img_paths[:2]))
                         if analysis:template.analysis=analysis;template.updated_at=datetime.utcnow();save_template(slug,template)
             return BridgeResponse(success=True,data={"slug":template_slug}).to_dict()
         except Exception as e:return BridgeResponse(success=False,error=str(e)).to_dict()
@@ -81,7 +80,7 @@ class TemplateService:
             return BridgeResponse(success=True,data={"slug":template.slug,"name":template.name,"description":template.description,"default_strict":template.default_strict}).to_dict()
         except Exception as e:return BridgeResponse(success=False,error=str(e)).to_dict()
     def reanalyze_template(self,template_slug:str)->dict:
-        """Re-run Gemini analysis on template images."""
+        """Re-run V2 Gemini analysis on template images."""
         try:
             slug=self._state.get_active_slug()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
@@ -92,9 +91,9 @@ class TemplateService:
             img_paths=[template_dir/"images"/Path(p).name for p in template.images if(template_dir/"images"/Path(p).name).exists()]
             if not img_paths:return BridgeResponse(success=False,error="No valid image files found").to_dict()
             try:
-                analysis=asyncio.get_event_loop().run_until_complete(analyze_template(img_paths[:2]))
+                analysis=asyncio.get_event_loop().run_until_complete(analyze_template_v2(img_paths[:2]))
             except RuntimeError:
-                analysis=asyncio.run(analyze_template(img_paths[:2]))
+                analysis=asyncio.run(analyze_template_v2(img_paths[:2]))
             if not analysis:return BridgeResponse(success=False,error="Analysis failed - check Gemini API key").to_dict()
             template.analysis=analysis;template.updated_at=datetime.utcnow();save_template(slug,template)
             return BridgeResponse(success=True,data={"analysis":analysis.model_dump()}).to_dict()

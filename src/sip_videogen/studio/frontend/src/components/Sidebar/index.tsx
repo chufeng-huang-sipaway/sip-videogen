@@ -33,6 +33,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const { templates } = useTemplates()
   const { projects } = useProjects()
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
+  const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
@@ -198,9 +199,10 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
                     </div>
                   </div>
                 </AccordionTrigger>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-md hover:bg-muted/50" onClick={()=>setIsCreateTemplateOpen(true)} title="Add template"><Plus className="h-4 w-4"/></Button>
               </div>
               <AccordionContent className="px-0 pb-1 pt-0">
-                <TemplatesSection/>
+                <TemplatesSection createDialogOpen={isCreateTemplateOpen} onCreateDialogChange={setIsCreateTemplateOpen}/>
               </AccordionContent>
             </AccordionItem>
 

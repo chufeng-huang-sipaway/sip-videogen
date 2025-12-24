@@ -52,6 +52,7 @@ from sip_videogen.brands.storage import (
     get_brand_dir,
     get_brands_dir,
     load_product,
+    load_template,
 )
 from sip_videogen.brands.storage import (
     list_products as storage_list_products,
@@ -492,6 +493,8 @@ async def _impl_generate_image(
     reference_image: str | None = None,
     product_slug: str | None = None,
     product_slugs: list[str] | None = None,
+    template_slug: str | None = None,
+    strict: bool = True,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -506,6 +509,9 @@ async def _impl_generate_image(
             plus additional reference images (up to the per-product cap) for generation.
         product_slugs: Optional list of product slugs for multi-product generation.
             When provided with 2+ products, uses multi-product validation.
+        template_slug: Optional template slug. When provided, loads the template's
+            analyzed JSON constraints and applies them to the generation prompt.
+        strict: When True with template_slug, enforces exact layout reproduction.
         validate_identity: When True with reference_image, validates that the
             generated image preserves object identity from the reference.
         max_retries: Maximum validation attempts (only used with validate_identity).
@@ -552,6 +558,39 @@ async def _impl_generate_image(
         filename = _generate_output_filename(None)
 
     output_path = output_dir / f"{filename}.png"
+
+    template_constraints = ""
+    if template_slug:
+        if not brand_slug:
+            return "Error: No active brand - cannot load template"
+        template = load_template(brand_slug, template_slug)
+        if template is None:
+            return f"Error: Template not found: {template_slug}"
+        if template.analysis is None:
+            return f"Error: Template '{template_slug}' has no analysis"
+        #Detect V2 vs V1 analysis and use appropriate builder
+        is_v2=getattr(template.analysis,"version","1.0")=="2.0"
+        if is_v2:
+            from sip_videogen.advisor.template_prompt import build_template_constraints_v2
+            template_constraints=build_template_constraints_v2(template.analysis,strict=strict,include_usage=False)
+        else:
+            from sip_videogen.advisor.template_prompt import build_template_constraints
+            template_constraints=build_template_constraints(template.analysis,strict=strict,include_usage=False)
+        template_aspect_ratio = template.analysis.canvas.aspect_ratio
+        allowed_aspects = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"}
+        if template_aspect_ratio and template_aspect_ratio in allowed_aspects:
+            if template_aspect_ratio != aspect_ratio:
+                logger.info(
+                    "Template aspect ratio override: %s -> %s",
+                    aspect_ratio,
+                    template_aspect_ratio,
+                )
+            aspect_ratio = template_aspect_ratio
+
+    def _apply_template_constraints(base_prompt: str) -> str:
+        if not template_constraints:
+            return base_prompt
+        return f"{base_prompt}\n\n[TEMPLATE CONSTRAINTS]\n{template_constraints}"
 
     # Handle multi-product generation with validation
     if product_slugs and len(product_slugs) >= 2:
@@ -679,6 +718,7 @@ async def _impl_generate_image(
                 product_slugs=product_slugs,
             )
             logger.info(f"Injected product specs for {len(product_slugs)} products")
+        generation_prompt = _apply_template_constraints(generation_prompt)
 
         # Use multi-product validation
         from sip_videogen.advisor.validation import generate_with_multi_validation
@@ -838,6 +878,8 @@ async def _impl_generate_image(
                 logger.info(f"Injected product specs for '{product_slug}'")
         else:
             logger.warning(f"Product '{product_slug}' has no primary image")
+
+    generation_prompt = _apply_template_constraints(generation_prompt)
 
     if reference_image and not reference_candidates:
         role = "primary" if product_slug else "reference"
@@ -2511,6 +2553,8 @@ async def generate_image(
     reference_image: str | None = None,
     product_slug: str | None = None,
     product_slugs: list[str] | None = None,
+    template_slug: str | None = None,
+    strict: bool = True,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -2545,6 +2589,9 @@ async def generate_image(
             appears accurately. The prompt should describe each product with specific
             details (materials, colors, etc.).
             Example: product_slugs=["night-cream", "day-serum", "toner"]
+        template_slug: Optional template slug. When provided, applies the stored
+            template layout constraints (JSON analysis) to the prompt.
+        strict: When True with template_slug, enforces exact layout reproduction.
         validate_identity: When True AND reference_image is provided, enables a
             validation loop that ensures the generated image preserves the identity
             of objects in the reference. Use when the user needs the EXACT SAME
@@ -2566,6 +2613,8 @@ async def generate_image(
         reference_image,
         product_slug,
         product_slugs,
+        template_slug,
+        strict,
         validate_identity,
         max_retries,
     )

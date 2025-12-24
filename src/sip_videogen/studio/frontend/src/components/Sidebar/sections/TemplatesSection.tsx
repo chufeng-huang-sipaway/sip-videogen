@@ -145,12 +145,15 @@ draggable onDragStart={handleDragStart} onClick={handleClick} title="Click to pr
 <TemplatePreview templateSlug={template.slug}/>
 </div>)}
 </div>)}
+interface TemplatesSectionProps{createDialogOpen?:boolean;onCreateDialogChange?:(open:boolean)=>void}
 //Main section component
-export function TemplatesSection(){
+export function TemplatesSection({createDialogOpen,onCreateDialogChange}:TemplatesSectionProps={}){
 const {activeBrand}=useBrand()
 const {templates,attachedTemplates,isLoading,error,refresh,attachTemplate,detachTemplate,setTemplateStrictness,deleteTemplate}=useTemplates()
 const [actionError,setActionError]=useState<string|null>(null)
-const [isCreateDialogOpen,setIsCreateDialogOpen]=useState(false)
+const [localCreateDialogOpen,setLocalCreateDialogOpen]=useState(false)
+const isCreateDialogOpen=createDialogOpen??localCreateDialogOpen
+const setIsCreateDialogOpen=onCreateDialogChange??setLocalCreateDialogOpen
 const [editingTemplateSlug,setEditingTemplateSlug]=useState<string|null>(null)
 const [expandedTemplate,setExpandedTemplate]=useState<string|null>(null)
 const [detailViewSlug,setDetailViewSlug]=useState<string|null>(null)

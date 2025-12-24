@@ -20,7 +20,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class BrandSummary(BaseModel):
@@ -714,12 +714,31 @@ class CanvasSpec(BaseModel):
     width: int | None = Field(default=None, description="Optional width in pixels")
     height: int | None = Field(default=None, description="Optional height in pixels")
 
+    @field_validator("background", mode="before")
+    @classmethod
+    def _normalize_background(cls, value):
+        return "" if value is None else value
+
 
 class MessageSpec(BaseModel):
     """Message intent and audience for template."""
     intent: str = Field(default="", description="Primary message intent, e.g., 'product launch'")
     audience: str = Field(default="", description="Target audience for this layout")
     key_claims: List[str] = Field(default_factory=list, description="Key claims or messages")
+
+    @field_validator("intent", "audience", mode="before")
+    @classmethod
+    def _normalize_text(cls, value):
+        return "" if value is None else value
+
+    @field_validator("key_claims", mode="before")
+    @classmethod
+    def _normalize_claims(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return value
 
 
 class StyleSpec(BaseModel):
@@ -728,6 +747,20 @@ class StyleSpec(BaseModel):
     lighting: str = Field(default="", description="Lighting style, e.g., 'soft natural'")
     mood: str = Field(default="", description="Overall mood, e.g., 'premium minimalist'")
     materials: List[str] = Field(default_factory=list, description="Featured materials/textures")
+
+    @field_validator("lighting", "mood", mode="before")
+    @classmethod
+    def _normalize_text(cls, value):
+        return "" if value is None else value
+
+    @field_validator("palette", "materials", mode="before")
+    @classmethod
+    def _normalize_lists(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return value
 
 
 class GeometrySpec(BaseModel):
@@ -748,6 +781,18 @@ class AppearanceSpec(BaseModel):
     blur: float = Field(default=0.0, description="Blur amount")
     shadow: str = Field(default="", description="Shadow specification")
 
+    @field_validator("fill", "stroke", "shadow", mode="before")
+    @classmethod
+    def _normalize_text(cls, value):
+        return "" if value is None else value
+
+    @field_validator("opacity", "blur", mode="before")
+    @classmethod
+    def _normalize_floats(cls, value, info):
+        if value is None:
+            return 1.0 if info.field_name == "opacity" else 0.0
+        return value
+
 
 class ContentSpec(BaseModel):
     """Content specification for layout elements."""
@@ -758,6 +803,19 @@ class ContentSpec(BaseModel):
     alignment: str = Field(default="", description="Text alignment")
     image_description: str = Field(default="", description="Image content description")
 
+    @field_validator(
+        "text",
+        "font_family",
+        "font_size",
+        "font_weight",
+        "alignment",
+        "image_description",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_text(cls, value):
+        return "" if value is None else value
+
 
 class ConstraintSpec(BaseModel):
     """Constraints for layout elements during generation."""
@@ -766,6 +824,21 @@ class ConstraintSpec(BaseModel):
     locked_aspect: bool = Field(default=False, description="Aspect ratio must be preserved")
     min_margin: float = Field(default=0.0, description="Minimum margin from edges (0-1)")
     semantic_role: str = Field(default="", description="Semantic role for strict mode")
+
+    @field_validator("locked_position", "locked_size", "locked_aspect", mode="before")
+    @classmethod
+    def _normalize_bools(cls, value):
+        return False if value is None else value
+
+    @field_validator("min_margin", mode="before")
+    @classmethod
+    def _normalize_margin(cls, value):
+        return 0.0 if value is None else value
+
+    @field_validator("semantic_role", mode="before")
+    @classmethod
+    def _normalize_role(cls, value):
+        return "" if value is None else value
 
 
 class LayoutElement(BaseModel):
@@ -778,6 +851,11 @@ class LayoutElement(BaseModel):
     content: ContentSpec = Field(default_factory=ContentSpec, description="Content spec")
     constraints: ConstraintSpec = Field(default_factory=ConstraintSpec, description="Constraints")
 
+    @field_validator("role", mode="before")
+    @classmethod
+    def _normalize_role(cls, value):
+        return "" if value is None else value
+
 
 class InteractionSpec(BaseModel):
     """Interaction specification for product slot."""
@@ -785,6 +863,20 @@ class InteractionSpec(BaseModel):
     preserve_shadow: bool = Field(default=True, description="Preserve original shadow")
     preserve_reflection: bool = Field(default=False, description="Preserve reflection")
     scale_mode: str = Field(default="fit", description="fit, fill, or stretch")
+
+    @field_validator("replacement_mode", "scale_mode", mode="before")
+    @classmethod
+    def _normalize_text(cls, value, info):
+        if value is None:
+            return "replace" if info.field_name == "replacement_mode" else "fit"
+        return value
+
+    @field_validator("preserve_shadow", "preserve_reflection", mode="before")
+    @classmethod
+    def _normalize_bools(cls, value, info):
+        if value is None:
+            return True if info.field_name == "preserve_shadow" else False
+        return value
 
 
 class ProductSlot(BaseModel):
@@ -796,10 +888,10 @@ class ProductSlot(BaseModel):
 
 
 class TemplateAnalysis(BaseModel):
-    """Complete template analysis from Gemini Vision.
-
+    """Complete template analysis from Gemini Vision (V1 - geometry-focused).
     This is the structured JSON representation of a template image,
     containing geometry, semantics, and style information.
+    DEPRECATED: Use TemplateAnalysisV2 for new templates.
     """
     version: str = Field(default="1.0", description="Analysis schema version")
     canvas: CanvasSpec = Field(description="Canvas specification")
@@ -807,6 +899,80 @@ class TemplateAnalysis(BaseModel):
     style: StyleSpec = Field(default_factory=StyleSpec, description="Visual style")
     elements: List[LayoutElement] = Field(default_factory=list, description="Layout elements")
     product_slot: ProductSlot | None = Field(default=None, description="Product slot")
+
+
+#V2 Template Analysis Models - Semantic-focused
+class CopywritingSpec(BaseModel):
+    """Verbatim copywriting extracted from template.
+    All text must be preserved EXACTLY as written - no paraphrasing."""
+    headline: str = Field(default="", description="Main headline, VERBATIM")
+    subheadline: str = Field(default="", description="Subheadline, VERBATIM")
+    body_texts: List[str] = Field(default_factory=list, description="Body copy lines, VERBATIM")
+    benefits: List[str] = Field(default_factory=list, description="Benefit statements, VERBATIM in order")
+    cta: str = Field(default="", description="Call-to-action text, VERBATIM")
+    disclaimer: str = Field(default="", description="Disclaimer/fine print, VERBATIM")
+    tagline: str = Field(default="", description="Brand tagline if visible, VERBATIM")
+    @field_validator("headline","subheadline","cta","disclaimer","tagline",mode="before")
+    @classmethod
+    def _norm_str(cls,v):return "" if v is None else v
+    @field_validator("body_texts","benefits",mode="before")
+    @classmethod
+    def _norm_list(cls,v):return [] if v is None else([v] if isinstance(v,str) else v)
+
+
+class VisualSceneSpec(BaseModel):
+    """Description of non-text visual elements in the template."""
+    scene_description: str = Field(default="", description="Overall visual scene in prose")
+    product_placement: str = Field(default="", description="How/where product appears")
+    lifestyle_elements: List[str] = Field(default_factory=list, description="Context elements (hands, props, surfaces)")
+    visual_treatments: List[str] = Field(default_factory=list, description="Design treatments (pill badges, drop shadow, gradient)")
+    photography_style: str = Field(default="", description="Photography style (lifestyle, studio, flat lay)")
+    @field_validator("scene_description","product_placement","photography_style",mode="before")
+    @classmethod
+    def _norm_str(cls,v):return "" if v is None else v
+    @field_validator("lifestyle_elements","visual_treatments",mode="before")
+    @classmethod
+    def _norm_list(cls,v):return [] if v is None else([v] if isinstance(v,str) else v)
+
+
+class LayoutStructureSpec(BaseModel):
+    """Prose description of layout structure - no pixel coordinates."""
+    structure: str = Field(description="Layout in prose, e.g., 'Two-column: text left, lifestyle right'")
+    zones: List[str] = Field(default_factory=list, description="Named zones (header, hero, benefits, footer)")
+    hierarchy: str = Field(default="", description="Visual hierarchy description")
+    alignment: str = Field(default="", description="Alignment pattern (left-aligned, centered)")
+    @field_validator("structure","hierarchy","alignment",mode="before")
+    @classmethod
+    def _norm_str(cls,v):return "" if v is None else v
+    @field_validator("zones",mode="before")
+    @classmethod
+    def _norm_list(cls,v):return [] if v is None else([v] if isinstance(v,str) else v)
+
+
+class TemplateConstraintsSpec(BaseModel):
+    """What must vs. can change during generation."""
+    non_negotiables: List[str] = Field(default_factory=list, description="MUST preserve exactly")
+    creative_freedom: List[str] = Field(default_factory=list, description="CAN vary")
+    product_integration: str = Field(default="", description="How to integrate product into template")
+    @field_validator("product_integration",mode="before")
+    @classmethod
+    def _norm_str(cls,v):return "" if v is None else v
+    @field_validator("non_negotiables","creative_freedom",mode="before")
+    @classmethod
+    def _norm_list(cls,v):return [] if v is None else([v] if isinstance(v,str) else v)
+
+
+class TemplateAnalysisV2(BaseModel):
+    """Semantic template analysis (V2) - focuses on meaning, not geometry.
+    Captures verbatim copywriting, prose layout descriptions, and visual treatments
+    instead of pixel coordinates."""
+    version: str = Field(default="2.0", description="Analysis schema version")
+    canvas: CanvasSpec = Field(description="Canvas spec (aspect_ratio, background)")
+    style: StyleSpec = Field(default_factory=StyleSpec, description="Visual style (palette, mood, lighting)")
+    layout: LayoutStructureSpec = Field(description="Prose layout structure")
+    copywriting: CopywritingSpec = Field(default_factory=CopywritingSpec, description="Verbatim text content")
+    visual_scene: VisualSceneSpec = Field(default_factory=VisualSceneSpec, description="Non-text visual elements")
+    constraints: TemplateConstraintsSpec = Field(default_factory=TemplateConstraintsSpec, description="What can/cannot change")
 
 
 class TemplateSummary(BaseModel):
@@ -825,16 +991,14 @@ class TemplateSummary(BaseModel):
 
 class TemplateFull(BaseModel):
     """Complete template details - L1 layer loaded on demand.
-
-    Contains template images and analysis results.
-    """
+    Contains template images and analysis results."""
     slug: str = Field(description="URL-safe identifier")
     name: str = Field(description="Template name")
     description: str = Field(default="", description="Template description")
     images: List[str] = Field(default_factory=list, description="Template image paths")
     primary_image: str = Field(default="", description="Primary image path")
     default_strict: bool = Field(default=True, description="Default strict toggle state")
-    analysis: TemplateAnalysis | None = Field(default=None, description="Gemini analysis")
+    analysis: TemplateAnalysis | TemplateAnalysisV2 | None = Field(default=None, description="Gemini analysis (V1 or V2)")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Created at")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Updated at")
 

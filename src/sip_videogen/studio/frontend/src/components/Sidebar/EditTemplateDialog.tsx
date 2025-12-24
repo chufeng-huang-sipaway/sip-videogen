@@ -9,7 +9,7 @@ import{useTemplates}from'@/context/TemplateContext'
 import{useAsyncAction}from'@/hooks/useAsyncAction'
 import{processImageFiles}from'@/lib/file-utils'
 import type{ProcessedFile}from'@/lib/file-utils'
-import{bridge,isPyWebView}from'@/lib/bridge'
+import{bridge,isPyWebView,isV2Analysis}from'@/lib/bridge'
 import{ALLOWED_IMAGE_EXTS}from'@/lib/constants'
 import{toast}from'@/components/ui/toaster'
 import type{TemplateFull}from'@/lib/bridge'
@@ -77,13 +77,19 @@ const visibleExistingImages=existingImages.filter(img=>!imagesToDelete.includes(
 const isWorking=isLoading||isSaving
 const error=loadError||saveError||uploadError
 const loadingMsg=isLoading?'Loading template...':'Saving changes...'
-//Analysis summary
+//Analysis summary - handles V1 and V2
 const analysisSummary=originalTemplate?.analysis?(
 <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2 space-y-1">
 <span className="font-medium">Analysis:</span>{' '}
-<span>{originalTemplate.analysis.elements.length} elements, </span>
+{isV2Analysis(originalTemplate.analysis)?(<>
+<span>V2 semantic, </span>
+<span>{originalTemplate.analysis.copywriting.benefits.length} benefits, </span>
+<span>{originalTemplate.analysis.canvas.aspect_ratio} aspect</span>
+</>):(<>
+<span>{(originalTemplate.analysis as any).elements?.length||0} elements, </span>
 <span>{originalTemplate.analysis.canvas.aspect_ratio} aspect, </span>
-<span>{originalTemplate.analysis.product_slot?'has product slot':'no product slot'}</span>
+<span>{(originalTemplate.analysis as any).product_slot?'has product slot':'no product slot'}</span>
+</>)}
 </div>):null
 return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Template" description="Update template details and images." icon={<Layout className="h-5 w-5"/>} iconColor="text-indigo-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button>

@@ -386,43 +386,69 @@ class TemplateContextBuilder:
 **Mode**: {'Strict' if self.strict else 'Loose'}
 *Analysis pending - template not yet analyzed.*
 """
-        return self._build_analyzed_context(t.name,t.slug,t.description or"",analysis)
-    def _build_analyzed_context(self,name:str,slug:str,description:str,analysis:"TemplateAnalysis")->str:
-        """Build context from analyzed template."""
+        #Detect V2 vs V1 analysis
+        is_v2=getattr(analysis,"version","1.0")=="2.0"
+        if is_v2:return self._build_v2_context(t.name,t.slug,t.description or"",analysis)
+        return self._build_v1_context(t.name,t.slug,t.description or"",analysis)
+    def _build_v2_context(self,name:str,slug:str,description:str,analysis)->str:
+        """Build context from V2 semantic analysis."""
+        mode_label="Strict" if self.strict else "Loose"
+        canvas=analysis.canvas
+        style=analysis.style
+        layout=analysis.layout
+        copy=analysis.copywriting
+        scene=analysis.visual_scene
+        #Summary info
+        canvas_info=f"**Canvas**: {canvas.aspect_ratio} aspect"
+        layout_info=f"**Layout**: {layout.structure}"
+        #Copywriting summary
+        copy_items=[]
+        if copy.headline:copy_items.append("headline")
+        if copy.benefits:copy_items.append(f"{len(copy.benefits)} benefits")
+        if copy.disclaimer:copy_items.append("disclaimer")
+        copy_info=f"**Copywriting**: {', '.join(copy_items)}" if copy_items else"**Copywriting**: none"
+        #Visual treatments
+        treatments_info=f"**Visual Treatments**: {', '.join(scene.visual_treatments[:3])}" if scene.visual_treatments else""
+        #Build constraints using V2 builder
+        from sip_videogen.advisor.template_prompt import build_template_constraints_v2
+        constraints=build_template_constraints_v2(analysis,strict=self.strict)
+        return f"""### Template: {name}
+**Slug**: `{slug}`
+**Description**: {description}
+**Mode**: {mode_label}
+
+{canvas_info}
+{layout_info}
+{copy_info}
+{treatments_info}
+
+{constraints}
+"""
+    def _build_v1_context(self,name:str,slug:str,description:str,analysis)->str:
+        """Build context from V1 geometry analysis (deprecated)."""
         mode_label="Strict" if self.strict else "Loose"
         canvas=analysis.canvas
         style=analysis.style
         message=analysis.message
         elements=analysis.elements
         product_slot=analysis.product_slot
-        #Canvas info
         canvas_info=f"**Canvas**: {canvas.aspect_ratio} aspect, {canvas.background} background"
-        #Style summary
         palette_str=", ".join(style.palette[:4]) if style.palette else"(not defined)"
         style_info=f"**Style**: {style.mood} mood, {style.lighting} lighting\n**Palette**: {palette_str}"
-        #Message intent
         message_info=f"**Intent**: {message.intent}\n**Audience**: {message.audience}"
-        if message.key_claims:
-            message_info+=f"\n**Key Claims**: {', '.join(message.key_claims[:3])}"
-        #Element summary
+        if message.key_claims:message_info+=f"\n**Key Claims**: {', '.join(message.key_claims[:3])}"
         elem_types=[e.type for e in elements]
         elem_summary=f"**Elements**: {len(elements)} layout elements"
         if elem_types:
             from collections import Counter
             type_counts=Counter(elem_types)
             elem_summary+=f" ({', '.join(f'{v}x {k}' for k,v in type_counts.most_common(3))})"
-        #Product slot info
         slot_info=""
         if product_slot:
             geo=product_slot.geometry
-            slot_info=f"""**Product Slot**: id=`{product_slot.id}`
-  Position: ({geo.x:.0%}, {geo.y:.0%}), Size: ({geo.width:.0%} × {geo.height:.0%})
-  Scale Mode: {product_slot.interaction.scale_mode}"""
-        #Build constraints based on strict/loose mode
-        if self.strict:
-            constraints=self._build_strict_constraints(analysis)
-        else:
-            constraints=self._build_loose_constraints(analysis)
+            slot_info=f"**Product Slot**: id=`{product_slot.id}`, Position: ({geo.x:.0%}, {geo.y:.0%})"
+        from sip_videogen.advisor.template_prompt import build_template_constraints
+        constraints=build_template_constraints(analysis,strict=self.strict)
         return f"""### Template: {name}
 **Slug**: `{slug}`
 **Description**: {description}
@@ -436,14 +462,6 @@ class TemplateContextBuilder:
 
 {constraints}
 """
-    def _build_strict_constraints(self,analysis:"TemplateAnalysis")->str:
-        """Build strict mode constraints - exact reproduction."""
-        from sip_videogen.advisor.template_prompt import build_template_constraints
-        return build_template_constraints(analysis,strict=True)
-    def _build_loose_constraints(self,analysis:"TemplateAnalysis")->str:
-        """Build loose mode constraints - allow variation while preserving intent."""
-        from sip_videogen.advisor.template_prompt import build_template_constraints
-        return build_template_constraints(analysis,strict=False)
 def build_template_context(brand_slug:str,template_slug:str,strict:bool=True)->str:
     """Convenience function to build template context.
     Args:

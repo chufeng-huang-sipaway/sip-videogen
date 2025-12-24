@@ -166,13 +166,57 @@ export interface ProductSlot {
   appearance: AppearanceSpec
   interaction: InteractionSpec
 }
-export interface TemplateAnalysis {
+//V1 Template Analysis (geometry-focused, deprecated)
+export interface TemplateAnalysisV1 {
   version: string
   canvas: CanvasSpec
   message: MessageSpec
   style: StyleSpec
   elements: LayoutElement[]
   product_slot: ProductSlot | null
+}
+//V2 Template Analysis (semantic-focused)
+export interface CopywritingSpec {
+  headline: string
+  subheadline: string
+  body_texts: string[]
+  benefits: string[]
+  cta: string
+  disclaimer: string
+  tagline: string
+}
+export interface VisualSceneSpec {
+  scene_description: string
+  product_placement: string
+  lifestyle_elements: string[]
+  visual_treatments: string[]
+  photography_style: string
+}
+export interface LayoutStructureSpec {
+  structure: string
+  zones: string[]
+  hierarchy: string
+  alignment: string
+}
+export interface TemplateConstraintsSpec {
+  non_negotiables: string[]
+  creative_freedom: string[]
+  product_integration: string
+}
+export interface TemplateAnalysisV2 {
+  version: string
+  canvas: CanvasSpec
+  style: StyleSpec
+  layout: LayoutStructureSpec
+  copywriting: CopywritingSpec
+  visual_scene: VisualSceneSpec
+  constraints: TemplateConstraintsSpec
+}
+//Union type for both versions
+export type TemplateAnalysis = TemplateAnalysisV1 | TemplateAnalysisV2
+//Type guard to check if analysis is V2
+export function isV2Analysis(analysis: TemplateAnalysis): analysis is TemplateAnalysisV2 {
+  return analysis.version === '2.0'
 }
 export interface TemplateSummary {
   slug: string

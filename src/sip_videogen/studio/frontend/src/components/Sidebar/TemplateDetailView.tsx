@@ -1,10 +1,10 @@
 //TemplateDetailView for displaying full template details with analysis
 import{useState,useEffect,useCallback}from'react'
-import{Layout,Star,Loader2,RefreshCw,Pencil,Trash2,Lock,Unlock,X,ChevronDown,ChevronRight,AlertCircle}from'lucide-react'
+import{Layout,Star,Loader2,RefreshCw,Pencil,Trash2,Lock,Unlock,X,ChevronDown,ChevronRight}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{Alert,AlertDescription}from'@/components/ui/alert'
 import{useTemplates}from'@/context/TemplateContext'
-import{bridge,isPyWebView,type TemplateFull,type TemplateAnalysis}from'@/lib/bridge'
+import{bridge,isPyWebView,type TemplateFull,type TemplateAnalysis,type TemplateAnalysisV1,type TemplateAnalysisV2,isV2Analysis}from'@/lib/bridge'
 import{toast}from'@/components/ui/toaster'
 interface TemplateDetailViewProps{
 templateSlug:string
@@ -32,17 +32,69 @@ return(<div className="border-b border-border/50 last:border-b-0">
 </button>
 {open&&<div className="pb-3 px-1">{children}</div>}
 </div>)}
-//Analysis summary component
+//Analysis summary component - handles both V1 and V2
 function AnalysisSummary({analysis}:{analysis:TemplateAnalysis}){
+if(isV2Analysis(analysis))return<AnalysisSummaryV2 analysis={analysis}/>
+return<AnalysisSummaryV1 analysis={analysis as TemplateAnalysisV1}/>}
+//V2 Analysis display (semantic)
+function AnalysisSummaryV2({analysis}:{analysis:TemplateAnalysisV2}){
+const{canvas,style,layout,copywriting,visual_scene,constraints}=analysis
+return(<div className="space-y-1.5">
+<div className="text-xs font-medium text-primary mb-2">V2 Semantic Analysis</div>
+<DetailSection title="Layout" defaultOpen={true}>
+<div className="space-y-1 text-xs">
+<div><span className="text-muted-foreground">Structure: </span><span className="font-medium">{layout.structure}</span></div>
+{layout.hierarchy&&<div><span className="text-muted-foreground">Hierarchy: </span><span>{layout.hierarchy}</span></div>}
+{layout.alignment&&<div><span className="text-muted-foreground">Alignment: </span><span>{layout.alignment}</span></div>}
+{layout.zones.length>0&&<div><span className="text-muted-foreground">Zones: </span><span>{layout.zones.join(', ')}</span></div>}
+</div>
+</DetailSection>
+<DetailSection title={`Copywriting (${copywriting.benefits.length} benefits)`} defaultOpen={true}>
+<div className="space-y-1 text-xs">
+{copywriting.headline&&<div><span className="text-muted-foreground">Headline: </span><span className="font-medium">"{copywriting.headline}"</span></div>}
+{copywriting.subheadline&&<div><span className="text-muted-foreground">Subheadline: </span><span>"{copywriting.subheadline}"</span></div>}
+{copywriting.benefits.length>0&&(<div className="space-y-0.5"><span className="text-muted-foreground">Benefits:</span>
+{copywriting.benefits.slice(0,5).map((b,i)=>(<div key={i} className="pl-2 truncate">• {b}</div>))}
+{copywriting.benefits.length>5&&<div className="pl-2 text-muted-foreground">+{copywriting.benefits.length-5} more</div>}
+</div>)}
+{copywriting.cta&&<div><span className="text-muted-foreground">CTA: </span><span>"{copywriting.cta}"</span></div>}
+{copywriting.disclaimer&&<div className="truncate"><span className="text-muted-foreground">Disclaimer: </span><span className="text-[10px]">{copywriting.disclaimer.slice(0,50)}...</span></div>}
+</div>
+</DetailSection>
+<DetailSection title="Visual Scene">
+<div className="space-y-1 text-xs">
+{visual_scene.scene_description&&<div><span className="text-muted-foreground">Scene: </span><span>{visual_scene.scene_description}</span></div>}
+{visual_scene.product_placement&&<div><span className="text-muted-foreground">Product: </span><span>{visual_scene.product_placement}</span></div>}
+{visual_scene.photography_style&&<div><span className="text-muted-foreground">Style: </span><span>{visual_scene.photography_style}</span></div>}
+{visual_scene.visual_treatments.length>0&&<div><span className="text-muted-foreground">Treatments: </span><span>{visual_scene.visual_treatments.join(', ')}</span></div>}
+</div>
+</DetailSection>
+<DetailSection title="Style">
+<div className="space-y-1 text-xs">
+<div><span className="text-muted-foreground">Mood: </span><span>{style.mood}</span></div>
+<div><span className="text-muted-foreground">Lighting: </span><span>{style.lighting}</span></div>
+{style.palette.length>0&&(<div className="flex items-center gap-1.5">
+<span className="text-muted-foreground">Palette:</span>
+{style.palette.slice(0,5).map((c,i)=>(<div key={i} className="h-3 w-3 rounded-sm border border-border/50" style={{backgroundColor:c}} title={c}/>))}
+</div>)}
+</div>
+</DetailSection>
+{constraints.non_negotiables.length>0&&(<DetailSection title="Non-Negotiables">
+<div className="space-y-0.5 text-xs">
+{constraints.non_negotiables.slice(0,4).map((n,i)=>(<div key={i} className="truncate">• {n}</div>))}
+</div>
+</DetailSection>)}
+<div className="text-xs text-muted-foreground mt-2">Canvas: {canvas.aspect_ratio}</div>
+</div>)}
+//V1 Analysis display (geometry, deprecated)
+function AnalysisSummaryV1({analysis}:{analysis:TemplateAnalysisV1}){
 const{canvas,style,elements,product_slot,message}=analysis
 return(<div className="space-y-1.5">
+<div className="text-xs font-medium text-amber-500 mb-2">V1 Analysis (legacy)</div>
 <DetailSection title="Canvas" defaultOpen={true}>
 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
 <span className="text-muted-foreground">Aspect:</span><span className="font-medium">{canvas.aspect_ratio}</span>
 <span className="text-muted-foreground">Background:</span><span className="font-medium truncate">{canvas.background}</span>
-{canvas.width&&canvas.height&&(<>
-<span className="text-muted-foreground">Size:</span><span className="font-medium">{canvas.width}×{canvas.height}</span>
-</>)}
 </div>
 </DetailSection>
 <DetailSection title="Message">
@@ -59,9 +111,7 @@ return(<div className="space-y-1.5">
 {style.palette.length>0&&(<div className="flex items-center gap-1.5">
 <span className="text-muted-foreground">Palette:</span>
 {style.palette.slice(0,5).map((c,i)=>(<div key={i} className="h-3 w-3 rounded-sm border border-border/50" style={{backgroundColor:c}} title={c}/>))}
-{style.palette.length>5&&<span className="text-muted-foreground">+{style.palette.length-5}</span>}
 </div>)}
-{style.materials.length>0&&(<div><span className="text-muted-foreground">Materials: </span><span>{style.materials.join(', ')}</span></div>)}
 </div>
 </DetailSection>
 <DetailSection title={`Elements (${elements.length})`}>
@@ -73,16 +123,12 @@ return(<div className="space-y-1.5">
 {elements.length>6&&<div className="text-xs text-muted-foreground">+{elements.length-6} more</div>}
 </div>
 </DetailSection>
-{product_slot?(<DetailSection title="Product Slot">
+{product_slot&&(<DetailSection title="Product Slot">
 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
 <span className="text-muted-foreground">ID:</span><span className="font-mono">{product_slot.id}</span>
-<span className="text-muted-foreground">Position:</span><span>{Math.round(product_slot.geometry.x)}%, {Math.round(product_slot.geometry.y)}%</span>
-<span className="text-muted-foreground">Size:</span><span>{Math.round(product_slot.geometry.width)}×{Math.round(product_slot.geometry.height)}</span>
 <span className="text-muted-foreground">Mode:</span><span>{product_slot.interaction.replacement_mode}</span>
 </div>
-</DetailSection>):(<div className="py-2 text-xs text-amber-500 flex items-center gap-1.5">
-<AlertCircle className="h-3 w-3"/>No product slot defined
-</div>)}
+</DetailSection>)}
 </div>)}
 export function TemplateDetailView({templateSlug,onEdit,onDelete,onClose}:TemplateDetailViewProps){
 const{getTemplate,getTemplateImages,reanalyzeTemplate,deleteTemplate}=useTemplates()

@@ -1,5 +1,6 @@
-"""Template analyzer for extracting layout geometry using Gemini Vision.
-Analyzes template images to extract: canvas specs, layout elements, visual style, message intent, product slot.
+"""Template analyzer for extracting layout using Gemini Vision.
+V1: Geometry-focused (deprecated)
+V2: Semantic-focused - verbatim copywriting, prose layout, visual treatments
 """
 import json
 from pathlib import Path
@@ -9,7 +10,7 @@ from PIL import Image as PILImage
 from tenacity import retry,stop_after_attempt,wait_exponential
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
-from sip_videogen.brands.models import TemplateAnalysis
+from sip_videogen.brands.models import TemplateAnalysis,TemplateAnalysisV2
 logger=get_logger(__name__)
 _ANALYSIS_PROMPT="""Analyze this template image and extract its complete layout specification.
 Return a JSON object with this exact structure:
@@ -166,3 +167,118 @@ async def analyze_template_from_paths(image_paths:list[str])->TemplateAnalysis|N
         TemplateAnalysis or None.
     """
     return await analyze_template([Path(p) for p in image_paths])
+
+
+#V2 Semantic Analysis - focuses on meaning, not geometry
+_ANALYSIS_PROMPT_V2="""Analyze this template image and extract its SEMANTIC structure.
+Focus on MEANING and REPRODUCTION, not pixel coordinates.
+
+Return a JSON object with this exact structure:
+{
+  "version": "2.0",
+  "canvas": {
+    "aspect_ratio": "1:1" | "16:9" | "9:16" | "4:5" | "...",
+    "background": "description of background (color, gradient, texture)"
+  },
+  "style": {
+    "palette": ["#hex1", "#hex2", ...],
+    "lighting": "lighting style description",
+    "mood": "overall mood/aesthetic",
+    "materials": ["material1", "material2"]
+  },
+  "layout": {
+    "structure": "Prose description of layout. Examples: 'Two-column split: text content stacked on left half, lifestyle photography on right half', 'Hero-centered: large product centered with headline above and benefits below', 'Full-bleed background with text overlay in bottom third'",
+    "zones": ["List named zones: 'headline zone', 'benefits area', 'product hero', 'footer'"],
+    "hierarchy": "What draws the eye first, second, third? Describe the visual flow.",
+    "alignment": "Alignment pattern: 'left-aligned text, right-aligned imagery' or 'centered'"
+  },
+  "copywriting": {
+    "headline": "EXACT headline text, CHARACTER-FOR-CHARACTER as shown in image",
+    "subheadline": "EXACT subheadline if present, CHARACTER-FOR-CHARACTER",
+    "body_texts": ["Each line of body copy EXACTLY as written, preserve punctuation"],
+    "benefits": ["Each benefit statement EXACTLY as written, preserve asterisks/daggers"],
+    "cta": "Call-to-action text EXACTLY as written",
+    "disclaimer": "Any fine print or disclaimers EXACTLY as written, preserve line breaks",
+    "tagline": "Brand tagline if visible"
+  },
+  "visual_scene": {
+    "scene_description": "Describe the overall visual scene: What is depicted? What's the setting? What's the atmosphere? Be specific about what the viewer sees.",
+    "product_placement": "How does the product appear? Examples: 'Product jar held in hands over a blender', 'Product centered on marble surface', 'Product floating with ingredients around it'",
+    "lifestyle_elements": ["List contextual elements: 'female hands', 'blender with ingredients', 'marble countertop', 'morning light through window'"],
+    "visual_treatments": ["List specific design treatments: 'rounded pill badges for benefit list', 'soft drop shadow under product', 'gradient overlay on background image', 'white rounded rectangles behind each benefit'"],
+    "photography_style": "Photography style: 'lifestyle with human interaction', 'clean studio shot', 'flat lay overhead', 'environmental product shot'"
+  },
+  "constraints": {
+    "non_negotiables": [
+      "All copywriting text must appear VERBATIM - exact wording, punctuation, symbols",
+      "Benefit statements must appear in exact order shown",
+      "Layout structure (e.g., 'two-column split') must be preserved",
+      "Visual treatments (e.g., 'pill badges for benefits') must be replicated"
+    ],
+    "creative_freedom": [
+      "Background scene details can vary (different setting, different props)",
+      "Exact colors can shift within palette family",
+      "Human model styling can change",
+      "Specific lifestyle props can change (different blender, different surface)"
+    ],
+    "product_integration": "How to place the product: 'Product replaces existing product in the hero area on right side, maintaining similar scale and orientation'"
+  }
+}
+
+CRITICAL INSTRUCTIONS:
+1. **VERBATIM TEXT**: Extract ALL text CHARACTER-FOR-CHARACTER. Include asterisks (*), daggers (†), trademark symbols (®), etc. Do NOT paraphrase. Do NOT summarize.
+2. **PROSE LAYOUT**: Describe layout in words ('left half', 'right third'), NOT coordinates (x=0.33)
+3. **VISUAL TREATMENTS**: Name specific design techniques ('rounded pill badges', 'soft shadow', 'gradient overlay')
+4. **NON-NEGOTIABLES**: Identify what makes this template work - what MUST be preserved for it to look like the original
+5. **BENEFITS ORDER**: If there are numbered or ordered benefit statements, preserve their exact order
+
+Return ONLY valid JSON, no markdown formatting."""
+
+_MULTI_IMAGE_PROMPT_V2="""Analyze these template images together.
+They represent variations of the same layout template.
+Identify the COMMON semantic pattern across all images.
+"""+_ANALYSIS_PROMPT_V2
+
+
+@retry(stop=stop_after_attempt(3),wait=wait_exponential(multiplier=1,min=4,max=60),reraise=True)
+async def analyze_template_v2(images:list[Path|bytes])->TemplateAnalysisV2|None:
+    """Analyze template image(s) using V2 semantic analysis.
+    Args:
+        images: List of image paths or raw bytes (1-2 images).
+    Returns:
+        TemplateAnalysisV2 with semantic layout, or None if analysis fails.
+    """
+    if not images:
+        logger.warning("No images provided for template analysis")
+        return None
+    try:
+        settings=get_settings()
+        client=genai.Client(api_key=settings.gemini_api_key,vertexai=False)
+        pil_imgs=[]
+        for img in images:
+            if isinstance(img,bytes):
+                import io
+                pil_imgs.append(PILImage.open(io.BytesIO(img)))
+            else:
+                pil_imgs.append(PILImage.open(img))
+        img_info=", ".join(f"{i.size[0]}x{i.size[1]}" for i in pil_imgs)
+        logger.debug(f"Analyzing {len(pil_imgs)} template image(s) with V2: {img_info}")
+        prompt=_MULTI_IMAGE_PROMPT_V2 if len(pil_imgs)>1 else _ANALYSIS_PROMPT_V2
+        contents=[prompt]+pil_imgs
+        resp=client.models.generate_content(model="gemini-2.0-flash",contents=contents,config=types.GenerateContentConfig(temperature=0.1))
+        txt=_strip_md(resp.text.strip())
+        data=json.loads(txt)
+        analysis=TemplateAnalysisV2(**data)
+        logger.info(f"V2 analysis complete: canvas={analysis.canvas.aspect_ratio}, copywriting_items={len(analysis.copywriting.benefits)}, treatments={len(analysis.visual_scene.visual_treatments)}")
+        return analysis
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse V2 Gemini response as JSON: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"V2 template analysis failed: {e}")
+        return None
+
+
+async def analyze_template_v2_from_paths(image_paths:list[str])->TemplateAnalysisV2|None:
+    """Convenience wrapper for V2 accepting string paths."""
+    return await analyze_template_v2([Path(p) for p in image_paths])
