@@ -82,8 +82,27 @@ interface WorkstationState {
 - Image should be centered and maintain aspect ratio
 - No stretching or distortion
 
+#### Task 4: ThumbnailStrip Component ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/ThumbnailStrip.tsx` - Horizontal thumbnail navigation
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Integrated ThumbnailStrip
+
+**Features:**
+- Displays 64x64 thumbnails for all images in currentBatch
+- Highlights currently selected thumbnail with border and shadow
+- Click on thumbnail updates selectedIndex in context
+- Horizontal scrolling when thumbnails overflow
+- Only shown when batch has more than one image
+
+**Verification:**
+- Add 5-10 test images to the context
+- Thumbnails appear in horizontal row below main image
+- Clicking a thumbnail changes the main image
+- Selected thumbnail has visible highlight
+- Horizontal scroll works when thumbnails overflow
+
 ### Pending Tasks
-- Task 4: ThumbnailStrip Component
 - Task 5: Backend Image Status Service
 - Task 6: Bridge Methods for Image Status
 - Task 7: Wire Generation Results to Workstation
@@ -106,6 +125,7 @@ interface WorkstationState {
 1. `30cb294` - feat(workstation): Add three-column layout foundation
 2. `b13ab2b` - feat(workstation): Add WorkstationContext for state management
 3. `e3cdcf6` - feat(workstation): Add ImageDisplay component
+4. `77ccd0a` - feat(workstation): Add ThumbnailStrip component for batch navigation
 
 ## Related Files
 
@@ -119,3 +139,4 @@ interface WorkstationState {
 3. Verify existing sidebar functionality still works
 4. Verify chat functionality still works
 5. (For Task 3) Add test images to context and verify ImageDisplay works
+6. (For Task 4) Add multiple test images to context and verify ThumbnailStrip appears and works
