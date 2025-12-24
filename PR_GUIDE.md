@@ -257,8 +257,26 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Right-click on kept image shows context menu with unkeep option
 - Trash icon visible in sidebar footer
 
+#### Task 10: EmptyState Component ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/EmptyState.tsx` - Empty state display
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Integrated EmptyState
+
+**Features:**
+- Displays when `currentBatch` is empty
+- Centered message: "No images to review"
+- Subtitle: "Generate images using the chat, or select from sidebar"
+- Clean, minimal design with image icon
+- Matches existing app visual style
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- When no images in batch, empty state displays
+- After curating all images, empty state appears
+- Text is centered and readable
+
 ### Pending Tasks
-- Task 10: EmptyState Component
 - Task 11: ComparisonView Component
 - Task 12: ContextPanel Component
 - Task 13: Chat Panel Compact Mode
@@ -281,6 +299,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 7. `fe89309` - feat(workstation): Wire generation results to workstation display
 8. `c0d4f4c` - feat(workstation): Add SwipeContainer for keep/trash gestures
 9. `e2199ec` - feat(workstation): Add Kept section and trash icon to sidebar
+10. `13c94b9` - feat(workstation): Add EmptyState component for empty workstation
 
 ## Related Files
 
@@ -300,3 +319,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 9. (For Task 7) Generate images via chat - images should appear in workstation automatically
 10. (For Task 8) Drag images left/right to test swipe gestures for keep/trash curation
 11. (For Task 9) After keeping images via swipe, check Sidebar "Kept" section - images should appear there
+12. (For Task 10) When no images are in batch, verify empty state displays with helpful message
