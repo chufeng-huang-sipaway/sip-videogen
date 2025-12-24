@@ -71,6 +71,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     attachments,
     sendMessage,
     clearMessages,
+    cancelGeneration,
     regenerateMessage,
     resolveInteraction,
     addFilesAsAttachments,
@@ -353,21 +354,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
         <MessageInput
           disabled={isLoading || !brandSlug}
-          placeholder={
-            brandSlug
-              ? activeProjectEntry
-                ? `Ask me to create something for ${activeProjectEntry.name}...`
-                : 'Ask me to create something...'
-              : 'Select a brand to start...'
-          }
-          onSend={async (text) => {
-            await sendMessage(text, {
-              project_slug: activeProject,
-              attached_products: attachedProducts.length > 0 ? attachedProducts : undefined,
-              attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined,
-            })
-            await refreshProducts()
-          }}
+          isGenerating={isLoading}
+          onCancel={cancelGeneration}
+          placeholder={brandSlug ? (activeProjectEntry ? `Ask me to create something for ${activeProjectEntry.name}...` : 'Ask me to create something...') : 'Select a brand to start...'}
+          onSend={async (text) => { await sendMessage(text, { project_slug: activeProject, attached_products: attachedProducts.length > 0 ? attachedProducts : undefined, attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined }); await refreshProducts() }}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
           onOpenProductPicker={() => setIsProductPickerOpen(true)}

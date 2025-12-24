@@ -303,6 +303,14 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
 
+  const cancelGeneration = useCallback(async () => {
+    if (!isLoading) return
+    try { if (isPyWebView()) await bridge.cancelGeneration() } catch { /* ignore */ }
+    if (progressInterval.current) { clearInterval(progressInterval.current); progressInterval.current = null }
+    setProgress(''); setProgressType(''); setLoadedSkills([]); setIsLoading(false)
+    setMessages(prev => prev.map(m => m.status === 'sending' ? { ...m, content: 'Generation cancelled.', status: 'sent' } : m))
+  }, [isLoading])
+
   const regenerateMessage = useCallback(async (assistantMessageId: string) => {
     if (isLoading || !brandSlug) return
 
@@ -351,6 +359,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     attachments,
     sendMessage,
     clearMessages,
+    cancelGeneration,
     regenerateMessage,
     resolveInteraction,
     addFilesAsAttachments,

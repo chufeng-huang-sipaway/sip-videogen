@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, Plus, Image, Package } from 'lucide-react'
-
+import { ArrowUp, Plus, Image, Package, Square, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-
 interface MessageInputProps {
   disabled?: boolean
   placeholder?: string
@@ -18,6 +11,8 @@ interface MessageInputProps {
   onSelectImages?: (files: File[]) => void
   onOpenProductPicker?: () => void
   hasProducts?: boolean
+  isGenerating?: boolean
+  onCancel?: () => void
 }
 
 export function MessageInput({
@@ -28,6 +23,8 @@ export function MessageInput({
   onSelectImages,
   onOpenProductPicker,
   hasProducts = false,
+  isGenerating = false,
+  onCancel,
 }: MessageInputProps) {
   const [message, setMessage] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -123,15 +120,18 @@ export function MessageInput({
         />
 
         <div className="flex items-center shrink-0">
-          <Button
-            type="button"
-            size="icon"
-            onClick={submit}
-            disabled={disabled || (!message.trim() && !canSendWithoutText)}
-            className="h-10 w-10 rounded-full shrink-0 transition-all duration-200 bg-foreground text-background hover:bg-foreground/90 active:scale-95 disabled:opacity-20 disabled:bg-muted disabled:text-muted-foreground shadow-sm"
-          >
-            <ArrowUp className="h-5 w-5" strokeWidth={2} />
-          </Button>
+          {isGenerating ? (
+            <Button type="button" size="icon" onClick={onCancel} className="h-10 w-10 rounded-full shrink-0 transition-all duration-200 bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 shadow-sm" title="Cancel generation">
+              <div className="relative">
+                <Loader2 className="h-5 w-5 animate-spin absolute inset-0 opacity-30" strokeWidth={2} />
+                <Square className="h-3 w-3" strokeWidth={2} fill="currentColor" />
+              </div>
+            </Button>
+          ) : (
+            <Button type="button" size="icon" onClick={submit} disabled={disabled || (!message.trim() && !canSendWithoutText)} className="h-10 w-10 rounded-full shrink-0 transition-all duration-200 bg-foreground text-background hover:bg-foreground/90 active:scale-95 disabled:opacity-20 disabled:bg-muted disabled:text-muted-foreground shadow-sm">
+              <ArrowUp className="h-5 w-5" strokeWidth={2} />
+            </Button>
+          )}
         </div>
       </div>
     </div>
