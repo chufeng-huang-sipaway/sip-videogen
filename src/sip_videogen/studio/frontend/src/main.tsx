@@ -5,6 +5,7 @@ import {BrandProvider} from '@/context/BrandContext'
 import {ProductProvider} from '@/context/ProductContext'
 import {ProjectProvider} from '@/context/ProjectContext'
 import {TemplateProvider} from '@/context/TemplateContext'
+import {WorkstationProvider} from '@/context/WorkstationContext'
 import './index.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
 <React.StrictMode>
@@ -12,7 +13,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 <ProjectProvider>
 <ProductProvider>
 <TemplateProvider>
+<WorkstationProvider>
 <App/>
+</WorkstationProvider>
 </TemplateProvider>
 </ProductProvider>
 </ProjectProvider>
