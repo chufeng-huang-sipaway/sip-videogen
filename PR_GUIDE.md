@@ -299,8 +299,32 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - "Source not available" placeholder shown when sourceTemplatePath is missing
 - Toggle off returns to single swipe view
 
+#### Task 12: ContextPanel Component ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/ContextPanel.tsx` - Image metadata panel
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Integrated ContextPanel
+
+**Features:**
+- Collapsed by default with info icon button in top-right corner
+- Click to expand panel showing:
+  - Prompt used to generate the image
+  - Source template filename (if available)
+  - Timestamp of generation
+- "Copy" button to copy prompt text to clipboard
+- Panel styled as overlay with backdrop blur
+- Does not obstruct main image view
+- Can be collapsed again with X button
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Info icon button visible in top-right corner when images loaded
+- Click expands panel with metadata
+- Prompt, source, timestamp displayed correctly
+- Copy button copies prompt to clipboard
+- Panel can be collapsed again
+
 ### Pending Tasks
-- Task 12: ContextPanel Component
 - Task 13: Chat Panel Compact Mode
 - Task 14: Input Lock During Generation
 - Task 15: Export Actions
@@ -323,6 +347,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 9. `e2199ec` - feat(workstation): Add Kept section and trash icon to sidebar
 10. `13c94b9` - feat(workstation): Add EmptyState component for empty workstation
 11. `6cc1462` - feat(workstation): Add ComparisonView for side-by-side image comparison
+12. `c82df7a` - feat(workstation): Add ContextPanel for image metadata display
 
 ## Related Files
 
@@ -344,3 +369,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 11. (For Task 9) After keeping images via swipe, check Sidebar "Kept" section - images should appear there
 12. (For Task 10) When no images are in batch, verify empty state displays with helpful message
 13. (For Task 11) With images loaded, click Compare toggle - view should split 50/50 with Generated/Original labels
+14. (For Task 12) Click info icon in top-right corner - panel should expand with prompt, source, timestamp; Copy button should copy prompt
