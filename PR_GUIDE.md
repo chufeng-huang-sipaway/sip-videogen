@@ -346,8 +346,30 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - No large image previews cluttering the chat panel
 - Chat panel width already set at 320px in App.tsx
 
+#### Task 14: Input Lock During Generation ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/ChatPanel/MessageInput.tsx` - Added isGenerating and onCancel props
+- Updated `src/sip_videogen/studio/frontend/src/hooks/useChat.ts` - Added cancelGeneration function
+- Updated `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx` - Wired cancel to MessageInput
+
+**Features:**
+- Input field disabled during generation (prevents double-submission)
+- Send button transforms to Cancel button with spinning loader during generation
+- Cancel button has stop icon with animated spinner ring
+- Click Cancel stops progress polling, clears loading state
+- Pending assistant message updated to "Generation cancelled."
+- Calls `bridge.cancelGeneration()` to signal backend (placeholder for future)
+- State resets on app restart (React state not persisted)
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Start generation → input becomes disabled, send button changes to red cancel button with spinner
+- Click Cancel → generation stops, message shows "Generation cancelled."
+- Generation completes normally → input unlocks
+- Restart app → input is unlocked (fresh React state)
+
 ### Pending Tasks
-- Task 14: Input Lock During Generation
 - Task 15: Export Actions
 - Task 16: Trash Management UI
 - Task 17: Migration and First Launch
@@ -370,6 +392,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 11. `6cc1462` - feat(workstation): Add ComparisonView for side-by-side image comparison
 12. `c82df7a` - feat(workstation): Add ContextPanel for image metadata display
 13. `5686d10` - feat(workstation): Add compact mode for chat panel image gallery
+14. `bcfb7c1` - feat(workstation): Add input lock during generation with cancel button
 
 ## Related Files
 
@@ -393,3 +416,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 13. (For Task 11) With images loaded, click Compare toggle - view should split 50/50 with Generated/Original labels
 14. (For Task 12) Click info icon in top-right corner - panel should expand with prompt, source, timestamp; Copy button should copy prompt
 15. (For Task 13) Generate images via chat - compact "Generated N images" displays with tiny thumbnails; clicking opens in Workstation
+16. (For Task 14) Start generation - input should disable, send button becomes cancel with spinner; clicking Cancel stops and shows "Generation cancelled."
