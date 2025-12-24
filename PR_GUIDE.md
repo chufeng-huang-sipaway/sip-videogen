@@ -474,8 +474,36 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Wait 5 seconds → toast disappears
 - New swipe action replaces existing toast
 
+#### Task 19: Animations and Polish ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/ImageDisplay.tsx` - Added fade-in transition and loading spinner
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/SwipeContainer.tsx` - Added slide-out animation
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/ThumbnailStrip.tsx` - Added fade-in and hover effects
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/EmptyState.tsx` - Added fade-in animation
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/ComparisonView.tsx` - Added loading spinners and transitions
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/TrashView.tsx` - Added loading states and transitions
+
+**Features:**
+- Image transitions: fade-in with subtle scale animation when switching between images
+- Slide-out animation: when swiping past threshold, image flies off screen with rotation and opacity fade
+- Loading spinners: Loader2 spinner shown while images are loading
+- Thumbnail animations: fade-in on load, hover scale effect (105%)
+- EmptyState: fade-in animation on mount with icon scale effect
+- ComparisonView: both images have loading spinners and fade-in transitions
+- TrashView: loading states, fade-in transitions, and hover effects on buttons
+- All animations use CSS transitions with will-change hints for 60fps performance
+- Cubic-bezier easing for smooth, natural motion
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Image transitions feel smooth when switching between images
+- Swipe animation looks natural (image flies off screen with rotation)
+- No jank or stuttering during animations
+- Loading spinners appear while images load
+- All hover effects work smoothly
+
 ### Pending Tasks
-- Task 19: Animations and Polish
 - Task 20: Testing and Edge Cases
 
 ## Commits
@@ -498,6 +526,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 16. `0d8ee53` - feat(workstation): Add trash management UI with restore and empty
 17. `6ad793c` - feat(workstation): Add migration and first launch backfill
 18. `6690dfc` - feat(workstation): Add undo toast for keep/trash actions
+19. `fb7c609` - feat(workstation): Add smooth animations and visual polish
 
 ## Related Files
 
@@ -526,3 +555,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 18. (For Task 16) Click trash icon in sidebar footer → trash view opens; each image shows days remaining; Restore and Empty Trash buttons work
 19. (For Task 17) Delete `~/.sip-videogen/brands/{slug}/image_status.json`, select that brand → existing images should auto-appear in workstation
 20. (For Task 18) Swipe to keep → toast appears with "Undo" button; click Undo → image returns to batch; wait 5 seconds → toast auto-dismisses
+21. (For Task 19) Switch between images - smooth fade-in transition with loading spinner; swipe past threshold → image flies off screen with rotation animation; all animations at 60fps
