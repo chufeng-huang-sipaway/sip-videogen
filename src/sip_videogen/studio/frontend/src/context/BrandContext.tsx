@@ -30,7 +30,7 @@ try{const result=await bridge.getBrandIdentity();applyIdentity(result)
 }catch(err){setIdentityError(err instanceof Error?err.message:'Failed to load brand identity');applyIdentity(null)
 }finally{setIsIdentityLoading(false)}},[applyIdentity])
 const selectBrand=useCallback(async(slug:string)=>{setError(null);applyIdentity(null);setIdentityError(null)
-try{const ready=await waitForPyWebViewReady();if(ready)await bridge.setBrand(slug);setActiveBrand(slug)
+try{const ready=await waitForPyWebViewReady();if(ready){await bridge.setBrand(slug);await bridge.backfillImages(slug).catch(()=>{})}setActiveBrand(slug)
 }catch(err){setError(err instanceof Error?err.message:'Failed to select brand')}},[applyIdentity])
 //Refresh AI advisor context
 const refreshAdvisorContext=useCallback(async()=>{

@@ -203,6 +203,11 @@ class StudioBridge:
         slug=brand_slug or self._state.get_active_slug()
         if not slug:return bridge_error("No brand selected")
         return self._image_status.cleanup_old_trash(slug,days)
+    def backfill_images(self,brand_slug:str|None=None)->dict:
+        """Backfill image status from existing folders. Called on brand selection."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.backfill_from_folders(slug)
     def copy_image_to_clipboard(self,image_path:str)->dict:
         """Copy image file to system clipboard (macOS)."""
         import subprocess

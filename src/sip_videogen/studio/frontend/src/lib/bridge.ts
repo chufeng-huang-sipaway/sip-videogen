@@ -532,6 +532,7 @@ interface PyWebViewAPI {
   register_generated_images(images: RegisterImageInput[], brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
   cancel_generation(brand_slug?: string): Promise<BridgeResponse<{ cancelled: boolean }>>
   cleanup_old_trash(brand_slug?: string, days?: number): Promise<BridgeResponse<{ deleted: ImageStatusEntry[]; count: number }>>
+  backfill_images(brand_slug?: string): Promise<BridgeResponse<{ added: ImageStatusEntry[]; count: number }>>
   copy_image_to_clipboard(image_path: string): Promise<BridgeResponse<{ copied: boolean; path: string }>>
   share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
 }
@@ -723,6 +724,7 @@ export const bridge = {
   registerGeneratedImages: (images: RegisterImageInput[], brandSlug?: string) => callBridge(() => window.pywebview!.api.register_generated_images(images, brandSlug)),
   cancelGeneration: (brandSlug?: string) => callBridge(() => window.pywebview!.api.cancel_generation(brandSlug)),
   cleanupOldTrash: (brandSlug?: string, days?: number) => callBridge(() => window.pywebview!.api.cleanup_old_trash(brandSlug, days || 30)),
+  backfillImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.backfill_images(brandSlug)),
   copyImageToClipboard: (imagePath: string) => callBridge(() => window.pywebview!.api.copy_image_to_clipboard(imagePath)),
   shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
 }
