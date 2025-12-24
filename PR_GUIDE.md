@@ -147,8 +147,44 @@ interface WorkstationState {
 - Test: `backfill_from_folders` scans existing images
 - Test: `cleanup_old_trash` deletes old trashed images
 
+#### Task 6: Bridge Methods for Image Status ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/bridge.py` - Added ImageStatusService and bridge methods
+- Updated `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added TypeScript types and bridge functions
+
+**Bridge Methods Added:**
+- `get_unsorted_images(brand_slug?)` - List unsorted images for a brand
+- `get_images_by_status(brand_slug?, status?)` - Filter images by status
+- `mark_image_kept(image_id, brand_slug?)` - Move image to kept/ folder
+- `mark_image_trashed(image_id, brand_slug?)` - Move image to trash/ folder
+- `unkeep_image(image_id, brand_slug?)` - Return kept image to unsorted
+- `restore_image(image_id, brand_slug?)` - Restore trashed image to unsorted
+- `empty_trash(brand_slug?)` - Permanently delete all trashed images
+- `register_image(image_path, brand_slug?, prompt?, source_template_path?)` - Register new image
+- `register_generated_images(images, brand_slug?)` - Batch register generated images
+- `cancel_generation(brand_slug?)` - Placeholder for future implementation
+
+**TypeScript Types Added:**
+- `ImageStatusType` - 'unsorted' | 'kept' | 'trashed'
+- `ImageStatusEntry` - Complete image status entry with all fields
+- `RegisterImageInput` - Input type for registering images
+
+**File Movement Logic:**
+- When status changes, files are moved to appropriate folders:
+  - unsorted → `assets/generated/`
+  - kept → `assets/kept/`
+  - trashed → `assets/trash/`
+- Handles filename conflicts by appending counter (_1, _2, etc.)
+- Updates `currentPath` in status file after move
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Verify Python: `python3 -m py_compile src/sip_videogen/studio/bridge.py` - No syntax errors
+- All existing tests still pass: `python -m pytest tests/test_image_status.py -v`
+- From browser console: `window.pywebview.api.get_unsorted_images()` returns list or empty array
+
 ### Pending Tasks
-- Task 6: Bridge Methods for Image Status
 - Task 7: Wire Generation Results to Workstation
 - Task 8: SwipeContainer Component
 - Task 9: Sidebar Kept Section
@@ -171,6 +207,7 @@ interface WorkstationState {
 3. `e3cdcf6` - feat(workstation): Add ImageDisplay component
 4. `77ccd0a` - feat(workstation): Add ThumbnailStrip component for batch navigation
 5. `ab8dc3f` - feat(workstation): Add ImageStatusService for image lifecycle tracking
+6. `a757bf8` - feat(workstation): Add bridge methods for image status operations
 
 ## Related Files
 
@@ -186,3 +223,4 @@ interface WorkstationState {
 5. (For Task 3) Add test images to context and verify ImageDisplay works
 6. (For Task 4) Add multiple test images to context and verify ThumbnailStrip appears and works
 7. (For Task 5) Run `python -m pytest tests/test_image_status.py -v` - All tests should pass
+8. (For Task 6) Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Should compile without errors
