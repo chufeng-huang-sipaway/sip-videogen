@@ -130,11 +130,18 @@ See `docs/TEMPLATE_FEATURE_TASKS.md` for the complete task breakdown.
   - `handleNativeDrop` handles template drop and calls `attachTemplate()`
   - Default strict=ON when dropping from sidebar
 
-### Phase 2 Complete
-All Phase 2 tasks (Tasks 12-17) are now complete. The chat integration for templates is fully functional.
+- [x] **Task 18: V2 Semantic Template Analysis** - Replaced geometry-focused analysis with semantic analysis
+  - Added V2 Pydantic models: `CopywritingSpec`, `VisualSceneSpec`, `LayoutStructureSpec`, `TemplateConstraintsSpec`, `TemplateAnalysisV2`
+  - V2 captures: prose layout ("two-column: text left, lifestyle right"), verbatim copywriting, visual treatments, non-negotiables
+  - Updated `template_analyzer.py` with `analyze_template_v2()` using semantic Gemini prompt
+  - Updated `template_prompt.py` with `build_template_constraints_v2()` preserving verbatim text
+  - Updated `context.py` and `tools.py` with version detection (V1 vs V2)
+  - Added TypeScript V2 interfaces and `isV2Analysis()` type guard in `bridge.ts`
+  - Updated `TemplateDetailView.tsx` and `EditTemplateDialog.tsx` for V2 display
+  - Added 12 tests in `tests/test_template_v2.py`
 
-### Next Task
-- [ ] **Task 18: Loose Mode Refinement** - Manual testing and prompt tuning required
+### Phase 2 Complete
+All Phase 2 tasks (Tasks 12-18) are now complete. The chat integration for templates is fully functional with V2 semantic analysis.
 
 ## Files Changed
 - `src/sip_videogen/brands/models.py` - Added 170+ lines of template models
@@ -156,18 +163,20 @@ All Phase 2 tasks (Tasks 12-17) are now complete. The chat integration for templ
 - `src/sip_videogen/studio/frontend/src/components/Sidebar/TemplateDetailView.tsx` - New TemplateDetailView (160+ lines)
 - `src/sip_videogen/studio/frontend/src/components/ChatPanel/AttachedTemplates.tsx` - Template attachment display component (45 lines)
 - `docs/TEMPLATE_FEATURE_TASKS.md` - Task list with tasks 1-17 marked complete
+- `tests/test_template_v2.py` - New V2 template analysis tests (12 tests)
 
 ## Testing
 ```bash
 source .venv/bin/activate
 python3 -c "from sip_videogen.brands.models import TemplateAnalysis, TemplateSummary, TemplateFull, TemplateIndex; print('OK')"
+python3 -c "from sip_videogen.brands.models import TemplateAnalysisV2, CopywritingSpec, VisualSceneSpec; print('V2 OK')"
 python3 -c "from sip_videogen.brands.storage import get_templates_dir, create_template, load_template, list_templates; print('OK')"
 python3 -c "from sip_videogen.brands.context import TemplateContextBuilder, build_template_context; print('OK')"
 python3 -c "from sip_videogen.studio.services import TemplateService; print('OK')"
-python3 -c "from sip_videogen.advisor.template_analyzer import analyze_template; print('OK')"
-python3 -c "from sip_videogen.advisor.template_prompt import build_template_constraints; print('OK')"
+python3 -c "from sip_videogen.advisor.template_analyzer import analyze_template_v2; print('OK')"
+python3 -c "from sip_videogen.advisor.template_prompt import build_template_constraints, build_template_constraints_v2; print('OK')"
 python3 -c "from sip_videogen.studio.bridge import StudioBridge; b = StudioBridge(); print('Template methods:', [m for m in dir(b) if 'template' in m.lower()])"
-python -m pytest tests/test_models.py -v
+python -m pytest tests/test_models.py tests/test_template_v2.py -v
 ```
 
 ## Branch
