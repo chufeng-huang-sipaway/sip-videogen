@@ -324,8 +324,29 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Copy button copies prompt to clipboard
 - Panel can be collapsed again
 
+#### Task 13: Chat Panel Compact Mode ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/ChatPanel/ChatImageGallery.tsx` - Compact thumbnail display
+
+**Features:**
+- Replaced large inline image previews with 48x48 (w-12 h-12) thumbnails
+- Show compact "Generated N images" confirmation text with Images icon
+- Click on any thumbnail opens image in Workstation via WorkstationContext
+- Limit to 4 visible thumbnails with "+N" indicator for overflow
+- Clicking "+N" button opens remaining images in workstation
+- Integrated with WorkstationContext to display images in main viewer
+- Removed PromptDetailsModal - metadata now accessible via ContextPanel in Workstation
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Generate images via chat - compact "Generated N images" text displays
+- Tiny 48x48 thumbnails appear below the text
+- Clicking a thumbnail opens it in the Workstation
+- No large image previews cluttering the chat panel
+- Chat panel width already set at 320px in App.tsx
+
 ### Pending Tasks
-- Task 13: Chat Panel Compact Mode
 - Task 14: Input Lock During Generation
 - Task 15: Export Actions
 - Task 16: Trash Management UI
@@ -348,6 +369,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 10. `13c94b9` - feat(workstation): Add EmptyState component for empty workstation
 11. `6cc1462` - feat(workstation): Add ComparisonView for side-by-side image comparison
 12. `c82df7a` - feat(workstation): Add ContextPanel for image metadata display
+13. `5686d10` - feat(workstation): Add compact mode for chat panel image gallery
 
 ## Related Files
 
@@ -370,3 +392,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 12. (For Task 10) When no images are in batch, verify empty state displays with helpful message
 13. (For Task 11) With images loaded, click Compare toggle - view should split 50/50 with Generated/Original labels
 14. (For Task 12) Click info icon in top-right corner - panel should expand with prompt, source, timestamp; Copy button should copy prompt
+15. (For Task 13) Generate images via chat - compact "Generated N images" displays with tiny thumbnails; clicking opens in Workstation
