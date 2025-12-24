@@ -102,8 +102,52 @@ interface WorkstationState {
 - Selected thumbnail has visible highlight
 - Horizontal scroll works when thumbnails overflow
 
+#### Task 5: Backend Image Status Service ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/services/image_status.py` - ImageStatusService class
+- Updated `src/sip_videogen/studio/services/__init__.py` - Export ImageStatusService
+- Created `tests/test_image_status.py` - 28 comprehensive unit tests
+
+**Features:**
+- Track image lifecycle status: unsorted → kept / trashed
+- Store status in `~/.sip-videogen/brands/{slug}/image_status.json`
+- Atomic writes (temp file + rename) to prevent corruption
+- Methods: `register_image`, `get_status`, `set_status`, `list_by_status`, `update_path`, `delete_image`
+- `backfill_from_folders` for migration of existing images
+- `cleanup_old_trash` for auto-deleting 30+ day old trashed images
+- ISO 8601 timestamps for `keptAt` / `trashedAt`
+
+**JSON Schema:**
+```json
+{
+  "version": 1,
+  "images": {
+    "img_abc123": {
+      "id": "img_abc123",
+      "status": "unsorted",
+      "originalPath": "/path/to/generated/hero.png",
+      "currentPath": "/path/to/generated/hero.png",
+      "prompt": "A hero image",
+      "sourceTemplatePath": null,
+      "timestamp": "2024-01-15T10:30:00+00:00",
+      "keptAt": null,
+      "trashedAt": null
+    }
+  }
+}
+```
+
+**Verification:**
+- Run `python -m pytest tests/test_image_status.py -v` - All 28 tests pass
+- Test: `register_image` creates entry with "unsorted" status
+- Test: `set_status` changes status and sets timestamps correctly
+- Test: `list_by_status` filters by status
+- Test: Atomic writes don't corrupt file
+- Test: `backfill_from_folders` scans existing images
+- Test: `cleanup_old_trash` deletes old trashed images
+
 ### Pending Tasks
-- Task 5: Backend Image Status Service
 - Task 6: Bridge Methods for Image Status
 - Task 7: Wire Generation Results to Workstation
 - Task 8: SwipeContainer Component
@@ -126,6 +170,7 @@ interface WorkstationState {
 2. `b13ab2b` - feat(workstation): Add WorkstationContext for state management
 3. `e3cdcf6` - feat(workstation): Add ImageDisplay component
 4. `77ccd0a` - feat(workstation): Add ThumbnailStrip component for batch navigation
+5. `ab8dc3f` - feat(workstation): Add ImageStatusService for image lifecycle tracking
 
 ## Related Files
 
@@ -140,3 +185,4 @@ interface WorkstationState {
 4. Verify chat functionality still works
 5. (For Task 3) Add test images to context and verify ImageDisplay works
 6. (For Task 4) Add multiple test images to context and verify ThumbnailStrip appears and works
+7. (For Task 5) Run `python -m pytest tests/test_image_status.py -v` - All tests should pass
