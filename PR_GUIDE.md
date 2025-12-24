@@ -427,8 +427,31 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Empty Trash button deletes all trashed images with confirmation
 - Images older than 30 days are auto-deleted when opening trash
 
+#### Task 17: Migration and First Launch ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/bridge.py` - Added backfill_images() bridge method
+- Updated `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added TypeScript types and backfillImages function
+- Updated `src/sip_videogen/studio/frontend/src/context/BrandContext.tsx` - Call backfillImages on brand selection
+
+**Features:**
+- Auto-backfill existing images when brand is selected
+- Scans generated/, kept/, trash/ folders for images without status entries
+- Creates image_status.json with version 1 if missing
+- Handles first launch and migration gracefully
+- Idempotent operation (safe to run multiple times)
+
+**Bridge Methods Added:**
+- `backfill_images(brand_slug?)` - Scan folders and create entries for untracked images
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Run `python -m pytest tests/test_image_status.py -v` - All 28 tests pass
+- Delete `image_status.json` for a brand and select that brand
+- All existing generated images should appear as unsorted in workstation
+- `image_status.json` is created with correct entries
+
 ### Pending Tasks
-- Task 17: Migration and First Launch
 - Task 18: Undo Toast
 - Task 19: Animations and Polish
 - Task 20: Testing and Edge Cases
@@ -451,6 +474,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 14. `bcfb7c1` - feat(workstation): Add input lock during generation with cancel button
 15. `2a0dd29` - feat(workstation): Add ExportActions for copy, share, and drag-out
 16. `0d8ee53` - feat(workstation): Add trash management UI with restore and empty
+17. `6ad793c` - feat(workstation): Add migration and first launch backfill
 
 ## Related Files
 
@@ -477,3 +501,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 16. (For Task 14) Start generation - input should disable, send button becomes cancel with spinner; clicking Cancel stops and shows "Generation cancelled."
 17. (For Task 15) With images loaded, click copy button → image copied to clipboard (paste in Preview works); click share → Finder opens at image; drag image out → export works
 18. (For Task 16) Click trash icon in sidebar footer → trash view opens; each image shows days remaining; Restore and Empty Trash buttons work
+19. (For Task 17) Delete `~/.sip-videogen/brands/{slug}/image_status.json`, select that brand → existing images should auto-appear in workstation
