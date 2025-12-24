@@ -4,11 +4,12 @@ from .services.asset_service import AssetService
 from .services.brand_service import BrandService
 from .services.chat_service import ChatService
 from .services.document_service import DocumentService
+from .services.image_status import ImageStatusService
 from .services.product_service import ProductService
 from .services.project_service import ProjectService
 from .services.template_service import TemplateService
 from .services.update_service import UpdateService
-from .utils.bridge_types import BridgeResponse
+from .utils.bridge_types import BridgeResponse,bridge_ok,bridge_error
 from .utils.config_store import check_api_keys as do_check_api_keys,load_api_keys_from_config,save_api_keys as do_save_api_keys
 #Load API keys on module import (app startup)
 load_api_keys_from_config()
@@ -24,6 +25,7 @@ class StudioBridge:
         self._template=TemplateService(self._state)
         self._chat=ChatService(self._state)
         self._update=UpdateService(self._state)
+        self._image_status=ImageStatusService(self._state)
     def set_window(self,window):self._state.window=window
     #===========================================================================
     #Configuration / Setup
@@ -126,3 +128,98 @@ class StudioBridge:
     def skip_update_version(self,version:str)->dict:return self._update.skip_update_version(version)
     def get_update_settings(self)->dict:return self._update.get_update_settings()
     def set_update_check_on_startup(self,enabled:bool)->dict:return self._update.set_update_check_on_startup(enabled)
+    #===========================================================================
+    #Image Status (Workstation Curation)
+    #===========================================================================
+    def get_unsorted_images(self,brand_slug:str|None=None)->dict:
+        """Get all unsorted images for a brand."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.list_by_status(slug,"unsorted")
+    def get_images_by_status(self,brand_slug:str|None=None,status:str="unsorted")->dict:
+        """Get images filtered by status."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.list_by_status(slug,status)
+    def mark_image_kept(self,image_id:str,brand_slug:str|None=None)->dict:
+        """Mark image as kept and move to kept/ folder."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._move_image_to_status(slug,image_id,"kept")
+    def mark_image_trashed(self,image_id:str,brand_slug:str|None=None)->dict:
+        """Mark image as trashed and move to trash/ folder."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._move_image_to_status(slug,image_id,"trashed")
+    def unkeep_image(self,image_id:str,brand_slug:str|None=None)->dict:
+        """Return kept image to unsorted status."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._move_image_to_status(slug,image_id,"unsorted")
+    def restore_image(self,image_id:str,brand_slug:str|None=None)->dict:
+        """Restore trashed image to unsorted status."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._move_image_to_status(slug,image_id,"unsorted")
+    def empty_trash(self,brand_slug:str|None=None)->dict:
+        """Permanently delete all trashed images."""
+        from pathlib import Path
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        try:
+            result=self._image_status.list_by_status(slug,"trashed")
+            if not result.get("success"):return result
+            trashed=result.get("data",[]);deleted=[]
+            for entry in trashed:
+                path=Path(entry.get("currentPath",""))
+                if path.exists():
+                    try:path.unlink()
+                    except OSError:pass
+                self._image_status.delete_image(slug,entry["id"]);deleted.append(entry["id"])
+            return bridge_ok({"deleted":deleted,"count":len(deleted)})
+        except Exception as e:return bridge_error(str(e))
+    def register_image(self,image_path:str,brand_slug:str|None=None,prompt:str|None=None,source_template_path:str|None=None)->dict:
+        """Register a new image with unsorted status."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.register_image(slug,image_path,prompt,source_template_path)
+    def register_generated_images(self,images:list[dict],brand_slug:str|None=None)->dict:
+        """Register multiple generated images at once."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        try:
+            registered=[]
+            for img in images:
+                path=img.get("path","");prompt=img.get("prompt");src=img.get("sourceTemplatePath")
+                result=self._image_status.register_image(slug,path,prompt,src)
+                if result.get("success"):registered.append(result.get("data"))
+            return bridge_ok(registered)
+        except Exception as e:return bridge_error(str(e))
+    def cancel_generation(self,brand_slug:str|None=None)->dict:
+        """Cancel ongoing image generation (placeholder for future implementation)."""
+        return bridge_ok({"cancelled":True})
+    def _move_image_to_status(self,brand_slug:str,image_id:str,new_status:str)->dict:
+        """Move image file to appropriate folder and update status."""
+        import shutil
+        from pathlib import Path
+        from sip_videogen.brands.storage import get_brand_dir
+        try:
+            status_result=self._image_status.get_status(brand_slug,image_id)
+            if not status_result.get("success"):return status_result
+            entry=status_result.get("data",{});current_path=Path(entry.get("currentPath",""))
+            if not current_path.exists():return bridge_error(f"File not found: {current_path}")
+            brand_dir=get_brand_dir(brand_slug);assets_dir=brand_dir/"assets"
+            folder_map={"unsorted":"generated","kept":"kept","trashed":"trash"}
+            target_folder=assets_dir/folder_map.get(new_status,"generated")
+            target_folder.mkdir(parents=True,exist_ok=True)
+            new_path=target_folder/current_path.name
+            if new_path!=current_path:
+                if new_path.exists():
+                    stem=current_path.stem;suffix=current_path.suffix;counter=1
+                    while new_path.exists():new_path=target_folder/f"{stem}_{counter}{suffix}";counter+=1
+                shutil.move(str(current_path),str(new_path))
+            self._image_status.set_status(brand_slug,image_id,new_status)
+            self._image_status.update_path(brand_slug,image_id,str(new_path))
+            updated=self._image_status.get_status(brand_slug,image_id)
+            return updated if updated.get("success")else bridge_ok({"id":image_id,"status":new_status,"currentPath":str(new_path)})
+        except Exception as e:return bridge_error(str(e))

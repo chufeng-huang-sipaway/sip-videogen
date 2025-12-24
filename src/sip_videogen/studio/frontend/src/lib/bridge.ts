@@ -325,6 +325,24 @@ export interface GeneratedImage {
   url: string
   metadata?: ImageGenerationMetadata | null
 }
+//Image status types for workstation curation
+export type ImageStatusType = 'unsorted' | 'kept' | 'trashed'
+export interface ImageStatusEntry {
+  id: string
+  status: ImageStatusType
+  originalPath: string
+  currentPath: string
+  prompt?: string | null
+  sourceTemplatePath?: string | null
+  timestamp: string
+  keptAt?: string | null
+  trashedAt?: string | null
+}
+export interface RegisterImageInput {
+  path: string
+  prompt?: string
+  sourceTemplatePath?: string
+}
 
 //Video generation metadata
 export interface VideoGenerationMetadata {
@@ -502,6 +520,17 @@ interface PyWebViewAPI {
   regenerate_brand_identity(confirm: boolean): Promise<BridgeResponse<BrandIdentityFull>>
   list_identity_backups(): Promise<BridgeResponse<{ backups: BackupEntry[] }>>
   restore_identity_backup(filename: string): Promise<BridgeResponse<BrandIdentityFull>>
+  //Image status methods (workstation curation)
+  get_unsorted_images(brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
+  get_images_by_status(brand_slug?: string, status?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
+  mark_image_kept(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  mark_image_trashed(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  unkeep_image(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  restore_image(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  empty_trash(brand_slug?: string): Promise<BridgeResponse<{ deleted: string[]; count: number }>>
+  register_image(image_path: string, brand_slug?: string, prompt?: string, source_template_path?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  register_generated_images(images: RegisterImageInput[], brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
+  cancel_generation(brand_slug?: string): Promise<BridgeResponse<{ cancelled: boolean }>>
 }
 
 declare global {
@@ -679,4 +708,15 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.list_identity_backups())).backups,
   restoreIdentityBackup: (filename: string) =>
     callBridge(() => window.pywebview!.api.restore_identity_backup(filename)),
+  //Image status (workstation curation)
+  getUnsortedImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.get_unsorted_images(brandSlug)),
+  getImagesByStatus: (brandSlug?: string, status?: string) => callBridge(() => window.pywebview!.api.get_images_by_status(brandSlug, status)),
+  markImageKept: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.mark_image_kept(imageId, brandSlug)),
+  markImageTrashed: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.mark_image_trashed(imageId, brandSlug)),
+  unkeepImage: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.unkeep_image(imageId, brandSlug)),
+  restoreImage: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.restore_image(imageId, brandSlug)),
+  emptyTrash: (brandSlug?: string) => callBridge(() => window.pywebview!.api.empty_trash(brandSlug)),
+  registerImage: (imagePath: string, brandSlug?: string, prompt?: string, sourceTemplatePath?: string) => callBridge(() => window.pywebview!.api.register_image(imagePath, brandSlug, prompt, sourceTemplatePath)),
+  registerGeneratedImages: (images: RegisterImageInput[], brandSlug?: string) => callBridge(() => window.pywebview!.api.register_generated_images(images, brandSlug)),
+  cancelGeneration: (brandSlug?: string) => callBridge(() => window.pywebview!.api.cancel_generation(brandSlug)),
 }
