@@ -36,7 +36,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const { products } = useProducts()
   const { templates } = useTemplates()
   const { projects } = useProjects()
-  const { setCurrentBatch, setSelectedIndex } = useWorkstation()
+  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
 
   const [activeSection, setActiveSection] = useState<NavSection>('projects')
   const [keptCount, setKeptCount] = useState(0)
@@ -51,16 +51,20 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const handleOpenTrash = async () => {
     if (!activeBrand || !isPyWebView()) return
     try {
+      //Cleanup old trash items first
+      await bridge.cleanupOldTrash(activeBrand)
       const trashedImages = await bridge.getImagesByStatus(activeBrand, 'trashed')
       const batch = trashedImages.map((img: ImageStatusEntry) => ({
         id: img.id,
         path: img.currentPath,
         prompt: img.prompt || undefined,
         sourceTemplatePath: img.sourceTemplatePath || undefined,
-        timestamp: img.timestamp
+        timestamp: img.timestamp,
+        trashedAt: img.trashedAt || undefined
       }))
       setCurrentBatch(batch)
       setSelectedIndex(0)
+      setIsTrashView(true)
     } catch (err) {
       console.error('Failed to load trash:', err)
     }

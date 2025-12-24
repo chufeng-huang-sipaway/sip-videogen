@@ -198,6 +198,11 @@ class StudioBridge:
     def cancel_generation(self,brand_slug:str|None=None)->dict:
         """Cancel ongoing image generation (placeholder for future implementation)."""
         return bridge_ok({"cancelled":True})
+    def cleanup_old_trash(self,brand_slug:str|None=None,days:int=30)->dict:
+        """Delete trash items older than specified days."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.cleanup_old_trash(slug,days)
     def copy_image_to_clipboard(self,image_path:str)->dict:
         """Copy image file to system clipboard (macOS)."""
         import subprocess
