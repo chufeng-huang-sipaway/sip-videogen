@@ -2,11 +2,9 @@ import { useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import {Tooltip,TooltipContent,TooltipProvider,TooltipTrigger,} from '@/components/ui/tooltip'
-import {Accordion,AccordionContent,AccordionItem,AccordionTrigger,} from '@/components/ui/accordion'
-import { Package, FolderOpen, PanelLeftClose, PanelLeft, Brain, Plus, Settings, Layout } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Layout, ChevronRight } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
-import { BrandBrainCard } from './BrandBrainCard'
 import { ProductsSection } from './sections/ProductsSection'
 import { TemplatesSection } from './sections/TemplatesSection'
 import { ProjectsSection } from './sections/ProjectsSection'
@@ -17,9 +15,10 @@ import { useBrand } from '@/context/BrandContext'
 import { useProducts } from '@/context/ProductContext'
 import { useTemplates } from '@/context/TemplateContext'
 import { useProjects } from '@/context/ProjectContext'
+import { cn } from '@/lib/utils'
 
-const SIDEBAR_EXPANDED_WIDTH = 320
-const SIDEBAR_COLLAPSED_WIDTH = 64
+const SIDEBAR_EXPANDED_WIDTH = 280 // Reduced from 320 for tighter feel
+const SIDEBAR_COLLAPSED_WIDTH = 68
 
 interface SidebarProps {
   collapsed: boolean
@@ -27,11 +26,16 @@ interface SidebarProps {
   onOpenBrandMemory?: () => void
 }
 
+type NavSection = 'products' | 'templates' | 'projects' | null
+
 export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: SidebarProps) {
   const { activeBrand } = useBrand()
   const { products } = useProducts()
   const { templates } = useTemplates()
   const { projects } = useProjects()
+
+  const [activeSection, setActiveSection] = useState<NavSection>('projects')
+
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
   const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
@@ -39,206 +43,250 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
   const width = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH
 
-  // Collapsed view - icon rail
+  // Shared function to toggle sections
+  const toggleSection = (section: NavSection) => {
+    setActiveSection(current => current === section ? null : section)
+  }
+
+  // Collapsed view - Icon Rail
   if (collapsed) {
     return (
       <TooltipProvider delayDuration={0}>
         <aside
-          className="h-screen flex flex-col glass-sidebar border-r border-border/50 flex-shrink-0 transition-all duration-300 ease-in-out"
+          className="h-screen flex flex-col glass-sidebar border-r border-border/40 flex-shrink-0 transition-all duration-300 ease-in-out z-20"
           style={{ width }}
         >
-          {/* Icon buttons */}
-          <div className="flex-1 flex flex-col items-center pt-4 pb-4 gap-2">
+          <div className="flex-1 flex flex-col items-center py-6 gap-4">
+            {/* Brand Memory Icon */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  className="w-10 h-10 rounded-xl bg-background/50 text-foreground hover:bg-background shadow-sm hover:shadow-soft transition-all"
                   onClick={onOpenBrandMemory}
                   disabled={!activeBrand}
                 >
-                  <Brain className="w-5 h-5" />
+                  <Brain className="w-5 h-5" strokeWidth={1.5} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">
+              <TooltipContent side="right" className="bg-foreground text-background">
                 <p>Brand Memory</p>
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 relative"
-                  disabled={!activeBrand}
-                  onClick={() => {
-                    if (activeBrand) onToggleCollapse()
-                  }}
-                >
-                  <Package className="w-5 h-5" />
-                  {products.length > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">
-                      {products.length}
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>Products ({products.length})</p>
-              </TooltipContent>
-            </Tooltip>
+            <Separator className="w-8 bg-border/40" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 relative" disabled={!activeBrand} onClick={()=>{if(activeBrand)onToggleCollapse()}}>
-                  <Layout className="w-5 h-5"/>
-                  {templates.length>0&&(<span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">{templates.length}</span>)}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right"><p>Templates ({templates.length})</p></TooltipContent>
-            </Tooltip>
+            {/* Nav Icons */}
+            <div className="flex flex-col gap-2">
+              <NavIcon
+                icon={<Package className="w-5 h-5" strokeWidth={1.5} />}
+                label={`Products (${products.length})`}
+                isActive={activeSection === 'products'}
+                onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('products'); }}
+                count={products.length}
+                disabled={!activeBrand}
+              />
+              <NavIcon
+                icon={<Layout className="w-5 h-5" strokeWidth={1.5} />}
+                label={`Templates (${templates.length})`}
+                isActive={activeSection === 'templates'}
+                onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('templates'); }}
+                count={templates.length}
+                disabled={!activeBrand}
+              />
+              <NavIcon
+                icon={<FolderOpen className="w-5 h-5" strokeWidth={1.5} />}
+                label={`Projects (${projects.length})`}
+                isActive={activeSection === 'projects'}
+                onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('projects'); }}
+                count={projects.length}
+                disabled={!activeBrand}
+              />
+            </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 relative"
-                  disabled={!activeBrand}
-                  onClick={() => {
-                    if (activeBrand) onToggleCollapse()
-                  }}
-                >
-                  <FolderOpen className="w-5 h-5" />
-                  {projects.length > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">
-                      {projects.length}
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>Projects ({projects.length})</p>
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Spacer to push buttons to bottom */}
             <div className="flex-1" />
-            {/* Settings button */}
+
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={()=>setIsSettingsOpen(true)}>
-                  <Settings className="w-5 h-5" />
+                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
+                  <PanelLeftClose className="w-5 h-5 rotate-180" strokeWidth={1.5} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right"><p>Settings</p></TooltipContent>
-            </Tooltip>
-            {/* Expand button */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={onToggleCollapse}>
-                  <PanelLeft className="w-5 h-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right"><p>Expand sidebar</p></TooltipContent>
+              <TooltipContent side="right">Expand</TooltipContent>
             </Tooltip>
           </div>
-          <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}/>
         </aside>
       </TooltipProvider>
     )
   }
 
-  // Expanded view - full sidebar
+  // Expanded View
   return (
     <aside
-      className="h-screen flex flex-col glass-sidebar border-r border-border/50 flex-shrink-0 transition-all duration-300 ease-in-out"
+      className="h-screen flex flex-col glass-sidebar border-r border-border/40 flex-shrink-0 transition-all duration-300 ease-in-out z-20 relative"
       style={{ width }}
     >
-      <div className="px-4 pt-4 pb-4">
+      {/* Header Area */}
+      <div className="px-5 pt-6 pb-2 space-y-4">
         <BrandSelector />
+
+        {/* Minimalist Brand Memory Card */}
+        <div
+          onClick={activeBrand ? onOpenBrandMemory : undefined}
+          className={cn(
+            "group flex items-center gap-3 p-3 rounded-xl border border-transparent bg-background/40 hover:bg-background hover:border-border/30 hover:shadow-soft transition-all cursor-pointer",
+            !activeBrand && "opacity-50 pointer-events-none"
+          )}
+        >
+          <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shadow-sm border border-border/20 text-foreground group-hover:scale-105 transition-transform">
+            <Brain className="w-4 h-4" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-foreground/90">Brand Memory</div>
+            <div className="text-[10px] text-muted-foreground truncate">Active & Learning</div>
+          </div>
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+        </div>
       </div>
 
-      <BrandBrainCard onOpenBrandMemory={onOpenBrandMemory ?? (() => { })} />
-
-      <div className="px-4 py-2">
-        <Separator className="bg-border/60" />
+      <div className="px-5 py-2">
+        <Separator className="bg-border/30" />
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="px-3 py-2">
-          <Accordion type="multiple" defaultValue={["products","templates","projects"]} className="space-y-1">
-            <AccordionItem value="products" className="border-none mb-1">
-              <div className="flex items-center gap-1">
-                <AccordionTrigger className="flex-1 px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
-                  <div className="flex items-center gap-3 text-left">
-                    <Package className="w-4 h-4 text-muted-foreground/70" />
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm text-foreground/80 leading-snug">Products</span>
-                      <span className="text-[10px] text-muted-foreground/60 font-normal">Context for generation</span>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-md hover:bg-muted/50" onClick={()=>setIsCreateProductOpen(true)} title="Add product"><Plus className="h-4 w-4"/></Button>
-              </div>
-              <AccordionContent className="px-0 pb-1 pt-0">
-                <ProductsSection />
-              </AccordionContent>
-            </AccordionItem>
+      {/* Main Navigation */}
+      <ScrollArea className="flex-1 px-3">
+        <div className="space-y-1 py-2">
 
-            <AccordionItem value="templates" className="border-none mb-1">
-              <div className="flex items-center gap-1">
-                <AccordionTrigger className="flex-1 px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
-                  <div className="flex items-center gap-3 text-left">
-                    <Layout className="w-4 h-4 text-muted-foreground/70"/>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm text-foreground/80 leading-snug">Templates</span>
-                      <span className="text-[10px] text-muted-foreground/60 font-normal">Reusable layouts</span>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-md hover:bg-muted/50" onClick={()=>setIsCreateTemplateOpen(true)} title="Add template"><Plus className="h-4 w-4"/></Button>
-              </div>
-              <AccordionContent className="px-0 pb-1 pt-0">
-                <TemplatesSection createDialogOpen={isCreateTemplateOpen} onCreateDialogChange={setIsCreateTemplateOpen}/>
-              </AccordionContent>
-            </AccordionItem>
+          {/* Projects Section - Default Open often */}
+          <NavGroup
+            title="Projects"
+            icon={<FolderOpen className="w-4 h-4" />}
+            isOpen={activeSection === 'projects'}
+            onToggle={() => toggleSection('projects')}
+            onAdd={() => setIsCreateProjectOpen(true)}
+          >
+            <ProjectsSection />
+          </NavGroup>
 
-            <AccordionItem value="projects" className="border-none mb-1">
-              <div className="flex items-center gap-1">
-                <AccordionTrigger className="flex-1 px-3 py-2 hover:bg-muted/50 rounded-lg hover:no-underline transition-all [&[data-state=open]>div>svg]:rotate-90 group opacity-80 hover:opacity-100">
-                  <div className="flex items-center gap-3 text-left">
-                    <FolderOpen className="w-4 h-4 text-muted-foreground/70" />
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm text-foreground/80 leading-snug">Projects</span>
-                      <span className="text-[10px] text-muted-foreground/60 font-normal">Organize your work</span>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-md hover:bg-muted/50" onClick={()=>setIsCreateProjectOpen(true)} title="Add project"><Plus className="h-4 w-4"/></Button>
-              </div>
-              <AccordionContent className="px-0 pb-1 pt-0">
-                <ProjectsSection />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+          {/* Products Section */}
+          <NavGroup
+            title="Products"
+            icon={<Package className="w-4 h-4" />}
+            isOpen={activeSection === 'products'}
+            onToggle={() => toggleSection('products')}
+            onAdd={() => setIsCreateProductOpen(true)}
+          >
+            <ProductsSection />
+          </NavGroup>
+
+          {/* Templates Section */}
+          <NavGroup
+            title="Templates"
+            icon={<Layout className="w-4 h-4" />}
+            isOpen={activeSection === 'templates'}
+            onToggle={() => toggleSection('templates')}
+            onAdd={() => setIsCreateTemplateOpen(true)}
+          >
+            <TemplatesSection createDialogOpen={isCreateTemplateOpen} onCreateDialogChange={setIsCreateTemplateOpen} />
+          </NavGroup>
+
         </div>
       </ScrollArea>
 
-      {/* Bottom buttons */}
-      <div className="p-3 border-t border-border/40 flex gap-2">
-        <Button variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-2" onClick={onToggleCollapse}>
-          <PanelLeftClose className="w-4 h-4" /><span className="text-sm">Collapse</span>
+      {/* Footer */}
+      <div className="p-4 border-t border-border/30 flex items-center justify-between gap-2 bg-gradient-to-t from-background/50 to-transparent">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 p-2 h-auto gap-2 rounded-lg"
+          onClick={() => setIsSettingsOpen(true)}
+        >
+          <Settings className="w-3.5 h-3.5" strokeWidth={1.5} />
+          <span>Settings</span>
         </Button>
-        <Button variant="ghost" size="sm" className="h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50" onClick={()=>setIsSettingsOpen(true)} title="Settings">
-          <Settings className="w-4 h-4" />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground"
+          onClick={onToggleCollapse}
+        >
+          <PanelLeftClose className="w-4 h-4" strokeWidth={1.5} />
         </Button>
       </div>
-      <CreateProductDialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen}/>
-      <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}/>
-      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}/>
+
+      <CreateProductDialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen} />
+      <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen} />
+      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </aside>
+  )
+}
+
+// Helper Components
+
+function NavIcon({ icon, label, isActive, onClick, count, disabled }: any) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "w-10 h-10 rounded-xl relative transition-all",
+            isActive ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+          )}
+          onClick={onClick}
+          disabled={disabled}
+        >
+          {icon}
+          {count > 0 && (
+            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full" />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="bg-foreground text-background">
+        <p>{label}</p>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function NavGroup({ title, icon, isOpen, onToggle, onAdd, children }: any) {
+  return (
+    <div className="mb-2">
+      <div className="flex items-center gap-1 group mb-1 px-2">
+        <button
+          onClick={onToggle}
+          className={cn(
+            "flex-1 flex items-center gap-3 px-2 py-1.5 rounded-lg text-sm font-medium transition-all duration-200",
+            isOpen ? "text-foreground bg-secondary/50" : "text-muted-foreground/80 hover:text-foreground hover:bg-secondary/30"
+          )}
+        >
+          <div className={cn("transition-colors", isOpen ? "text-foreground" : "text-muted-foreground")}>
+            {icon}
+          </div>
+          <span className="flex-1 text-left">{title}</span>
+          <ChevronRight className={cn("w-3.5 h-3.5 transition-transform duration-200 opacity-0 group-hover:opacity-50", isOpen && "rotate-90 opacity-100")} />
+        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-secondary"
+          onClick={(e) => { e.stopPropagation(); onAdd?.(); }}
+        >
+          <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+        </Button>
+      </div>
+
+      <div className={cn(
+        "grid transition-all duration-200 ease-in-out pl-2",
+        isOpen ? "grid-rows-[1fr] opacity-100 mb-4" : "grid-rows-[0fr] opacity-0"
+      )}>
+        <div className="overflow-hidden">
+          {children}
+        </div>
+      </div>
+    </div>
   )
 }

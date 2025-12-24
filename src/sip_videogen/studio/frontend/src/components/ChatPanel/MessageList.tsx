@@ -1,19 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { Package, Paperclip, Bot, User, Play, Film, Layout, Lock, Unlock } from 'lucide-react'
+import { Package, Paperclip, Bot, Play, Film, Layout, XCircle, RefreshCw, Download } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { bridge, isPyWebView, type ProductEntry, type GeneratedVideo, type TemplateSummary } from '@/lib/bridge'
+import { type GeneratedVideo, type TemplateSummary, type ProductEntry } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
 import { InteractionRenderer } from './InteractionRenderer'
-import { MemoryUpdateBadge } from './MemoryUpdateBadge'
 import { ChatImageGallery } from './ChatImageGallery'
 import { cn } from '@/lib/utils'
 import { useBrand } from '@/context/BrandContext'
 import { useTemplates } from '@/context/TemplateContext'
 import { Button } from '@/components/ui/button'
 import { BrandSelector } from './BrandSelector'
-import { Sparkles, Download, Copy, RefreshCw, XCircle, Check } from 'lucide-react'
 
 
 //Video gallery component for rendering generated videos
@@ -76,60 +74,7 @@ interface MessageListProps {
   onRegenerate?: (messageId: string) => void
 }
 
-/** Thumbnail component for product images in message history */
-function MessageProductThumbnail({ path }: { path: string }) {
-  const [src, setSrc] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      if (!isPyWebView() || !path) return
-      try {
-        const dataUrl = await bridge.getProductImageThumbnail(path)
-        if (!cancelled) setSrc(dataUrl)
-      } catch {
-        // Ignore thumbnail errors
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [path])
-
-  if (!src) {
-    return (
-      <div className="h-6 w-6 rounded bg-muted/20 flex items-center justify-center shrink-0">
-        <Package className="h-3 w-3 text-muted-foreground/60" />
-      </div>
-    )
-  }
-
-  return (
-    <img
-      src={src}
-      alt=""
-      className="h-6 w-6 rounded object-cover shrink-0 border border-border/30"
-    />
-  )
-}
-
-/** Thumbnail component for template images in message history */
-function MessageTemplateThumbnail({path}:{path:string}){
-const [src,setSrc]=useState<string|null>(null)
-useEffect(()=>{
-let cancelled=false
-async function load(){
-if(!isPyWebView()||!path)return
-try{const dataUrl=await bridge.getTemplateImageThumbnail(path);if(!cancelled)setSrc(dataUrl)}catch{}}
-load()
-return()=>{cancelled=true}},[path])
-if(!src){return(<div className="h-6 w-6 rounded bg-muted/20 flex items-center justify-center shrink-0"><Layout className="h-3 w-3 text-muted-foreground/60"/></div>)}
-return<img src={src}alt=""className="h-6 w-6 rounded object-cover shrink-0 border border-border/30"/>}
-
-function MessageBubble({ message, products, templates, onInteractionSelect, isLoading, onRegenerate }: {
+function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }: {
   message: Message;
   products: ProductEntry[];
   templates?: TemplateSummary[];
@@ -206,42 +151,41 @@ function MessageBubble({ message, products, templates, onInteractionSelect, isLo
   return (
     <div
       className={cn(
-        'group relative flex w-full gap-5 px-6 py-8 transition-colors duration-200 border-b border-transparent',
-        isUser ? 'bg-transparent' : 'bg-muted/30 border-border/20'
+        'group relative flex w-full gap-4 px-2 py-6 transition-colors duration-200 border-b border-transparent',
+        isUser ? 'justify-end' : 'justify-start'
       )}
     >
-      {/* Avatar */}
-      <div className="flex-shrink-0 mt-0.5">
-        {isUser ? (
-          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20 ring-4 ring-background">
-            <User className="h-5 w-5" />
+      {/* Bot Avatar (only for assistant) */}
+      {!isUser && (
+        <div className="flex-shrink-0 mt-1">
+          <div className="h-8 w-8 rounded-full bg-background border border-border/40 flex items-center justify-center shadow-sm text-foreground/80">
+            <Bot className="h-4 w-4" strokeWidth={1.5} />
           </div>
-        ) : (
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md ring-4 ring-background">
-            <Bot className="h-5 w-5" />
-          </div>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0 space-y-2.5">
-        {/* Name & Time */}
-        <div className="flex items-center gap-3 mb-1.5 px-1">
-          <span className="text-sm font-semibold tracking-tight text-foreground/90">
-            {isUser ? 'You' : 'Brand Assistant'}
-          </span>
-          <span className="text-[10px] text-muted-foreground/50 uppercase tracking-widest font-medium">
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
         </div>
+      )}
 
-        {/* Text / Markdown */}
+      {/* Content Container */}
+      <div className={cn(
+        "flex flex-col max-w-[85%]",
+        isUser ? "items-end" : "items-start"
+      )}>
+
+        {/* Name (hidden for minimalist feel usually, but kept subtle) */}
+        {!isUser && (
+          <span className="text-[10px] text-muted-foreground/60 font-medium mb-1.5 ml-1 uppercase tracking-wider">Brand Assistant</span>
+        )}
+
+        {/* Bubble */}
         <div className={cn(
-          "prose prose-base max-w-none dark:prose-invert leading-loose tracking-wide",
-          isUser ? "text-foreground font-light" : "text-foreground/80 font-light"
+          "relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm",
+          isUser
+            ? "bg-secondary/80 text-foreground font-normal rounded-tr-sm"
+            : "bg-background border border-border/40 text-foreground/90 font-light rounded-tl-sm shadow-soft"
         )}>
           {message.role === 'assistant' ? (
-            <MarkdownContent content={message.content} />
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-p:my-1">
+              <MarkdownContent content={message.content} />
+            </div>
           ) : (
             <p className="whitespace-pre-wrap">{message.content}</p>
           )}
@@ -249,121 +193,58 @@ function MessageBubble({ message, products, templates, onInteractionSelect, isLo
 
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-2 justify-end">
             {message.attachments.map((att) => (
               att.preview ? (
-                <Dialog key={att.id}>
-                  <DialogTrigger asChild>
-                    <div className="cursor-pointer group relative overflow-hidden rounded-xl ring-1 ring-border/20 shadow-sm hover:ring-primary/40 transition-all">
-                      <img
-                        src={att.preview}
-                        alt={att.name}
-                        className="h-24 w-24 object-cover hover:scale-105 transition duration-300"
-                      />
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-screen-lg p-0 overflow-hidden bg-background/90 border-none backdrop-blur-xl">
-                    <div className="relative flex items-center justify-center min-h-[50vh]">
-                      <img src={att.preview} alt={att.name} className="max-w-full max-h-[90vh] object-contain shadow-2xl" />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <div key={att.id} className="relative rounded-lg overflow-hidden border border-border/20 shadow-sm w-16 h-16">
+                  <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
+                </div>
               ) : (
-                <div key={att.id} className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/40 px-3 py-2">
-                  <Paperclip className="h-4 w-4 opacity-70" />
-                  <div className="text-xs font-medium">{att.name}</div>
+                <div key={att.id} className="flex items-center gap-2 rounded-lg border border-border/30 bg-background px-2 py-1 text-xs text-muted-foreground">
+                  <Paperclip className="h-3 w-3" />
+                  <span className="max-w-[100px] truncate">{att.name}</span>
                 </div>
               )
             ))}
           </div>
         )}
 
-        {/* Attached Products (User only) */}
-        {message.role === 'user' && message.attachedProductSlugs && message.attachedProductSlugs.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-border/40">
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
-              <Package className="h-3 w-3" />
-              <span>Products referenced</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {message.attachedProductSlugs.map((slug) => {
-                const product = products.find((p) => p.slug === slug)
-                return (
-                  <div
-                    key={slug}
-                    className="flex items-center gap-2 rounded-md bg-muted/20 border border-border/30 px-2 py-1 transition hover:bg-muted/30"
-                  >
-                    {product?.primary_image ? (
-                      <MessageProductThumbnail path={product.primary_image} />
-                    ) : (
-                      <div className="h-6 w-6 rounded bg-muted/20 flex items-center justify-center shrink-0">
-                        <Package className="h-3 w-3 text-muted-foreground/60" />
-                      </div>
-                    )}
-                    <span className="text-xs text-foreground/90 max-w-[100px] truncate font-medium">
-                      {product?.name || slug}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
+        {/* User Context Chips (Products/Templates) */}
+        {isUser && ((message.attachedProductSlugs && message.attachedProductSlugs.length > 0) || (message.attachedTemplates && message.attachedTemplates.length > 0)) && (
+          <div className="flex flex-wrap gap-1.5 mt-2 justify-end">
+            {message.attachedProductSlugs?.map(slug => (
+              <div key={slug} className="flex items-center gap-1.5 rounded-full border border-border/30 bg-background/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+                <Package className="h-3 w-3 opacity-50" />
+                <span>{slug}</span>
+              </div>
+            ))}
+            {message.attachedTemplates?.map(t => (
+              <div key={t.template_slug} className="flex items-center gap-1.5 rounded-full border border-border/30 bg-background/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+                <Layout className="h-3 w-3 opacity-50" />
+                <span>{t.template_slug}</span>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Attached Templates (User only) */}
-        {message.role==='user'&&message.attachedTemplates&&message.attachedTemplates.length>0&&(
-<div className="mt-3 pt-3 border-t border-border/40">
-<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-2 font-medium uppercase tracking-wide">
-<Layout className="h-3 w-3"/>
-<span>Templates referenced</span>
-</div>
-<div className="flex flex-wrap gap-2">
-{message.attachedTemplates.map(({template_slug,strict})=>{
-const template=templates?.find(t=>t.slug===template_slug)
-return(
-<div key={template_slug}className="flex items-center gap-2 rounded-md bg-muted/20 border border-border/30 px-2 py-1 transition hover:bg-muted/30">
-{template?.primary_image?(<MessageTemplateThumbnail path={template.primary_image}/>):(<div className="h-6 w-6 rounded bg-muted/20 flex items-center justify-center shrink-0"><Layout className="h-3 w-3 text-muted-foreground/60"/></div>)}
-<span className="text-xs text-foreground/90 max-w-[100px] truncate font-medium">{template?.name||template_slug}</span>
-{strict?<Lock className="h-3 w-3 text-amber-500"/>:<Unlock className="h-3 w-3 text-muted-foreground/60"/>}
-</div>)})}
-</div>
-</div>)}
-
-        {/* Image Gallery */}
-        {message.images.length > 0 && (
-          <div className="mt-4">
-            <div className="p-1 rounded-2xl border border-border/40 bg-background/50 backdrop-blur-sm shadow-sm">
-              <ChatImageGallery images={message.images} />
-            </div>
+        {/* Galleries (Images/Videos) */}
+        {(message.images.length > 0 || (message.videos && message.videos.length > 0)) && (
+          <div className="mt-4 w-full max-w-2xl">
+            {message.images.length > 0 && <ChatImageGallery images={message.images} />}
+            {message.videos && message.videos.length > 0 && <ChatVideoGallery videos={message.videos} />}
           </div>
         )}
 
-        {/* Video Gallery */}
-        {message.videos && message.videos.length > 0 && (
-          <div className="mt-4">
-            <div className="p-1 rounded-2xl border border-border/40 bg-background/50 backdrop-blur-sm shadow-sm">
-              <ChatVideoGallery videos={message.videos} />
-            </div>
-          </div>
-        )}
-
-        {/* Execution Trace */}
+        {/* Execution Trace (Minimal) */}
         {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (
-          <div className="mt-3 opacity-80 hover:opacity-100 transition-opacity">
+          <div className="mt-2 w-full">
             <ExecutionTrace events={message.executionTrace} />
-          </div>
-        )}
-
-        {/* Memory Update */}
-        {message.memoryUpdate && (
-          <div className="mt-2">
-            <MemoryUpdateBadge message={message.memoryUpdate.message} />
           </div>
         )}
 
         {/* Interaction Request */}
         {message.role === 'assistant' && message.interaction && !message.interactionResolved && (
-          <div className="mt-4 p-4 rounded-xl border border-primary/20 bg-primary/5">
+          <div className="mt-4 p-4 rounded-xl border border-primary/10 bg-primary/5 w-full">
             <InteractionRenderer
               interaction={message.interaction}
               onSelect={(selection) => onInteractionSelect(message.id, selection)}
@@ -372,40 +253,20 @@ return(
           </div>
         )}
 
-        {/* Quick Actions for Assistant */}
+        {/* Quick Actions */}
         {message.role === 'assistant' && !message.interaction && !isLoading && (
-          <div className="flex flex-wrap gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background"
-              onClick={() => onRegenerate?.(message.id)}
-            >
-              <RefreshCw className="w-3 h-3" />
+          <div className="flex flex-wrap gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={handleCopy}>
+              {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => onRegenerate?.(message.id)}>
+              <RefreshCw className="mr-1 h-3 w-3" />
               Regenerate
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(
-                "h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background transition-colors",
-                copied && "text-green-600 border-green-600/30"
-              )}
-              onClick={handleCopy}
-            >
-              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              {copied ? 'Copied!' : 'Copy'}
-            </Button>
             {message.images.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs gap-1.5 rounded-full bg-background/50 hover:bg-background"
-                onClick={handleDownloadAll}
-                disabled={downloading}
-              >
-                <Download className={cn("w-3 h-3", downloading && "animate-bounce")} />
-                {downloading ? 'Downloading...' : 'Download All'}
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={handleDownloadAll}>
+                <Download className="mr-1 h-3 w-3" />
+                Download All
               </Button>
             )}
           </div>
@@ -413,32 +274,29 @@ return(
 
         {/* Error */}
         {message.status === 'error' && (
-          <div className="mt-3 flex items-start gap-3 text-sm text-destructive bg-destructive/5 px-4 py-3 rounded-xl border border-destructive/20">
-            <XCircle className="h-5 w-5 shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-1">
-              <span className="font-semibold">Error occurred</span>
-              <span className="text-destructive/90">{message.error}</span>
+          <div className="mt-2 flex items-start gap-2 text-xs text-destructive bg-destructive/5 px-3 py-2 rounded-lg border border-destructive/20 max-w-md">
+            <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium">Error occurred</span>
+              <span className="text-destructive/80 opacity-90">{message.error}</span>
             </div>
           </div>
         )}
       </div>
+
     </div>
   )
 }
 
 /** Transform tool names to friendly messages */
 const TOOL_FRIENDLY_NAMES: Record<string, { label: string; description: string }> = {
-  generate_image: { label: 'Creating Image', description: 'Generating visual content with AI' },
-  generate_video_clip: { label: 'Creating Video', description: 'Generating video clip with VEO (2-3 mins)' },
-  search_web: { label: 'Searching Web', description: 'Looking up information online' },
-  read_file: { label: 'Reading File', description: 'Processing document contents' },
-  write_file: { label: 'Saving File', description: 'Writing content to disk' },
-  analyze_image: { label: 'Analyzing Image', description: 'Understanding visual content' },
-  get_brand_identity: { label: 'Loading Brand', description: 'Fetching brand guidelines' },
-  update_brand: { label: 'Updating Brand', description: 'Saving brand changes' },
-  get_product: { label: 'Loading Product', description: 'Fetching product details' },
-  update_product: { label: 'Updating Product', description: 'Saving product changes' },
-  get_asset: { label: 'Loading Asset', description: 'Fetching media file' },
+  generate_image: { label: 'Creating Image', description: 'Generating visual content' },
+  generate_video_clip: { label: 'Creating Video', description: 'Generating video clip' },
+  search_web: { label: 'Searching Web', description: 'Looking up information' },
+  read_file: { label: 'Reading File', description: 'Processing document' },
+  write_file: { label: 'Saving File', description: 'Writing content' },
+  analyze_image: { label: 'Analyzing Image', description: 'Understanding visuals' },
+  get_brand_identity: { label: 'Loading Brand', description: 'Fetching guidelines' },
 }
 
 function parseProgress(progress: string): { toolName: string; friendly: { label: string; description: string } } {
@@ -447,8 +305,8 @@ function parseProgress(progress: string): { toolName: string; friendly: { label:
   if (usingMatch) {
     const toolName = usingMatch[1]
     const friendly = TOOL_FRIENDLY_NAMES[toolName] || {
-      label: toolName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      description: 'Processing your request',
+      label: toolName.replace(/_/g, ' '),
+      description: 'Processing',
     }
     return { toolName, friendly }
   }
@@ -457,14 +315,14 @@ function parseProgress(progress: string): { toolName: string; friendly: { label:
   if (progress.toLowerCase().includes('thinking') || !progress) {
     return {
       toolName: 'thinking',
-      friendly: { label: 'Thinking', description: 'Analyzing your request' },
+      friendly: { label: 'Thinking', description: 'Analyzing request' },
     }
   }
 
   // Default
   return {
     toolName: '',
-    friendly: { label: progress || 'Processing', description: 'Working on your request' },
+    friendly: { label: progress || 'Processing', description: 'Working...' },
   }
 }
 
@@ -474,97 +332,38 @@ interface ActivityCardProps {
 }
 
 function ActivityCard({ progress, loadedSkills }: ActivityCardProps) {
-  const [elapsed, setElapsed] = useState(0)
-  const startTimeRef = useRef(Date.now())
-
-  // Reset timer when progress changes significantly
-  useEffect(() => {
-    startTimeRef.current = Date.now()
-    setElapsed(0)
-  }, [progress])
-
-  // Update elapsed time every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000))
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const { toolName, friendly } = parseProgress(progress)
-  const isImageGen = toolName === 'generate_image'
-
-  const formatElapsed = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}m ${secs}s`
-  }
+  const { friendly } = parseProgress(progress)
 
   return (
     <div className="px-6 py-4 animate-in fade-in duration-300">
-      <div className="rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/40 overflow-hidden">
-        {/* Main content */}
-        <div className="p-4 flex items-start gap-4">
-          {/* Animated icon */}
-          <div className="relative flex-shrink-0 mt-0.5">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              {isImageGen ? (
-                <Sparkles className="w-5 h-5 text-primary animate-pulse" />
-              ) : (
-                <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-              )}
-            </div>
-            {/* Pulse ring */}
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-30" />
+      <div className="rounded-xl bg-background border border-border/30 shadow-soft p-5 max-w-md">
+
+        {/* Loading Header */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-5 h-5 relative flex items-center justify-center">
+            <div className="absolute inset-0 border-2 border-border rounded-full opacity-20"></div>
+            <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
-
-          {/* Status info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-semibold text-foreground">
-                {friendly.label}
-              </span>
-              <span className="text-xs text-muted-foreground/70">
-                {formatElapsed(elapsed)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-2">
-              {friendly.description}
-            </p>
-
-            {/* Tool badge */}
-            {toolName && toolName !== 'thinking' && (
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-background/60 border border-border/30">
-                <span className="text-[10px] text-muted-foreground/80 font-mono">
-                  {toolName}
-                </span>
-              </div>
-            )}
+          <div>
+            <div className="text-sm font-medium text-foreground">{friendly.label}</div>
+            <div className="text-xs text-muted-foreground">{friendly.description}</div>
           </div>
         </div>
 
-        {/* Skills section */}
+        {/* Minimal Skeleton Bars */}
+        <div className="space-y-2 opacity-60">
+          <div className="h-1.5 w-3/4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded-full animate-shimmer bg-[length:200%_100%]"></div>
+          <div className="h-1.5 w-1/2 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded-full animate-shimmer bg-[length:200%_100%] delay-150"></div>
+        </div>
+
+        {/* Skills (Minimal) */}
         {loadedSkills && loadedSkills.length > 0 && (
-          <div className="px-4 py-3 border-t border-border/30 bg-background/30">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider">
-                Expert Skills Active
+          <div className="flex gap-1.5 mt-4 overflow-hidden">
+            {loadedSkills.slice(0, 3).map((skill, i) => (
+              <span key={i} className="text-[9px] uppercase tracking-wider text-muted-foreground border border-border/40 px-1.5 py-0.5 rounded-sm">
+                {skill}
               </span>
-              <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                {loadedSkills.length}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {loadedSkills.map((skill, i) => (
-                <span
-                  key={i}
-                  className="text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary/80 font-medium"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
+            ))}
           </div>
         )}
       </div>
@@ -585,70 +384,32 @@ export function MessageList({ messages, progress, loadedSkills, isLoading, produ
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
 
-        {/* Minimal High-End Hero Card */}
-        <div className="relative w-full max-w-sm mx-auto">
+        {/* Minimal Empty State */}
+        <div className="relative w-full max-w-sm mx-auto flex flex-col items-center gap-6">
 
-          {/* Card Container - Simplified/Softened */}
-          <div className="relative bg-muted/20 rounded-3xl p-8 flex flex-col items-center">
-
-            {/* Icon - Simplified */}
-            <div className="w-12 h-12 rounded-full bg-background/80 flex items-center justify-center shadow-sm mb-6 text-foreground/80">
-              <Bot className="w-6 h-6" strokeWidth={1.5} />
-            </div>
-
-            <div className="space-y-4 mb-8 text-center">
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                {activeBrand ? `Hello, ${brands.find(b => b.slug === activeBrand)?.name}` : 'Brand Studio'}
-              </h2>
-              <p className="text-muted-foreground/70 text-sm font-light leading-7 max-w-[260px] mx-auto">
-                {activeBrand
-                  ? "What would you like to create today?"
-                  : "Select a brand to begin your creative journey."}
-              </p>
-            </div>
-
-            {/* Actions */}
-            {activeBrand && (
-              <div className="flex flex-col gap-3 w-full">
-                {/* Primary CTA - Mid-weight fill, tighter */}
-                <Button
-                  className="w-full h-10 rounded-full text-sm font-medium bg-neutral-800 text-white hover:bg-neutral-900 transition-all shadow-sm"
-                  onClick={() => onInteractionSelect('suggestion', "Generate Social Post")}
-                >
-                  <Sparkles className="w-3.5 h-3.5 mr-2 text-white/70" />
-                  Generate Social Post
-                </Button>
-
-                {/* Secondary Options - Quiet/Ghost Pills */}
-                <div className="flex items-center justify-center gap-2 mt-1">
-                  <Button
-                    variant="ghost"
-                    className="h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-medium px-4"
-                    onClick={() => onInteractionSelect('suggestion', "Create Ad Campaign")}
-                  >
-                    Ad Campaign
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-medium px-4"
-                    onClick={() => onInteractionSelect('suggestion', "Brand Guidelines")}
-                  >
-                    Guidelines
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!activeBrand && (
-              <div className="flex justify-center mt-2">
-                <BrandSelector brands={brands} activeBrand={activeBrand} onSelect={selectBrand} />
-              </div>
-            )}
-
-            {/* Footer Product Link - REMOVED per request */}
+          {/* Icon - Simplified */}
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-b from-background to-secondary border border-border/40 flex items-center justify-center shadow-soft">
+            <Bot className="w-6 h-6 text-foreground/70" strokeWidth={1.2} />
           </div>
+
+          <div className="space-y-2 text-center">
+            <h2 className="text-xl font-medium tracking-tight text-foreground">
+              {activeBrand ? `Brand Studio` : 'Welcome'}
+            </h2>
+            <p className="text-muted-foreground text-sm font-light">
+              {activeBrand
+                ? `You are working with ${brands.find(b => b.slug === activeBrand)?.name}.`
+                : "Select a brand to begin aligned creation."}
+            </p>
+          </div>
+
+          {!activeBrand && (
+            <div className="flex justify-center mt-2 w-full max-w-xs">
+              <BrandSelector brands={brands} activeBrand={activeBrand} onSelect={selectBrand} />
+            </div>
+          )}
         </div>
       </div>
     )
@@ -658,7 +419,7 @@ export function MessageList({ messages, progress, loadedSkills, isLoading, produ
   const showActivity = isLoading || progress
 
   return (
-    <div className="flex flex-col pb-4">
+    <div className="flex flex-col pb-4 w-full">
       {messages.map((message) => (
         <MessageBubble
           key={message.id}
