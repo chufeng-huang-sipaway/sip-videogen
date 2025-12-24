@@ -97,10 +97,156 @@ export interface ProjectFull {
   updated_at: string
 }
 
+//Template types
+export interface CanvasSpec {
+  aspect_ratio: string
+  background: string
+  width?: number | null
+  height?: number | null
+}
+export interface MessageSpec {
+  intent: string
+  audience: string
+  key_claims: string[]
+}
+export interface StyleSpec {
+  palette: string[]
+  lighting: string
+  mood: string
+  materials: string[]
+}
+export interface GeometrySpec {
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  z_index: number
+}
+export interface AppearanceSpec {
+  fill: string
+  stroke: string
+  opacity: number
+  blur: number
+  shadow: string
+}
+export interface ContentSpec {
+  text: string
+  font_family: string
+  font_size: string
+  font_weight: string
+  alignment: string
+  image_description: string
+}
+export interface ConstraintSpec {
+  locked_position: boolean
+  locked_size: boolean
+  locked_aspect: boolean
+  min_margin: number
+  semantic_role: string
+}
+export interface LayoutElement {
+  id: string
+  type: string
+  role: string
+  geometry: GeometrySpec
+  appearance: AppearanceSpec
+  content: ContentSpec
+  constraints: ConstraintSpec
+}
+export interface InteractionSpec {
+  replacement_mode: string
+  preserve_shadow: boolean
+  preserve_reflection: boolean
+  scale_mode: string
+}
+export interface ProductSlot {
+  id: string
+  geometry: GeometrySpec
+  appearance: AppearanceSpec
+  interaction: InteractionSpec
+}
+//V1 Template Analysis (geometry-focused, deprecated)
+export interface TemplateAnalysisV1 {
+  version: string
+  canvas: CanvasSpec
+  message: MessageSpec
+  style: StyleSpec
+  elements: LayoutElement[]
+  product_slot: ProductSlot | null
+}
+//V2 Template Analysis (semantic-focused)
+export interface CopywritingSpec {
+  headline: string
+  subheadline: string
+  body_texts: string[]
+  benefits: string[]
+  cta: string
+  disclaimer: string
+  tagline: string
+}
+export interface VisualSceneSpec {
+  scene_description: string
+  product_placement: string
+  lifestyle_elements: string[]
+  visual_treatments: string[]
+  photography_style: string
+}
+export interface LayoutStructureSpec {
+  structure: string
+  zones: string[]
+  hierarchy: string
+  alignment: string
+}
+export interface TemplateConstraintsSpec {
+  non_negotiables: string[]
+  creative_freedom: string[]
+  product_integration: string
+}
+export interface TemplateAnalysisV2 {
+  version: string
+  canvas: CanvasSpec
+  style: StyleSpec
+  layout: LayoutStructureSpec
+  copywriting: CopywritingSpec
+  visual_scene: VisualSceneSpec
+  constraints: TemplateConstraintsSpec
+}
+//Union type for both versions
+export type TemplateAnalysis = TemplateAnalysisV1 | TemplateAnalysisV2
+//Type guard to check if analysis is V2
+export function isV2Analysis(analysis: TemplateAnalysis): analysis is TemplateAnalysisV2 {
+  return analysis.version === '2.0'
+}
+export interface TemplateSummary {
+  slug: string
+  name: string
+  description: string
+  primary_image: string
+  default_strict: boolean
+  created_at: string
+  updated_at: string
+}
+export interface TemplateFull {
+  slug: string
+  name: string
+  description: string
+  images: string[]
+  primary_image: string
+  default_strict: boolean
+  analysis: TemplateAnalysis | null
+  created_at: string
+  updated_at: string
+}
+export interface AttachedTemplate {
+  template_slug: string
+  strict: boolean
+}
 // Chat context types
 export interface ChatContext {
   project_slug?: string | null
   attached_products?: string[]
+  attached_templates?: AttachedTemplate[]
 }
 
 interface ApiKeyStatus {
@@ -204,6 +350,7 @@ interface ChatResponse {
   response: string
   images: GeneratedImage[]
   videos?: GeneratedVideo[]
+  templates?: string[]
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null
@@ -275,7 +422,8 @@ interface PyWebViewAPI {
     message: string,
     attachments?: ChatAttachment[],
     project_slug?: string | null,
-    attached_products?: string[]
+    attached_products?: string[],
+    attached_templates?: AttachedTemplate[]
   ): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
@@ -306,6 +454,20 @@ interface PyWebViewAPI {
   set_primary_product_image(product_slug: string, filename: string): Promise<BridgeResponse<void>>
   get_product_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   get_product_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+
+  //Template methods
+  get_templates(brand_slug?: string): Promise<BridgeResponse<{ templates: TemplateSummary[] }>>
+  get_template(template_slug: string): Promise<BridgeResponse<TemplateFull>>
+  create_template(name: string, description: string, images?: Array<{ filename: string; data: string }>, default_strict?: boolean): Promise<BridgeResponse<{ slug: string }>>
+  update_template(template_slug: string, name?: string, description?: string, default_strict?: boolean): Promise<BridgeResponse<{ slug: string; name: string; description: string }>>
+  delete_template(template_slug: string): Promise<BridgeResponse<void>>
+  get_template_images(template_slug: string): Promise<BridgeResponse<{ images: string[] }>>
+  upload_template_image(template_slug: string, filename: string, data_base64: string): Promise<BridgeResponse<{ path: string }>>
+  delete_template_image(template_slug: string, filename: string): Promise<BridgeResponse<void>>
+  set_primary_template_image(template_slug: string, filename: string): Promise<BridgeResponse<void>>
+  get_template_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  get_template_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  reanalyze_template(template_slug: string): Promise<BridgeResponse<{ analysis: TemplateAnalysis }>>
 
   // Project methods
   get_projects(brand_slug?: string): Promise<BridgeResponse<{ projects: ProjectEntry[]; active_project: string | null }>>
@@ -417,7 +579,8 @@ export const bridge = {
         m,
         attachments || [],
         context?.project_slug,
-        context?.attached_products
+        context?.attached_products,
+        context?.attached_templates
       )
     ),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
@@ -452,6 +615,30 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.get_product_image_thumbnail(path))).dataUrl,
   getProductImageFull: async (path: string) =>
     (await callBridge(() => window.pywebview!.api.get_product_image_full(path))).dataUrl,
+
+  //Templates
+  getTemplates: async (brandSlug?: string) =>
+    (await callBridge(() => window.pywebview!.api.get_templates(brandSlug))).templates,
+  getTemplate: (templateSlug: string) => callBridge(() => window.pywebview!.api.get_template(templateSlug)),
+  createTemplate: async (name: string, description: string, images?: Array<{ filename: string; data: string }>, defaultStrict?: boolean) =>
+    (await callBridge(() => window.pywebview!.api.create_template(name, description, images, defaultStrict))).slug,
+  updateTemplate: (templateSlug: string, name?: string, description?: string, defaultStrict?: boolean) =>
+    callBridge(() => window.pywebview!.api.update_template(templateSlug, name, description, defaultStrict)),
+  deleteTemplate: (templateSlug: string) => callBridge(() => window.pywebview!.api.delete_template(templateSlug)),
+  getTemplateImages: async (templateSlug: string) =>
+    (await callBridge(() => window.pywebview!.api.get_template_images(templateSlug))).images,
+  uploadTemplateImage: async (templateSlug: string, filename: string, dataBase64: string) =>
+    (await callBridge(() => window.pywebview!.api.upload_template_image(templateSlug, filename, dataBase64))).path,
+  deleteTemplateImage: (templateSlug: string, filename: string) =>
+    callBridge(() => window.pywebview!.api.delete_template_image(templateSlug, filename)),
+  setPrimaryTemplateImage: (templateSlug: string, filename: string) =>
+    callBridge(() => window.pywebview!.api.set_primary_template_image(templateSlug, filename)),
+  getTemplateImageThumbnail: async (path: string) =>
+    (await callBridge(() => window.pywebview!.api.get_template_image_thumbnail(path))).dataUrl,
+  getTemplateImageFull: async (path: string) =>
+    (await callBridge(() => window.pywebview!.api.get_template_image_full(path))).dataUrl,
+  reanalyzeTemplate: async (templateSlug: string) =>
+    (await callBridge(() => window.pywebview!.api.reanalyze_template(templateSlug))).analysis,
 
   // Projects
   getProjects: async (brandSlug?: string) => {

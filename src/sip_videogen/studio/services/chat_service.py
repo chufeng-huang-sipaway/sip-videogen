@@ -5,7 +5,7 @@ import time
 from sip_videogen.advisor.agent import BrandAdvisor
 from sip_videogen.advisor.tools import get_image_metadata,get_video_metadata
 from sip_videogen.brands.memory import list_brand_assets,list_brand_videos
-from sip_videogen.brands.storage import get_active_brand,get_active_project,get_brand_dir,set_active_project
+from sip_videogen.brands.storage import get_active_brand,get_active_project,get_brand_dir,set_active_project,list_templates as storage_list_templates
 from sip_videogen.config.logging import get_logger
 from ..state import BridgeState
 from ..utils.bridge_types import bridge_ok,bridge_error
@@ -41,10 +41,14 @@ class ChatService:
         after={a["path"]for a in list_brand_videos(slug)}
         new_paths=sorted(after-before)
         return encode_new_videos(new_paths,get_video_metadata)
+    def _collect_new_templates(self,slug:str,before:set[str])->list[str]:
+        """Find newly created templates."""
+        after={t.slug for t in storage_list_templates(slug)}
+        return sorted(after-before)
     def get_progress(self)->dict:
         """Get current operation progress."""
         return bridge_ok({"status":self._state.current_progress,"type":self._state.current_progress_type,"skills":self._state.matched_skills})
-    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None)->dict:
+    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None)->dict:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace=[];self._state.matched_skills=[]
         try:
@@ -66,12 +70,14 @@ class ChatService:
             #Snapshot generated assets before running
             before_images={a["path"]for a in list_brand_assets(slug,category="generated")}
             before_videos={a["path"]for a in list_brand_videos(slug)}
+            before_templates={t.slug for t in storage_list_templates(slug)}
             #Run advisor
-            result=asyncio.run(advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products))
+            result=asyncio.run(advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products,attached_templates=attached_templates))
             response=result["response"];interaction=result.get("interaction");memory_update=result.get("memory_update")
             images=self._collect_new_images(slug,before_images)
             videos=self._collect_new_videos(slug,before_videos)
-            return bridge_ok({"response":response,"images":images,"videos":videos,"execution_trace":self._state.execution_trace,"interaction":interaction,"memory_update":memory_update})
+            templates=self._collect_new_templates(slug,before_templates)
+            return bridge_ok({"response":response,"images":images,"videos":videos,"templates":templates,"execution_trace":self._state.execution_trace,"interaction":interaction,"memory_update":memory_update})
         except Exception as e:return bridge_error(str(e))
         finally:self._state.current_progress=""
     def clear_chat(self)->dict:

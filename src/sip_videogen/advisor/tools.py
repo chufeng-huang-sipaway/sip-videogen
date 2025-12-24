@@ -31,7 +31,7 @@ from typing import Literal
 from agents import function_tool
 from typing_extensions import NotRequired, TypedDict
 
-from sip_videogen.brands.models import ProductAttribute, ProductFull
+from sip_videogen.brands.models import ProductAttribute, ProductFull, TemplateFull, TemplateSummary
 from sip_videogen.brands.product_description import (
     extract_attributes_from_description,
     has_attributes_block,
@@ -52,6 +52,8 @@ from sip_videogen.brands.storage import (
     get_brand_dir,
     get_brands_dir,
     load_product,
+    load_template,
+    load_template_summary,
 )
 from sip_videogen.brands.storage import (
     list_products as storage_list_products,
@@ -68,6 +70,14 @@ from sip_videogen.brands.storage import (
 from sip_videogen.brands.storage import (
     set_primary_product_image as storage_set_primary_product_image,
 )
+from sip_videogen.brands.storage import (
+    create_template as storage_create_template,
+    save_template as storage_save_template,
+    add_template_image as storage_add_template_image,
+    list_templates as storage_list_templates,
+    delete_template as storage_delete_template,
+)
+from sip_videogen.advisor.template_analyzer import analyze_template_v2
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
 
@@ -492,6 +502,8 @@ async def _impl_generate_image(
     reference_image: str | None = None,
     product_slug: str | None = None,
     product_slugs: list[str] | None = None,
+    template_slug: str | None = None,
+    strict: bool = True,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -506,6 +518,9 @@ async def _impl_generate_image(
             plus additional reference images (up to the per-product cap) for generation.
         product_slugs: Optional list of product slugs for multi-product generation.
             When provided with 2+ products, uses multi-product validation.
+        template_slug: Optional template slug. When provided, loads the template's
+            analyzed JSON constraints and applies them to the generation prompt.
+        strict: When True with template_slug, enforces exact layout reproduction.
         validate_identity: When True with reference_image, validates that the
             generated image preserves object identity from the reference.
         max_retries: Maximum validation attempts (only used with validate_identity).
@@ -552,6 +567,39 @@ async def _impl_generate_image(
         filename = _generate_output_filename(None)
 
     output_path = output_dir / f"{filename}.png"
+
+    template_constraints = ""
+    if template_slug:
+        if not brand_slug:
+            return "Error: No active brand - cannot load template"
+        template = load_template(brand_slug, template_slug)
+        if template is None:
+            return f"Error: Template not found: {template_slug}"
+        if template.analysis is None:
+            return f"Error: Template '{template_slug}' has no analysis"
+        #Detect V2 vs V1 analysis and use appropriate builder
+        is_v2=getattr(template.analysis,"version","1.0")=="2.0"
+        if is_v2:
+            from sip_videogen.advisor.template_prompt import build_template_constraints_v2
+            template_constraints=build_template_constraints_v2(template.analysis,strict=strict,include_usage=False)
+        else:
+            from sip_videogen.advisor.template_prompt import build_template_constraints
+            template_constraints=build_template_constraints(template.analysis,strict=strict,include_usage=False)
+        template_aspect_ratio = template.analysis.canvas.aspect_ratio
+        allowed_aspects = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"}
+        if template_aspect_ratio and template_aspect_ratio in allowed_aspects:
+            if template_aspect_ratio != aspect_ratio:
+                logger.info(
+                    "Template aspect ratio override: %s -> %s",
+                    aspect_ratio,
+                    template_aspect_ratio,
+                )
+            aspect_ratio = template_aspect_ratio
+
+    def _apply_template_constraints(base_prompt: str) -> str:
+        if not template_constraints:
+            return base_prompt
+        return f"{base_prompt}\n\n[TEMPLATE CONSTRAINTS]\n{template_constraints}"
 
     # Handle multi-product generation with validation
     if product_slugs and len(product_slugs) >= 2:
@@ -679,6 +727,7 @@ async def _impl_generate_image(
                 product_slugs=product_slugs,
             )
             logger.info(f"Injected product specs for {len(product_slugs)} products")
+        generation_prompt = _apply_template_constraints(generation_prompt)
 
         # Use multi-product validation
         from sip_videogen.advisor.validation import generate_with_multi_validation
@@ -838,6 +887,8 @@ async def _impl_generate_image(
                 logger.info(f"Injected product specs for '{product_slug}'")
         else:
             logger.warning(f"Product '{product_slug}' has no primary image")
+
+    generation_prompt = _apply_template_constraints(generation_prompt)
 
     if reference_image and not reference_candidates:
         role = "primary" if product_slug else "reference"
@@ -2511,6 +2562,8 @@ async def generate_image(
     reference_image: str | None = None,
     product_slug: str | None = None,
     product_slugs: list[str] | None = None,
+    template_slug: str | None = None,
+    strict: bool = True,
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
@@ -2545,6 +2598,9 @@ async def generate_image(
             appears accurately. The prompt should describe each product with specific
             details (materials, colors, etc.).
             Example: product_slugs=["night-cream", "day-serum", "toner"]
+        template_slug: Optional template slug. When provided, applies the stored
+            template layout constraints (JSON analysis) to the prompt.
+        strict: When True with template_slug, enforces exact layout reproduction.
         validate_identity: When True AND reference_image is provided, enables a
             validation loop that ensures the generated image preserves the identity
             of objects in the reference. Use when the user needs the EXACT SAME
@@ -2566,6 +2622,8 @@ async def generate_image(
         reference_image,
         product_slug,
         product_slugs,
+        template_slug,
+        strict,
         validate_identity,
         max_retries,
     )
@@ -3229,6 +3287,303 @@ def fetch_url_content(url:str)->str:
 
 
 # =============================================================================
+# Template Management Tools
+# =============================================================================
+import asyncio
+import json
+from datetime import datetime as _dt
+
+def _impl_list_templates()->str:
+    """List all templates for active brand."""
+    logger.info("list_templates called")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    templates=storage_list_templates(slug)
+    if not templates:return "No templates found for this brand."
+    lines=["**Templates:**"]
+    for t in templates:
+        img_count=1 if t.primary_image else 0
+        lines.append(f"- **{t.name}** (`{t.slug}`) - {img_count} image(s)")
+    return "\n".join(lines)
+
+def _impl_get_template_detail(template_slug:str)->str:
+    """Get detailed template info including analysis."""
+    logger.info(f"get_template_detail called with template_slug={template_slug}")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    t=load_template(slug,template_slug)
+    if not t:return f"Error: Template '{template_slug}' not found."
+    lines=[f"# {t.name}",f"**Slug:** `{t.slug}`",f"**Description:** {t.description or '(none)'}",
+           f"**Default Strict:** {t.default_strict}",f"**Images:** {len(t.images)}"]
+    if t.primary_image:lines.append(f"**Primary Image:** {t.primary_image}")
+    if t.analysis:
+        lines.append("\n## Analysis")
+        if hasattr(t.analysis,'copywriting'):
+            lines.append("**V2 Semantic Analysis Available**")
+            if t.analysis.copywriting:
+                cw=t.analysis.copywriting
+                if cw.headline:lines.append(f"- Headline: \"{cw.headline}\"")
+                if cw.cta:lines.append(f"- CTA: \"{cw.cta}\"")
+        else:lines.append("**V1 Geometry Analysis Available**")
+    return "\n".join(lines)
+
+async def _generate_template_name(image_path:Path)->str:
+    """Generate descriptive template name from image using Gemini."""
+    try:
+        from google import genai
+        from google.genai import types
+        settings=get_settings()
+        client=genai.Client(api_key=settings.gemini_api_key)
+        img_bytes=image_path.read_bytes()
+        prompt="Analyze this design template image and suggest a short descriptive name (2-4 words) that captures its layout style. Examples: 'Hero Centered Product', 'Split Two-Column', 'Minimalist Product Card'. Reply with ONLY the name, nothing else."
+        resp=client.models.generate_content(model="gemini-2.0-flash",contents=[types.Part.from_bytes(data=img_bytes,mime_type="image/png"),prompt])
+        name=resp.text.strip().strip('"').strip("'")
+        return name if name else "New Template"
+    except Exception as e:
+        logger.warning(f"Failed to generate template name: {e}")
+        return "New Template"
+
+async def _impl_create_template_async(name:str,description:str="",image_path:str|None=None,default_strict:bool=True)->str:
+    """Create a new template."""
+    logger.info(f"create_template called with name={name}")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    #Generate slug from name
+    template_slug=re.sub(r"[^a-z0-9]+","-",name.lower()).strip("-")
+    if not template_slug:return "Error: Invalid template name."
+    #Check if exists
+    existing=load_template_summary(slug,template_slug)
+    if existing:return f"Error: Template '{template_slug}' already exists."
+    #Create template
+    now=_dt.utcnow()
+    template=TemplateFull(slug=template_slug,name=name,description=description,images=[],primary_image="",default_strict=default_strict,analysis=None,created_at=now,updated_at=now)
+    try:storage_create_template(slug,template)
+    except Exception as e:return f"Error creating template: {e}"
+    #Add image if provided
+    if image_path:
+        result=await _impl_add_template_image_async(template_slug,image_path,reanalyze=True)
+        if result.startswith("Error"):return f"Created template but failed to add image: {result}"
+    return f"Created template **{name}** (`{template_slug}`)."
+
+async def _impl_create_templates_from_images_async(image_paths:list[str],default_strict:bool=True)->str:
+    """Create one template per image with auto-generated names."""
+    logger.info(f"create_templates_from_images called with {len(image_paths)} images")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    brand_dir=get_brand_dir(slug)
+    created=[]
+    errors=[]
+    for img_path in image_paths:
+        #Validate path
+        if not img_path.startswith("uploads/"):
+            errors.append(f"{img_path}: must be in uploads/ folder")
+            continue
+        full_path=brand_dir/img_path
+        if not full_path.exists():
+            errors.append(f"{img_path}: file not found")
+            continue
+        #Generate name from image
+        name=await _generate_template_name(full_path)
+        #Make slug unique
+        base_slug=re.sub(r"[^a-z0-9]+","-",name.lower()).strip("-")or"template"
+        template_slug=base_slug
+        counter=1
+        while load_template_summary(slug,template_slug):
+            template_slug=f"{base_slug}-{counter}"
+            counter+=1
+        #Create template
+        now=_dt.utcnow()
+        template=TemplateFull(slug=template_slug,name=name,description="",images=[],primary_image="",default_strict=default_strict,analysis=None,created_at=now,updated_at=now)
+        try:
+            storage_create_template(slug,template)
+            #Add image and analyze
+            img_bytes=full_path.read_bytes()
+            storage_add_template_image(slug,template_slug,full_path.name,img_bytes)
+            #Reload and analyze
+            t=load_template(slug,template_slug)
+            if t and t.images:
+                img_full=brand_dir/t.images[0]
+                analysis=await analyze_template_v2([img_full])
+                if analysis:
+                    t.analysis=analysis
+                    t.updated_at=_dt.utcnow()
+                    storage_save_template(slug,t)
+            created.append(f"**{name}** (`{template_slug}`)")
+        except Exception as e:
+            errors.append(f"{img_path}: {e}")
+    result_lines=[]
+    if created:result_lines.append(f"Created {len(created)} template(s):\n"+"\n".join(f"- {c}" for c in created))
+    if errors:result_lines.append(f"\nErrors:\n"+"\n".join(f"- {e}" for e in errors))
+    return "\n".join(result_lines)if result_lines else "No templates created."
+
+
+def _impl_update_template(template_slug:str,name:str|None=None,description:str|None=None,default_strict:bool|None=None)->str:
+    """Update template metadata."""
+    logger.info(f"update_template called with template_slug={template_slug}")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    t=load_template(slug,template_slug)
+    if not t:return f"Error: Template '{template_slug}' not found."
+    if name is not None:t.name=name
+    if description is not None:t.description=description
+    if default_strict is not None:t.default_strict=default_strict
+    t.updated_at=_dt.utcnow()
+    try:storage_save_template(slug,t)
+    except Exception as e:return f"Error updating template: {e}"
+    return f"Updated template **{t.name}** (`{template_slug}`)."
+
+async def _impl_add_template_image_async(template_slug:str,image_path:str,reanalyze:bool=True)->str:
+    """Add image to template from uploads folder."""
+    logger.info(f"add_template_image called with template_slug={template_slug}, image_path={image_path}")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    t=load_template(slug,template_slug)
+    if not t:return f"Error: Template '{template_slug}' not found."
+    #Validate path
+    if not image_path.startswith("uploads/"):return "Error: image_path must be within uploads/ folder."
+    brand_dir=get_brand_dir(slug)
+    full_path=brand_dir/image_path
+    if not full_path.exists():return f"Error: File not found: {image_path}"
+    #Add image
+    try:
+        img_bytes=full_path.read_bytes()
+        storage_add_template_image(slug,template_slug,full_path.name,img_bytes)
+    except Exception as e:return f"Error adding image: {e}"
+    #Reanalyze if requested
+    if reanalyze:
+        result=await _impl_reanalyze_template_async(template_slug)
+        if result.startswith("Error"):return f"Added image but reanalysis failed: {result}"
+    return f"Added image `{full_path.name}` to template **{t.name}**."
+
+async def _impl_reanalyze_template_async(template_slug:str)->str:
+    """Re-run V2 analysis on template images."""
+    logger.info(f"reanalyze_template called with template_slug={template_slug}")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    t=load_template(slug,template_slug)
+    if not t:return f"Error: Template '{template_slug}' not found."
+    if not t.images:return f"Error: Template has no images to analyze."
+    brand_dir=get_brand_dir(slug)
+    img_paths=[brand_dir/img for img in t.images[:2]]
+    try:
+        analysis=await analyze_template_v2(img_paths)
+        if not analysis:return "Error: Analysis failed - no result returned."
+        t.analysis=analysis
+        t.updated_at=_dt.utcnow()
+        storage_save_template(slug,t)
+        return f"Re-analyzed template **{t.name}** with V2 semantic analysis."
+    except Exception as e:return f"Error during analysis: {e}"
+
+def _impl_delete_template(template_slug:str,confirm:bool=False)->str:
+    """Delete template. Requires confirm=True."""
+    logger.info(f"delete_template called with template_slug={template_slug}, confirm={confirm}")
+    slug=get_active_brand()
+    if not slug:return "Error: No brand context set."
+    t=load_template(slug,template_slug)
+    if not t:return f"Error: Template '{template_slug}' not found."
+    if not confirm:
+        return f"This will permanently delete **{t.name}** and {len(t.images)} image(s). To confirm, call `delete_template(template_slug, confirm=True)`."
+    try:
+        storage_delete_template(slug,template_slug)
+        return f"Deleted template **{t.name}** (`{template_slug}`)."
+    except Exception as e:return f"Error deleting template: {e}"
+
+#Wrapped template tools
+@function_tool
+def list_templates()->str:
+    """List all templates for the active brand.
+    Returns:
+        Formatted list of templates with name, slug, and image count.
+    """
+    return _impl_list_templates()
+
+@function_tool
+def get_template_detail(template_slug:str)->str:
+    """Get detailed template information including analysis.
+    Args:
+        template_slug: The template's slug identifier. Use list_templates() to see available templates.
+    Returns:
+        Template details including name, description, images, and analysis summary.
+    """
+    return _impl_get_template_detail(template_slug)
+
+@function_tool
+async def create_template(name:str,description:str="",image_path:str|None=None,default_strict:bool=True)->str:
+    """Create a new template for reusable layouts.
+    Args:
+        name: Template name (e.g., "Hero Centered Product", "Split Banner").
+        description: Optional template description.
+        image_path: Optional path to image within uploads/ folder.
+        default_strict: Default strict mode for this template (default True).
+    Returns:
+        Success message with template slug, or error message.
+    """
+    return await _impl_create_template_async(name,description,image_path,default_strict)
+
+@function_tool
+async def create_templates_from_images(image_paths:list[str],default_strict:bool=True)->str:
+    """Create one template per image with auto-generated names.
+    Use this when user drops multiple images and wants a template for each.
+    The template name is auto-generated by analyzing each image's layout.
+    Args:
+        image_paths: List of paths within uploads/ folder. Each creates a separate template.
+        default_strict: Default strict mode for created templates (default True).
+    Returns:
+        Summary of created templates and any errors.
+    Example:
+        create_templates_from_images(["uploads/banner1.png", "uploads/card.png"])
+    """
+    return await _impl_create_templates_from_images_async(image_paths,default_strict)
+
+@function_tool
+def update_template(template_slug:str,name:str|None=None,description:str|None=None,default_strict:bool|None=None)->str:
+    """Update template metadata.
+    Args:
+        template_slug: The template's slug identifier.
+        name: Optional new name.
+        description: Optional new description.
+        default_strict: Optional new default strict mode.
+    Returns:
+        Success message or error.
+    """
+    return _impl_update_template(template_slug,name,description,default_strict)
+
+@function_tool
+async def add_template_image(template_slug:str,image_path:str,reanalyze:bool=True)->str:
+    """Add an image to a template from uploads folder.
+    Args:
+        template_slug: The template's slug identifier.
+        image_path: Path within uploads/ folder (e.g., "uploads/design.png").
+        reanalyze: Re-run V2 analysis after adding image (default True).
+    Returns:
+        Success message or error.
+    """
+    return await _impl_add_template_image_async(template_slug,image_path,reanalyze)
+
+@function_tool
+async def reanalyze_template(template_slug:str)->str:
+    """Re-run V2 Gemini analysis on template images.
+    Use when template images have changed or you want to refresh the analysis.
+    Args:
+        template_slug: The template's slug identifier.
+    Returns:
+        Success message or error.
+    """
+    return await _impl_reanalyze_template_async(template_slug)
+
+@function_tool
+def delete_template(template_slug:str,confirm:bool=False)->str:
+    """Delete a template and all its files. Requires confirm=True.
+    Args:
+        template_slug: The template's slug identifier.
+        confirm: Must be True to actually delete. If False, returns warning.
+    Returns:
+        Success message, warning, or error.
+    """
+    return _impl_delete_template(template_slug,confirm)
+
+
+# =============================================================================
 # Tool List for Agent
 # =============================================================================
 
@@ -3255,6 +3610,15 @@ ADVISOR_TOOLS = [
     delete_product,
     add_product_image,
     set_product_primary_image,
+    # Template management tools
+    list_templates,
+    get_template_detail,
+    create_template,
+    create_templates_from_images,
+    update_template,
+    add_template_image,
+    reanalyze_template,
+    delete_template,
     # Brand memory tools (migrated from brands.tools)
     fetch_brand_detail,
     browse_brand_assets,

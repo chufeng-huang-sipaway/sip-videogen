@@ -13,9 +13,13 @@ from .storage import (
     load_brand_summary,
     load_product,
     load_project,
+    load_template,
 )
 from sip_videogen.brands.product_description import extract_attributes_from_description
 from sip_videogen.config.settings import get_settings
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from sip_videogen.brands.models import TemplateAnalysis
 
 # Description of each detail type for agent prompts
 DETAIL_DESCRIPTIONS = {
@@ -349,19 +353,145 @@ def build_project_context(brand_slug: str, project_slug: str) -> str:
 
 
 # =============================================================================
+# Template Context Builder
+# =============================================================================
+class TemplateContextBuilder:
+    """Builds template context for agent prompts."""
+    def __init__(self,brand_slug:str,template_slug:str,strict:bool=True):
+        """Initialize with brand/template slugs and strictness mode.
+        Args:
+            brand_slug: Brand identifier.
+            template_slug: Template identifier.
+            strict: True=exact layout reproduction, False=allow variation.
+        Raises:
+            ValueError: If template not found.
+        """
+        self.brand_slug=brand_slug
+        self.template_slug=template_slug
+        self.strict=strict
+        self.template=load_template(brand_slug,template_slug)
+        if self.template is None:
+            raise ValueError(f"Template '{template_slug}' not found in brand '{brand_slug}'")
+    def build_context_section(self)->str:
+        """Build template context section for prompts.
+        Returns:
+            Formatted string with layout constraints based on strict/loose mode.
+        """
+        t=self.template
+        analysis=t.analysis
+        if analysis is None:
+            return f"""### Template: {t.name}
+**Slug**: `{t.slug}`
+**Description**: {t.description or '(No description)'}
+**Mode**: {'Strict' if self.strict else 'Loose'}
+*Analysis pending - template not yet analyzed.*
+"""
+        #Detect V2 vs V1 analysis
+        is_v2=getattr(analysis,"version","1.0")=="2.0"
+        if is_v2:return self._build_v2_context(t.name,t.slug,t.description or"",analysis)
+        return self._build_v1_context(t.name,t.slug,t.description or"",analysis)
+    def _build_v2_context(self,name:str,slug:str,description:str,analysis)->str:
+        """Build context from V2 semantic analysis."""
+        mode_label="Strict" if self.strict else "Loose"
+        canvas=analysis.canvas
+        style=analysis.style
+        layout=analysis.layout
+        copy=analysis.copywriting
+        scene=analysis.visual_scene
+        #Summary info
+        canvas_info=f"**Canvas**: {canvas.aspect_ratio} aspect"
+        layout_info=f"**Layout**: {layout.structure}"
+        #Copywriting summary
+        copy_items=[]
+        if copy.headline:copy_items.append("headline")
+        if copy.benefits:copy_items.append(f"{len(copy.benefits)} benefits")
+        if copy.disclaimer:copy_items.append("disclaimer")
+        copy_info=f"**Copywriting**: {', '.join(copy_items)}" if copy_items else"**Copywriting**: none"
+        #Visual treatments
+        treatments_info=f"**Visual Treatments**: {', '.join(scene.visual_treatments[:3])}" if scene.visual_treatments else""
+        #Build constraints using V2 builder
+        from sip_videogen.advisor.template_prompt import build_template_constraints_v2
+        constraints=build_template_constraints_v2(analysis,strict=self.strict)
+        return f"""### Template: {name}
+**Slug**: `{slug}`
+**Description**: {description}
+**Mode**: {mode_label}
+
+{canvas_info}
+{layout_info}
+{copy_info}
+{treatments_info}
+
+{constraints}
+"""
+    def _build_v1_context(self,name:str,slug:str,description:str,analysis)->str:
+        """Build context from V1 geometry analysis (deprecated)."""
+        mode_label="Strict" if self.strict else "Loose"
+        canvas=analysis.canvas
+        style=analysis.style
+        message=analysis.message
+        elements=analysis.elements
+        product_slot=analysis.product_slot
+        canvas_info=f"**Canvas**: {canvas.aspect_ratio} aspect, {canvas.background} background"
+        palette_str=", ".join(style.palette[:4]) if style.palette else"(not defined)"
+        style_info=f"**Style**: {style.mood} mood, {style.lighting} lighting\n**Palette**: {palette_str}"
+        message_info=f"**Intent**: {message.intent}\n**Audience**: {message.audience}"
+        if message.key_claims:message_info+=f"\n**Key Claims**: {', '.join(message.key_claims[:3])}"
+        elem_types=[e.type for e in elements]
+        elem_summary=f"**Elements**: {len(elements)} layout elements"
+        if elem_types:
+            from collections import Counter
+            type_counts=Counter(elem_types)
+            elem_summary+=f" ({', '.join(f'{v}x {k}' for k,v in type_counts.most_common(3))})"
+        slot_info=""
+        if product_slot:
+            geo=product_slot.geometry
+            slot_info=f"**Product Slot**: id=`{product_slot.id}`, Position: ({geo.x:.0%}, {geo.y:.0%})"
+        from sip_videogen.advisor.template_prompt import build_template_constraints
+        constraints=build_template_constraints(analysis,strict=self.strict)
+        return f"""### Template: {name}
+**Slug**: `{slug}`
+**Description**: {description}
+**Mode**: {mode_label}
+
+{canvas_info}
+{style_info}
+{message_info}
+{elem_summary}
+{slot_info}
+
+{constraints}
+"""
+def build_template_context(brand_slug:str,template_slug:str,strict:bool=True)->str:
+    """Convenience function to build template context.
+    Args:
+        brand_slug: Brand identifier.
+        template_slug: Template identifier.
+        strict: True for strict mode, False for loose mode.
+    Returns:
+        Formatted template context string, or error message if not found.
+    """
+    try:
+        builder=TemplateContextBuilder(brand_slug,template_slug,strict)
+        return builder.build_context_section()
+    except ValueError as e:
+        return f"Error: {e}"
+
+
+# =============================================================================
 # Hierarchical Context Builder (Per-Turn Injection)
 # =============================================================================
 
 
 class HierarchicalContextBuilder:
-    """Combines brand, product, and project context for per-turn injection.
+    """Combines brand, product, project, and template context for per-turn injection.
 
     This builder creates dynamic context to prepend to user messages each turn.
-    Unlike brand context (which is in the system prompt at init), project and
-    product context can change mid-conversation.
+    Unlike brand context (which is in the system prompt at init), project,
+    product, and template context can change mid-conversation.
 
     NOTE: Brand context is NOT included here - it's already in the system prompt.
-    This builder only handles project and attached products.
+    This builder only handles project, attached products, and attached templates.
     """
 
     def __init__(
@@ -369,49 +499,44 @@ class HierarchicalContextBuilder:
         brand_slug: str,
         product_slugs: list[str] | None = None,
         project_slug: str | None = None,
+        attached_templates: list[dict] | None = None,
     ):
-        """Initialize with brand slug and optional products/project.
+        """Initialize with brand slug and optional products/project/templates.
 
         Args:
             brand_slug: Brand identifier.
             product_slugs: List of product slugs to include (attached products).
             project_slug: Active project slug (if any).
+            attached_templates: List of template dicts with template_slug and strict.
         """
         self.brand_slug = brand_slug
         self.product_slugs = product_slugs or []
         self.project_slug = project_slug
+        self.attached_templates = attached_templates or []
 
     def build_turn_context(self) -> str:
         """Build context to prepend to user message each turn.
-
         Returns formatted string with:
         - Project instructions (if project active)
         - Attached product descriptions + image paths (if products attached)
         - Multi-product accuracy requirements (if 2+ products attached)
-
+        - Attached template layout constraints (if templates attached)
         NOTE: Brand context is in system prompt (existing).
         This is ADDITIONAL context injected per-turn.
-
         Returns:
             Formatted context string, or empty string if no context.
         """
         sections = []
-
-        # Project context first (more global)
+        #Project context first (more global)
         if self.project_slug:
             try:
-                project_builder = ProjectContextBuilder(
-                    self.brand_slug, self.project_slug
-                )
+                project_builder = ProjectContextBuilder(self.brand_slug, self.project_slug)
                 sections.append(project_builder.build_context_section())
             except ValueError:
-                # Project not found - skip silently
                 pass
-
         settings = get_settings()
         specs_injection_enabled = settings.sip_product_specs_injection
-
-        # Attached products
+        #Attached products
         if self.product_slugs:
             product_sections = []
             for slug in self.product_slugs:
@@ -419,34 +544,39 @@ class HierarchicalContextBuilder:
                     product_builder = ProductContextBuilder(self.brand_slug, slug)
                     product_sections.append(product_builder.build_context_section())
                 except ValueError:
-                    # Product not found - skip silently
                     pass
-
             if product_sections:
-                # Multi-product scenario requires special handling
                 if len(product_sections) > 1:
-                    multi_product_header = self._build_multi_product_header(
-                        len(product_sections)
-                    )
-                    sections.append(
-                        multi_product_header + "\n\n" + "\n\n".join(product_sections)
-                    )
+                    multi_product_header = self._build_multi_product_header(len(product_sections))
+                    sections.append(multi_product_header + "\n\n" + "\n\n".join(product_sections))
                 else:
-                    # Single product - just add with simple header
                     products_header = "### Attached Product"
                     if specs_injection_enabled:
-                        products_header += (
-                            "\nNOTE: Product specs (measurements/materials/colors) will be appended "
+                        products_header += ("\nNOTE: Product specs (measurements/materials/colors) will be appended "
                             "automatically. Keep the prompt concise; omit numeric dimensions and "
-                            "do not restate the constraints block."
-                        )
-                    sections.append(
-                        products_header + "\n\n" + "\n\n".join(product_sections)
-                    )
-
+                            "do not restate the constraints block.")
+                    sections.append(products_header + "\n\n" + "\n\n".join(product_sections))
+        #Attached templates
+        if self.attached_templates:
+            template_sections = []
+            for tpl in self.attached_templates:
+                slug = tpl.get("template_slug") or tpl.get("slug", "")
+                strict = tpl.get("strict", True)
+                if not slug:
+                    continue
+                try:
+                    template_builder = TemplateContextBuilder(self.brand_slug, slug, strict)
+                    template_sections.append(template_builder.build_context_section())
+                except ValueError:
+                    pass
+            if template_sections:
+                if len(template_sections) > 1:
+                    templates_header = f"### Attached Templates ({len(template_sections)})\nMultiple templates attached. Follow the constraints of EACH template."
+                else:
+                    templates_header = "### Attached Template"
+                sections.append(templates_header + "\n\n" + "\n\n".join(template_sections))
         if not sections:
             return ""
-
         return "\n\n---\n\n".join(sections)
 
     def _build_multi_product_header(self, product_count: int) -> str:

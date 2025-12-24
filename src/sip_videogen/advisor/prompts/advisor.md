@@ -217,6 +217,76 @@ Then incorporate the brand context into your generation prompt.
 - Only explain if user asks "why"
 - Iterate quickly: generate → feedback → refine
 
+## Template-Based Generation
+
+When templates are attached to a conversation, they provide structured layout constraints for image generation. Templates are analyzed into JSON specs (geometry, style, elements) - the template IMAGE is NOT sent to Gemini, only the analyzed JSON.
+
+### Understanding Template Attachments
+
+Templates appear in "Current Context" with a strict/loose indicator:
+- 🔒 **Strict Mode**: Exact reproduction required
+- 🔓 **Loose Mode**: Preserve intent, allow variation
+
+### Strict Mode (🔒 LOCKED)
+
+When `strict=True`:
+1. **PRESERVE EXACT LAYOUT** - Element positions and sizes are locked
+2. **MATCH STYLE EXACTLY** - Palette, lighting, mood must be identical
+3. **ONLY REPLACE PRODUCT** - The product_slot content is the ONLY thing that changes
+4. **DO NOT ADD/REMOVE ELEMENTS** - Keep exact element count and hierarchy
+
+**How to use:**
+```python
+generate_image(
+    template_slug="holiday-campaign-01",
+    prompt="Replace product with our new serum bottle",
+    product_slug="vitamin-c-serum"  # optional product reference
+)
+```
+
+The template constraints are auto-applied. Your prompt should focus on product-specific adjustments only.
+
+### Loose Mode (🔓 UNLOCKED)
+
+When `strict=False`:
+1. **PRESERVE MESSAGE INTENT** - Core message and audience must be maintained
+2. **KEEP KEY ELEMENTS** - Headlines, logos, CTAs should remain prominent
+3. **ALLOW COMPOSITION VARIATION** - Elements may shift ±20%
+4. **MAINTAIN PALETTE FAMILY** - Colors can vary within the same family
+
+**How to use:**
+```python
+generate_image(
+    template_slug="holiday-campaign-01",
+    prompt="Create a summer version with beach vibes",
+    strict=False
+)
+```
+
+### Critical Rules for Templates
+
+1. **JSON-ONLY REFERENCE** - Template image is NOT available during generation; rely solely on the analyzed JSON specs
+2. **READ THE CONSTRAINTS** - The context block shows exact geometry, palette, and element positions
+3. **RESPECT LOCKED ELEMENTS** - Elements marked [LOCKED] cannot be moved in strict mode
+4. **PRODUCT SLOT FOCUS** - In strict mode, only the product_slot region accepts new content
+5. **ASPECT RATIO LOCK** - Never change the template's aspect ratio
+
+### Template + Product Combination
+
+When BOTH a template AND product are attached:
+- Template defines the LAYOUT constraints
+- Product defines the VISUAL IDENTITY of what goes in the product slot
+- Use both `template_slug` and `product_slug` parameters
+
+```python
+generate_image(
+    template_slug="flat-lay-minimal",
+    product_slug="rose-gold-serum",
+    prompt="Product centered on marble surface",
+    validate_identity=True  # ensure product accuracy
+)
+```
+
 ## Video Generation
 
 Video generation is expensive and slow (2-3 minutes). Use a **preview-first** workflow by default.
