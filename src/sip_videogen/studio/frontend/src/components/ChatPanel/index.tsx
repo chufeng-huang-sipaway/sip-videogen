@@ -334,15 +334,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Input Area - Clean, no gradient background */}
       <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
-        {/* Suggestion Chips for Empty State, passed to MessageInput or rendered here */}
-        {messages.length === 0 && !isLoading && attachments.length === 0 && brandSlug && (
-          <div className="flex justify-center flex-wrap gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <SuggestionChip onClick={() => sendMessage("Draft a holiday email")} label="Holiday email" />
-            <SuggestionChip onClick={() => sendMessage("Create a product spotlight")} label="Product spotlight" />
-            <SuggestionChip onClick={() => sendMessage("Generate 3 minimalist logos")} label="Minimalist logos" />
-          </div>
-        )}
-
         <MessageInput
           disabled={isLoading || !brandSlug}
           placeholder={
@@ -376,16 +367,5 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         onSelect={attachProduct}
       />
     </main >
-  )
-}
-
-function SuggestionChip({ onClick, label }: { onClick: () => void, label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className="text-xs px-4 py-2 rounded-full bg-white shadow-soft hover:shadow-hover text-muted-foreground hover:text-foreground transition-all border border-transparent hover:border-border/20"
-    >
-      {label}
-    </button>
   )
 }

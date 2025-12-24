@@ -60,7 +60,7 @@ export function MessageInput({
   return (
     <div className="relative w-full">
       <div className={cn(
-        "relative flex items-end gap-2 p-2 rounded-[26px] bg-background shadow-float border border-border/10 transition-shadow duration-300 ring-1 ring-black/5",
+        "relative flex items-center gap-2 p-2 rounded-[26px] bg-background shadow-float border border-border/10 transition-shadow duration-300 ring-1 ring-black/5",
         "focus-within:shadow-xl focus-within:ring-black/10"
       )}>
 
@@ -80,7 +80,7 @@ export function MessageInput({
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:bg-muted/50 transition-colors mb-[1px]"
+              className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:bg-muted/50 transition-colors"
               disabled={disabled}
             >
               <Plus className="h-5 w-5" strokeWidth={1.5} />
@@ -119,10 +119,10 @@ export function MessageInput({
           placeholder={placeholder}
           disabled={disabled}
           rows={1}
-          className="flex-1 max-h-[160px] resize-none bg-transparent py-3.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-50 min-h-[44px] leading-relaxed"
+          className="flex-1 max-h-[160px] resize-none bg-transparent py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-50 min-h-[40px] leading-relaxed"
         />
 
-        <div className="flex items-center shrink-0 mb-[1px]">
+        <div className="flex items-center shrink-0">
           <Button
             type="button"
             size="icon"
