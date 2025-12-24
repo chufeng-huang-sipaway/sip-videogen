@@ -3402,7 +3402,7 @@ async def _impl_create_templates_from_images_async(image_paths:list[str],default
             #Reload and analyze
             t=load_template(slug,template_slug)
             if t and t.images:
-                img_full=brand_dir/"templates"/template_slug/"images"/t.images[0]
+                img_full=brand_dir/t.images[0]
                 analysis=await analyze_template_v2([img_full])
                 if analysis:
                     t.analysis=analysis
@@ -3464,7 +3464,7 @@ async def _impl_reanalyze_template_async(template_slug:str)->str:
     if not t:return f"Error: Template '{template_slug}' not found."
     if not t.images:return f"Error: Template has no images to analyze."
     brand_dir=get_brand_dir(slug)
-    img_paths=[brand_dir/"templates"/template_slug/"images"/img for img in t.images[:2]]
+    img_paths=[brand_dir/img for img in t.images[:2]]
     try:
         analysis=await analyze_template_v2(img_paths)
         if not analysis:return "Error: Analysis failed - no result returned."
