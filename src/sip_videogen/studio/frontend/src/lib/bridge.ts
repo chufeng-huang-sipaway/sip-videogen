@@ -531,6 +531,8 @@ interface PyWebViewAPI {
   register_image(image_path: string, brand_slug?: string, prompt?: string, source_template_path?: string): Promise<BridgeResponse<ImageStatusEntry>>
   register_generated_images(images: RegisterImageInput[], brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
   cancel_generation(brand_slug?: string): Promise<BridgeResponse<{ cancelled: boolean }>>
+  copy_image_to_clipboard(image_path: string): Promise<BridgeResponse<{ copied: boolean; path: string }>>
+  share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
 }
 
 declare global {
@@ -719,4 +721,6 @@ export const bridge = {
   registerImage: (imagePath: string, brandSlug?: string, prompt?: string, sourceTemplatePath?: string) => callBridge(() => window.pywebview!.api.register_image(imagePath, brandSlug, prompt, sourceTemplatePath)),
   registerGeneratedImages: (images: RegisterImageInput[], brandSlug?: string) => callBridge(() => window.pywebview!.api.register_generated_images(images, brandSlug)),
   cancelGeneration: (brandSlug?: string) => callBridge(() => window.pywebview!.api.cancel_generation(brandSlug)),
+  copyImageToClipboard: (imagePath: string) => callBridge(() => window.pywebview!.api.copy_image_to_clipboard(imagePath)),
+  shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
 }

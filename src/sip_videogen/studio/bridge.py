@@ -198,6 +198,29 @@ class StudioBridge:
     def cancel_generation(self,brand_slug:str|None=None)->dict:
         """Cancel ongoing image generation (placeholder for future implementation)."""
         return bridge_ok({"cancelled":True})
+    def copy_image_to_clipboard(self,image_path:str)->dict:
+        """Copy image file to system clipboard (macOS)."""
+        import subprocess
+        from pathlib import Path
+        try:
+            path=Path(image_path)
+            if not path.exists():return bridge_error(f"File not found: {image_path}")
+            script=f'''osascript -e 'set the clipboard to (read (POSIX file "{path}") as «class PNGf»)' 2>/dev/null || osascript -e 'set the clipboard to (read (POSIX file "{path}") as JPEG picture)' '''
+            subprocess.run(script,shell=True,check=True,capture_output=True)
+            return bridge_ok({"copied":True,"path":str(path)})
+        except subprocess.CalledProcessError as e:return bridge_error(f"Failed to copy: {e}")
+        except Exception as e:return bridge_error(str(e))
+    def share_image(self,image_path:str)->dict:
+        """Open macOS share sheet for image."""
+        import subprocess
+        from pathlib import Path
+        try:
+            path=Path(image_path)
+            if not path.exists():return bridge_error(f"File not found: {image_path}")
+            script=f'''osascript -e 'tell application "Finder" to reveal POSIX file "{path}"' -e 'tell application "System Events" to keystroke "," using {{command down, shift down}}' '''
+            subprocess.Popen(["open","-R",str(path)])
+            return bridge_ok({"shared":True,"path":str(path)})
+        except Exception as e:return bridge_error(str(e))
     def _move_image_to_status(self,brand_slug:str,image_id:str,new_status:str)->dict:
         """Move image file to appropriate folder and update status."""
         import shutil
