@@ -212,8 +212,31 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Thumbnails show all generated images
 - First image is selected by default
 
+#### Task 8: SwipeContainer Component ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/SwipeContainer.tsx` - Swipe gesture detection
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Integrated SwipeContainer with keep/trash actions
+
+**Features:**
+- Mouse and touch gesture support for horizontal swiping
+- Visual feedback: image tilts in swipe direction, color overlay (green for keep, red for trash)
+- "Keep" / "Trash" label appears during swipe with opacity based on progress
+- Threshold-based triggering (100px horizontal movement)
+- Snap back animation if below threshold
+- Calls `bridge.markImageKept()` on right swipe, `bridge.markImageTrashed()` on left swipe
+- Auto-advances to next image after curation action
+- Removes curated image from current batch and unsorted list
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Drag image right past threshold → image disappears, file moves to kept/ folder
+- Drag image left past threshold → image disappears, file moves to trash/ folder
+- Drag but release before threshold → image snaps back
+- Visual tilt effect visible during drag
+- Next image auto-displays after swipe
+
 ### Pending Tasks
-- Task 8: SwipeContainer Component
 - Task 9: Sidebar Kept Section
 - Task 10: EmptyState Component
 - Task 11: ComparisonView Component
@@ -236,6 +259,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 5. `ab8dc3f` - feat(workstation): Add ImageStatusService for image lifecycle tracking
 6. `a757bf8` - feat(workstation): Add bridge methods for image status operations
 7. `fe89309` - feat(workstation): Wire generation results to workstation display
+8. `c0d4f4c` - feat(workstation): Add SwipeContainer for keep/trash gestures
 
 ## Related Files
 
@@ -253,3 +277,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 7. (For Task 5) Run `python -m pytest tests/test_image_status.py -v` - All tests should pass
 8. (For Task 6) Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Should compile without errors
 9. (For Task 7) Generate images via chat - images should appear in workstation automatically
+10. (For Task 8) Drag images left/right to test swipe gestures for keep/trash curation
