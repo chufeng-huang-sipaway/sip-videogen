@@ -236,8 +236,28 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Visual tilt effect visible during drag
 - Next image auto-displays after swipe
 
+#### Task 9: Sidebar Kept Section ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/KeptSection.tsx` - Kept images section
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Added KeptSection and trash icon
+
+**Features:**
+- New "Kept" nav section with Heart icon in sidebar
+- Displays thumbnails of all kept images for the active brand
+- Click on thumbnail opens image in workstation for viewing
+- Context menu with "View in Workstation" and "Return to Unsorted" actions
+- Trash icon in sidebar footer opens trashed images in workstation
+- Kept count shown when brand is active
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- After swiping right on images, they appear in Sidebar "Kept" section
+- Clicking a kept image opens it in workstation
+- Right-click on kept image shows context menu with unkeep option
+- Trash icon visible in sidebar footer
+
 ### Pending Tasks
-- Task 9: Sidebar Kept Section
 - Task 10: EmptyState Component
 - Task 11: ComparisonView Component
 - Task 12: ContextPanel Component
@@ -260,6 +280,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 6. `a757bf8` - feat(workstation): Add bridge methods for image status operations
 7. `fe89309` - feat(workstation): Wire generation results to workstation display
 8. `c0d4f4c` - feat(workstation): Add SwipeContainer for keep/trash gestures
+9. `e2199ec` - feat(workstation): Add Kept section and trash icon to sidebar
 
 ## Related Files
 
@@ -278,3 +299,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 8. (For Task 6) Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Should compile without errors
 9. (For Task 7) Generate images via chat - images should appear in workstation automatically
 10. (For Task 8) Drag images left/right to test swipe gestures for keep/trash curation
+11. (For Task 9) After keeping images via swipe, check Sidebar "Kept" section - images should appear there
