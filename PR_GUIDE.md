@@ -276,8 +276,30 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - After curating all images, empty state appears
 - Text is centered and readable
 
+#### Task 11: ComparisonView Component ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/ComparisonView.tsx` - Side-by-side comparison view
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Added Compare toggle and integrated ComparisonView
+
+**Features:**
+- 50/50 split layout for comparing generated vs source image
+- Left side: generated image with "Generated" label
+- Right side: source template image with "Original" label
+- Placeholder displayed when source image is unavailable
+- Compare toggle button in workstation header
+- Uses viewMode from WorkstationContext ('single' | 'comparison')
+- Toggle off returns to single image view with swipe gestures
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Toggle button visible in workstation header when images are loaded
+- Click toggle → view splits 50/50
+- Both images display correctly with labels
+- "Source not available" placeholder shown when sourceTemplatePath is missing
+- Toggle off returns to single swipe view
+
 ### Pending Tasks
-- Task 11: ComparisonView Component
 - Task 12: ContextPanel Component
 - Task 13: Chat Panel Compact Mode
 - Task 14: Input Lock During Generation
@@ -300,6 +322,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 8. `c0d4f4c` - feat(workstation): Add SwipeContainer for keep/trash gestures
 9. `e2199ec` - feat(workstation): Add Kept section and trash icon to sidebar
 10. `13c94b9` - feat(workstation): Add EmptyState component for empty workstation
+11. `6cc1462` - feat(workstation): Add ComparisonView for side-by-side image comparison
 
 ## Related Files
 
@@ -320,3 +343,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 10. (For Task 8) Drag images left/right to test swipe gestures for keep/trash curation
 11. (For Task 9) After keeping images via swipe, check Sidebar "Kept" section - images should appear there
 12. (For Task 10) When no images are in batch, verify empty state displays with helpful message
+13. (For Task 11) With images loaded, click Compare toggle - view should split 50/50 with Generated/Original labels
