@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry } from '@/lib/bridge'
 import { ALLOWED_ATTACHMENT_EXTS, ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 
 export interface Message {
@@ -45,6 +45,7 @@ function getExt(name: string): string {
 
 interface UseChatOptions {
   onTemplatesCreated?: (slugs: string[]) => void
+  onImagesGenerated?: (images: ImageStatusEntry[]) => void
 }
 
 export function useChat(brandSlug: string | null, options?: UseChatOptions) {
@@ -261,6 +262,18 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       //Notify if templates were created
       if (result.templates?.length && options?.onTemplatesCreated) {
         options.onTemplatesCreated(result.templates)
+      }
+      //Register generated images and notify workstation
+      if (result.images?.length && options?.onImagesGenerated) {
+        const inputs = result.images.map(img => ({
+          path: img.url,
+          prompt: img.metadata?.prompt,
+          sourceTemplatePath: img.metadata?.reference_images?.[0],
+        }))
+        try {
+          const registered = await bridge.registerGeneratedImages(inputs)
+          options.onImagesGenerated(registered)
+        } catch { /* ignore registration errors */ }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'

@@ -8,12 +8,14 @@ import { useChat } from '@/hooks/useChat'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
 import { useTemplates } from '@/context/TemplateContext'
+import { useWorkstation } from '@/context/WorkstationContext'
 import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
 import { AttachedProducts } from './AttachedProducts'
 import { AttachedTemplates } from './AttachedTemplates'
 import { ProductPickerDialog } from './ProductPickerDialog'
 import { ProjectSelector } from './ProjectSelector'
+import type { ImageStatusEntry } from '@/lib/bridge'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -45,6 +47,20 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     refresh: refreshTemplates,
   } = useTemplates()
 
+  const { setCurrentBatch, addToUnsorted } = useWorkstation()
+
+  const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
+    const batch = images.map(img => ({
+      id: img.id,
+      path: img.currentPath,
+      prompt: img.prompt || undefined,
+      sourceTemplatePath: img.sourceTemplatePath || undefined,
+      timestamp: img.timestamp,
+    }))
+    setCurrentBatch(batch)
+    addToUnsorted(batch)
+  }, [setCurrentBatch, addToUnsorted])
+
   const {
     messages,
     isLoading,
@@ -61,7 +77,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
-  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates() })
+  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated })
 
   const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
 
