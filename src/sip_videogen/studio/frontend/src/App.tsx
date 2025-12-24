@@ -1,5 +1,6 @@
 import{useCallback,useEffect,useState}from'react'
 import{Sidebar}from'@/components/Sidebar'
+import{Workstation}from'@/components/Workstation'
 import{ChatPanel}from'@/components/ChatPanel'
 import{ApiKeySetup}from'@/components/Setup/ApiKeySetup'
 import{UpdateModal}from'@/components/Update'
@@ -96,7 +97,8 @@ function App() {
         onToggleCollapse={toggleSidebar}
         onOpenBrandMemory={() => setBrandMemoryOpen(true)}
       />
-      <ChatPanel brandSlug={activeBrand} />
+      <Workstation />
+      <div className="w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
 
       {/* Brand Memory modal - keeps ChatPanel mounted underneath */}
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
