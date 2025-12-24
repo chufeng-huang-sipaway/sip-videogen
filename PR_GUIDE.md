@@ -396,8 +396,38 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Can drag image out to Finder or other apps
 - Copy shows spinner while copying, then checkmark on success
 
+#### Task 16: Trash Management UI ✅
+
+**Changes:**
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/TrashView.tsx` - Trash management view
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Integrated TrashView
+- Updated `src/sip_videogen/studio/frontend/src/context/WorkstationContext.tsx` - Added isTrashView state
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Added trash cleanup and view mode
+- Updated `src/sip_videogen/studio/bridge.py` - Added cleanup_old_trash method
+- Updated `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added cleanupOldTrash bridge function
+
+**Features:**
+- Click trash icon in sidebar footer → opens TrashView in workstation
+- Display all trashed images with thumbnail navigation
+- Show "Days until deletion" badge for each image (30-day retention)
+- Badge turns red when ≤7 days remaining
+- "Restore" button to return image to unsorted status
+- "Empty Trash" button with confirmation dialog to permanently delete all
+- Back button to exit trash view and return to empty workstation
+- Auto-cleanup of 30+ day old items triggered when opening trash
+
+**Bridge Methods Added:**
+- `cleanup_old_trash(brand_slug?, days?)` - Delete trash items older than specified days
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Click trash icon in sidebar footer → workstation shows trashed images
+- Each trashed image shows days remaining until auto-deletion
+- Restore button moves image back to unsorted
+- Empty Trash button deletes all trashed images with confirmation
+- Images older than 30 days are auto-deleted when opening trash
+
 ### Pending Tasks
-- Task 16: Trash Management UI
 - Task 17: Migration and First Launch
 - Task 18: Undo Toast
 - Task 19: Animations and Polish
@@ -420,6 +450,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 13. `5686d10` - feat(workstation): Add compact mode for chat panel image gallery
 14. `bcfb7c1` - feat(workstation): Add input lock during generation with cancel button
 15. `2a0dd29` - feat(workstation): Add ExportActions for copy, share, and drag-out
+16. `0d8ee53` - feat(workstation): Add trash management UI with restore and empty
 
 ## Related Files
 
@@ -445,3 +476,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 15. (For Task 13) Generate images via chat - compact "Generated N images" displays with tiny thumbnails; clicking opens in Workstation
 16. (For Task 14) Start generation - input should disable, send button becomes cancel with spinner; clicking Cancel stops and shows "Generation cancelled."
 17. (For Task 15) With images loaded, click copy button → image copied to clipboard (paste in Preview works); click share → Finder opens at image; drag image out → export works
+18. (For Task 16) Click trash icon in sidebar footer → trash view opens; each image shows days remaining; Restore and Empty Trash buttons work
