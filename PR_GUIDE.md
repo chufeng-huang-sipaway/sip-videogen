@@ -184,8 +184,35 @@ interface WorkstationState {
 - All existing tests still pass: `python -m pytest tests/test_image_status.py -v`
 - From browser console: `window.pywebview.api.get_unsorted_images()` returns list or empty array
 
+#### Task 7: Wire Generation Results to Workstation ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/hooks/useChat.ts` - Added onImagesGenerated callback
+- Updated `src/sip_videogen/studio/frontend/src/components/ChatPanel/index.tsx` - Integrated WorkstationContext
+
+**Features:**
+- After image generation completes, images are registered via `bridge.registerGeneratedImages()`
+- Registered images (with IDs from backend) are pushed to WorkstationContext.currentBatch
+- Images also added to unsortedImages for tracking
+- First image is auto-selected (selectedIndex = 0)
+- IDs are generated in backend, not frontend
+
+**Flow:**
+```
+bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated callback
+                                                                     ↓
+                                                          setCurrentBatch(images)
+                                                          addToUnsorted(images)
+```
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Generate images using the chat
+- Images should immediately appear in the workstation
+- Thumbnails show all generated images
+- First image is selected by default
+
 ### Pending Tasks
-- Task 7: Wire Generation Results to Workstation
 - Task 8: SwipeContainer Component
 - Task 9: Sidebar Kept Section
 - Task 10: EmptyState Component
@@ -208,6 +235,7 @@ interface WorkstationState {
 4. `77ccd0a` - feat(workstation): Add ThumbnailStrip component for batch navigation
 5. `ab8dc3f` - feat(workstation): Add ImageStatusService for image lifecycle tracking
 6. `a757bf8` - feat(workstation): Add bridge methods for image status operations
+7. `fe89309` - feat(workstation): Wire generation results to workstation display
 
 ## Related Files
 
@@ -224,3 +252,4 @@ interface WorkstationState {
 6. (For Task 4) Add multiple test images to context and verify ThumbnailStrip appears and works
 7. (For Task 5) Run `python -m pytest tests/test_image_status.py -v` - All tests should pass
 8. (For Task 6) Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Should compile without errors
+9. (For Task 7) Generate images via chat - images should appear in workstation automatically
