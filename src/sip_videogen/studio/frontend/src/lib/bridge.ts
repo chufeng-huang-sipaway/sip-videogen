@@ -350,6 +350,7 @@ interface ChatResponse {
   response: string
   images: GeneratedImage[]
   videos?: GeneratedVideo[]
+  templates?: string[]
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null

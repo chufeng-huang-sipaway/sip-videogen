@@ -21,24 +21,6 @@ interface ChatPanelProps {
 
 export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const {
-    messages,
-    isLoading,
-    progress,
-    loadedSkills,
-    error,
-    attachmentError,
-    attachments,
-    sendMessage,
-    clearMessages,
-    regenerateMessage,
-    resolveInteraction,
-    addFilesAsAttachments,
-    addAttachmentReference,
-    removeAttachment,
-    setAttachmentError,
-  } = useChat(brandSlug)
-
-  const {
     products,
     attachedProducts,
     attachProduct,
@@ -60,7 +42,26 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     detachTemplate,
     setTemplateStrictness,
     clearTemplateAttachments,
+    refresh: refreshTemplates,
   } = useTemplates()
+
+  const {
+    messages,
+    isLoading,
+    progress,
+    loadedSkills,
+    error,
+    attachmentError,
+    attachments,
+    sendMessage,
+    clearMessages,
+    regenerateMessage,
+    resolveInteraction,
+    addFilesAsAttachments,
+    addAttachmentReference,
+    removeAttachment,
+    setAttachmentError,
+  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates() })
 
   const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
 

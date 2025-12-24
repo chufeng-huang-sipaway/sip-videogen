@@ -43,7 +43,11 @@ function getExt(name: string): string {
   return idx >= 0 ? name.slice(idx).toLowerCase() : ''
 }
 
-export function useChat(brandSlug: string | null) {
+interface UseChatOptions {
+  onTemplatesCreated?: (slugs: string[]) => void
+}
+
+export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState('')
@@ -254,6 +258,10 @@ export function useChat(brandSlug: string | null) {
       ))
       setAttachments([])
       setAttachmentError(null)
+      //Notify if templates were created
+      if (result.templates?.length && options?.onTemplatesCreated) {
+        options.onTemplatesCreated(result.templates)
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setError(msg)
