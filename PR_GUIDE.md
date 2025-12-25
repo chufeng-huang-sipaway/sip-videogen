@@ -589,6 +589,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Fixed thumbnail strip not loading - replaced complex lazy-loading Thumb component with simpler working pattern
 - Fixed path used for thumbnails and main image display (now uses `originalPath||path`)
 - Added `originalPath` field when loading trashed images from Sidebar
+- Fixed thumbnail strip being hidden on larger screens by adding proper height constraints (`h-full min-h-0 overflow-hidden`) to TrashView root container
 
 **UI Changes:**
 - Header label: "Recycle Bin" instead of "Trash"
@@ -602,6 +603,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - All N thumbnails load and display in the bottom strip
 - Clicking thumbnails navigates between images
 - Restore and Empty Recycle Bin buttons work correctly
+- Thumbnail strip remains visible at all window sizes (including full screen)
 
 ### Pending Tasks
 - Task 23: Testing and Edge Cases
@@ -629,6 +631,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 19. `fb7c609` - feat(workstation): Add smooth animations and visual polish
 20. `a9b5b18` - feat(workstation): Improve image curation UX
 21. `4377141` - feat(workstation): Fix image preview and improve UI
+22. `b66dad8` - fix(workstation): Fix Recycle Bin UI and thumbnail navigation
 
 ## Related Files
 
