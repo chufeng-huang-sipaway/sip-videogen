@@ -113,6 +113,7 @@ class StudioBridge:
     def set_active_project(self,project_slug:str|None)->dict:return self._project.set_active_project(project_slug)
     def get_active_project(self)->dict:return self._project.get_active_project()
     def get_project_assets(self,project_slug:str)->dict:return self._project.get_project_assets(project_slug)
+    def get_general_assets(self,brand_slug:str|None=None)->dict:return self._project.get_general_assets(brand_slug)
     #===========================================================================
     #Chat
     #===========================================================================

@@ -6,6 +6,7 @@ import{ApiKeySetup}from'@/components/Setup/ApiKeySetup'
 import{UpdateModal}from'@/components/Update'
 import{BrandMemory}from'@/components/BrandMemory'
 import{Toaster}from'@/components/ui/toaster'
+import{TooltipProvider}from'@/components/ui/tooltip'
 import{useBrand}from'@/context/BrandContext'
 import{bridge,waitForPyWebViewReady}from'@/lib/bridge'
 import type{UpdateCheckResult}from'@/lib/bridge'
@@ -90,7 +91,7 @@ function App() {
     return <ApiKeySetup onComplete={() => setNeedsSetup(false)} />
   }
 
-  return (
+  return (<TooltipProvider>
     <div className="flex h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -99,14 +100,10 @@ function App() {
       />
       <Workstation />
       <div className="w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
-
-      {/* Brand Memory modal - keeps ChatPanel mounted underneath */}
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
-
-{/* Update notification modal */}
 {updateInfo&&(<UpdateModal updateInfo={updateInfo} onClose={()=>setUpdateInfo(null)} onSkipVersion={handleSkipVersion}/>)}
 <Toaster/>
-</div>)
+</div></TooltipProvider>)
 }
 
 export default App

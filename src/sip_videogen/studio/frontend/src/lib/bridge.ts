@@ -506,6 +506,7 @@ interface PyWebViewAPI {
   set_active_project(project_slug: string | null): Promise<BridgeResponse<{ active_project: string | null }>>
   get_active_project(): Promise<BridgeResponse<{ active_project: string | null }>>
   get_project_assets(project_slug: string): Promise<BridgeResponse<{ assets: string[] }>>
+  get_general_assets(brand_slug?: string): Promise<BridgeResponse<{ assets: string[]; count: number }>>
 
   // App updates
   get_app_version(): Promise<BridgeResponse<AppVersionInfo>>
@@ -697,6 +698,8 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.get_active_project())).active_project,
   getProjectAssets: async (projectSlug: string) =>
     (await callBridge(() => window.pywebview!.api.get_project_assets(projectSlug))).assets,
+  getGeneralAssets: async (brandSlug?: string) =>
+    await callBridge(() => window.pywebview!.api.get_general_assets(brandSlug)),
 
   // App updates
   getAppVersion: () => callBridge(() => window.pywebview!.api.get_app_version()),

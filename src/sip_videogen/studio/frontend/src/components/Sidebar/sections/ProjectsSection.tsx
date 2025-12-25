@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FolderKanban, Plus, X, Archive, ChevronRight, ChevronDown, Pencil, RefreshCw } from 'lucide-react'
+import { FolderKanban, Plus, X, Archive, ChevronRight, ChevronDown, Pencil, RefreshCw, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -11,8 +11,9 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
-import { type ProjectEntry } from '@/lib/bridge'
+import { bridge, isPyWebView, type ProjectEntry } from '@/lib/bridge'
 import { ProjectAssetGrid } from './ProjectAssetGrid'
+import { GeneralAssetGrid } from './GeneralAssetGrid'
 import { EditProjectDialog } from '../EditProjectDialog'
 import { CreateProjectDialog } from '../CreateProjectDialog'
 
@@ -112,9 +113,16 @@ export function ProjectsSection() {
     deleteProject,
   } = useProjects()
   const [expandedProject, setExpandedProject] = useState<string | null>(null)
+  const [generalExpanded, setGeneralExpanded] = useState(false)
+  const [generalCount, setGeneralCount] = useState(0)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingProjectSlug, setEditingProjectSlug] = useState<string | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  //Load general assets count
+  useEffect(() => {
+    if (!activeBrand || !isPyWebView()) { setGeneralCount(0); return }
+    bridge.getGeneralAssets(activeBrand).then(r => setGeneralCount(r.count || 0)).catch(() => setGeneralCount(0))
+  }, [activeBrand])
 
   useEffect(() => {
     if (actionError) {
@@ -228,6 +236,37 @@ export function ProjectsSection() {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* General (non-project) assets section */}
+      <div className="mb-2">
+        <div
+          className={`flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden
+            hover:bg-muted/50 text-muted-foreground hover:text-foreground
+            ${generalExpanded ? 'bg-muted/30' : ''}`}
+          onClick={() => setGeneralExpanded(!generalExpanded)}
+          title="Assets not associated with any project"
+        >
+          {generalExpanded ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+          )}
+          <Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium truncate text-foreground/90 italic">General</span>
+            </div>
+            <span className="text-[10px] truncate block text-muted-foreground/60">
+              {generalCount} asset{generalCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+        {generalExpanded && (
+          <div className="pl-4 pr-1 pt-1 pb-2">
+            <GeneralAssetGrid expectedCount={generalCount} />
+          </div>
+        )}
+      </div>
 
       {sortedProjects.length === 0 ? (
         <p className="text-sm text-gray-400 italic">

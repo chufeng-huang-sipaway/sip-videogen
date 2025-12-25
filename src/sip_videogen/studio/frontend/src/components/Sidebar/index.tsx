@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Layout, ChevronRight, Heart, Trash2 } from 'lucide-react'
+import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Layout, ChevronRight, Trash2 } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { ProductsSection } from './sections/ProductsSection'
 import { TemplatesSection } from './sections/TemplatesSection'
 import { ProjectsSection } from './sections/ProjectsSection'
-import { KeptSection } from './sections/KeptSection'
 import { CreateProductDialog } from './CreateProductDialog'
 import { CreateProjectDialog } from './CreateProjectDialog'
 import { SettingsDialog } from '@/components/Settings/SettingsDialog'
@@ -29,26 +28,16 @@ interface SidebarProps {
   onOpenBrandMemory?: () => void
 }
 
-type NavSection = 'products' | 'templates' | 'projects' | 'kept' | null
+type NavSection = 'products' | 'templates' | 'projects' | null
 
 export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: SidebarProps) {
   const { activeBrand } = useBrand()
   const { products } = useProducts()
   const { templates } = useTemplates()
   const { projects } = useProjects()
-  const { setCurrentBatch, setSelectedIndex, setIsTrashView, statusVersion } = useWorkstation()
+  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
 
   const [activeSection, setActiveSection] = useState<NavSection>('projects')
-  const [keptCount, setKeptCount] = useState(0)
-
-  //Load kept count when brand changes or status updates
-  useEffect(() => {
-    if (!activeBrand || !isPyWebView()) {
-      setKeptCount(0)
-      return
-    }
-    bridge.getImagesByStatus(activeBrand, 'kept').then(imgs => setKeptCount(imgs.length)).catch(() => {})
-  }, [activeBrand, statusVersion])
 
   //Handle viewing trash in workstation
   const handleOpenTrash = async () => {
@@ -137,14 +126,6 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             count={projects.length}
             disabled={!activeBrand}
           />
-          <NavIcon
-            icon={<Heart className="w-5 h-5" strokeWidth={1.5} />}
-            label={`Kept (${keptCount})`}
-            isActive={activeSection === 'kept'}
-            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('kept'); }}
-            count={keptCount}
-            disabled={!activeBrand}
-          />
         </div>
 
         <div className="flex-1" />
@@ -226,16 +207,6 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             onAdd={() => setIsCreateTemplateOpen(true)}
           >
             <TemplatesSection createDialogOpen={isCreateTemplateOpen} onCreateDialogChange={setIsCreateTemplateOpen} />
-          </NavGroup>
-
-          {/* Kept Images Section */}
-          <NavGroup
-            title="Kept"
-            icon={<Heart className="w-4 h-4" />}
-            isOpen={activeSection === 'kept'}
-            onToggle={() => toggleSection('kept')}
-          >
-            <KeptSection />
           </NavGroup>
 
         </div>

@@ -162,6 +162,11 @@
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+/* Prevent elastic scrolling/bounce on macOS */
+html, body {
+  overscroll-behavior: none;
+  overflow: hidden;
+}
 /* Base styles for cleaner typography */
 body {
   font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
