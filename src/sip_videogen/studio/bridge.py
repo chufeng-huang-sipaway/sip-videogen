@@ -154,6 +154,26 @@ class StudioBridge:
         slug=brand_slug or self._state.get_active_slug()
         if not slug:return bridge_error("No brand selected")
         return self._move_image_to_status(slug,image_id,"trashed")
+    def trash_by_path(self,path:str,brand_slug:str|None=None)->dict:
+        """Trash an image by its file path (relative or absolute). Registers it first if not tracked."""
+        from pathlib import Path
+        from sip_videogen.brands.storage import get_brand_dir
+        from sip_videogen.studio.utils.path_utils import resolve_assets_path
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        #Resolve relative path to absolute if needed
+        full_path=path
+        if not Path(path).is_absolute():
+            brand_dir=get_brand_dir(slug)
+            resolved,err=resolve_assets_path(brand_dir,path)
+            if err:return bridge_error(err)
+            if resolved:full_path=str(resolved)
+        #Find or register the image
+        result=self._image_status.register_or_find(slug,full_path,"kept")
+        if not result.get("success"):return result
+        image_id=result.get("data",{}).get("id")
+        if not image_id:return bridge_error("Failed to get image ID")
+        return self._move_image_to_status(slug,image_id,"trashed")
     def unkeep_image(self,image_id:str,brand_slug:str|None=None)->dict:
         """Return kept image to unsorted status."""
         slug=brand_slug or self._state.get_active_slug()

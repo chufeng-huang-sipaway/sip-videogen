@@ -101,6 +101,26 @@ class ImageStatusService:
             del images[image_id];data["images"]=images;self._save_status_data(brand_slug,data)
             return bridge_ok()
         except Exception as e:return bridge_error(str(e))
+    def find_by_path(self,brand_slug:str,path:str)->dict:
+        """Find image entry by current path. Returns entry with ID or error if not found."""
+        try:
+            data=self._load_status_data(brand_slug);images=data.get("images",{})
+            for img_id,entry in images.items():
+                if entry.get("currentPath")==path or entry.get("originalPath")==path:
+                    return bridge_ok({**entry,"id":img_id})
+            return bridge_error(f"Image not found for path: {path}")
+        except Exception as e:return bridge_error(str(e))
+    def register_or_find(self,brand_slug:str,path:str,status:ImageStatus="kept")->dict:
+        """Find existing entry by path or register new one."""
+        try:
+            found=self.find_by_path(brand_slug,path)
+            if found.get("success"):return found
+            #Register new entry
+            data=self._load_status_data(brand_slug);image_id=self._generate_id();now=self._now_iso()
+            entry={"id":image_id,"status":status,"originalPath":path,"currentPath":path,"prompt":None,"sourceTemplatePath":None,"timestamp":now,"keptAt":now if status=="kept"else None,"trashedAt":None}
+            data["images"][image_id]=entry;self._save_status_data(brand_slug,data)
+            return bridge_ok(entry)
+        except Exception as e:return bridge_error(str(e))
     def backfill_from_folders(self,brand_slug:str)->dict:
         """Scan asset folders and backfill missing entries."""
         try:

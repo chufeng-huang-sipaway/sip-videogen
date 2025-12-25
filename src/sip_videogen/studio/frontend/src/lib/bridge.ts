@@ -531,6 +531,7 @@ interface PyWebViewAPI {
   get_images_by_status(brand_slug?: string, status?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
   mark_image_kept(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
   mark_image_trashed(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  trash_by_path(path: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
   unkeep_image(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
   restore_image(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
   empty_trash(brand_slug?: string): Promise<BridgeResponse<{ deleted: string[]; count: number }>>
@@ -727,6 +728,7 @@ export const bridge = {
   getImagesByStatus: (brandSlug?: string, status?: string) => callBridge(() => window.pywebview!.api.get_images_by_status(brandSlug, status)),
   markImageKept: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.mark_image_kept(imageId, brandSlug)),
   markImageTrashed: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.mark_image_trashed(imageId, brandSlug)),
+  trashByPath: (path: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.trash_by_path(path, brandSlug)),
   unkeepImage: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.unkeep_image(imageId, brandSlug)),
   restoreImage: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.restore_image(imageId, brandSlug)),
   emptyTrash: (brandSlug?: string) => callBridge(() => window.pywebview!.api.empty_trash(brandSlug)),
