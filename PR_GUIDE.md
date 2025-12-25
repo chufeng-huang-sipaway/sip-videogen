@@ -578,8 +578,33 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Header shows full filename, clean layout with Keep/Trash/Compare buttons
 - Navigation works via arrow keys and thumbnail clicks
 
+#### Task 22: Fix Recycle Bin UI ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/TrashView.tsx` - Renamed labels and fixed thumbnail loading
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Renamed tooltip and added originalPath
+
+**Bug Fixes:**
+- Renamed "Trash" to "Recycle Bin" throughout the UI to better convey restore functionality
+- Fixed thumbnail strip not loading - replaced complex lazy-loading Thumb component with simpler working pattern
+- Fixed path used for thumbnails and main image display (now uses `originalPath||path`)
+- Added `originalPath` field when loading trashed images from Sidebar
+
+**UI Changes:**
+- Header label: "Recycle Bin" instead of "Trash"
+- Empty state: "Recycle Bin is empty" instead of "Trash is empty"
+- Button label: "Empty Recycle Bin" instead of "Empty Trash"
+- Sidebar tooltip: "View Recycle Bin" instead of "View Trash"
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Click "View Recycle Bin" in sidebar → shows "Recycle Bin (N items)" header
+- All N thumbnails load and display in the bottom strip
+- Clicking thumbnails navigates between images
+- Restore and Empty Recycle Bin buttons work correctly
+
 ### Pending Tasks
-- Task 22: Testing and Edge Cases
+- Task 23: Testing and Edge Cases
 
 ## Commits
 
@@ -635,3 +660,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 21. (For Task 19) Switch between images - smooth fade-in transition with loading spinner; swipe past threshold → image flies off screen with rotation animation; all animations at 60fps
 22. (For Task 20) Kept section removed from sidebar; General pseudo-project shows at top of Projects; hover over image shows purple highlight; two-finger trackpad swipe works; K/T keyboard shortcuts work; header Keep/Trash buttons work
 23. (For Task 21) Click image in sidebar project → displays in workstation; ChatPanel visible; thumbnail strip shows all images; swipe disabled for kept images; header shows full filename
+24. (For Task 22) Click "View Recycle Bin" in sidebar → header shows "Recycle Bin (N items)"; all thumbnails load in strip at bottom; click thumbnails to navigate; "Empty Recycle Bin" button shows confirmation

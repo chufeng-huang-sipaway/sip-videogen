@@ -49,6 +49,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
       const batch = trashedImages.map((img: ImageStatusEntry) => ({
         id: img.id,
         path: img.currentPath,
+        originalPath: img.currentPath,
         prompt: img.prompt || undefined,
         sourceTemplatePath: img.sourceTemplatePath || undefined,
         timestamp: img.timestamp,
@@ -236,7 +237,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
                 <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>View Trash</TooltipContent>
+            <TooltipContent>View Recycle Bin</TooltipContent>
           </Tooltip>
         </div>
 
