@@ -538,8 +538,48 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Press K → keep, press T → trash, arrows → navigate
 - No elastic window bouncing during trackpad swipe
 
+#### Task 21: Fix Image Preview and Polish UI ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Fixed layout and redesigned header
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/ImageDisplay.tsx` - Fixed lazy loading
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/ThumbnailStrip.tsx` - Fixed thumbnail loading
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/SwipeContainer.tsx` - Simplified for kept images
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/ProjectAssetGrid.tsx` - Fixed preview loading
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/GeneralAssetGrid.tsx` - Fixed preview loading
+- Updated `src/sip_videogen/studio/frontend/src/context/WorkstationContext.tsx` - Added originalPath and status fields
+
+**Bug Fixes:**
+- Fixed image not displaying when clicking sidebar thumbnails
+- Fixed ChatPanel being pushed off-screen (added min-w-0 overflow-hidden)
+- Fixed blank thumbnails in navigation strip (using correct getAssetThumbnail function)
+- Disabled swipe gestures for kept/browsing images (navigation via arrows/thumbnails only)
+
+**UI Improvements:**
+- Redesigned header toolbar with cleaner three-section layout
+- Full filename display without aggressive truncation (max-w-md)
+- Better button styling with visual separators between action groups
+- Gradient background for workstation area
+- Refined thumbnail strip with smaller thumbnails and cleaner borders
+- Loading spinners during thumbnail loading
+
+**Technical Changes:**
+- All images now use lazy loading via originalPath field
+- Images from sidebar set with status: 'kept' to distinguish from unsorted
+- updateImagePath context function for lazy-loaded image data
+- Correct bridge function (getAssetThumbnail vs getImageThumbnail)
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Click image in sidebar project → image displays in workstation
+- ChatPanel stays visible on right side (not pushed off-screen)
+- Thumbnail strip shows all images with loading spinners then actual thumbnails
+- Swipe gestures disabled for browsing kept images
+- Header shows full filename, clean layout with Keep/Trash/Compare buttons
+- Navigation works via arrow keys and thumbnail clicks
+
 ### Pending Tasks
-- Task 21: Testing and Edge Cases
+- Task 22: Testing and Edge Cases
 
 ## Commits
 
@@ -563,6 +603,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 18. `6690dfc` - feat(workstation): Add undo toast for keep/trash actions
 19. `fb7c609` - feat(workstation): Add smooth animations and visual polish
 20. `a9b5b18` - feat(workstation): Improve image curation UX
+21. `4377141` - feat(workstation): Fix image preview and improve UI
 
 ## Related Files
 
@@ -593,3 +634,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 20. (For Task 18) Swipe to keep → toast appears with "Undo" button; click Undo → image returns to batch; wait 5 seconds → toast auto-dismisses
 21. (For Task 19) Switch between images - smooth fade-in transition with loading spinner; swipe past threshold → image flies off screen with rotation animation; all animations at 60fps
 22. (For Task 20) Kept section removed from sidebar; General pseudo-project shows at top of Projects; hover over image shows purple highlight; two-finger trackpad swipe works; K/T keyboard shortcuts work; header Keep/Trash buttons work
+23. (For Task 21) Click image in sidebar project → displays in workstation; ChatPanel visible; thumbnail strip shows all images; swipe disabled for kept images; header shows full filename
