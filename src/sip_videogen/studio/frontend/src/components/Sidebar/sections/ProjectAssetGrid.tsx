@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Image, Loader2, RefreshCw, AlertTriangle, Play, Film } from 'lucide-react'
 import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
+import { useWorkstation } from '@/context/WorkstationContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
-import { ImageViewer } from '@/components/ui/image-viewer'
 import { VideoViewer } from '@/components/ui/video-viewer'
 import { Button } from '@/components/ui/button'
 
@@ -208,11 +208,11 @@ const POLL_INTERVAL_BACKOFF = 5000 // 5 seconds after errors
 export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAssetGridProps) {
   const { activeBrand } = useBrand()
   const { getProjectAssets, refresh: refreshProjects } = useProjects()
+  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
   const [assets, setAssets] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState<{ src: string; path: string } | null>(null)
   const [previewVideo, setPreviewVideo] = useState<{ src: string; path: string } | null>(null)
   const [missingAssetsBanner, setMissingAssetsBanner] = useState(false)
   const [thumbnailReloadNonce, setThumbnailReloadNonce] = useState(0)
@@ -366,20 +366,14 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     }, 500)
   }, [loadAssets])
 
-  const handlePreview = useCallback(async (path: string) => {
-    if (!isPyWebView()) return
-    try {
-      const dataUrl = await bridge.getAssetFull(path)
-      setPreviewImage({ src: dataUrl, path })
-    } catch (err) {
-      console.error('Failed to load preview:', err)
-      const message = getErrorMessage(err)
-      // Only remove if we are sure the file is missing (not a transient bridge error).
-      if (isNotFoundError(message)) {
-        handleThumbnailError(path)
-      }
-    }
-  }, [handleThumbnailError])
+  const handlePreview = useCallback((path: string) => {
+    //Show image in Workstation instead of popup
+    const filename = path.split('/').pop() || path
+    const image = { id: filename, path, timestamp: new Date().toISOString() }
+    setIsTrashView(false)
+    setCurrentBatch([image])
+    setSelectedIndex(0)
+  }, [setCurrentBatch, setSelectedIndex, setIsTrashView])
 
   const handlePreviewVideo = useCallback(async (path: string) => {
     if (!isPyWebView()) return
@@ -507,12 +501,6 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
           )
         ))}
       </div>
-      <ImageViewer
-        src={previewImage?.src ?? null}
-        filePath={previewImage?.path}
-        fileType="asset"
-        onClose={() => setPreviewImage(null)}
-      />
       <VideoViewer
         src={previewVideo?.src ?? null}
         filePath={previewVideo?.path}

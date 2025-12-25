@@ -1,8 +1,8 @@
 import{useEffect,useState,useCallback,useRef}from'react'
 import{Image,Loader2,RefreshCw,Play,Film}from'lucide-react'
 import{useBrand}from'@/context/BrandContext'
+import{useWorkstation}from'@/context/WorkstationContext'
 import{bridge,isPyWebView}from'@/lib/bridge'
-import{ImageViewer}from'@/components/ui/image-viewer'
 import{VideoViewer}from'@/components/ui/video-viewer'
 import{Button}from'@/components/ui/button'
 //Thumbnail cache for session
@@ -25,22 +25,22 @@ function VideoThumbnail({onClick}:{path:string;onClick?:()=>void}){return(<div c
 interface GeneralAssetGridProps{expectedCount?:number}
 export function GeneralAssetGrid({expectedCount}:GeneralAssetGridProps){
 const{activeBrand}=useBrand()
+const{setCurrentBatch,setSelectedIndex,setIsTrashView}=useWorkstation()
 const[assets,setAssets]=useState<string[]>([])
 const[isLoading,setIsLoading]=useState(true)
 const[isRefreshing,setIsRefreshing]=useState(false)
 const[error,setError]=useState<string|null>(null)
-const[previewImage,setPreviewImage]=useState<{src:string;path:string}|null>(null)
 const[previewVideo,setPreviewVideo]=useState<{src:string;path:string}|null>(null)
 const loadAssets=useCallback(async(isBackground=false)=>{if(!activeBrand||!isPyWebView())return
 if(!isBackground)setIsLoading(true);else setIsRefreshing(true)
 setError(null)
 try{const result=await bridge.getGeneralAssets(activeBrand);setAssets(result.assets||[])}catch(err){if(!isBackground)setError(err instanceof Error?err.message:'Failed to load')}finally{setIsLoading(false);setIsRefreshing(false)}},[activeBrand])
 useEffect(()=>{loadAssets(false)},[loadAssets])
-const handlePreview=useCallback(async(path:string)=>{if(!isPyWebView())return;try{const dataUrl=await bridge.getAssetFull(path);setPreviewImage({src:dataUrl,path})}catch(err){console.error('Failed to load preview:',err)}},[])
+const handlePreview=useCallback((path:string)=>{const filename=path.split('/').pop()||path;const image={id:filename,path,timestamp:new Date().toISOString()};setIsTrashView(false);setCurrentBatch([image]);setSelectedIndex(0)},[setCurrentBatch,setSelectedIndex,setIsTrashView])
 const handlePreviewVideo=useCallback(async(path:string)=>{if(!isPyWebView())return;try{const dataUrl=await bridge.getVideoData(path);setPreviewVideo({src:dataUrl,path})}catch(err){console.error('Failed to load video:',err)}},[])
 const handleRefresh=useCallback(()=>{thumbnailCache.clear();loadAssets(false)},[loadAssets])
 const sortedAssets=[...assets].sort((a,b)=>{const nameA=a.split('/').pop()??a;const nameB=b.split('/').pop()??b;return nameB.localeCompare(nameA)})
 if(isLoading)return(<div className="py-2"><div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2">{Array.from({length:Math.min(expectedCount??4,8)}).map((_,i)=>(<div key={i} className="aspect-square rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse"/>))}</div></div>)
 if(error)return(<div className="py-2 px-2 text-xs text-red-500 flex items-center gap-2"><span>{error}</span><Button variant="ghost" size="sm" className="h-5 px-1.5" onClick={handleRefresh}><RefreshCw className="h-3 w-3"/></Button></div>)
 if(sortedAssets.length===0)return(<div className="py-4 px-2 text-xs text-center text-gray-400 italic bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-dashed border-gray-200 dark:border-gray-800"><p>No general assets yet</p><p className="mt-1 text-[10px]">Generate images without selecting a project</p></div>)
-return(<><div className="flex items-center justify-between mb-1"><span className="text-[10px] text-gray-400">{sortedAssets.length} asset{sortedAssets.length!==1?'s':''}</span><div className="flex items-center gap-1">{isRefreshing&&<Loader2 className="h-3 w-3 text-gray-400 animate-spin"/>}<Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={handleRefresh} title="Refresh"><RefreshCw className="h-3 w-3"/></Button></div></div><div className="grid grid-cols-[repeat(auto-fill,minmax(60px,1fr))] gap-1.5 py-1">{sortedAssets.map(path=>isVideoAsset(path)?(<VideoThumbnail key={path} path={path} onClick={()=>handlePreviewVideo(path)}/>):(<AssetThumbnail key={path} path={path} onClick={()=>handlePreview(path)}/>))}</div><ImageViewer src={previewImage?.src??null} filePath={previewImage?.path} fileType="asset" onClose={()=>setPreviewImage(null)}/><VideoViewer src={previewVideo?.src??null} filePath={previewVideo?.path} onClose={()=>setPreviewVideo(null)}/></>)}
+return(<><div className="flex items-center justify-between mb-1"><span className="text-[10px] text-gray-400">{sortedAssets.length} asset{sortedAssets.length!==1?'s':''}</span><div className="flex items-center gap-1">{isRefreshing&&<Loader2 className="h-3 w-3 text-gray-400 animate-spin"/>}<Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={handleRefresh} title="Refresh"><RefreshCw className="h-3 w-3"/></Button></div></div><div className="grid grid-cols-[repeat(auto-fill,minmax(60px,1fr))] gap-1.5 py-1">{sortedAssets.map(path=>isVideoAsset(path)?(<VideoThumbnail key={path} path={path} onClick={()=>handlePreviewVideo(path)}/>):(<AssetThumbnail key={path} path={path} onClick={()=>handlePreview(path)}/>))}</div><VideoViewer src={previewVideo?.src??null} filePath={previewVideo?.path} onClose={()=>setPreviewVideo(null)}/></>)}
