@@ -11,10 +11,22 @@ const[loading,setLoading]=useState(true)
 useEffect(()=>{let cancelled=false
 async function load(){if(!path){if(!cancelled)setLoading(false);return}
 if(path.startsWith('data:')){if(!cancelled){setSrc(path);setLoading(false)};return}
-if(path.startsWith('file://')){if(!cancelled){setSrc(path);setLoading(false)};return}
-if(path.startsWith('/')){if(!cancelled){setSrc(`file://${path}`);setLoading(false)};return}
-if(!isPyWebView()){if(!cancelled)setLoading(false);return}
-try{const dataUrl=await bridge.getAssetThumbnail(path);if(!cancelled)setSrc(dataUrl)}catch{}finally{if(!cancelled)setLoading(false)}}
+const normalized=path.startsWith('file://')?path.slice('file://'.length):path
+if(!isPyWebView()){if(!cancelled){if(normalized.startsWith('/'))setSrc(`file://${normalized}`);setLoading(false)};return}
+try{
+  if(normalized.startsWith('/')){
+    const dataUrl=await bridge.getImageThumbnail(normalized)
+    if(!cancelled)setSrc(dataUrl)
+  }else{
+    try{
+      const dataUrl=await bridge.getAssetThumbnail(normalized)
+      if(!cancelled)setSrc(dataUrl)
+    }catch{
+      const dataUrl=await bridge.getImageThumbnail(normalized)
+      if(!cancelled)setSrc(dataUrl)
+    }
+  }
+}catch{}finally{if(!cancelled)setLoading(false)}}
 load();return()=>{cancelled=true}},[path])
 if(loading)return(<div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0"><Loader2 className="h-4 w-4 text-muted-foreground animate-spin"/></div>)
 if(!src)return(<div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0"><Image className="h-4 w-4 text-muted-foreground"/></div>)

@@ -65,6 +65,8 @@ class StudioBridge:
     def get_assets(self,slug:str|None=None)->dict:return self._asset.get_assets(slug)
     def get_asset_thumbnail(self,relative_path:str)->dict:return self._asset.get_asset_thumbnail(relative_path)
     def get_asset_full(self,relative_path:str)->dict:return self._asset.get_asset_full(relative_path)
+    def get_image_thumbnail(self,image_path:str)->dict:return self._asset.get_image_thumbnail(image_path)
+    def get_image_data(self,image_path:str)->dict:return self._asset.get_image_data(image_path)
     def upload_asset(self,filename:str,data_base64:str,category:str="generated")->dict:return self._asset.upload_asset(filename,data_base64,category)
     def delete_asset(self,relative_path:str)->dict:return self._asset.delete_asset(relative_path)
     def rename_asset(self,relative_path:str,new_name:str)->dict:return self._asset.rename_asset(relative_path,new_name)

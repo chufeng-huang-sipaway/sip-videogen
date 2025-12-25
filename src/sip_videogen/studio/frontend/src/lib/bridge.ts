@@ -432,6 +432,8 @@ interface PyWebViewAPI {
   get_assets(slug?: string): Promise<BridgeResponse<{ tree: AssetNode[] }>>
   get_asset_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   get_asset_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  get_image_thumbnail(image_path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  get_image_data(image_path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   open_asset_in_finder(path: string): Promise<BridgeResponse<void>>
   delete_asset(path: string): Promise<BridgeResponse<void>>
   rename_asset(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
@@ -602,6 +604,8 @@ export const bridge = {
   getAssets: async (s?: string) => (await callBridge(() => window.pywebview!.api.get_assets(s))).tree,
   getAssetThumbnail: async (p: string) => (await callBridge(() => window.pywebview!.api.get_asset_thumbnail(p))).dataUrl,
   getAssetFull: async (p: string) => (await callBridge(() => window.pywebview!.api.get_asset_full(p))).dataUrl,
+  getImageThumbnail: async (p: string) => (await callBridge(() => window.pywebview!.api.get_image_thumbnail(p))).dataUrl,
+  getImageData: async (p: string) => (await callBridge(() => window.pywebview!.api.get_image_data(p))).dataUrl,
   openAssetInFinder: (p: string) => callBridge(() => window.pywebview!.api.open_asset_in_finder(p)),
   deleteAsset: (p: string) => callBridge(() => window.pywebview!.api.delete_asset(p)),
   renameAsset: async (p: string, n: string) => (await callBridge(() => window.pywebview!.api.rename_asset(p, n))).newPath,
