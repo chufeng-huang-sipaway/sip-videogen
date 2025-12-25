@@ -503,8 +503,43 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Loading spinners appear while images load
 - All hover effects work smoothly
 
+#### Task 20: Curation UX Improvements ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/index.tsx` - Removed Kept section
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/ProjectsSection.tsx` - Added General pseudo-project
+- Created `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/GeneralAssetGrid.tsx` - Grid for non-project assets
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/SwipeContainer.tsx` - Added trackpad swipe and hover highlight
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Added header buttons and keyboard shortcuts
+- Updated `src/sip_videogen/studio/frontend/src/App.tsx` - Added TooltipProvider wrapper
+- Updated `src/sip_videogen/studio/frontend/src/index.css` - Added overscroll-behavior to prevent elastic scrolling
+- Updated `src/sip_videogen/studio/bridge.py` - Added get_general_assets bridge method
+- Updated `src/sip_videogen/studio/services/project_service.py` - Added get_general_assets implementation
+- Updated `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added getGeneralAssets TypeScript types
+
+**Features:**
+- Removed redundant "Kept" section from sidebar (images stay in project folders until deleted)
+- Added "General" pseudo-project at top of Projects list for non-project images
+- Trackpad two-finger horizontal swipe support (scroll left = trash, scroll right = keep)
+- Purple hover highlight when mouse over swipe area (indicates ready for swipe)
+- Keep/Trash buttons in workstation header as alternatives to swiping
+- Keyboard shortcuts: K = keep, T = trash, ←/→ = navigate between images
+- Tooltips on header buttons showing swipe/keyboard alternatives
+- CSS overscroll-behavior to prevent macOS elastic scrolling during trackpad swipe
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- "Kept" section no longer appears in sidebar
+- "General" pseudo-project shows at top of Projects with count of non-project images
+- Hover over workstation image → purple border highlight appears
+- Two-finger trackpad swipe left → trash action triggered
+- Two-finger trackpad swipe right → keep action triggered
+- Click Trash/Keep buttons → corresponding action triggered
+- Press K → keep, press T → trash, arrows → navigate
+- No elastic window bouncing during trackpad swipe
+
 ### Pending Tasks
-- Task 20: Testing and Edge Cases
+- Task 21: Testing and Edge Cases
 
 ## Commits
 
@@ -527,6 +562,7 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 17. `6ad793c` - feat(workstation): Add migration and first launch backfill
 18. `6690dfc` - feat(workstation): Add undo toast for keep/trash actions
 19. `fb7c609` - feat(workstation): Add smooth animations and visual polish
+20. `a9b5b18` - feat(workstation): Improve image curation UX
 
 ## Related Files
 
@@ -556,3 +592,4 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 19. (For Task 17) Delete `~/.sip-videogen/brands/{slug}/image_status.json`, select that brand → existing images should auto-appear in workstation
 20. (For Task 18) Swipe to keep → toast appears with "Undo" button; click Undo → image returns to batch; wait 5 seconds → toast auto-dismisses
 21. (For Task 19) Switch between images - smooth fade-in transition with loading spinner; swipe past threshold → image flies off screen with rotation animation; all animations at 60fps
+22. (For Task 20) Kept section removed from sidebar; General pseudo-project shows at top of Projects; hover over image shows purple highlight; two-finger trackpad swipe works; K/T keyboard shortcuts work; header Keep/Trash buttons work
