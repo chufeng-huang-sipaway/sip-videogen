@@ -642,8 +642,35 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Project items in sidebar no longer expand (just show count label)
 - Click Trash button on project asset → image moves to trash folder
 
+#### Task 24: Fix Copy Button and Thumbnail Centering ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/ExportActions.tsx` - Fixed path resolution, replaced Share with Reveal in Finder
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/ThumbnailStrip.tsx` - Added auto-centering for selected thumbnail
+- Updated `src/sip_videogen/studio/bridge.py` - Fixed copy/reveal to handle relative paths
+
+**Bug Fixes:**
+- **Copy button**: Was copying wrong image because `path` could be a data URL; now uses `originalPath || path`
+- **Path resolution**: Bridge methods now resolve relative paths (e.g., `generated/project__image.png`) using brand's assets directory
+- **Share → Reveal in Finder**: Replaced unreliable share functionality with simple "Reveal in Finder" (`open -R`)
+
+**New Features:**
+- **Thumbnail auto-centering**: Selected thumbnail smoothly scrolls to center of strip using `scrollIntoView({ behavior: 'smooth', inline: 'center' })`
+- **Reveal in Finder button**: Folder icon button opens Finder with image file selected
+
+**Technical Details:**
+- ExportActions uses `originalPath || path` for all handlers (copy, reveal, drag)
+- ThumbnailStrip uses `useRef` array for button elements and `useEffect` to center on `selectedIndex` change
+- Bridge methods use `resolve_assets_path()` to convert relative paths to absolute paths
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Click copy button on project image → paste in Preview works correctly
+- Click Reveal in Finder → Finder opens with image selected
+- Navigate thumbnails with arrows → selected thumbnail scrolls to center
+
 ### Pending Tasks
-- Task 24: Testing and Edge Cases
+- Task 25: Testing and Edge Cases
 
 ## Commits
 
@@ -669,6 +696,8 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 20. `a9b5b18` - feat(workstation): Improve image curation UX
 21. `4377141` - feat(workstation): Fix image preview and improve UI
 22. `b66dad8` - fix(workstation): Fix Recycle Bin UI and thumbnail navigation
+23. `3661b98` - feat(workstation): Add grid view toggle and simplify sidebar
+24. `b7ee1de` - fix(workstation): Fix copy button and add thumbnail centering
 
 ## Related Files
 
@@ -701,3 +730,5 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 22. (For Task 20) Kept section removed from sidebar; General pseudo-project shows at top of Projects; hover over image shows purple highlight; two-finger trackpad swipe works; K/T keyboard shortcuts work; header Keep/Trash buttons work
 23. (For Task 21) Click image in sidebar project → displays in workstation; ChatPanel visible; thumbnail strip shows all images; swipe disabled for kept images; header shows full filename
 24. (For Task 22) Click "View Recycle Bin" in sidebar → header shows "Recycle Bin (N items)"; all thumbnails load in strip at bottom; click thumbnails to navigate; "Empty Recycle Bin" button shows confirmation
+25. (For Task 23) Click project in sidebar → images load; click Grid button → grid view; press G → toggles view; click thumbnail in grid → preview mode
+26. (For Task 24) Click copy button on project image → paste in Preview works; click Reveal in Finder (folder icon) → Finder opens with file selected; navigate with arrows → selected thumbnail scrolls to center
