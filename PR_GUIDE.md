@@ -605,8 +605,45 @@ bridge.chat() returns images → registerGeneratedImages() → onImagesGenerated
 - Restore and Empty Recycle Bin buttons work correctly
 - Thumbnail strip remains visible at all window sizes (including full screen)
 
+#### Task 23: Grid View Toggle and Sidebar Simplification ✅
+
+**Changes:**
+- Updated `src/sip_videogen/studio/frontend/src/context/WorkstationContext.tsx` - Added browseMode state
+- Created `src/sip_videogen/studio/frontend/src/components/Workstation/ImageGrid.tsx` - Grid view component
+- Updated `src/sip_videogen/studio/frontend/src/components/Workstation/index.tsx` - Added grid toggle and view switching
+- Updated `src/sip_videogen/studio/frontend/src/components/Sidebar/sections/ProjectsSection.tsx` - Simplified project items
+- Updated `src/sip_videogen/studio/bridge.py` - Added trash_by_path method for project assets
+- Updated `src/sip_videogen/studio/services/image_status.py` - Added find_by_path and register_or_find methods
+- Updated `src/sip_videogen/studio/frontend/src/lib/bridge.ts` - Added trashByPath TypeScript types
+
+**Features:**
+- **Browse Mode Toggle:** New `browseMode` state ('preview' | 'grid') in WorkstationContext
+- **Grid View:** New ImageGrid component with ~120px thumbnails in responsive CSS grid
+- **Toggle Button:** Grid/Preview button in header toolbar next to Compare button
+- **Keyboard Shortcut:** Press 'G' to toggle between preview and grid modes
+- **Click Behavior:** Clicking a thumbnail in grid view switches to preview mode showing that image
+- **Lazy Loading:** Grid thumbnails use IntersectionObserver for efficient loading of large collections
+- **Sidebar Simplification:** Removed expandable behavior from project items (chevron icons removed)
+- **Auto-Load Projects:** Clicking a project loads its assets into the Workstation automatically
+- **Project Asset Trash:** New `trashByPath` bridge method handles trashing project assets correctly
+
+**Technical Details:**
+- Grid uses CSS grid with `grid-cols-[repeat(auto-fill,minmax(120px,1fr))]` for responsive layout
+- Thumbnail caching shared via `gridThumbCache` Map for performance
+- Path resolution: `trash_by_path` handles relative paths like `generated/filename.png`
+- Image status integration: `register_or_find` creates entries for untracked project assets
+
+**Verification:**
+- Build frontend: `cd src/sip_videogen/studio/frontend && npm run build` - Compiles without errors
+- Click a project in sidebar → images load in Workstation
+- Click "Grid" button in header → switches to grid view with ~120px thumbnails
+- Press 'G' key → toggles between grid and preview modes
+- Click a thumbnail in grid view → switches to preview mode showing that image
+- Project items in sidebar no longer expand (just show count label)
+- Click Trash button on project asset → image moves to trash folder
+
 ### Pending Tasks
-- Task 23: Testing and Edge Cases
+- Task 24: Testing and Edge Cases
 
 ## Commits
 
