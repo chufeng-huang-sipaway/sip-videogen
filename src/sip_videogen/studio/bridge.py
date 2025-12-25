@@ -235,8 +235,16 @@ class StudioBridge:
         """Copy image file to system clipboard (macOS)."""
         import subprocess
         from pathlib import Path
+        from .utils.path_utils import resolve_assets_path
         try:
             path=Path(image_path)
+            #Handle relative paths (e.g. "generated/project__image.png")
+            if not path.is_absolute():
+                brand_dir,err=self._state.get_brand_dir()
+                if err:return bridge_error(err)
+                resolved,err=resolve_assets_path(brand_dir,image_path)
+                if err:return bridge_error(err)
+                path=resolved
             if not path.exists():return bridge_error(f"File not found: {image_path}")
             script=f'''osascript -e 'set the clipboard to (read (POSIX file "{path}") as «class PNGf»)' 2>/dev/null || osascript -e 'set the clipboard to (read (POSIX file "{path}") as JPEG picture)' '''
             subprocess.run(script,shell=True,check=True,capture_output=True)
@@ -244,15 +252,23 @@ class StudioBridge:
         except subprocess.CalledProcessError as e:return bridge_error(f"Failed to copy: {e}")
         except Exception as e:return bridge_error(str(e))
     def share_image(self,image_path:str)->dict:
-        """Open macOS share sheet for image."""
+        """Reveal image in Finder."""
         import subprocess
         from pathlib import Path
+        from .utils.path_utils import resolve_assets_path
         try:
             path=Path(image_path)
+            #Handle relative paths (e.g. "generated/project__image.png")
+            if not path.is_absolute():
+                brand_dir,err=self._state.get_brand_dir()
+                if err:return bridge_error(err)
+                resolved,err=resolve_assets_path(brand_dir,image_path)
+                if err:return bridge_error(err)
+                path=resolved
             if not path.exists():return bridge_error(f"File not found: {image_path}")
-            script=f'''osascript -e 'tell application "Finder" to reveal POSIX file "{path}"' -e 'tell application "System Events" to keystroke "," using {{command down, shift down}}' '''
-            subprocess.Popen(["open","-R",str(path)])
-            return bridge_ok({"shared":True,"path":str(path)})
+            #Reveal in Finder with file selected
+            subprocess.Popen(['open','-R',str(path)])
+            return bridge_ok({"revealed":True,"path":str(path)})
         except Exception as e:return bridge_error(str(e))
     def _move_image_to_status(self,brand_slug:str,image_id:str,new_status:str)->dict:
         """Move image file to appropriate folder and update status."""
