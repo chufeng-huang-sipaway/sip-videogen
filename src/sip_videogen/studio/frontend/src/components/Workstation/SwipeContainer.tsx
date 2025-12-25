@@ -1,8 +1,10 @@
 //SwipeContainer - wrap images for swipe gesture keep/trash curation with slide-out animation and trackpad support
 import{useRef,useState,useCallback,useEffect,type ReactNode,type MouseEvent,type TouchEvent}from'react'
-interface SwipeContainerProps{children:ReactNode;onSwipeRight:()=>void;onSwipeLeft:()=>void;threshold?:number;disabled?:boolean}
+import{ChevronLeft,ChevronRight}from'lucide-react'
+interface SwipeContainerProps{children:ReactNode;onSwipeRight:()=>void;onSwipeLeft:()=>void;threshold?:number;disabled?:boolean;mode?:'curate'|'navigate'}
 interface SwipeState{isDragging:boolean;startX:number;currentX:number;startY:number;exitDir:'left'|'right'|null;isHovered:boolean;wheelDelta:number;isWheelSwiping:boolean}
-export function SwipeContainer({children,onSwipeRight,onSwipeLeft,threshold=100,disabled=false}:SwipeContainerProps){
+export function SwipeContainer({children,onSwipeRight,onSwipeLeft,threshold=100,disabled=false,mode='curate'}:SwipeContainerProps){
+const isNavigateMode=mode==='navigate'
 const ref=useRef<HTMLDivElement>(null)
 const wheelTimeoutRef=useRef<number|null>(null)
 const wheelDeltaRef=useRef(0)
@@ -59,11 +61,13 @@ wheelDeltaRef.current=0;setState(s=>({...s,exitDir:dir,wheelDelta:0,isWheelSwipi
 wheelDeltaRef.current=0;setState(s=>({...s,wheelDelta:0,isWheelSwiping:false}))}},150)}
 el.addEventListener('wheel',handleWheel,{passive:false})
 return()=>{el.removeEventListener('wheel',handleWheel);if(wheelTimeoutRef.current){clearTimeout(wheelTimeoutRef.current);wheelTimeoutRef.current=null}}},[disabled,threshold])
-//Visual feedback colors
+//Visual feedback colors - different for navigate vs curate mode
 const swipeOffset=state.isDragging?dragOffset:state.isWheelSwiping?state.wheelDelta:0
-const bgColor=swipeOffset>0?`rgba(34,197,94,${progress*0.3})`:swipeOffset<0?`rgba(239,68,68,${progress*0.3})`:'transparent'
-const borderColor=swipeOffset>0?`rgba(34,197,94,${progress})`:`rgba(239,68,68,${progress})`
-const exitOpacity=state.exitDir?0:1
+const bgColor=isNavigateMode?`rgba(59,130,246,${progress*0.15})`:(swipeOffset>0?`rgba(34,197,94,${progress*0.3})`:swipeOffset<0?`rgba(239,68,68,${progress*0.3})`:'transparent')
+const borderColor=isNavigateMode?`rgba(59,130,246,${progress})`:(swipeOffset>0?`rgba(34,197,94,${progress})`:`rgba(239,68,68,${progress})`)
+const exitOpacity=state.exitDir?(isNavigateMode?1:0):1
+//In navigate mode, slide but don't fade out; just transition to next image
+const navTransform=isNavigateMode?`translateX(${effectiveOffset*0.3}px)`:`translateX(${effectiveOffset}px) rotate(${rotation}deg)`
 //Hover glow when ready for swipe
 const hoverGlow=state.isHovered&&!state.isDragging&&!state.isWheelSwiping&&!state.exitDir?'0 0 0 2px rgba(147,51,234,0.3)':'none'
-return(<div ref={ref} className="absolute inset-4 select-none cursor-grab active:cursor-grabbing overflow-hidden" style={{background:bgColor,transition:'background 0.15s ease-out',display:'flex',alignItems:'center',justifyContent:'center'}} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}><div className="relative will-change-transform h-full w-full" style={{transform:`translateX(${effectiveOffset}px) rotate(${rotation}deg)`,opacity:exitOpacity,transition:state.isDragging||state.isWheelSwiping?'none':'all 0.3s cubic-bezier(0.4,0,0.2,1)',border:absOffset>10?`2px solid ${borderColor}`:'2px solid transparent',boxShadow:hoverGlow,borderRadius:'0.5rem',padding:'0.25rem',display:'flex',alignItems:'center',justifyContent:'center'}}>{children}{absOffset>30&&!state.exitDir&&(<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className={`text-2xl font-bold uppercase tracking-wider px-4 py-2 rounded border-4 transition-opacity duration-150 ${swipeOffset>0?'text-green-500 border-green-500 bg-green-500/20 rotate-[-15deg]':'text-red-500 border-red-500 bg-red-500/20 rotate-[15deg]'}`} style={{opacity:progress}}>{swipeOffset>0?'Keep':'Trash'}</div></div>)}</div></div>)}
+return(<div ref={ref} className="absolute inset-4 select-none cursor-grab active:cursor-grabbing overflow-hidden" style={{background:bgColor,transition:'background 0.15s ease-out',display:'flex',alignItems:'center',justifyContent:'center'}} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}><div className="relative will-change-transform h-full w-full" style={{transform:navTransform,opacity:exitOpacity,transition:state.isDragging||state.isWheelSwiping?'none':'all 0.3s cubic-bezier(0.4,0,0.2,1)',border:absOffset>10?`2px solid ${borderColor}`:'2px solid transparent',boxShadow:hoverGlow,borderRadius:'0.5rem',padding:'0.25rem',display:'flex',alignItems:'center',justifyContent:'center'}}>{children}{absOffset>30&&!state.exitDir&&!isNavigateMode&&(<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className={`text-2xl font-bold uppercase tracking-wider px-4 py-2 rounded border-4 transition-opacity duration-150 ${swipeOffset>0?'text-green-500 border-green-500 bg-green-500/20 rotate-[-15deg]':'text-red-500 border-red-500 bg-red-500/20 rotate-[15deg]'}`} style={{opacity:progress}}>{swipeOffset>0?'Keep':'Trash'}</div></div>)}{absOffset>30&&!state.exitDir&&isNavigateMode&&(<div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="flex items-center gap-2 text-blue-500 transition-opacity duration-150" style={{opacity:progress}}>{swipeOffset>0?<><ChevronLeft className="w-8 h-8"/><span className="text-lg font-medium">Previous</span></>:<><span className="text-lg font-medium">Next</span><ChevronRight className="w-8 h-8"/></>}</div></div>)}</div></div>)}

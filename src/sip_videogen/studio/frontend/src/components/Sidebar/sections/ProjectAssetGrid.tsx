@@ -366,14 +366,39 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     }, 500)
   }, [loadAssets])
 
-  const handlePreview = useCallback((path: string) => {
-    //Show image in Workstation instead of popup
-    const filename = path.split('/').pop() || path
-    const image = { id: filename, path, timestamp: new Date().toISOString() }
-    setIsTrashView(false)
-    setCurrentBatch([image])
-    setSelectedIndex(0)
-  }, [setCurrentBatch, setSelectedIndex, setIsTrashView])
+  // Memoize sorted assets (newest first based on filename patterns)
+  const sortedAssets = useMemo(() => {
+    return [...assets].sort((a, b) => {
+      const nameA = a.split('/').pop() ?? a
+      const nameB = b.split('/').pop() ?? b
+      return nameB.localeCompare(nameA)
+    })
+  }, [assets])
+
+  const handlePreview = useCallback(async (clickedPath: string) => {
+    if (!isPyWebView()) return
+    try {
+      //Filter to images only (exclude videos)
+      const imageAssets = sortedAssets.filter(p => !isVideoAsset(p))
+      //Create batch - clicked image will be loaded lazily via originalPath
+      const allImages = imageAssets.map((assetPath) => {
+        const filename = assetPath.split('/').pop() || assetPath
+        return {
+          id: filename,
+          path: '',
+          originalPath: assetPath,
+          timestamp: new Date().toISOString(),
+          status: 'kept' as const
+        }
+      })
+      const clickedIndex = imageAssets.findIndex(p => p === clickedPath)
+      setIsTrashView(false)
+      setCurrentBatch(allImages)
+      setSelectedIndex(clickedIndex >= 0 ? clickedIndex : 0)
+    } catch (err) {
+      console.error('Failed to load image:', err)
+    }
+  }, [sortedAssets, setCurrentBatch, setSelectedIndex, setIsTrashView])
 
   const handlePreviewVideo = useCallback(async (path: string) => {
     if (!isPyWebView()) return
@@ -400,16 +425,6 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     setThumbnailReloadNonce((n) => n + 1)
     void loadAssets(false)
   }, [loadAssets])
-
-  // Memoize sorted assets (newest first based on filename patterns)
-  const sortedAssets = useMemo(() => {
-    return [...assets].sort((a, b) => {
-      // Sort by filename descending (assuming timestamp-based or sequential naming)
-      const nameA = a.split('/').pop() ?? a
-      const nameB = b.split('/').pop() ?? b
-      return nameB.localeCompare(nameA)
-    })
-  }, [assets])
 
   if (isLoading) {
     return (

@@ -8,7 +8,7 @@ function normalizeImagePath(path:string):string{
 return path.startsWith('file://')?path.slice('file://'.length):path
 }
 export function ImageDisplay(){
-const{currentBatch,selectedIndex}=useWorkstation()
+const{currentBatch,selectedIndex,updateImagePath}=useWorkstation()
 const currentImage=currentBatch[selectedIndex]
 const[isLoading,setIsLoading]=useState(true)
 const[isVisible,setIsVisible]=useState(false)
@@ -22,7 +22,19 @@ useEffect(()=>{if(!currentImage)return;if(prevIdRef.current!==currentImage.id){s
 useEffect(()=>{let cancelled=false
 async function load(){if(!currentImage)return
 const raw=currentImage.path
-if(!raw){setIsLoading(false);setError('Missing image path');return}
+const origPath=currentImage.originalPath
+//Lazy loading: if path is empty but originalPath exists, load via getAssetFull
+if((!raw||raw==='')&&origPath){
+if(!isPyWebView()){setIsLoading(false);setError('Cannot load in browser');return}
+try{const dataUrl=await bridge.getAssetFull(origPath)
+if(cancelled)return
+if(!dataUrl||dataUrl===''){setIsLoading(false);setError('Failed to load image data');return}
+updateImagePath(currentImage.id,dataUrl)
+setSrc(dataUrl)}catch(e){if(cancelled)return
+setError(e instanceof Error?e.message:String(e))
+setIsLoading(false)}
+return}
+if(!raw||raw===''){setIsLoading(false);setError('Missing image path');return}
 if(raw.startsWith('data:')||raw.startsWith('http://')||raw.startsWith('https://')){setSrc(raw);return}
 const normalized=normalizeImagePath(raw)
 if(fullImageCache.has(normalized)){setSrc(fullImageCache.get(normalized)!);return}
@@ -38,7 +50,7 @@ setSrc(dataUrl)
 setError(e instanceof Error?e.message:String(e))
 setIsLoading(false)}}
 void load()
-return()=>{cancelled=true}},[currentImage?.id,currentImage?.path])
+return()=>{cancelled=true}},[currentImage?.id,currentImage?.path,currentImage?.originalPath,updateImagePath])
 const handleLoad=()=>{setIsLoading(false)}
 const handleError=()=>{setIsLoading(false);setError('Failed to load image')}
 if(!currentImage)return null
