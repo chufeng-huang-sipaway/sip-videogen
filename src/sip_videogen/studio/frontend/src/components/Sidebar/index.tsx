@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -36,16 +36,19 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const { products } = useProducts()
   const { templates } = useTemplates()
   const { projects } = useProjects()
-  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
+  const { setCurrentBatch, setSelectedIndex, setIsTrashView, statusVersion } = useWorkstation()
 
   const [activeSection, setActiveSection] = useState<NavSection>('projects')
   const [keptCount, setKeptCount] = useState(0)
 
-  //Load kept count when brand changes
-  useState(() => {
-    if (!activeBrand || !isPyWebView()) return
+  //Load kept count when brand changes or status updates
+  useEffect(() => {
+    if (!activeBrand || !isPyWebView()) {
+      setKeptCount(0)
+      return
+    }
     bridge.getImagesByStatus(activeBrand, 'kept').then(imgs => setKeptCount(imgs.length)).catch(() => {})
-  })
+  }, [activeBrand, statusVersion])
 
   //Handle viewing trash in workstation
   const handleOpenTrash = async () => {
@@ -82,89 +85,81 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
     setActiveSection(current => current === section ? null : section)
   }
 
-  // Collapsed view - Icon Rail
-  if (collapsed) {
-    return (
-      <TooltipProvider delayDuration={0}>
-        <aside
-          className="h-screen flex flex-col glass-sidebar border-r border-border/40 flex-shrink-0 transition-all duration-300 ease-in-out z-20"
-          style={{ width }}
-        >
-          <div className="flex-1 flex flex-col items-center py-6 gap-4">
-            {/* Brand Memory Icon */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-10 h-10 rounded-xl bg-background/50 text-foreground hover:bg-background shadow-sm hover:shadow-soft transition-all"
-                  onClick={onOpenBrandMemory}
-                  disabled={!activeBrand}
-                >
-                  <Brain className="w-5 h-5" strokeWidth={1.5} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-foreground text-background">
-                <p>Brand Memory</p>
-              </TooltipContent>
-            </Tooltip>
+  const content = collapsed ? (
+    <aside
+      className="h-screen flex flex-col glass-sidebar border-r border-border/40 flex-shrink-0 transition-all duration-300 ease-in-out z-20"
+      style={{ width }}
+    >
+      <div className="flex-1 flex flex-col items-center py-6 gap-4">
+        {/* Brand Memory Icon */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-10 h-10 rounded-xl bg-background/50 text-foreground hover:bg-background shadow-sm hover:shadow-soft transition-all"
+              onClick={onOpenBrandMemory}
+              disabled={!activeBrand}
+            >
+              <Brain className="w-5 h-5" strokeWidth={1.5} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-foreground text-background">
+            <p>Brand Memory</p>
+          </TooltipContent>
+        </Tooltip>
 
-            <Separator className="w-8 bg-border/40" />
+        <Separator className="w-8 bg-border/40" />
 
-            {/* Nav Icons */}
-            <div className="flex flex-col gap-2">
-              <NavIcon
-                icon={<Package className="w-5 h-5" strokeWidth={1.5} />}
-                label={`Products (${products.length})`}
-                isActive={activeSection === 'products'}
-                onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('products'); }}
-                count={products.length}
-                disabled={!activeBrand}
-              />
-              <NavIcon
-                icon={<Layout className="w-5 h-5" strokeWidth={1.5} />}
-                label={`Templates (${templates.length})`}
-                isActive={activeSection === 'templates'}
-                onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('templates'); }}
-                count={templates.length}
-                disabled={!activeBrand}
-              />
-              <NavIcon
-                icon={<FolderOpen className="w-5 h-5" strokeWidth={1.5} />}
-                label={`Projects (${projects.length})`}
-                isActive={activeSection === 'projects'}
-                onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('projects'); }}
-                count={projects.length}
-                disabled={!activeBrand}
-              />
-              <NavIcon
-                icon={<Heart className="w-5 h-5" strokeWidth={1.5} />}
-                label={`Kept (${keptCount})`}
-                isActive={activeSection === 'kept'}
-                onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('kept'); }}
-                count={keptCount}
-                disabled={!activeBrand}
-              />
-            </div>
+        {/* Nav Icons */}
+        <div className="flex flex-col gap-2">
+          <NavIcon
+            icon={<Package className="w-5 h-5" strokeWidth={1.5} />}
+            label={`Products (${products.length})`}
+            isActive={activeSection === 'products'}
+            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('products'); }}
+            count={products.length}
+            disabled={!activeBrand}
+          />
+          <NavIcon
+            icon={<Layout className="w-5 h-5" strokeWidth={1.5} />}
+            label={`Templates (${templates.length})`}
+            isActive={activeSection === 'templates'}
+            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('templates'); }}
+            count={templates.length}
+            disabled={!activeBrand}
+          />
+          <NavIcon
+            icon={<FolderOpen className="w-5 h-5" strokeWidth={1.5} />}
+            label={`Projects (${projects.length})`}
+            isActive={activeSection === 'projects'}
+            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('projects'); }}
+            count={projects.length}
+            disabled={!activeBrand}
+          />
+          <NavIcon
+            icon={<Heart className="w-5 h-5" strokeWidth={1.5} />}
+            label={`Kept (${keptCount})`}
+            isActive={activeSection === 'kept'}
+            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('kept'); }}
+            count={keptCount}
+            disabled={!activeBrand}
+          />
+        </div>
 
-            <div className="flex-1" />
+        <div className="flex-1" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
-                  <PanelLeftClose className="w-5 h-5 rotate-180" strokeWidth={1.5} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Expand</TooltipContent>
-            </Tooltip>
-          </div>
-        </aside>
-      </TooltipProvider>
-    )
-  }
-
-  // Expanded View
-  return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
+              <PanelLeftClose className="w-5 h-5 rotate-180" strokeWidth={1.5} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Expand</TooltipContent>
+        </Tooltip>
+      </div>
+    </aside>
+  ) : (
     <aside
       className="h-screen flex flex-col glass-sidebar border-r border-border/40 flex-shrink-0 transition-all duration-300 ease-in-out z-20 relative"
       style={{ width }}
@@ -288,6 +283,12 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
       <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen} />
       <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </aside>
+  )
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      {content}
+    </TooltipProvider>
   )
 }
 

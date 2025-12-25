@@ -9,7 +9,7 @@ import{RotateCcw,Trash2,ArrowLeft,Loader2}from'lucide-react'
 import{cn}from'../../lib/utils'
 interface TrashViewProps{onExit:()=>void}
 export function TrashView({onExit}:TrashViewProps){
-const{currentBatch,selectedIndex,setCurrentBatch,setSelectedIndex}=useWorkstation()
+const{currentBatch,selectedIndex,setCurrentBatch,setSelectedIndex,bumpStatusVersion}=useWorkstation()
 const{activeBrand}=useBrand()
 const currentImage=currentBatch[selectedIndex]
 const[isLoading,setIsLoading]=useState(true)
@@ -29,11 +29,12 @@ const handleRestore=useCallback(async()=>{if(!currentImage||!activeBrand)return
 try{await bridge.restoreImage(currentImage.id,activeBrand)
 const newBatch=[...currentBatch];newBatch.splice(selectedIndex,1);setCurrentBatch(newBatch)
 if(selectedIndex>=newBatch.length&&newBatch.length>0)setSelectedIndex(newBatch.length-1)
-if(newBatch.length===0)onExit()}catch(e){console.error('Failed to restore image:',e)}},[currentImage,activeBrand,currentBatch,selectedIndex,setCurrentBatch,setSelectedIndex,onExit])
+if(newBatch.length===0)onExit()
+bumpStatusVersion()}catch(e){console.error('Failed to restore image:',e)}},[currentImage,activeBrand,currentBatch,selectedIndex,setCurrentBatch,setSelectedIndex,onExit,bumpStatusVersion])
 //Empty all trash
 const handleEmptyTrash=useCallback(async()=>{if(!activeBrand)return
 if(!window.confirm('Permanently delete all trashed images? This cannot be undone.'))return
-try{await bridge.emptyTrash(activeBrand);setCurrentBatch([]);onExit()}catch(e){console.error('Failed to empty trash:',e)}},[activeBrand,setCurrentBatch,onExit])
+try{await bridge.emptyTrash(activeBrand);setCurrentBatch([]);onExit();bumpStatusVersion()}catch(e){console.error('Failed to empty trash:',e)}},[activeBrand,setCurrentBatch,onExit,bumpStatusVersion])
 if(currentBatch.length===0)return(<div className="flex-1 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300"><Trash2 className="w-12 h-12 mb-4 opacity-50"/><p className="text-sm font-medium">Trash is empty</p><Button variant="ghost" size="sm" className="mt-4 gap-2" onClick={onExit}><ArrowLeft className="w-4 h-4"/>Back to Workstation</Button></div>)
 return(<TooltipProvider><div className="flex-1 flex flex-col">
 {/* Header */}

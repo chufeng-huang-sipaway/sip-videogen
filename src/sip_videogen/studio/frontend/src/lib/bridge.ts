@@ -323,6 +323,9 @@ export interface ImageGenerationMetadata {
 
 export interface GeneratedImage {
   url: string
+  path?: string
+  id?: string
+  sourceTemplatePath?: string
   metadata?: ImageGenerationMetadata | null
 }
 //Image status types for workstation curation

@@ -67,7 +67,20 @@ class ImageStatusService:
         """Register a new image with unsorted status."""
         try:
             data=self._load_status_data(brand_slug);image_id=self._generate_id();now=self._now_iso()
-            entry={"id":image_id,"status":"unsorted","originalPath":image_path,"currentPath":image_path,"prompt":prompt,"sourceTemplatePath":source_template_path,"timestamp":now,"keptAt":None,"trashedAt":None}
+            source_path=source_template_path
+            if source_template_path and not source_template_path.startswith(("data:","http://","https://")):
+                p=Path(source_template_path)
+                if not p.is_absolute():
+                    brand_dir=get_brand_dir(brand_slug)
+                    resolved=(brand_dir/source_template_path).resolve()
+                    try:
+                        resolved.relative_to(brand_dir.resolve())
+                        source_path=str(resolved)
+                    except ValueError:
+                        source_path=source_template_path
+                else:
+                    source_path=str(p)
+            entry={"id":image_id,"status":"unsorted","originalPath":image_path,"currentPath":image_path,"prompt":prompt,"sourceTemplatePath":source_path,"timestamp":now,"keptAt":None,"trashedAt":None}
             data["images"][image_id]=entry;self._save_status_data(brand_slug,data)
             return bridge_ok(entry)
         except Exception as e:return bridge_error(str(e))

@@ -9,7 +9,11 @@ function KeptThumbnail({path,onClick}:{path:string;onClick:()=>void}){
 const[src,setSrc]=useState<string|null>(null)
 const[loading,setLoading]=useState(true)
 useEffect(()=>{let cancelled=false
-async function load(){if(!isPyWebView()||!path)return
+async function load(){if(!path){if(!cancelled)setLoading(false);return}
+if(path.startsWith('data:')){if(!cancelled){setSrc(path);setLoading(false)};return}
+if(path.startsWith('file://')){if(!cancelled){setSrc(path);setLoading(false)};return}
+if(path.startsWith('/')){if(!cancelled){setSrc(`file://${path}`);setLoading(false)};return}
+if(!isPyWebView()){if(!cancelled)setLoading(false);return}
 try{const dataUrl=await bridge.getAssetThumbnail(path);if(!cancelled)setSrc(dataUrl)}catch{}finally{if(!cancelled)setLoading(false)}}
 load();return()=>{cancelled=true}},[path])
 if(loading)return(<div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0"><Loader2 className="h-4 w-4 text-muted-foreground animate-spin"/></div>)
@@ -22,7 +26,7 @@ return(<ContextMenu><ContextMenuTrigger asChild><div className="relative"><KeptT
 //Main KeptSection component
 export function KeptSection(){
 const{activeBrand}=useBrand()
-const{setCurrentBatch,setSelectedIndex}=useWorkstation()
+const{setCurrentBatch,setSelectedIndex,setIsTrashView,statusVersion,bumpStatusVersion}=useWorkstation()
 const[keptImages,setKeptImages]=useState<ImageStatusEntry[]>([])
 const[isLoading,setIsLoading]=useState(false)
 const[error,setError]=useState<string|null>(null)
@@ -30,15 +34,16 @@ const[error,setError]=useState<string|null>(null)
 const loadKeptImages=useCallback(async()=>{if(!activeBrand||!isPyWebView())return
 setIsLoading(true);setError(null)
 try{const images=await bridge.getImagesByStatus(activeBrand,'kept');setKeptImages(images)}catch(err){setError(err instanceof Error?err.message:'Failed to load kept images')}finally{setIsLoading(false)}},[activeBrand])
-//Load on mount and when brand changes
-useEffect(()=>{loadKeptImages()},[loadKeptImages])
+//Load on mount, brand change, and status updates
+useEffect(()=>{loadKeptImages()},[loadKeptImages,statusVersion])
 //Handle viewing image in workstation
 const handleView=(image:ImageStatusEntry)=>{
 const img={id:image.id,path:image.currentPath,prompt:image.prompt||undefined,sourceTemplatePath:image.sourceTemplatePath||undefined,timestamp:image.timestamp}
+setIsTrashView(false)
 setCurrentBatch([img]);setSelectedIndex(0)}
 //Handle unkeep action
 const handleUnkeep=async(imageId:string)=>{if(!isPyWebView())return
-try{await bridge.unkeepImage(imageId);setKeptImages(prev=>prev.filter(img=>img.id!==imageId))}catch(err){console.error('Failed to unkeep image:',err)}}
+try{await bridge.unkeepImage(imageId);setKeptImages(prev=>prev.filter(img=>img.id!==imageId));bumpStatusVersion()}catch(err){console.error('Failed to unkeep image:',err)}}
 if(!activeBrand)return<div className="text-xs text-muted-foreground px-2">Select a brand</div>
 if(error)return<div className="text-xs text-destructive px-2">{error}</div>
 if(isLoading)return(<div className="flex items-center gap-2 text-xs text-muted-foreground px-2"><Loader2 className="h-3 w-3 animate-spin"/>Loading...</div>)

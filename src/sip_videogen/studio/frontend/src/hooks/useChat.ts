@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry, type RegisterImageInput } from '@/lib/bridge'
 import { ALLOWED_ATTACHMENT_EXTS, ALLOWED_IMAGE_EXTS } from '@/lib/constants'
 
 export interface Message {
@@ -59,6 +59,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
+  const requestIdRef = useRef(0)
+  const cancelledRequestIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     attachmentsRef.current = attachments
@@ -154,6 +156,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     const hasAttachments = attachmentsRef.current.length > 0
     if (!content.trim() && !hasAttachments) return
     if (isLoading || !brandSlug) return
+    const requestId = ++requestIdRef.current
+    cancelledRequestIdRef.current = null
 
     const trimmed = content.trim()
     const payloadAttachments: ChatAttachment[] = attachmentsRef.current.map(
@@ -243,6 +247,9 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       }
 
       const result = await bridge.chat(finalContent, payloadAttachments, context)
+      if (cancelledRequestIdRef.current === requestId) {
+        return
+      }
       setMessages(prev => prev.map(m =>
         m.id === assistantId
           ? {
@@ -265,17 +272,37 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       }
       //Register generated images and notify workstation
       if (result.images?.length && options?.onImagesGenerated) {
-        const inputs = result.images.map(img => ({
-          path: img.url,
-          prompt: img.metadata?.prompt,
-          sourceTemplatePath: img.metadata?.reference_images?.[0],
-        }))
+        const inputs: RegisterImageInput[] = []
+        for (const img of result.images) {
+          const rawPath = img.path
+          const path = rawPath?.startsWith('file://') ? rawPath.slice('file://'.length) : rawPath
+          if (!path || path.startsWith('data:')) continue
+          const sourceTemplatePath = img.metadata?.reference_image ?? img.metadata?.reference_images?.[0]
+          inputs.push({ path, prompt: img.metadata?.prompt, sourceTemplatePath })
+        }
         try {
-          const registered = await bridge.registerGeneratedImages(inputs)
-          options.onImagesGenerated(registered)
+          const registered = inputs.length ? await bridge.registerGeneratedImages(inputs) : []
+          if (registered.length) {
+            const registeredByPath = new Map(registered.map(entry => [entry.originalPath, entry]))
+            setMessages(prev => prev.map(m => {
+              if (m.id !== assistantId) return m
+              const images = (result.images || []).map(img => {
+                if (typeof img === 'string') return img
+                const entry = img.path ? registeredByPath.get(img.path) : undefined
+                return { ...img, id: entry?.id, path: entry?.currentPath ?? img.path, sourceTemplatePath: entry?.sourceTemplatePath ?? img.metadata?.reference_image ?? img.metadata?.reference_images?.[0] }
+              })
+              return { ...m, images }
+            }))
+          }
+          if (registered.length) {
+            options.onImagesGenerated(registered)
+          }
         } catch { /* ignore registration errors */ }
       }
     } catch (err) {
+      if (cancelledRequestIdRef.current === requestId) {
+        return
+      }
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setError(msg)
       setMessages(prev => prev.map(m =>
@@ -305,6 +332,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
 
   const cancelGeneration = useCallback(async () => {
     if (!isLoading) return
+    cancelledRequestIdRef.current = requestIdRef.current
     try { if (isPyWebView()) await bridge.cancelGeneration() } catch { /* ignore */ }
     if (progressInterval.current) { clearInterval(progressInterval.current); progressInterval.current = null }
     setProgress(''); setProgressType(''); setLoadedSkills([]); setIsLoading(false)

@@ -69,7 +69,7 @@ def encode_new_images(paths:list[str],get_image_metadata_fn:Callable)->list[dict
             content=path.read_bytes();encoded=base64.b64encode(content).decode("utf-8")
             mime={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp"}.get(path.suffix.lower(),"image/png")
             metadata=get_image_metadata_fn(img_path)
-            image_data.append({"url":f"data:{mime};base64,{encoded}","metadata":metadata})
+            image_data.append({"url":f"data:{mime};base64,{encoded}","path":str(path),"metadata":metadata})
         except Exception:pass
     return image_data
 

@@ -47,7 +47,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     refresh: refreshTemplates,
   } = useTemplates()
 
-  const { setCurrentBatch, addToUnsorted } = useWorkstation()
+  const { setCurrentBatch, addToUnsorted, setIsTrashView } = useWorkstation()
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
@@ -57,9 +57,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       sourceTemplatePath: img.sourceTemplatePath || undefined,
       timestamp: img.timestamp,
     }))
+    setIsTrashView(false)
     setCurrentBatch(batch)
     addToUnsorted(batch)
-  }, [setCurrentBatch, addToUnsorted])
+  }, [setCurrentBatch, addToUnsorted, setIsTrashView])
 
   const {
     messages,
