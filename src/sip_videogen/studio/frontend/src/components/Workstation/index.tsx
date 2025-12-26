@@ -2,11 +2,10 @@
 import { useCallback, useRef, useEffect, useMemo, useState } from 'react'
 import { useWorkstation } from '../../context/WorkstationContext'
 import { useBrand } from '../../context/BrandContext'
-import { bridge, waitForPyWebViewReady } from '../../lib/bridge'
+import { bridge, isPyWebView, waitForPyWebViewReady } from '../../lib/bridge'
 import { toast } from '../ui/toaster'
 import { ImageDisplay } from './ImageDisplay'
 import { ThumbnailStrip } from './ThumbnailStrip'
-import { SwipeContainer } from './SwipeContainer'
 import { EmptyState } from './EmptyState'
 import { ContextPanel } from './ContextPanel'
 import { ExportActions } from './ExportActions'
@@ -17,7 +16,7 @@ import { ImageGrid } from './ImageGrid'
 import { cn } from '@/lib/utils'
 
 export function Workstation() {
-    const { currentBatch, selectedIndex, setCurrentBatch, setSelectedIndex, bumpStatusVersion, browseMode, setBrowseMode, removeFromBatchByPath } = useWorkstation()
+    const { currentBatch, selectedIndex, setCurrentBatch, setSelectedIndex, bumpStatusVersion, browseMode, setBrowseMode, removeFromBatchByPath, markAsViewed } = useWorkstation()
     const { activeBrand } = useBrand()
     const hasImages = currentBatch.length > 0
     const currentImage = currentBatch[selectedIndex]
@@ -44,13 +43,21 @@ export function Workstation() {
             if (!ready || cancelled) return
             try {
                 const images = await bridge.getUnsortedImages(activeBrand); if (cancelled) return
-                const batch = images.map((img) => ({ id: img.id, path: img.currentPath, prompt: img.prompt ?? undefined, sourceTemplatePath: img.sourceTemplatePath ?? undefined, timestamp: img.timestamp }))
+                const batch = images.map((img) => ({ id: img.id, path: img.currentPath, prompt: img.prompt ?? undefined, sourceTemplatePath: img.sourceTemplatePath ?? undefined, timestamp: img.timestamp, viewedAt: img.viewedAt ?? null }))
                 setCurrentBatch(batch)
             } catch (e) { console.error('Failed to load images:', e) }
         }
         loadImages()
         return () => { cancelled = true }
     }, [activeBrand, setCurrentBatch])
+    //Mark image as viewed when selected (optimistic update + persist)
+    useEffect(() => {
+        if (!currentImage || !activeBrand || !isPyWebView()) return
+        if (currentImage.viewedAt) return
+        const now = new Date().toISOString()
+        markAsViewed(currentImage.id, now)
+        bridge.markImageViewed(currentImage.id, activeBrand).catch(e => console.error('Failed to mark viewed:', e))
+    }, [currentImage?.id, currentImage?.viewedAt, activeBrand, markAsViewed])
 
     const isGrid = browseMode === 'grid'
     const toggleBrowseMode = useCallback(() => { setBrowseMode(isGrid ? 'preview' : 'grid') }, [isGrid, setBrowseMode])
@@ -95,8 +102,8 @@ export function Workstation() {
                         {/* Center Content */}
                         <div className="w-full h-full flex items-center justify-center relative max-w-5xl mx-auto" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
                             {isGrid ? (<div className="w-full h-full overflow-y-auto pr-2"><ImageGrid /></div>) : (
-                                <SwipeContainer onSwipeLeft={handleDelete} disabled={!currentImage}>
-                                    <div className="relative transition-all duration-300 transform">
+                                <div className="absolute inset-4 flex items-center justify-center">
+                                    <div className="relative transition-all duration-300 transform h-full w-full flex items-center justify-center">
                                         <ImageDisplay key={`${selectedIndex}-${currentImage?.id}`} />
                                         {/* Floating Action Toolbar - Overlay on image with auto-hide */}
                                         <div className={cn("absolute bottom-4 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-300", toolbarVisible ? "opacity-100" : "opacity-0 pointer-events-none")}>
@@ -108,7 +115,7 @@ export function Workstation() {
                                             </div>
                                         </div>
                                     </div>
-                                </SwipeContainer>
+                                </div>
                             )}
                         </div>
 
@@ -124,11 +131,11 @@ export function Workstation() {
 
                     {/* Floating Thumbnails Dock */}
                     {!isGrid && (
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3">
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3 w-full max-w-5xl px-12">
                             <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md px-3 py-1 rounded-full border border-black/5 dark:border-white/5 animate-fade-in-up shadow-sm">
                                 <span className="text-[10px] font-mono font-medium text-muted-foreground tracking-widest uppercase">{imageCounter}</span>
                             </div>
-                            <div className="glass-pill p-1.5 shadow-float bg-white/40 dark:bg-black/40 backdrop-blur-xl border-white/20 dark:border-white/5 ring-1 ring-white/20 max-w-[90vw]">
+                            <div className="glass-pill p-1.5 shadow-float bg-white/40 dark:bg-black/40 backdrop-blur-xl border-white/20 dark:border-white/5 ring-1 ring-white/20 max-w-full">
                                 <ThumbnailStrip />
                             </div>
                         </div>

@@ -9,11 +9,11 @@ from typing import Literal
 from sip_videogen.brands.storage import get_brand_dir
 from ..state import BridgeState
 from ..utils.bridge_types import bridge_ok,bridge_error
-ImageStatus=Literal["unsorted","kept","trashed"]
+ImageStatus=Literal["unsorted"]
 STATUS_FILE_NAME="image_status.json"
 CURRENT_VERSION=1
 class ImageStatusService:
-    """Track image lifecycle status (unsorted → kept/trashed)."""
+    """Track image lifecycle with viewedAt for unread/read status."""
     def __init__(self,state:BridgeState):self._state=state
     def _get_status_file(self,brand_slug:str)->Path:
         """Get path to image_status.json for a brand."""
@@ -49,10 +49,7 @@ class ImageStatusService:
         try:
             data=self._load_status_data(brand_slug);images=data.get("images",{})
             if image_id not in images:return bridge_error(f"Image not found: {image_id}")
-            entry=images[image_id];entry["status"]=status;now=self._now_iso()
-            if status=="kept":entry["keptAt"]=now;entry["trashedAt"]=None
-            elif status=="trashed":entry["trashedAt"]=now;entry["keptAt"]=None
-            else:entry["keptAt"]=None;entry["trashedAt"]=None
+            entry=images[image_id];entry["status"]=status
             images[image_id]=entry;data["images"]=images;self._save_status_data(brand_slug,data)
             return bridge_ok(entry)
         except Exception as e:return bridge_error(str(e))
@@ -80,8 +77,17 @@ class ImageStatusService:
                         source_path=source_template_path
                 else:
                     source_path=str(p)
-            entry={"id":image_id,"status":"unsorted","originalPath":image_path,"currentPath":image_path,"prompt":prompt,"sourceTemplatePath":source_path,"timestamp":now,"keptAt":None,"trashedAt":None}
+            entry={"id":image_id,"status":"unsorted","originalPath":image_path,"currentPath":image_path,"prompt":prompt,"sourceTemplatePath":source_path,"timestamp":now,"viewedAt":None}
             data["images"][image_id]=entry;self._save_status_data(brand_slug,data)
+            return bridge_ok(entry)
+        except Exception as e:return bridge_error(str(e))
+    def mark_viewed(self,brand_slug:str,image_id:str)->dict:
+        """Mark image as viewed (read)."""
+        try:
+            data=self._load_status_data(brand_slug);images=data.get("images",{})
+            if image_id not in images:return bridge_error(f"Image not found: {image_id}")
+            entry=images[image_id]
+            if entry.get("viewedAt")is None:entry["viewedAt"]=self._now_iso();images[image_id]=entry;data["images"]=images;self._save_status_data(brand_slug,data)
             return bridge_ok(entry)
         except Exception as e:return bridge_error(str(e))
     def update_path(self,brand_slug:str,image_id:str,new_path:str)->dict:
@@ -110,14 +116,14 @@ class ImageStatusService:
                     return bridge_ok({**entry,"id":img_id})
             return bridge_error(f"Image not found for path: {path}")
         except Exception as e:return bridge_error(str(e))
-    def register_or_find(self,brand_slug:str,path:str,status:ImageStatus="kept")->dict:
+    def register_or_find(self,brand_slug:str,path:str,status:ImageStatus="unsorted")->dict:
         """Find existing entry by path or register new one."""
         try:
             found=self.find_by_path(brand_slug,path)
             if found.get("success"):return found
             #Register new entry
             data=self._load_status_data(brand_slug);image_id=self._generate_id();now=self._now_iso()
-            entry={"id":image_id,"status":status,"originalPath":path,"currentPath":path,"prompt":None,"sourceTemplatePath":None,"timestamp":now,"keptAt":now if status=="kept"else None,"trashedAt":None}
+            entry={"id":image_id,"status":status,"originalPath":path,"currentPath":path,"prompt":None,"sourceTemplatePath":None,"timestamp":now,"viewedAt":None}
             data["images"][image_id]=entry;self._save_status_data(brand_slug,data)
             return bridge_ok(entry)
         except Exception as e:return bridge_error(str(e))
@@ -127,41 +133,16 @@ class ImageStatusService:
             from sip_videogen.studio.utils.bridge_types import ALLOWED_IMAGE_EXTS
             brand_dir=get_brand_dir(brand_slug);data=self._load_status_data(brand_slug)
             existing_paths={e.get("currentPath")for e in data.get("images",{}).values()}
-            folders_status=[("generated","unsorted"),("kept","kept"),("trash","trashed")]
             added=[]
-            for folder,status in folders_status:
-                folder_path=brand_dir/"assets"/folder
-                if not folder_path.exists():continue
+            folder_path=brand_dir/"assets"/"generated"
+            if folder_path.exists():
                 for fp in folder_path.iterdir():
                     if not fp.is_file()or fp.suffix.lower()not in ALLOWED_IMAGE_EXTS:continue
                     path_str=str(fp)
                     if path_str in existing_paths:continue
                     image_id=self._generate_id();now=self._now_iso()
-                    entry={"id":image_id,"status":status,"originalPath":path_str,"currentPath":path_str,"prompt":None,"sourceTemplatePath":None,"timestamp":now,"keptAt":now if status=="kept"else None,"trashedAt":now if status=="trashed"else None}
+                    entry={"id":image_id,"status":"unsorted","originalPath":path_str,"currentPath":path_str,"prompt":None,"sourceTemplatePath":None,"timestamp":now,"viewedAt":None}
                     data["images"][image_id]=entry;added.append(entry)
             if added:self._save_status_data(brand_slug,data)
             return bridge_ok({"added":added,"count":len(added)})
-        except Exception as e:return bridge_error(str(e))
-    def cleanup_old_trash(self,brand_slug:str,days:int=30)->dict:
-        """Delete trash items older than specified days."""
-        try:
-            from datetime import timedelta
-            data=self._load_status_data(brand_slug);images=data.get("images",{})
-            cutoff=datetime.now(timezone.utc)-timedelta(days=days);deleted=[]
-            to_remove=[]
-            for image_id,entry in images.items():
-                if entry.get("status")!="trashed":continue
-                trashed_at=entry.get("trashedAt")
-                if not trashed_at:continue
-                try:trash_dt=datetime.fromisoformat(trashed_at)
-                except ValueError:continue
-                if trash_dt<cutoff:
-                    path=Path(entry.get("currentPath",""))
-                    if path.exists():
-                        try:path.unlink()
-                        except OSError:pass
-                    to_remove.append(image_id);deleted.append(entry)
-            for image_id in to_remove:del images[image_id]
-            if to_remove:data["images"]=images;self._save_status_data(brand_slug,data)
-            return bridge_ok({"deleted":deleted,"count":len(deleted)})
         except Exception as e:return bridge_error(str(e))

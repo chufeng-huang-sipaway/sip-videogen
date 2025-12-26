@@ -56,6 +56,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       prompt: img.prompt || undefined,
       sourceTemplatePath: img.sourceTemplatePath || undefined,
       timestamp: img.timestamp,
+      viewedAt: img.viewedAt ?? null,
     }))
     setCurrentBatch(batch)
   }, [setCurrentBatch])

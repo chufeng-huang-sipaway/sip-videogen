@@ -6,7 +6,7 @@ import{cn}from'../../lib/utils'
 import{Loader2}from'lucide-react'
 //Thumbnail cache shared across grid
 const gridThumbCache=new Map<string,string>()
-function GridThumb({path,isSelected,onClick}:{path:string;isSelected:boolean;onClick:()=>void}){
+function GridThumb({path,isSelected,isUnread,onClick}:{path:string;isSelected:boolean;isUnread:boolean;onClick:()=>void}){
 const[src,setSrc]=useState<string|null>(()=>gridThumbCache.get(path)??null)
 const[loading,setLoading]=useState(!gridThumbCache.has(path))
 const containerRef=useRef<HTMLDivElement>(null)
@@ -22,9 +22,9 @@ const observer=new IntersectionObserver((entries)=>{
 if(entries[0]?.isIntersecting&&!loadedRef.current){loadedRef.current=true;observer.disconnect()
 bridge.getAssetThumbnail(path).then(dataUrl=>{if(!mountedRef.current)return;gridThumbCache.set(path,dataUrl);setSrc(dataUrl)}).catch(e=>console.error('GridThumb load error:',e)).finally(()=>{if(mountedRef.current)setLoading(false)})}},{rootMargin:'100px'})
 observer.observe(container);return()=>observer.disconnect()},[path])
-return(<div ref={containerRef} onClick={onClick} className={cn("aspect-square rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-primary/50",isSelected?"ring-2 ring-primary shadow-lg bg-primary/5":"border border-border/30 hover:border-border")}>{loading?(<div className="w-full h-full flex items-center justify-center bg-muted/20"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground/30"/></div>):src?(<img src={src} alt="" className="w-full h-full object-cover"/>):(<div className="w-full h-full bg-muted/20"/>)}</div>)}
+return(<div ref={containerRef} onClick={onClick} className={cn("aspect-square rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-primary/50 relative",isSelected?"ring-2 ring-primary shadow-lg bg-primary/5":"border border-border/30 hover:border-border")}>{loading?(<div className="w-full h-full flex items-center justify-center bg-muted/20"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground/30"/></div>):src?(<img src={src} alt="" className="w-full h-full object-cover"/>):(<div className="w-full h-full bg-muted/20"/>)}{isUnread&&<div className="absolute top-1 right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-background shadow-sm"/>}</div>)}
 export function ImageGrid(){
 const{currentBatch,selectedIndex,setSelectedIndex,setBrowseMode}=useWorkstation()
 const handleClick=(index:number)=>{setSelectedIndex(index);setBrowseMode('preview')}
 if(currentBatch.length===0)return(<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">No images to display</div>)
-return(<div className="flex-1 overflow-auto p-4"><div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">{currentBatch.map((img,i)=>(<GridThumb key={img.id} path={img.originalPath||img.path||''} isSelected={i===selectedIndex} onClick={()=>handleClick(i)}/>))}</div></div>)}
+return(<div className="flex-1 overflow-auto p-4"><div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">{currentBatch.map((img,i)=>(<GridThumb key={img.id} path={img.originalPath||img.path||''} isSelected={i===selectedIndex} isUnread={!img.viewedAt} onClick={()=>handleClick(i)}/>))}</div></div>)}

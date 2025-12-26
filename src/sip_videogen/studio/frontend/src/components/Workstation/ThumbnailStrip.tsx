@@ -6,7 +6,7 @@ import { cn } from '../../lib/utils'
 import { Loader2 } from 'lucide-react'
 //Simple cache for thumbnails
 const thumbCache = new Map<string, string>()
-function Thumb({ path }: { path: string }) {
+function Thumb({ path, isUnread }: { path: string; isUnread: boolean }) {
     const [src, setSrc] = useState<string | null>(() => thumbCache.get(path) ?? null)
     const [loading, setLoading] = useState(!thumbCache.has(path))
     const mountedRef = useRef(true)
@@ -26,7 +26,7 @@ function Thumb({ path }: { path: string }) {
         }
         void load(); return () => { cancelled = true }
     }, [path])
-    return (<div className="w-full h-full flex items-center justify-center bg-muted/20">{loading ? (<Loader2 className="w-3 h-3 animate-spin text-muted-foreground/30" />) : src ? (<img src={src} alt="" className="w-full h-full object-cover" />) : null}</div>)
+    return (<div className="w-full h-full flex items-center justify-center bg-muted/20 relative">{loading ? (<Loader2 className="w-3 h-3 animate-spin text-muted-foreground/30" />) : src ? (<img src={src} alt="" className="w-full h-full object-cover" />) : null}{isUnread && <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-background shadow-sm" />}</div>)
 }
 export function ThumbnailStrip() {
     const { currentBatch, selectedIndex, setSelectedIndex } = useWorkstation()
@@ -49,7 +49,7 @@ export function ThumbnailStrip() {
                                 : "border-transparent opacity-70 hover:opacity-100 hover:scale-105"
                         )}
                     >
-                        <Thumb path={img.originalPath || img.path || ''} />
+                        <Thumb path={img.originalPath || img.path || ''} isUnread={!img.viewedAt} />
                     </button>
                 ))}
             </div>

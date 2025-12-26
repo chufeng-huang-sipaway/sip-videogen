@@ -139,68 +139,11 @@ class StudioBridge:
         slug=brand_slug or self._state.get_active_slug()
         if not slug:return bridge_error("No brand selected")
         return self._image_status.list_by_status(slug,"unsorted")
-    def get_images_by_status(self,brand_slug:str|None=None,status:str="unsorted")->dict:
-        """Get images filtered by status."""
+    def mark_image_viewed(self,image_id:str,brand_slug:str|None=None)->dict:
+        """Mark image as viewed (read)."""
         slug=brand_slug or self._state.get_active_slug()
         if not slug:return bridge_error("No brand selected")
-        return self._image_status.list_by_status(slug,status)
-    def mark_image_kept(self,image_id:str,brand_slug:str|None=None)->dict:
-        """Mark image as kept and move to kept/ folder."""
-        slug=brand_slug or self._state.get_active_slug()
-        if not slug:return bridge_error("No brand selected")
-        return self._move_image_to_status(slug,image_id,"kept")
-    def mark_image_trashed(self,image_id:str,brand_slug:str|None=None)->dict:
-        """Mark image as trashed and move to trash/ folder."""
-        slug=brand_slug or self._state.get_active_slug()
-        if not slug:return bridge_error("No brand selected")
-        return self._move_image_to_status(slug,image_id,"trashed")
-    def trash_by_path(self,path:str,brand_slug:str|None=None)->dict:
-        """Trash an image by its file path (relative or absolute). Registers it first if not tracked."""
-        from pathlib import Path
-        from sip_videogen.brands.storage import get_brand_dir
-        from sip_videogen.studio.utils.path_utils import resolve_assets_path
-        slug=brand_slug or self._state.get_active_slug()
-        if not slug:return bridge_error("No brand selected")
-        #Resolve relative path to absolute if needed
-        full_path=path
-        if not Path(path).is_absolute():
-            brand_dir=get_brand_dir(slug)
-            resolved,err=resolve_assets_path(brand_dir,path)
-            if err:return bridge_error(err)
-            if resolved:full_path=str(resolved)
-        #Find or register the image
-        result=self._image_status.register_or_find(slug,full_path,"kept")
-        if not result.get("success"):return result
-        image_id=result.get("data",{}).get("id")
-        if not image_id:return bridge_error("Failed to get image ID")
-        return self._move_image_to_status(slug,image_id,"trashed")
-    def unkeep_image(self,image_id:str,brand_slug:str|None=None)->dict:
-        """Return kept image to unsorted status."""
-        slug=brand_slug or self._state.get_active_slug()
-        if not slug:return bridge_error("No brand selected")
-        return self._move_image_to_status(slug,image_id,"unsorted")
-    def restore_image(self,image_id:str,brand_slug:str|None=None)->dict:
-        """Restore trashed image to unsorted status."""
-        slug=brand_slug or self._state.get_active_slug()
-        if not slug:return bridge_error("No brand selected")
-        return self._move_image_to_status(slug,image_id,"unsorted")
-    def empty_trash(self,brand_slug:str|None=None)->dict:
-        """Permanently delete all trashed images."""
-        from pathlib import Path
-        slug=brand_slug or self._state.get_active_slug()
-        if not slug:return bridge_error("No brand selected")
-        try:
-            result=self._image_status.list_by_status(slug,"trashed")
-            if not result.get("success"):return result
-            trashed=result.get("data",[]);deleted=[]
-            for entry in trashed:
-                path=Path(entry.get("currentPath",""))
-                if path.exists():
-                    try:path.unlink()
-                    except OSError:pass
-                self._image_status.delete_image(slug,entry["id"]);deleted.append(entry["id"])
-            return bridge_ok({"deleted":deleted,"count":len(deleted)})
-        except Exception as e:return bridge_error(str(e))
+        return self._image_status.mark_viewed(slug,image_id)
     def register_image(self,image_path:str,brand_slug:str|None=None,prompt:str|None=None,source_template_path:str|None=None)->dict:
         """Register a new image with unsorted status."""
         slug=brand_slug or self._state.get_active_slug()
@@ -221,11 +164,6 @@ class StudioBridge:
     def cancel_generation(self,brand_slug:str|None=None)->dict:
         """Cancel ongoing image generation (placeholder for future implementation)."""
         return bridge_ok({"cancelled":True})
-    def cleanup_old_trash(self,brand_slug:str|None=None,days:int=30)->dict:
-        """Delete trash items older than specified days."""
-        slug=brand_slug or self._state.get_active_slug()
-        if not slug:return bridge_error("No brand selected")
-        return self._image_status.cleanup_old_trash(slug,days)
     def backfill_images(self,brand_slug:str|None=None)->dict:
         """Backfill image status from existing folders. Called on brand selection."""
         slug=brand_slug or self._state.get_active_slug()
@@ -269,29 +207,4 @@ class StudioBridge:
             #Reveal in Finder with file selected
             subprocess.Popen(['open','-R',str(path)])
             return bridge_ok({"revealed":True,"path":str(path)})
-        except Exception as e:return bridge_error(str(e))
-    def _move_image_to_status(self,brand_slug:str,image_id:str,new_status:str)->dict:
-        """Move image file to appropriate folder and update status."""
-        import shutil
-        from pathlib import Path
-        from sip_videogen.brands.storage import get_brand_dir
-        try:
-            status_result=self._image_status.get_status(brand_slug,image_id)
-            if not status_result.get("success"):return status_result
-            entry=status_result.get("data",{});current_path=Path(entry.get("currentPath",""))
-            if not current_path.exists():return bridge_error(f"File not found: {current_path}")
-            brand_dir=get_brand_dir(brand_slug);assets_dir=brand_dir/"assets"
-            folder_map={"unsorted":"generated","kept":"kept","trashed":"trash"}
-            target_folder=assets_dir/folder_map.get(new_status,"generated")
-            target_folder.mkdir(parents=True,exist_ok=True)
-            new_path=target_folder/current_path.name
-            if new_path!=current_path:
-                if new_path.exists():
-                    stem=current_path.stem;suffix=current_path.suffix;counter=1
-                    while new_path.exists():new_path=target_folder/f"{stem}_{counter}{suffix}";counter+=1
-                shutil.move(str(current_path),str(new_path))
-            self._image_status.set_status(brand_slug,image_id,new_status)
-            self._image_status.update_path(brand_slug,image_id,str(new_path))
-            updated=self._image_status.get_status(brand_slug,image_id)
-            return updated if updated.get("success")else bridge_ok({"id":image_id,"status":new_status,"currentPath":str(new_path)})
         except Exception as e:return bridge_error(str(e))
