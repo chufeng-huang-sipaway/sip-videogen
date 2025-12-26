@@ -6,14 +6,13 @@ import type{GeneratedImage}from'@/lib/bridge'
 interface ChatImageGalleryProps{images:GeneratedImage[]|string[]}
 export function ChatImageGallery({images}:ChatImageGalleryProps){
 const[previewSrc,setPreviewSrc]=useState<string|null>(null)
-const{setCurrentBatch,setSelectedIndex,setIsTrashView}=useWorkstation()
+const{setCurrentBatch,setSelectedIndex}=useWorkstation()
 if(images.length===0)return null
 //Normalize to GeneratedImage format for backward compatibility
 const norm:GeneratedImage[]=images.map(img=>typeof img==='string'?{url:img}:img)
 //Open image in workstation
 const openInWorkstation=(index:number)=>{
 const batch=norm.map((img,i)=>({id:img.id||`chat-${i}`,path:img.path||img.url,prompt:img.metadata?.prompt,sourceTemplatePath:img.sourceTemplatePath||img.metadata?.reference_image||img.metadata?.reference_images?.[0]||undefined,timestamp:new Date().toISOString()}))
-setIsTrashView(false)
 setCurrentBatch(batch)
 setSelectedIndex(index)}
 //Show compact summary with tiny thumbnails

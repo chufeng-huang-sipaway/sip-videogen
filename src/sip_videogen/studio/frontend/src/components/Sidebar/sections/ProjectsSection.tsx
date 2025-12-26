@@ -87,7 +87,7 @@ function ProjectCard({ project, isActive, onClick, onEdit, onArchive, onDelete }
 export function ProjectsSection() {
   const { activeBrand } = useBrand()
   const { projects, activeProject, isLoading, isRefreshing, error, refresh, updateProject, deleteProject, getProjectAssets } = useProjects()
-  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
+  const { setCurrentBatch, setSelectedIndex } = useWorkstation()
   const [generalCount, setGeneralCount] = useState(0)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingProjectSlug, setEditingProjectSlug] = useState<string | null>(null)
@@ -104,10 +104,10 @@ export function ProjectsSection() {
     try {
       const paths = await getProjectAssets(slug)
       const imageAssets = paths.filter(p => !isVideoAsset(p)).sort((a, b) => { const nameA = a.split('/').pop() ?? a; const nameB = b.split('/').pop() ?? b; return nameB.localeCompare(nameA) })
-      const batch = imageAssets.map(assetPath => { const filename = assetPath.split('/').pop() || assetPath; return { id: filename, path: '', originalPath: assetPath, timestamp: new Date().toISOString(), status: 'kept' as const } })
-      setIsTrashView(false); setCurrentBatch(batch); setSelectedIndex(0)
+      const batch = imageAssets.map(assetPath => { const filename = assetPath.split('/').pop() || assetPath; return { id: filename, path: '', originalPath: assetPath, timestamp: new Date().toISOString() } })
+      setCurrentBatch(batch); setSelectedIndex(0)
     } catch (err) { console.error('Failed to load project assets:', err) }
-  }, [getProjectAssets, setCurrentBatch, setSelectedIndex, setIsTrashView])
+  }, [getProjectAssets, setCurrentBatch, setSelectedIndex])
   //Auto-load active project's assets when component mounts or activeProject changes
   useEffect(() => { if (activeProject && isPyWebView()) { loadProjectAssets(activeProject) } }, [activeProject, loadProjectAssets])
   const handleDelete = async (slug: string) => { if (confirm(`Delete project "${slug}"? Generated assets will be kept.`)) { try { await deleteProject(slug) } catch (err) { setActionError(err instanceof Error ? err.message : 'Failed to delete project') } } }

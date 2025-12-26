@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Layout, ChevronRight, Trash2 } from 'lucide-react'
+import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Layout, ChevronRight } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { ProductsSection } from './sections/ProductsSection'
 import { TemplatesSection } from './sections/TemplatesSection'
@@ -15,9 +15,7 @@ import { useBrand } from '@/context/BrandContext'
 import { useProducts } from '@/context/ProductContext'
 import { useTemplates } from '@/context/TemplateContext'
 import { useProjects } from '@/context/ProjectContext'
-import { useWorkstation } from '@/context/WorkstationContext'
 import { cn } from '@/lib/utils'
-import { bridge, isPyWebView, type ImageStatusEntry } from '@/lib/bridge'
 
 const SIDEBAR_EXPANDED_WIDTH = 280 // Reduced from 320 for tighter feel
 const SIDEBAR_COLLAPSED_WIDTH = 68
@@ -35,34 +33,8 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const { products } = useProducts()
   const { templates } = useTemplates()
   const { projects } = useProjects()
-  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
 
   const [activeSection, setActiveSection] = useState<NavSection>('projects')
-
-  //Handle viewing trash in workstation
-  const handleOpenTrash = async () => {
-    if (!activeBrand || !isPyWebView()) return
-    try {
-      //Cleanup old trash items first
-      await bridge.cleanupOldTrash(activeBrand)
-      const trashedImages = await bridge.getImagesByStatus(activeBrand, 'trashed')
-      const batch = trashedImages.map((img: ImageStatusEntry) => ({
-        id: img.id,
-        path: img.currentPath,
-        originalPath: img.currentPath,
-        prompt: img.prompt || undefined,
-        sourceTemplatePath: img.sourceTemplatePath || undefined,
-        timestamp: img.timestamp,
-        trashedAt: img.trashedAt || undefined
-      }))
-      setCurrentBatch(batch)
-      setSelectedIndex(0)
-      setIsTrashView(true)
-    } catch (err) {
-      console.error('Failed to load trash:', err)
-    }
-  }
-
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
   const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
@@ -215,32 +187,15 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
       {/* Footer */}
       <div className="p-4 border-t border-border/30 flex items-center justify-between gap-2 bg-gradient-to-t from-background/50 to-transparent">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 p-2 h-auto gap-2 rounded-lg"
-            onClick={() => setIsSettingsOpen(true)}
-          >
-            <Settings className="w-3.5 h-3.5" strokeWidth={1.5} />
-            <span>Settings</span>
-          </Button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={handleOpenTrash}
-                disabled={!activeBrand}
-              >
-                <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>View Recycle Bin</TooltipContent>
-          </Tooltip>
-        </div>
-
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 p-2 h-auto gap-2 rounded-lg"
+          onClick={() => setIsSettingsOpen(true)}
+        >
+          <Settings className="w-3.5 h-3.5" strokeWidth={1.5} />
+          <span>Settings</span>
+        </Button>
         <Button
           variant="ghost"
           size="icon"

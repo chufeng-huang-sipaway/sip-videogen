@@ -47,7 +47,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     refresh: refreshTemplates,
   } = useTemplates()
 
-  const { setCurrentBatch, addToUnsorted, setIsTrashView } = useWorkstation()
+  const { setCurrentBatch } = useWorkstation()
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
@@ -57,10 +57,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       sourceTemplatePath: img.sourceTemplatePath || undefined,
       timestamp: img.timestamp,
     }))
-    setIsTrashView(false)
     setCurrentBatch(batch)
-    addToUnsorted(batch)
-  }, [setCurrentBatch, addToUnsorted, setIsTrashView])
+  }, [setCurrentBatch])
 
   const {
     messages,
@@ -81,7 +79,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setAttachmentError,
   } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated })
 
-  const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
+
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
@@ -294,7 +292,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       }
 
       <ScrollArea className="flex-1">
-        <div className="px-4 pb-4 max-w-4xl mx-auto w-full">
+        <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
           <MessageList
             messages={messages}
             progress={progress}
@@ -357,7 +355,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           disabled={isLoading || !brandSlug}
           isGenerating={isLoading}
           onCancel={cancelGeneration}
-          placeholder={brandSlug ? (activeProjectEntry ? `Ask me to create something for ${activeProjectEntry.name}...` : 'Ask me to create something...') : 'Select a brand to start...'}
+          placeholder=""
           onSend={async (text) => { await sendMessage(text, { project_slug: activeProject, attached_products: attachedProducts.length > 0 ? attachedProducts : undefined, attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined }); await refreshProducts() }}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}

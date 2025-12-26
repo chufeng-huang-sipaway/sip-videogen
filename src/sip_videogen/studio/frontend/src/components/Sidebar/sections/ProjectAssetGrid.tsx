@@ -208,7 +208,7 @@ const POLL_INTERVAL_BACKOFF = 5000 // 5 seconds after errors
 export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAssetGridProps) {
   const { activeBrand } = useBrand()
   const { getProjectAssets, refresh: refreshProjects } = useProjects()
-  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
+  const { setCurrentBatch, setSelectedIndex } = useWorkstation()
   const [assets, setAssets] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -387,18 +387,16 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
           id: filename,
           path: '',
           originalPath: assetPath,
-          timestamp: new Date().toISOString(),
-          status: 'kept' as const
+          timestamp: new Date().toISOString()
         }
       })
       const clickedIndex = imageAssets.findIndex(p => p === clickedPath)
-      setIsTrashView(false)
       setCurrentBatch(allImages)
       setSelectedIndex(clickedIndex >= 0 ? clickedIndex : 0)
     } catch (err) {
       console.error('Failed to load image:', err)
     }
-  }, [sortedAssets, setCurrentBatch, setSelectedIndex, setIsTrashView])
+  }, [sortedAssets, setCurrentBatch, setSelectedIndex])
 
   const handlePreviewVideo = useCallback(async (path: string) => {
     if (!isPyWebView()) return

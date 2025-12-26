@@ -25,7 +25,7 @@ function VideoThumbnail({onClick}:{path:string;onClick?:()=>void}){return(<div c
 interface GeneralAssetGridProps{expectedCount?:number}
 export function GeneralAssetGrid({expectedCount}:GeneralAssetGridProps){
 const{activeBrand}=useBrand()
-const{setCurrentBatch,setSelectedIndex,setIsTrashView}=useWorkstation()
+const{setCurrentBatch,setSelectedIndex}=useWorkstation()
 const[assets,setAssets]=useState<string[]>([])
 const[isLoading,setIsLoading]=useState(true)
 const[isRefreshing,setIsRefreshing]=useState(false)
@@ -40,9 +40,9 @@ const sortedAssets=[...assets].sort((a,b)=>{const nameA=a.split('/').pop()??a;co
 const handlePreview=useCallback((clickedPath:string)=>{if(!isPyWebView())return
 const imageAssets=sortedAssets.filter(p=>!isVideoAsset(p))
 const allImages=imageAssets.map((assetPath)=>{const filename=assetPath.split('/').pop()||assetPath
-return{id:filename,path:'',originalPath:assetPath,timestamp:new Date().toISOString(),status:'kept'as const}})
+return{id:filename,path:'',originalPath:assetPath,timestamp:new Date().toISOString()}})
 const clickedIndex=imageAssets.findIndex(p=>p===clickedPath)
-setIsTrashView(false);setCurrentBatch(allImages);setSelectedIndex(clickedIndex>=0?clickedIndex:0)},[sortedAssets,setCurrentBatch,setSelectedIndex,setIsTrashView])
+setCurrentBatch(allImages);setSelectedIndex(clickedIndex>=0?clickedIndex:0)},[sortedAssets,setCurrentBatch,setSelectedIndex])
 const handlePreviewVideo=useCallback(async(path:string)=>{if(!isPyWebView())return;try{const dataUrl=await bridge.getVideoData(path);setPreviewVideo({src:dataUrl,path})}catch(err){console.error('Failed to load video:',err)}},[])
 const handleRefresh=useCallback(()=>{thumbnailCache.clear();loadAssets(false)},[loadAssets])
 if(isLoading)return(<div className="py-2"><div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2">{Array.from({length:Math.min(expectedCount??4,8)}).map((_,i)=>(<div key={i} className="aspect-square rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse"/>))}</div></div>)

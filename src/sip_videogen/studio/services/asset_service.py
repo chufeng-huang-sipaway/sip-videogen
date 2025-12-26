@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import base64
 import io
+import subprocess
+import sys
 from pathlib import Path
 
 from sip_videogen.brands.memory import list_brand_assets
@@ -12,6 +14,18 @@ from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS,ASSET_CATEGORIES,MIME_TYPES,VIDEO_MIME_TYPES,bridge_ok,bridge_error
 from ..utils.os_utils import reveal_in_file_manager
 from ..utils.path_utils import resolve_assets_path,resolve_in_dir
+
+def _move_to_trash(path:Path)->bool:
+    """Move file to system trash. Returns True on success."""
+    if sys.platform=='darwin':
+        try:
+            subprocess.run(['osascript','-e',f'tell application "Finder" to delete POSIX file "{path}"'],check=True,capture_output=True)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+    else:
+        path.unlink()
+        return True
 
 
 class AssetService:
@@ -123,7 +137,7 @@ class AssetService:
             return bridge_ok()
         except Exception as e:return bridge_error(str(e))
     def delete_asset(self,relative_path:str)->dict:
-        """Delete an asset file."""
+        """Move an asset file to system trash."""
         try:
             brand_dir,err=self._state.get_brand_dir()
             if err:return bridge_error(err)
@@ -132,7 +146,7 @@ class AssetService:
             if not resolved.exists():return bridge_error("Asset not found")
             if resolved.is_dir():return bridge_error("Cannot delete folders")
             if resolved.suffix.lower()not in(ALLOWED_IMAGE_EXTS|ALLOWED_VIDEO_EXTS):return bridge_error("Unsupported file type")
-            resolved.unlink()
+            if not _move_to_trash(resolved):return bridge_error("Failed to move to trash")
             return bridge_ok()
         except Exception as e:return bridge_error(str(e))
     def rename_asset(self,relative_path:str,new_name:str)->dict:

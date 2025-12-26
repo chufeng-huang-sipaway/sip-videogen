@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Package, Paperclip, Bot, Play, Film, Layout, XCircle, RefreshCw, Download } from 'lucide-react'
+import { Package, Paperclip, Bot, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { type GeneratedVideo, type TemplateSummary, type ProductEntry } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
@@ -151,7 +151,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }
   return (
     <div
       className={cn(
-        'group relative flex w-full gap-4 px-2 py-6 transition-colors duration-200 border-b border-transparent',
+        'group relative flex w-full gap-4 px-2 py-0 transition-colors duration-200 border-b border-transparent',
         isUser ? 'justify-end' : 'justify-start'
       )}
     >
@@ -166,18 +166,16 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }
 
       {/* Content Container */}
       <div className={cn(
-        "flex flex-col max-w-[85%]",
+        "flex flex-col max-w-[80%]",
         isUser ? "items-end" : "items-start"
       )}>
 
         {/* Name (hidden for minimalist feel usually, but kept subtle) */}
-        {!isUser && (
-          <span className="text-[10px] text-muted-foreground/60 font-medium mb-1.5 ml-1 uppercase tracking-wider">Brand Assistant</span>
-        )}
+
 
         {/* Bubble */}
         <div className={cn(
-          "relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm",
+          "relative px-6 py-4 rounded-2xl text-sm leading-relaxed shadow-sm",
           isUser
             ? "bg-secondary/80 text-foreground font-normal rounded-tr-sm"
             : "bg-background border border-border/40 text-foreground/90 font-light rounded-tl-sm shadow-soft"
@@ -255,18 +253,16 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }
 
         {/* Quick Actions */}
         {message.role === 'assistant' && !message.interaction && !isLoading && (
-          <div className="flex flex-wrap gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={handleCopy}>
-              {copied ? "Copied" : "Copy"}
+          <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={handleCopy} title="Copy">
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => onRegenerate?.(message.id)}>
-              <RefreshCw className="mr-1 h-3 w-3" />
-              Regenerate
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => onRegenerate?.(message.id)} title="Regenerate">
+              <RefreshCw className="h-3.5 w-3.5" />
             </Button>
             {message.images.length > 0 && (
-              <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={handleDownloadAll}>
-                <Download className="mr-1 h-3 w-3" />
-                Download All
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={handleDownloadAll} title="Download All">
+                <Download className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>
@@ -419,7 +415,7 @@ export function MessageList({ messages, progress, loadedSkills, isLoading, produ
   const showActivity = isLoading || progress
 
   return (
-    <div className="flex flex-col pb-4 w-full">
+    <div className="flex flex-col pb-4 w-full gap-8">
       {messages.map((message) => (
         <MessageBubble
           key={message.id}
