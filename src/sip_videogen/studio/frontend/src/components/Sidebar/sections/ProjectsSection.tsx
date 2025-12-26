@@ -15,8 +15,8 @@ import { useWorkstation } from '@/context/WorkstationContext'
 import { bridge, isPyWebView, type ProjectEntry } from '@/lib/bridge'
 import { EditProjectDialog } from '../EditProjectDialog'
 import { CreateProjectDialog } from '../CreateProjectDialog'
-const VIDEO_EXTS=new Set(['.mp4','.mov','.webm'])
-function isVideoAsset(path:string):boolean{const dot=path.lastIndexOf('.');return dot>=0&&VIDEO_EXTS.has(path.slice(dot).toLowerCase())}
+const VIDEO_EXTS = new Set(['.mp4', '.mov', '.webm'])
+function isVideoAsset(path: string): boolean { const dot = path.lastIndexOf('.'); return dot >= 0 && VIDEO_EXTS.has(path.slice(dot).toLowerCase()) }
 
 interface ProjectCardProps {
   project: ProjectEntry
@@ -27,31 +27,90 @@ interface ProjectCardProps {
   onDelete: () => void
 }
 
-function ProjectCard({project,isActive,onClick,onEdit,onArchive,onDelete}:ProjectCardProps) {
-const isArchived=project.status==='archived'
-return(<ContextMenu><ContextMenuTrigger asChild><div onClick={onClick} className={`flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden ${isActive?'bg-foreground text-background shadow-sm hover:bg-foreground/90':'hover:bg-muted/50 text-muted-foreground hover:text-foreground'} ${isArchived?'opacity-60':''}`} title="View project assets"><FolderKanban className={`h-3.5 w-3.5 shrink-0 ${isActive?'text-background/70':'text-muted-foreground/70'}`}/><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className={`text-sm font-medium truncate ${isActive?'text-background':'text-foreground/90'}`}>{project.name}</span>{isArchived&&<Archive className="h-3 w-3 text-muted-foreground shrink-0"/>}</div><span className={`text-[10px] truncate block ${isActive?'text-background/60':'text-muted-foreground/60'}`}>{project.asset_count} asset{project.asset_count!==1?'s':''}</span></div></div></ContextMenuTrigger><ContextMenuContent><ContextMenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2"/>Edit Project</ContextMenuItem>{!isArchived&&(<><ContextMenuSeparator/><ContextMenuItem onClick={onArchive}><Archive className="h-4 w-4 mr-2"/>Archive Project</ContextMenuItem></>)}<ContextMenuSeparator/><ContextMenuItem onClick={onDelete} className="text-red-600">Delete Project</ContextMenuItem></ContextMenuContent></ContextMenu>)}
+function ProjectCard({ project, isActive, onClick, onEdit, onArchive, onDelete }: ProjectCardProps) {
+  const isArchived = project.status === 'archived'
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          onClick={onClick}
+          className={`
+            flex items-center gap-2.5 py-2 px-3 rounded-lg cursor-pointer group transition-all duration-200 overflow-hidden 
+            ${isActive
+              ? 'bg-secondary text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/5 font-medium'
+              : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
+            } 
+            ${isArchived ? 'opacity-60' : ''}
+          `}
+          title="View project assets"
+        >
+          <FolderKanban
+            className={`h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-foreground' : 'text-muted-foreground/70 group-hover:text-foreground'}`}
+            strokeWidth={1.5}
+          />
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate flex-1">{project.name}</span>
+              {isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
+            </div>
+            {/* Asset count - only show if not archived or active to keep it clean, or always subtle */}
+            <span className={`text-[10px] truncate block mt-0.5 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
+              {project.asset_count} asset{project.asset_count !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onEdit}>
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit Project
+        </ContextMenuItem>
+        {!isArchived && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={onArchive}>
+              <Archive className="h-4 w-4 mr-2" />
+              Archive Project
+            </ContextMenuItem>
+          </>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={onDelete} className="text-red-600">
+          Delete Project
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+}
 
 export function ProjectsSection() {
-const{activeBrand}=useBrand()
-const{projects,activeProject,isLoading,isRefreshing,error,refresh,updateProject,deleteProject,getProjectAssets}=useProjects()
-const{setCurrentBatch,setSelectedIndex,setIsTrashView}=useWorkstation()
-const[generalCount,setGeneralCount]=useState(0)
-const[actionError,setActionError]=useState<string|null>(null)
-const[editingProjectSlug,setEditingProjectSlug]=useState<string|null>(null)
-const[isCreateDialogOpen,setIsCreateDialogOpen]=useState(false)
-//Load general assets count
-useEffect(()=>{if(!activeBrand||!isPyWebView()){setGeneralCount(0);return}
-bridge.getGeneralAssets(activeBrand).then(r=>setGeneralCount(r.count||0)).catch(()=>setGeneralCount(0))},[activeBrand])
-useEffect(()=>{if(actionError){const timer=setTimeout(()=>setActionError(null),5000);return()=>clearTimeout(timer)}},[actionError])
-//Load project assets into workstation
-const loadProjectAssets=useCallback(async(slug:string)=>{if(!isPyWebView())return
-try{const paths=await getProjectAssets(slug)
-const imageAssets=paths.filter(p=>!isVideoAsset(p)).sort((a,b)=>{const nameA=a.split('/').pop()??a;const nameB=b.split('/').pop()??b;return nameB.localeCompare(nameA)})
-const batch=imageAssets.map(assetPath=>{const filename=assetPath.split('/').pop()||assetPath;return{id:filename,path:'',originalPath:assetPath,timestamp:new Date().toISOString(),status:'kept'as const}})
-setIsTrashView(false);setCurrentBatch(batch);setSelectedIndex(0)}catch(err){console.error('Failed to load project assets:',err)}},[getProjectAssets,setCurrentBatch,setSelectedIndex,setIsTrashView])
-//Auto-load active project's assets when component mounts or activeProject changes
-useEffect(()=>{if(activeProject&&isPyWebView()){loadProjectAssets(activeProject)}},[activeProject,loadProjectAssets])
-const handleDelete=async(slug:string)=>{if(confirm(`Delete project "${slug}"? Generated assets will be kept.`)){try{await deleteProject(slug)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete project')}}}
+  const { activeBrand } = useBrand()
+  const { projects, activeProject, isLoading, isRefreshing, error, refresh, updateProject, deleteProject, getProjectAssets } = useProjects()
+  const { setCurrentBatch, setSelectedIndex, setIsTrashView } = useWorkstation()
+  const [generalCount, setGeneralCount] = useState(0)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [editingProjectSlug, setEditingProjectSlug] = useState<string | null>(null)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  //Load general assets count
+  useEffect(() => {
+    if (!activeBrand || !isPyWebView()) { setGeneralCount(0); return }
+    bridge.getGeneralAssets(activeBrand).then(r => setGeneralCount(r.count || 0)).catch(() => setGeneralCount(0))
+  }, [activeBrand])
+  useEffect(() => { if (actionError) { const timer = setTimeout(() => setActionError(null), 5000); return () => clearTimeout(timer) } }, [actionError])
+  //Load project assets into workstation
+  const loadProjectAssets = useCallback(async (slug: string) => {
+    if (!isPyWebView()) return
+    try {
+      const paths = await getProjectAssets(slug)
+      const imageAssets = paths.filter(p => !isVideoAsset(p)).sort((a, b) => { const nameA = a.split('/').pop() ?? a; const nameB = b.split('/').pop() ?? b; return nameB.localeCompare(nameA) })
+      const batch = imageAssets.map(assetPath => { const filename = assetPath.split('/').pop() || assetPath; return { id: filename, path: '', originalPath: assetPath, timestamp: new Date().toISOString(), status: 'kept' as const } })
+      setIsTrashView(false); setCurrentBatch(batch); setSelectedIndex(0)
+    } catch (err) { console.error('Failed to load project assets:', err) }
+  }, [getProjectAssets, setCurrentBatch, setSelectedIndex, setIsTrashView])
+  //Auto-load active project's assets when component mounts or activeProject changes
+  useEffect(() => { if (activeProject && isPyWebView()) { loadProjectAssets(activeProject) } }, [activeProject, loadProjectAssets])
+  const handleDelete = async (slug: string) => { if (confirm(`Delete project "${slug}"? Generated assets will be kept.`)) { try { await deleteProject(slug) } catch (err) { setActionError(err instanceof Error ? err.message : 'Failed to delete project') } } }
 
   const handleArchive = async (slug: string) => {
     try {
@@ -134,10 +193,10 @@ const handleDelete=async(slug:string)=>{if(confirm(`Delete project "${slug}"? Ge
         </Alert>
       )}
 
-{/* General (non-project) assets section */}
-<div className="mb-2"><div className="flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden hover:bg-muted/50 text-muted-foreground hover:text-foreground" title="Assets not associated with any project"><Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"/><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className="text-sm font-medium truncate text-foreground/90 italic">General</span></div><span className="text-[10px] truncate block text-muted-foreground/60">{generalCount} asset{generalCount!==1?'s':''}</span></div></div></div>
+      {/* General (non-project) assets section */}
+      <div className="mb-2"><div className="flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden hover:bg-muted/50 text-muted-foreground hover:text-foreground" title="Assets not associated with any project"><Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" /><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className="text-sm font-medium truncate text-foreground/90 italic">General</span></div><span className="text-[10px] truncate block text-muted-foreground/60">{generalCount} asset{generalCount !== 1 ? 's' : ''}</span></div></div></div>
 
-{sortedProjects.length===0?(<p className="text-sm text-gray-400 italic">{isLoading?'Loading...':'No projects yet. Click + to create a campaign.'}</p>):(<div className="space-y-1">{sortedProjects.map((project)=>(<ProjectCard key={project.slug} project={project} isActive={activeProject===project.slug} onClick={()=>loadProjectAssets(project.slug)} onEdit={()=>setEditingProjectSlug(project.slug)} onArchive={()=>handleArchive(project.slug)} onDelete={()=>handleDelete(project.slug)}/>))}</div>)}
+      {sortedProjects.length === 0 ? (<p className="text-sm text-gray-400 italic">{isLoading ? 'Loading...' : 'No projects yet. Click + to create a campaign.'}</p>) : (<div className="space-y-1">{sortedProjects.map((project) => (<ProjectCard key={project.slug} project={project} isActive={activeProject === project.slug} onClick={() => loadProjectAssets(project.slug)} onEdit={() => setEditingProjectSlug(project.slug)} onArchive={() => handleArchive(project.slug)} onDelete={() => handleDelete(project.slug)} />))}</div>)}
 
       {editingProjectSlug && (
         <EditProjectDialog

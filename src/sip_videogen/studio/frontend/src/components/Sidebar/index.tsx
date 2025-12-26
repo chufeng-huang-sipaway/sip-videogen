@@ -77,7 +77,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
   const content = collapsed ? (
     <aside
-      className="h-screen flex flex-col glass-sidebar border-r border-border/40 flex-shrink-0 transition-all duration-300 ease-in-out z-20"
+      className="h-screen flex flex-col glass-sidebar flex-shrink-0 transition-all duration-300 ease-in-out z-20"
       style={{ width }}
     >
       <div className="flex-1 flex flex-col items-center py-6 gap-4">
@@ -87,7 +87,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             <Button
               variant="ghost"
               size="icon"
-              className="w-10 h-10 rounded-xl bg-background/50 text-foreground hover:bg-background shadow-sm hover:shadow-soft transition-all"
+              className="w-10 h-10 rounded-2xl bg-white/40 text-foreground hover:bg-white hover:shadow-soft transition-all"
               onClick={onOpenBrandMemory}
               disabled={!activeBrand}
             >
@@ -99,10 +99,10 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
           </TooltipContent>
         </Tooltip>
 
-        <Separator className="w-8 bg-border/40" />
+        <Separator className="w-8 bg-black/5 dark:bg-white/5" />
 
         {/* Nav Icons */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <NavIcon
             icon={<Package className="w-5 h-5" strokeWidth={1.5} />}
             label={`Products (${products.length})`}
@@ -133,7 +133,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
+            <Button variant="ghost" size="icon" className="w-10 h-10 rounded-2xl text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
               <PanelLeftClose className="w-5 h-5 rotate-180" strokeWidth={1.5} />
             </Button>
           </TooltipTrigger>
@@ -143,34 +143,34 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
     </aside>
   ) : (
     <aside
-      className="h-screen flex flex-col glass-sidebar border-r border-border/40 flex-shrink-0 transition-all duration-300 ease-in-out z-20 relative"
+      className="h-screen flex flex-col glass-sidebar flex-shrink-0 transition-all duration-300 ease-in-out z-20 relative"
       style={{ width }}
     >
       {/* Header Area */}
-      <div className="px-5 pt-6 pb-2 space-y-4">
+      <div className="px-5 pt-8 pb-4 space-y-4">
         <BrandSelector />
 
         {/* Minimalist Brand Memory Card */}
         <div
           onClick={activeBrand ? onOpenBrandMemory : undefined}
           className={cn(
-            "group flex items-center gap-3 p-3 rounded-xl border border-transparent bg-background/40 hover:bg-background hover:border-border/30 hover:shadow-soft transition-all cursor-pointer",
+            "group flex items-center gap-3 p-3 rounded-2xl border border-transparent bg-white/40 hover:bg-white/80 hover:shadow-soft transition-all cursor-pointer",
             !activeBrand && "opacity-50 pointer-events-none"
           )}
         >
-          <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shadow-sm border border-border/20 text-foreground group-hover:scale-105 transition-transform">
-            <Brain className="w-4 h-4" strokeWidth={1.5} />
+          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-sm border border-black/5 text-foreground group-hover:scale-105 transition-transform">
+            <Brain className="w-4.5 h-4.5" strokeWidth={1.5} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-foreground/90">Brand Memory</div>
-            <div className="text-[10px] text-muted-foreground truncate">Active & Learning</div>
+            <div className="text-sm font-medium text-foreground/90">Brand Memory</div>
+            <div className="text-[11px] text-muted-foreground truncate">Active & Learning</div>
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
         </div>
       </div>
 
-      <div className="px-5 py-2">
-        <Separator className="bg-border/30" />
+      <div className="px-6 py-2">
+        <Separator className="bg-black/5 dark:bg-white/5" />
       </div>
 
       {/* Main Navigation */}

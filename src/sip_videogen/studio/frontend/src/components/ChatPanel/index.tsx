@@ -224,7 +224,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         onDragLeave: handleNativeDragLeave,
         onDrop: handleNativeDrop,
       })}
-      className="flex-1 flex flex-col h-screen bg-transparent relative"
+      className="flex-1 flex flex-col h-screen glass-sidebar border-l border-white/10 relative"
     >
       <input {...getInputProps()} />
 
@@ -244,7 +244,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       )}
 
       {/* Header - Minimalist */}
-      <div className="h-14 flex items-center justify-between px-8 bg-transparent z-10">
+      <div className="h-16 flex items-center justify-between px-6 pt-4 pb-2 bg-transparent z-10">
         <div className="flex items-center gap-2">
           {/* Project Selector acts as Breadcrumb now */}
           <ProjectSelector
@@ -256,7 +256,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         </div>
 
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => {
             clearMessages()
@@ -264,7 +264,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             clearTemplateAttachments()
           }}
           disabled={isLoading || messages.length === 0}
-          className="gap-2 text-xs font-medium h-8 rounded-full bg-background border-border/40 hover:bg-secondary/50 shadow-sm transition-all"
+          className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 hover:bg-white border border-transparent hover:border-black/5 shadow-sm transition-all text-muted-foreground hover:text-foreground"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
