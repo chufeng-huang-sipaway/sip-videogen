@@ -57,8 +57,8 @@ export function MessageInput({
   return (
     <div className="relative w-full">
       <div className={cn(
-        "relative flex items-center gap-2 p-2 rounded-[26px] bg-background shadow-float border border-border/10 transition-shadow duration-300 ring-1 ring-black/5",
-        "focus-within:shadow-xl focus-within:ring-black/10"
+        "relative flex items-center gap-2 p-2 rounded-[26px] bg-background shadow-float border border-black/8 transition-shadow duration-300",
+        "focus-within:shadow-xl focus-within:border-black/15"
       )}>
 
         {/* Hidden file input for image selection */}

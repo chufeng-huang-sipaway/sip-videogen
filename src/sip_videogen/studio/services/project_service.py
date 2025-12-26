@@ -97,18 +97,18 @@ class ProjectService:
         except Exception as e:return BridgeResponse(success=False,error=str(e)).to_dict()
     def get_general_assets(self,brand_slug:str|None=None)->dict:
         """Get assets not belonging to any project (no project prefix)."""
-        from pathlib import Path
         from sip_videogen.brands.storage import get_brand_dir
+        from sip_videogen.constants import ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS
         try:
             slug=brand_slug or self._state.get_active_slug()
             if not slug:return BridgeResponse(success=False,error="No brand selected").to_dict()
-            brand_dir=get_brand_dir(slug);assets=[]
+            brand_dir=get_brand_dir(slug);assets=[];allowed=ALLOWED_IMAGE_EXTS|ALLOWED_VIDEO_EXTS
             projects=[p.slug for p in list_projects(slug)]
             for folder in["generated","video"]:
                 folder_path=brand_dir/"assets"/folder
                 if not folder_path.exists():continue
                 for f in folder_path.iterdir():
-                    if not f.is_file():continue
+                    if not f.is_file()or f.suffix.lower()not in allowed:continue
                     name=f.name;has_project=False
                     for p in projects:
                         if name.startswith(f"{p}__"):has_project=True;break
