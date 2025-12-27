@@ -211,7 +211,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 
 ---
 
-### ☐ Task 5: Add Sketch/Layout Control Guidance
+### ✅ Task 5: Add Sketch/Layout Control Guidance
 
 **Background**: Designers often start with rough sketches or wireframes. Nano-Banana Pro can use these as **layout references**—it follows the spatial arrangement while filling in polished details. This is different from our template system (which uses JSON constraints); this approach uses visual input directly.
 
@@ -240,7 +240,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 
 ---
 
-### ☐ Task 6: Add Dimensional Translation Guidance (2D ↔ 3D)
+### ✅ Task 6: Add Dimensional Translation Guidance (2D ↔ 3D)
 
 **Background**: Nano-Banana Pro can convert between dimensions—turning a flat blueprint into a 3D render, or a 3D scene into a stylized 2D illustration. This is valuable for product visualization (e.g., turning a label design into a bottle mockup).
 
@@ -358,8 +358,8 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 | 2 | Text Rendering Guidance | SKILL.md | ✅ Complete |
 | 3 | Iterative Refinement Workflow ⚠️ | SKILL.md, advisor.md | ✅ Complete |
 | 4 | Image Editing via Language ⚠️ | SKILL.md, advisor.md | ✅ Complete |
-| 5 | Sketch/Layout Control ⚠️ | SKILL.md, advisor.md | ☐ Not Started |
-| 6 | Dimensional Translation | SKILL.md | ☐ Not Started |
+| 5 | Sketch/Layout Control ⚠️ | SKILL.md, advisor.md | ✅ Complete |
+| 6 | Dimensional Translation | SKILL.md | ✅ Complete |
 | 7 | Expand Trigger Keywords ⚠️ | SKILL.md | ☐ Not Started |
 | 8 | Update Critical Do's/Don'ts | SKILL.md | ☐ Not Started |
 | 9 | Add Prompt Templates | SKILL.md | ☐ Not Started |

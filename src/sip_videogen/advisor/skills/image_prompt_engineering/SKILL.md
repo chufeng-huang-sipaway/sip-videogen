@@ -252,6 +252,49 @@ generate_image(
 
 **Why this matters**: Sketches are powerful for controlling composition without constraining style. The model excels at understanding spatial intent from rough drawings and translating to polished output.
 
+### Dimensional Translation (2D ↔ 3D)
+Nano-Banana Pro can convert between dimensions—turning flat drawings into 3D renders, or 3D scenes into stylized 2D illustrations.
+
+**2D → 3D Conversion**:
+Use when converting flat artwork (label designs, blueprints, logos) into photorealistic 3D renders.
+
+**Prompt Pattern**:
+```
+Based on this [drawing/blueprint/label design], generate a photorealistic 3D render.
+[Describe how the 2D elements translate to 3D form: materials, depth, lighting]
+[If product data available: incorporate colors, textures from brand identity]
+```
+
+**3D → 2D Conversion**:
+Use when converting 3D scenes or renders into flat illustrations or stylized artwork.
+
+**Prompt Pattern**:
+```
+Convert this 3D [scene/render/image] into a [illustration style].
+Maintain composition and subject placement but apply [artistic treatment].
+```
+
+**Merging Product Attributes**:
+When converting label/packaging designs to 3D mockups, pull attributes from product data:
+- Colors from brand palette
+- Typography matching brand fonts
+- Textures/finishes from product specifications
+
+**Examples**:
+```python
+#Label design to 3D bottle mockup
+generate_image(prompt="Based on this flat label design, generate a photorealistic 3D bottle render. Cylindrical glass bottle with frosted finish, label wrapped around center. Brushed copper cap with soft metallic sheen. Studio lighting with soft shadows on white seamless backdrop.",reference_image="assets/uploads/label_flat.png",validate_identity=False  #Reference is design, not product identity
+)
+```
+
+```python
+#3D scene to flat illustration
+generate_image(prompt="Convert this 3D interior render into a flat vector illustration. Maintain room layout and furniture placement. Apply clean lines, limited color palette, and subtle geometric shadows. Modern architectural illustration style.",reference_image="assets/renders/room_3d.png",validate_identity=False
+)
+```
+
+**Why this matters**: Dimensional translation bridges design assets and final production visuals. A label artist can see their 2D work as a finished 3D mockup; a 3D render can become a stylized graphic for marketing materials.
+
 ---
 
 ## The 5-Point Prompt Formula
