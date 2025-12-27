@@ -142,6 +142,64 @@ generate_image(
 
 **Why this matters**: Iterative refinement reduces iteration cycles by preserving what's already working. Re-rolling from scratch often loses good composition, lighting, or placement that was hard to achieve.
 
+### Image Editing via Language
+Nano-Banana Pro can perform image edits through natural language—no masks or pixel operations needed. Use the source image as `reference_image` and describe the desired outcome.
+
+**Key Principle**: Describe WHAT you want, not HOW to do it. Trust the model to handle low-level operations.
+
+**Path Conversion**: When editing a recently generated image, convert absolute path to brand-relative path before using as `reference_image`.
+
+**validate_identity Decision Table**:
+| Edit Type | validate_identity | Reason |
+|-----------|-------------------|--------|
+| Remove background from product | `True` | Product must stay identical |
+| Relight/cleanup product photo | `True` | Product must stay identical |
+| Color correction on product | `True` | Product must stay identical |
+| Colorize old photo | `False` | Not a product identity task |
+| Style transfer | `False` | Intentionally changing appearance |
+| Follow sketch/layout reference | `False` | Reference is layout, not product |
+| Restore damaged photo | `False` | Not validating against reference |
+| Generic background replacement | `False` | Only background changes |
+
+**Examples**:
+```python
+# Remove background - product identity matters
+generate_image(
+    prompt="Keep the product exactly as shown. Remove the cluttered background and place on pure white seamless backdrop with soft studio lighting.",
+    reference_image="assets/uploads/product_desk.png",
+    validate_identity=True  # Product must remain identical
+)
+```
+
+```python
+# Relight product photo - product identity matters
+generate_image(
+    prompt="Same product, same position. Change from harsh flash lighting to soft, diffused natural window light from the left. Add subtle shadows for depth.",
+    reference_image="assets/generated/product_001.png",
+    validate_identity=True  # Product must remain identical
+)
+```
+
+```python
+# Colorize vintage photo - NOT a product identity task
+generate_image(
+    prompt="Colorize this black-and-white photograph with realistic, period-appropriate colors. Skin tones should be natural, fabrics should match 1950s era fashion colors.",
+    reference_image="assets/uploads/vintage_photo.jpg",
+    validate_identity=False  # Not validating product identity
+)
+```
+
+```python
+# Style transfer - intentionally changing appearance
+generate_image(
+    prompt="Transform this photograph into a watercolor painting style. Maintain composition and subject but apply loose, flowing brushstrokes and soft color blending.",
+    reference_image="assets/uploads/original.png",
+    validate_identity=False  # Intentionally altering appearance
+)
+```
+
+**Why this matters**: Nano-Banana Pro understands editing intent from natural language. By describing the outcome ("remove background", "add warmth") rather than pixel operations, you get better results with less effort.
+
 ---
 
 ## The 5-Point Prompt Formula

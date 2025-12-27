@@ -231,6 +231,53 @@ Relative: assets/generated/hero_001.png  ← Use this for reference_image
 - User provides new reference image → Use new image, not previous output
 - Previous generation was multi-product → Regenerate with product_slugs
 
+## Edit Mode Detection
+
+When user wants to MODIFY an existing image (not generate new content), use edit mode.
+
+**Trigger phrases** (use ONLY these specific phrases to avoid false positives):
+- "remove background", "remove the background"
+- "edit image", "edit photo", "edit this image"
+- "enhance image", "enhance photo", "photo enhancement"
+- "restore photo", "restore image"
+- "colorize", "colorize this"
+- "clean up", "cleanup"
+- "relight", "change lighting on"
+- "color correct", "fix colors"
+
+**When detected**:
+1. Use attached/referenced image as `reference_image`
+2. Convert absolute path to brand-relative path if needed
+3. Apply `validate_identity` per decision table:
+   | Edit Type | validate_identity | Reason |
+   |-----------|-------------------|--------|
+   | Remove bg from product | `True` | Product must stay identical |
+   | Relight/cleanup product | `True` | Product must stay identical |
+   | Colorize old photo | `False` | Not a product identity task |
+   | Style transfer | `False` | Intentionally changing |
+   | Restore damaged photo | `False` | Not validating identity |
+4. Describe desired outcome in prompt (NOT pixel operations)
+5. Do NOT treat as new generation—preserve source image
+
+**Path Conversion Example**:
+```
+Absolute: /Users/project/output/brands/acme/assets/uploads/product.png
+Relative: assets/uploads/product.png  ← Use this for reference_image
+```
+
+**Example flow**:
+```
+User: "remove the background from this product shot" [attaches product.png]
+Agent:
+  1. Detect edit mode trigger: "remove the background"
+  2. Check: Is this editing a product? YES → validate_identity=True
+  3. Call generate_image(
+       prompt="Keep the product exactly as shown. Remove background, place on pure white seamless backdrop with soft studio lighting.",
+       reference_image="assets/uploads/product.png",
+       validate_identity=True
+     )
+```
+
 ## Brand Context
 
 Before generating, call `load_brand()` to get a quick summary of:
