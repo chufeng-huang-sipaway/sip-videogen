@@ -198,6 +198,39 @@ The user's brand depends on showing their ACTUAL products. A "similar" product i
 Every pixel matters. If materials change, colors shift, or textures differ - the generation failed.
 The brand's reputation and the user's job depend on accuracy.
 
+## Iterative Refinement Detection
+
+When user requests changes to a recently generated image, use iterative refinement instead of fresh generation.
+
+**Trigger phrases** (indicating user wants to refine existing image):
+- "make it [adjective]" (warmer, brighter, darker, cooler)
+- "change the [element]" (lighting, angle, background, color)
+- "can you [adjust]" (adjust, tweak, modify)
+- "more [quality]" (more dramatic, more subtle)
+- "less [quality]" (less saturated, less busy)
+- "try [variation]" (try a different angle, try warmer tones)
+
+**When detected**:
+1. Check if previous generation was multi-product (`product_slugs`)
+   - YES: Cannot use output as reference. Regenerate with same `product_slugs` + adjusted prompt. Inform user composition may vary.
+   - NO: Continue to step 2
+2. Retrieve previous output path from conversation context
+3. Convert absolute path to brand-relative path (e.g., `assets/generated/image.png`)
+4. Use converted path as `reference_image`
+5. Modify ONLY the specific element user mentioned in prompt
+6. Set `validate_identity=False` (refinement, not product identity check)
+
+**Path Conversion Example**:
+```
+Absolute: /Users/project/output/brands/acme/assets/generated/hero_001.png
+Relative: assets/generated/hero_001.png  ← Use this for reference_image
+```
+
+**When NOT to use iterative refinement**:
+- User says "try something completely different" → Fresh generation
+- User provides new reference image → Use new image, not previous output
+- Previous generation was multi-product → Regenerate with product_slugs
+
 ## Brand Context
 
 Before generating, call `load_brand()` to get a quick summary of:

@@ -83,6 +83,65 @@ large relative to the frame, positioned in the upper right corner with a subtle 
 
 **Why this matters**: Nano-Banana Pro can render legible, styled text when instructed properly. The key is quoting exact text and being specific about typography treatment. Without quotes, the model may omit text or render it illegibly.
 
+### Iterative Refinement ("Edit, Don't Re-roll")
+When an image is 80% correct and user requests small changes, don't regenerate from scratch. Use iterative refinement to preserve what's working.
+
+**Critical Requirement**: Refinement requires BOTH:
+1. **Previous OUTPUT image as `reference_image`** (not just edited prompt)
+2. **Modified prompt** with targeted change
+
+**Path Conversion**: `generate_image` returns absolute paths (e.g., `/Users/.../output/image.png`). Before using as `reference_image`, convert to brand-relative path (e.g., `assets/generated/image.png`).
+
+**Scope Limitation (Single-Reference Only)**: Iterative refinement works for:
+- ✅ Single product image refinement (no `product_slug`)
+- ✅ Non-product image refinement (lifestyle shots, backgrounds)
+- ❌ Multi-product flows (`product_slugs` ignores `reference_image`)
+- ❌ Combined output + product_slug refs (not supported)
+
+For multi-product refinement, regenerate fresh with same `product_slugs` and adjusted prompt.
+
+**Decision Tree**:
+```
+User requests change on recent generation:
+
+1. Was it a multi-product generation (product_slugs)?
+   YES → Cannot use output as reference. Regenerate fresh with
+         same product_slugs + adjusted prompt. Warn user that
+         composition may vary.
+   NO  → Continue to step 2
+
+2. What kind of change?
+   "change X" (lighting, angle, color) → Use output as reference + edit prompt
+   "try something different"          → Fresh generation, no reference
+```
+
+**Examples**:
+```python
+# First generation
+result = generate_image(prompt="Product bottle on marble counter, soft morning light...", ...)
+# Returns: /Users/project/output/brands/acme/assets/generated/hero_001.png
+
+# User: "Make the lighting warmer"
+# Convert to relative path and use as reference:
+generate_image(
+    prompt="Product bottle on marble counter, warm golden hour light...",  # Only lighting changed
+    reference_image="assets/generated/hero_001.png",  # Previous output as reference
+    validate_identity=False  # Not a product identity check
+)
+```
+
+```python
+# User: "Try a completely different angle"
+# Fresh generation - no reference, new composition:
+generate_image(
+    prompt="Product bottle on marble counter, dramatic low angle, soft morning light...",
+    product_slug="acme-bottle",  # Use product_slug for identity
+    validate_identity=True
+)
+```
+
+**Why this matters**: Iterative refinement reduces iteration cycles by preserving what's already working. Re-rolling from scratch often loses good composition, lighting, or placement that was hard to achieve.
+
 ---
 
 ## The 5-Point Prompt Formula
