@@ -329,6 +329,102 @@ generate_image(prompt="Convert this 3D interior render into a flat vector illust
 
 **Why this matters**: Dimensional translation bridges design assets and final production visuals. A label artist can see their 2D work as a finished 3D mockup; a 3D render can become a stylized graphic for marketing materials.
 
+### Prompt Templates
+Reusable templates for common scenarios. Replace bracketed placeholders with specific details.
+
+#### Product Hero Shot
+```
+A [material + finish] [product type] with [distinctive features: embossing, label, cap style],
+placed [position: centered, off-center, grouped] on [surface: marble, wood, fabric] in [environment: studio, lifestyle].
+[Style: editorial photography, commercial product shot] with [lighting: soft diffused, dramatic rim, golden hour].
+[Camera: 45-degree angle, eye-level, overhead flat lay], shallow depth of field on [focal point].
+For [purpose: e-commerce hero, social media, print campaign].
+```
+
+**Filled Example**:
+```
+A frosted glass perfume bottle with art deco geometric facets and gold-plated spray mechanism,
+placed slightly off-center on dark gray slate stone in a minimalist studio setting.
+Editorial fragrance photography with soft diffused rim lighting creating subtle glow around edges.
+Three-quarter angle at eye level, shallow depth of field on the bottle cap.
+For luxury perfume brand homepage hero.
+```
+
+#### Infographic Layout
+```
+A [style: modern, vintage, playful] infographic with [product/subject] as central focus.
+[N] key elements arranged in [pattern: radial, grid, flowing] around the center.
+Text elements: "[Label 1]", "[Label 2]", "[Label 3]" in [typography: bold sans-serif, elegant serif].
+Connected by [visual elements: thin lines, icons, arrows] on [background: gradient, solid, textured].
+Color palette: [colors from brand or specified].
+For [audience/platform: social media, website, print].
+```
+
+**Filled Example**:
+```
+A modern infographic with the organic tea packaging as central focus.
+Three key benefits arranged radially around the center: top, bottom-left, bottom-right.
+Text elements: "100% ORGANIC", "SUSTAINABLY SOURCED", "HAND-PICKED" in bold condensed sans-serif.
+Connected by thin gold lines with leaf icons at each endpoint on a soft cream gradient background.
+Color palette: forest green, gold, cream from brand identity.
+For Instagram carousel educational post.
+```
+
+#### Image Edit
+```
+Keep the [subject: product, person, scene] exactly as shown.
+[Action: Remove, Replace, Adjust, Enhance] [target element: background, lighting, color].
+[Specific change: place on white backdrop, add warm golden light, increase contrast].
+Maintain [preserved elements: product details, facial features, composition].
+Result should appear [quality: natural, seamless, professional-grade].
+```
+
+**Filled Example**:
+```
+Keep the skincare bottle exactly as shown.
+Remove the cluttered bathroom background and place on pure white seamless studio backdrop.
+Add soft, diffused lighting from upper left with gentle shadow underneath.
+Maintain all product label details, cap finish, and bottle proportions.
+Result should appear seamless and e-commerce ready.
+```
+
+#### Sketch to Final
+```
+Following this [sketch type: wireframe, hand-drawn layout, floor plan] exactly, create [output: polished advertisement, UI screen, 3D interior].
+Replace [rough elements: boxes, circles, placeholder text] with [final elements: product photos, icons, real typography].
+Apply [style/colors: brand colors, modern aesthetic, minimalist] throughout.
+Render in [quality: photorealistic, clean vector, high-fidelity] with [lighting: studio, natural, dramatic].
+```
+
+**Filled Example**:
+```
+Following this hand-drawn advertisement wireframe exactly, create a polished social media ad.
+Replace the rough product rectangle with the actual coffee bag hero shot, centered.
+Replace placeholder header with "MORNING RITUAL" in bold serif, gold on dark brown.
+Apply brand colors (dark brown, cream, gold accents) throughout with modern editorial aesthetic.
+Render in photorealistic quality with soft natural window lighting from left.
+```
+
+#### 2D to 3D Conversion
+```
+Based on this [input type: flat label design, blueprint, logo, illustration],
+generate a photorealistic 3D [output: product mockup, architectural render, object].
+[Surface/form: cylindrical bottle, rectangular box, curved surface] with [material: glass, cardboard, metal].
+[Wrap/apply] the 2D design [placement: around center, on front face, as embossing].
+[Environment: studio backdrop, lifestyle setting, floating on gradient].
+[Lighting: soft studio, dramatic, natural] with [camera: three-quarter view, hero angle, isometric].
+```
+
+**Filled Example**:
+```
+Based on this flat wine label design,
+generate a photorealistic 3D bottle mockup.
+Standard bordeaux bottle shape with dark green glass and subtle texture.
+Wrap the label design around the bottle center, slight perspective curve visible.
+Studio backdrop with soft gray gradient, bottle casting gentle shadow.
+Soft key light from upper right with subtle fill from left, three-quarter hero angle.
+```
+
 ---
 
 ## The 5-Point Prompt Formula

@@ -304,7 +304,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 
 ---
 
-### ☐ Task 9: Add Example Prompt Templates to Skill
+### ✅ Task 9: Add Example Prompt Templates to Skill
 
 **Background**: Templates help the agent consistently produce high-quality prompts. Rather than figuring out structure each time, it can follow proven patterns.
 
@@ -362,7 +362,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 | 6 | Dimensional Translation | SKILL.md | ✅ Complete |
 | 7 | Expand Trigger Keywords ⚠️ | SKILL.md | ✅ Complete |
 | 8 | Update Critical Do's/Don'ts | SKILL.md | ✅ Complete |
-| 9 | Add Prompt Templates | SKILL.md | ☐ Not Started |
+| 9 | Add Prompt Templates | SKILL.md | ✅ Complete |
 | 10 | Write Test Cases | TEST-gemini-prompting-v2.md | ☐ Not Started |
 
 ⚠️ = Has critical concerns addressed in task description
