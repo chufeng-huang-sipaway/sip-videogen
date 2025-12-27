@@ -1,11 +1,21 @@
 """Asset (image/video) management service."""
 from __future__ import annotations
-
 import base64
+import hashlib
 import io
 import subprocess
 import sys
 from pathlib import Path
+def _get_thumb_cache_dir()->Path:
+    """Get or create thumbnail cache directory."""
+    d=Path.home()/".sip-videogen"/"cache"/"thumbnails"
+    d.mkdir(parents=True,exist_ok=True)
+    return d
+def _get_cache_key(source_path:Path)->str:
+    """Generate cache key from source path + mtime for auto-invalidation."""
+    mtime=int(source_path.stat().st_mtime)
+    key=f"{source_path}:{mtime}"
+    return hashlib.md5(key.encode()).hexdigest()
 
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import get_active_brand, get_brand_dir
@@ -61,7 +71,7 @@ class AssetService:
             return bridge_ok({"tree":tree})
         except Exception as e:return bridge_error(str(e))
     def get_asset_thumbnail(self,relative_path:str)->dict:
-        """Get base64-encoded thumbnail for an asset."""
+        """Get base64-encoded thumbnail for an asset with disk caching."""
         try:
             brand_dir,err=self._state.get_brand_dir()
             if err:return bridge_error(err)
@@ -73,12 +83,19 @@ class AssetService:
             if suffix==".svg":
                 content=resolved.read_bytes();enc=base64.b64encode(content).decode("utf-8")
                 return bridge_ok({"dataUrl":f"data:image/svg+xml;base64,{enc}"})
+            #Check disk cache
+            cache_key=_get_cache_key(resolved)
+            cache_path=_get_thumb_cache_dir()/f"{cache_key}.webp"
+            if cache_path.exists():
+                enc=base64.b64encode(cache_path.read_bytes()).decode("utf-8")
+                return bridge_ok({"dataUrl":f"data:image/webp;base64,{enc}"})
+            #Generate and cache as WebP
             from PIL import Image
             with Image.open(resolved)as img:
                 img=img.convert("RGBA");img.thumbnail((256,256))
-                buf=io.BytesIO();img.save(buf,format="PNG")
-                enc=base64.b64encode(buf.getvalue()).decode("utf-8")
-            return bridge_ok({"dataUrl":f"data:image/png;base64,{enc}"})
+                img.save(cache_path,format="WEBP",quality=85)
+                enc=base64.b64encode(cache_path.read_bytes()).decode("utf-8")
+            return bridge_ok({"dataUrl":f"data:image/webp;base64,{enc}"})
         except Exception as e:return bridge_error(str(e))
     def get_asset_full(self,relative_path:str)->dict:
         """Get base64-encoded full-resolution image for an asset."""
@@ -107,7 +124,7 @@ class AssetService:
             return bridge_ok({"dataUrl":f"data:{mime};base64,{enc}"})
         except Exception as e:return bridge_error(str(e))
     def get_image_thumbnail(self,image_path:str)->dict:
-        """Get base64-encoded thumbnail for a file under the brand directory."""
+        """Get base64-encoded thumbnail for a file under the brand directory with disk caching."""
         try:
             resolved,error=self._resolve_image_path(image_path)
             if error:return bridge_error(error)
@@ -117,12 +134,19 @@ class AssetService:
             if suffix==".svg":
                 content=resolved.read_bytes();enc=base64.b64encode(content).decode("utf-8")
                 return bridge_ok({"dataUrl":f"data:image/svg+xml;base64,{enc}"})
+            #Check disk cache
+            cache_key=_get_cache_key(resolved)
+            cache_path=_get_thumb_cache_dir()/f"{cache_key}.webp"
+            if cache_path.exists():
+                enc=base64.b64encode(cache_path.read_bytes()).decode("utf-8")
+                return bridge_ok({"dataUrl":f"data:image/webp;base64,{enc}"})
+            #Generate and cache as WebP
             from PIL import Image
             with Image.open(resolved)as img:
                 img=img.convert("RGBA");img.thumbnail((256,256))
-                buf=io.BytesIO();img.save(buf,format="PNG")
-                enc=base64.b64encode(buf.getvalue()).decode("utf-8")
-            return bridge_ok({"dataUrl":f"data:image/png;base64,{enc}"})
+                img.save(cache_path,format="WEBP",quality=85)
+                enc=base64.b64encode(cache_path.read_bytes()).decode("utf-8")
+            return bridge_ok({"dataUrl":f"data:image/webp;base64,{enc}"})
         except Exception as e:return bridge_error(str(e))
     def open_asset_in_finder(self,relative_path:str)->dict:
         """Open an asset in Finder."""

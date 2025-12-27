@@ -1,19 +1,20 @@
 //Workstation component - image viewer workspace
-import { useCallback, useRef, useEffect, useMemo, useState } from 'react'
-import { useWorkstation } from '../../context/WorkstationContext'
-import { useBrand } from '../../context/BrandContext'
-import { bridge, isPyWebView, waitForPyWebViewReady } from '../../lib/bridge'
-import { toast } from '../ui/toaster'
-import { ImageDisplay } from './ImageDisplay'
-import { ThumbnailStrip } from './ThumbnailStrip'
-import { EmptyState } from './EmptyState'
-import { ContextPanel } from './ContextPanel'
-import { ExportActions } from './ExportActions'
-import { Button } from '../ui/button'
-import { Trash2, LayoutGrid, Image as ImageIcon } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
-import { ImageGrid } from './ImageGrid'
-import { cn } from '@/lib/utils'
+import{useCallback,useRef,useEffect,useMemo,useState}from'react'
+import{useWorkstation}from'../../context/WorkstationContext'
+import{useBrand}from'../../context/BrandContext'
+import{bridge,isPyWebView,waitForPyWebViewReady}from'../../lib/bridge'
+import{toast}from'../ui/toaster'
+import{ImageDisplay}from'./ImageDisplay'
+import{ThumbnailStrip}from'./ThumbnailStrip'
+import{EmptyState}from'./EmptyState'
+import{ContextPanel}from'./ContextPanel'
+import{ExportActions}from'./ExportActions'
+import{Button}from'../ui/button'
+import{Trash2,LayoutGrid,Image as ImageIcon}from'lucide-react'
+import{Tooltip,TooltipContent,TooltipTrigger}from'../ui/tooltip'
+import{ImageGrid}from'./ImageGrid'
+import{cn}from'@/lib/utils'
+import{clearAllCaches}from'../../lib/thumbnailCache'
 
 export function Workstation() {
     const { currentBatch, selectedIndex, setCurrentBatch, setSelectedIndex, bumpStatusVersion, browseMode, setBrowseMode, removeFromBatchByPath, markAsViewed } = useWorkstation()
@@ -34,22 +35,23 @@ export function Workstation() {
 
     const imageCounter = `${selectedIndex + 1} / ${currentBatch.length}`
 
-    //Load images on brand change
-    useEffect(() => {
-        let cancelled = false
-        async function loadImages() {
-            if (!activeBrand) { setCurrentBatch([]); return }
-            const ready = await waitForPyWebViewReady()
-            if (!ready || cancelled) return
-            try {
-                const images = await bridge.getUnsortedImages(activeBrand); if (cancelled) return
-                const batch = images.map((img) => ({ id: img.id, path: img.currentPath, prompt: img.prompt ?? undefined, sourceTemplatePath: img.sourceTemplatePath ?? undefined, timestamp: img.timestamp, viewedAt: img.viewedAt ?? null }))
+    //Load images on brand change (clear caches to prevent stale data)
+    useEffect(()=>{
+        clearAllCaches()
+        let cancelled=false
+        async function loadImages(){
+            if(!activeBrand){setCurrentBatch([]);return}
+            const ready=await waitForPyWebViewReady()
+            if(!ready||cancelled)return
+            try{
+                const images=await bridge.getUnsortedImages(activeBrand);if(cancelled)return
+                const batch=images.map((img)=>({id:img.id,path:img.currentPath,prompt:img.prompt??undefined,sourceTemplatePath:img.sourceTemplatePath??undefined,timestamp:img.timestamp,viewedAt:img.viewedAt??null}))
                 setCurrentBatch(batch)
-            } catch (e) { console.error('Failed to load images:', e) }
+            }catch(e){console.error('Failed to load images:',e)}
         }
         loadImages()
-        return () => { cancelled = true }
-    }, [activeBrand, setCurrentBatch])
+        return()=>{cancelled=true}
+    },[activeBrand,setCurrentBatch])
     //Mark image as viewed when selected (optimistic update + persist)
     useEffect(() => {
         if (!currentImage || !activeBrand || !isPyWebView()) return
