@@ -355,7 +355,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
 | 1 | Texture & Material Guidance | SKILL.md | ✅ Complete |
-| 2 | Text Rendering Guidance | SKILL.md | ☐ Not Started |
+| 2 | Text Rendering Guidance | SKILL.md | ✅ Complete |
 | 3 | Iterative Refinement Workflow ⚠️ | SKILL.md, advisor.md | ☐ Not Started |
 | 4 | Image Editing via Language ⚠️ | SKILL.md, advisor.md | ☐ Not Started |
 | 5 | Sketch/Layout Control ⚠️ | SKILL.md, advisor.md | ☐ Not Started |

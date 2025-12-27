@@ -63,6 +63,26 @@ a few minor scratches from use adding authentic character..."
 
 **Why this matters**: Nano-Banana Pro excels at rendering fine details. Including texture and material information produces more realistic, believable images with depth and tactile quality.
 
+### Text Rendering
+For legible, well-rendered text in images:
+1. **Quote exact text** with double quotes in your prompt
+2. **Specify typography**: font style (serif, sans-serif, script), relative size, color/treatment
+3. **Describe placement** precisely (centered, above product, along edge, etc.)
+
+**Examples**:
+```
+"A product label with **"BLOOM ORGANIC"** in elegant serif typography,
+gold foil embossed on matte black packaging, centered on the front panel..."
+
+"A coffee bag featuring **"DARK ROAST"** in bold condensed sans-serif,
+white text on a dark brown kraft paper surface, positioned at the top third..."
+
+"An advertisement banner with **"50% OFF TODAY"** in vibrant red italic lettering,
+large relative to the frame, positioned in the upper right corner with a subtle drop shadow..."
+```
+
+**Why this matters**: Nano-Banana Pro can render legible, styled text when instructed properly. The key is quoting exact text and being specific about typography treatment. Without quotes, the model may omit text or render it illegibly.
+
 ---
 
 ## The 5-Point Prompt Formula
@@ -131,9 +151,9 @@ Hero image for premium food brand website.
 ### DO:
 - **Be specific over generic**: "ornate Victorian brass keyhole" not "old keyhole"
 - **Include material textures**: surface finishes, material properties, realistic imperfections
+- **Quote exact text for rendering**: Use **"EXACT TEXT"** in double quotes with typography details
 - **State purpose**: "A hero image for a luxury skincare homepage" gives context
 - **Use positive framing**: "an empty street at dawn" not "a street with no cars"
-- **Describe text precisely**: "The word 'BLOOM' in elegant serif, centered below the flower"
 - **Layer details**: Start broad, then add specific elements
 
 ### DON'T:
