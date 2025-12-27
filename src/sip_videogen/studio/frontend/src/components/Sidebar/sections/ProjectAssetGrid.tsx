@@ -4,6 +4,7 @@ import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
 import { useWorkstation } from '@/context/WorkstationContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
+import { buildStatusByAssetPath, normalizeAssetPath } from '@/lib/imageStatus'
 import { VideoViewer } from '@/components/ui/video-viewer'
 import { Button } from '@/components/ui/button'
 
@@ -380,14 +381,25 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     try {
       //Filter to images only (exclude videos)
       const imageAssets = sortedAssets.filter(p => !isVideoAsset(p))
+      let statusByAssetPath = new Map()
+      if (activeBrand) {
+        try {
+          statusByAssetPath = buildStatusByAssetPath(await bridge.getUnsortedImages(activeBrand))
+        } catch (e) {
+          console.warn('Failed to load image status for project asset grid:', e)
+        }
+      }
       //Create batch - clicked image will be loaded lazily via originalPath
       const allImages = imageAssets.map((assetPath) => {
-        const filename = assetPath.split('/').pop() || assetPath
+        const status = statusByAssetPath.get(normalizeAssetPath(assetPath))
         return {
-          id: filename,
+          id: status?.id ?? assetPath,
           path: '',
           originalPath: assetPath,
-          timestamp: new Date().toISOString()
+          prompt: status?.prompt ?? undefined,
+          sourceTemplatePath: status?.sourceTemplatePath ?? undefined,
+          timestamp: status?.timestamp ?? new Date().toISOString(),
+          viewedAt: status ? (status.viewedAt ?? null) : undefined,
         }
       })
       const clickedIndex = imageAssets.findIndex(p => p === clickedPath)
@@ -396,7 +408,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     } catch (err) {
       console.error('Failed to load image:', err)
     }
-  }, [sortedAssets, setCurrentBatch, setSelectedIndex])
+  }, [activeBrand, sortedAssets, setCurrentBatch, setSelectedIndex])
 
   const handlePreviewVideo = useCallback(async (path: string) => {
     if (!isPyWebView()) return

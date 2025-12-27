@@ -27,4 +27,4 @@ export function ImageGrid(){
 const{currentBatch,selectedIndex,setSelectedIndex,setBrowseMode}=useWorkstation()
 const handleClick=(index:number)=>{setSelectedIndex(index);setBrowseMode('preview')}
 if(currentBatch.length===0)return(<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">No images to display</div>)
-return(<div className="flex-1 overflow-auto p-4"><div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">{currentBatch.map((img,i)=>(<GridThumb key={img.id} path={img.originalPath||img.path||''} isSelected={i===selectedIndex} isUnread={!img.viewedAt} onClick={()=>handleClick(i)}/>))}</div></div>)}
+return(<div className="flex-1 overflow-auto p-4"><div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">{currentBatch.map((img,i)=>(<GridThumb key={img.id} path={img.originalPath||img.path||''} isSelected={i===selectedIndex} isUnread={img.viewedAt===null} onClick={()=>handleClick(i)}/>))}</div></div>)}

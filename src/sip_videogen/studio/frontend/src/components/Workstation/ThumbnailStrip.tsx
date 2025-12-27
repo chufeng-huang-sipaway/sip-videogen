@@ -49,7 +49,7 @@ export function ThumbnailStrip() {
                                 : "border-transparent opacity-70 hover:opacity-100 hover:scale-105"
                         )}
                     >
-                        <Thumb path={img.originalPath || img.path || ''} isUnread={!img.viewedAt} />
+                        <Thumb path={img.originalPath || img.path || ''} isUnread={img.viewedAt === null} />
                     </button>
                 ))}
             </div>

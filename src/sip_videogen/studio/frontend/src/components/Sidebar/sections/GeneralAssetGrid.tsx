@@ -3,6 +3,7 @@ import{Image,Loader2,RefreshCw,Play,Film}from'lucide-react'
 import{useBrand}from'@/context/BrandContext'
 import{useWorkstation}from'@/context/WorkstationContext'
 import{bridge,isPyWebView}from'@/lib/bridge'
+import{buildStatusByAssetPath,normalizeAssetPath}from'@/lib/imageStatus'
 import{VideoViewer}from'@/components/ui/video-viewer'
 import{Button}from'@/components/ui/button'
 //Thumbnail cache for session
@@ -37,12 +38,14 @@ setError(null)
 try{const result=await bridge.getGeneralAssets(activeBrand);setAssets(result.assets||[])}catch(err){if(!isBackground)setError(err instanceof Error?err.message:'Failed to load')}finally{setIsLoading(false);setIsRefreshing(false)}},[activeBrand])
 useEffect(()=>{loadAssets(false)},[loadAssets])
 const sortedAssets=[...assets].sort((a,b)=>{const nameA=a.split('/').pop()??a;const nameB=b.split('/').pop()??b;return nameB.localeCompare(nameA)})
-const handlePreview=useCallback((clickedPath:string)=>{if(!isPyWebView())return
+const handlePreview=useCallback(async(clickedPath:string)=>{if(!activeBrand||!isPyWebView())return
 const imageAssets=sortedAssets.filter(p=>!isVideoAsset(p))
-const allImages=imageAssets.map((assetPath)=>{const filename=assetPath.split('/').pop()||assetPath
-return{id:filename,path:'',originalPath:assetPath,timestamp:new Date().toISOString()}})
+let statusByAssetPath=new Map()
+try{statusByAssetPath=buildStatusByAssetPath(await bridge.getUnsortedImages(activeBrand))}catch(e){console.warn('Failed to load image status for general assets:',e)}
+const allImages=imageAssets.map((assetPath)=>{const status=statusByAssetPath.get(normalizeAssetPath(assetPath))
+return{id:status?.id??assetPath,path:'',originalPath:assetPath,prompt:status?.prompt??undefined,sourceTemplatePath:status?.sourceTemplatePath??undefined,timestamp:status?.timestamp??new Date().toISOString(),viewedAt:status?(status.viewedAt??null):undefined}})
 const clickedIndex=imageAssets.findIndex(p=>p===clickedPath)
-setCurrentBatch(allImages);setSelectedIndex(clickedIndex>=0?clickedIndex:0)},[sortedAssets,setCurrentBatch,setSelectedIndex])
+setCurrentBatch(allImages);setSelectedIndex(clickedIndex>=0?clickedIndex:0)},[activeBrand,sortedAssets,setCurrentBatch,setSelectedIndex])
 const handlePreviewVideo=useCallback(async(path:string)=>{if(!isPyWebView())return;try{const dataUrl=await bridge.getVideoData(path);setPreviewVideo({src:dataUrl,path})}catch(err){console.error('Failed to load video:',err)}},[])
 const handleRefresh=useCallback(()=>{thumbnailCache.clear();loadAssets(false)},[loadAssets])
 if(isLoading)return(<div className="py-2"><div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2">{Array.from({length:Math.min(expectedCount??4,8)}).map((_,i)=>(<div key={i} className="aspect-square rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse"/>))}</div></div>)

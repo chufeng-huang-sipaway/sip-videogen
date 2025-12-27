@@ -13,6 +13,7 @@ import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
 import { useWorkstation } from '@/context/WorkstationContext'
 import { bridge, isPyWebView, type ProjectEntry } from '@/lib/bridge'
+import { buildStatusByAssetPath, normalizeAssetPath } from '@/lib/imageStatus'
 import { EditProjectDialog } from '../EditProjectDialog'
 import { CreateProjectDialog } from '../CreateProjectDialog'
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.webm'])
@@ -103,11 +104,30 @@ export function ProjectsSection() {
     if (!isPyWebView()) return
     try {
       const paths = await getProjectAssets(slug)
+      let statusByAssetPath = new Map()
+      if (activeBrand) {
+        try {
+          statusByAssetPath = buildStatusByAssetPath(await bridge.getUnsortedImages(activeBrand))
+        } catch (e) {
+          console.warn('Failed to load image status for project assets:', e)
+        }
+      }
       const imageAssets = paths.filter(p => !isVideoAsset(p)).sort((a, b) => { const nameA = a.split('/').pop() ?? a; const nameB = b.split('/').pop() ?? b; return nameB.localeCompare(nameA) })
-      const batch = imageAssets.map(assetPath => { const filename = assetPath.split('/').pop() || assetPath; return { id: filename, path: '', originalPath: assetPath, timestamp: new Date().toISOString() } })
+      const batch = imageAssets.map(assetPath => {
+        const status = statusByAssetPath.get(normalizeAssetPath(assetPath))
+        return {
+          id: status?.id ?? assetPath,
+          path: '',
+          originalPath: assetPath,
+          prompt: status?.prompt ?? undefined,
+          sourceTemplatePath: status?.sourceTemplatePath ?? undefined,
+          timestamp: status?.timestamp ?? new Date().toISOString(),
+          viewedAt: status ? (status.viewedAt ?? null) : undefined,
+        }
+      })
       setCurrentBatch(batch); setSelectedIndex(0)
     } catch (err) { console.error('Failed to load project assets:', err) }
-  }, [getProjectAssets, setCurrentBatch, setSelectedIndex])
+  }, [activeBrand, getProjectAssets, setCurrentBatch, setSelectedIndex])
   //Auto-load active project's assets when component mounts or activeProject changes
   useEffect(() => { if (activeProject && isPyWebView()) { loadProjectAssets(activeProject) } }, [activeProject, loadProjectAssets])
   const handleDelete = async (slug: string) => { if (confirm(`Delete project "${slug}"? Generated assets will be kept.`)) { try { await deleteProject(slug) } catch (err) { setActionError(err instanceof Error ? err.message : 'Failed to delete project') } } }

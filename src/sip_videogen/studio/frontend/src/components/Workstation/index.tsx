@@ -53,7 +53,7 @@ export function Workstation() {
     //Mark image as viewed when selected (optimistic update + persist)
     useEffect(() => {
         if (!currentImage || !activeBrand || !isPyWebView()) return
-        if (currentImage.viewedAt) return
+        if (currentImage.viewedAt !== null) return
         const now = new Date().toISOString()
         markAsViewed(currentImage.id, now)
         bridge.markImageViewed(currentImage.id, activeBrand).catch(e => console.error('Failed to mark viewed:', e))

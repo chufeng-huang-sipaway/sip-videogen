@@ -241,6 +241,26 @@ class TestBackfillFromFolders:
         (gen_dir/".DS_Store").write_bytes(b"fake")
         result=service.backfill_from_folders("test-brand")
         assert result["data"]["count"]==1  #Only the png
+    def test_backfill_marks_migration_images_as_viewed(self,service:ImageStatusService,temp_brands_dir:Path)->None:
+        """First-time migration marks all existing images as viewed (read)."""
+        gen_dir=temp_brands_dir/"test-brand"/"assets"/"generated"
+        (gen_dir/"image1.png").write_bytes(b"fake")
+        result=service.backfill_from_folders("test-brand")
+        assert result["data"]["count"]==1
+        unsorted=service.list_by_status("test-brand","unsorted")
+        #Should be marked as viewed (read) since this is first migration
+        assert unsorted["data"][0]["viewedAt"]is not None
+    def test_backfill_new_images_unread_after_migration(self,service:ImageStatusService,temp_brands_dir:Path)->None:
+        """After migration, new images should be unread."""
+        gen_dir=temp_brands_dir/"test-brand"/"assets"/"generated"
+        (gen_dir/"image1.png").write_bytes(b"fake")
+        #First migration
+        service.backfill_from_folders("test-brand")
+        #Add new image
+        (gen_dir/"image2.png").write_bytes(b"fake")
+        result=service.backfill_from_folders("test-brand")
+        #New image should be unread
+        assert result["data"]["added"][0]["viewedAt"]is None
 class TestCleanupOldTrash:
     """Tests for cleaning up old trashed images."""
     def test_cleanup_deletes_old_trashed_images(self,service:ImageStatusService,temp_brands_dir:Path)->None:
