@@ -4,6 +4,7 @@ import type {
   IdentitySection,
   SectionDataMap,
 } from '../types/brand-identity'
+import { initConstants, type ConstantsPayload } from './constants'
 
 interface BridgeResponse<T> {
   success: boolean
@@ -407,6 +408,7 @@ export interface UpdateSettings {
 }
 
 interface PyWebViewAPI {
+  get_constants(): Promise<BridgeResponse<ConstantsPayload>>
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
   save_api_keys(openai: string, gemini: string, firecrawl?: string): Promise<BridgeResponse<void>>
   get_brands(): Promise<BridgeResponse<{ brands: BrandEntry[]; active: string | null }>>
@@ -572,6 +574,17 @@ export function waitForPyWebViewReady(timeoutMs = 800): Promise<boolean> {
       { once: true, signal: controller.signal }
     )
   })
+}
+
+//Fetch and initialize constants from Python API (call once at app startup)
+export async function fetchAndInitConstants(): Promise<boolean> {
+  try {
+    const ready = await waitForPyWebViewReady()
+    if (!ready || !isPyWebView()) return false
+    const resp = await window.pywebview!.api.get_constants()
+    if (resp.success && resp.data) { initConstants(resp.data); return true }
+    return false
+  } catch { return false }
 }
 
 export const bridge = {

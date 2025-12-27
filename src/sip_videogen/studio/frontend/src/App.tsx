@@ -9,7 +9,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useBrand } from '@/context/BrandContext'
 import { DragProvider } from '@/context/DragContext'
-import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
+import { bridge, waitForPyWebViewReady, fetchAndInitConstants } from '@/lib/bridge'
 import type { UpdateCheckResult } from '@/lib/bridge'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -78,6 +78,8 @@ function App() {
         setNeedsSetup(false) // Browser dev mode (no PyWebView)
         return
       }
+      //Fetch constants from Python (single source of truth)
+      await fetchAndInitConstants()
       const status = await bridge.checkApiKeys()
       setNeedsSetup(!status.all_configured)
     }
