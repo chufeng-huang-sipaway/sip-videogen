@@ -257,7 +257,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 
 ---
 
-### ☐ Task 7: Expand Trigger Keywords in Skill Frontmatter
+### ✅ Task 7: Expand Trigger Keywords in Skill Frontmatter
 
 **Background**: Our skill system uses keyword triggers to determine when to load a skill. Currently, `image-prompt-engineering` triggers on words like "image", "photo", "render". But with new capabilities, we need to trigger on "infographic", "diagram", "sketch", "mockup", "colorize", etc.
 
@@ -360,7 +360,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 | 4 | Image Editing via Language ⚠️ | SKILL.md, advisor.md | ✅ Complete |
 | 5 | Sketch/Layout Control ⚠️ | SKILL.md, advisor.md | ✅ Complete |
 | 6 | Dimensional Translation | SKILL.md | ✅ Complete |
-| 7 | Expand Trigger Keywords ⚠️ | SKILL.md | ☐ Not Started |
+| 7 | Expand Trigger Keywords ⚠️ | SKILL.md | ✅ Complete |
 | 8 | Update Critical Do's/Don'ts | SKILL.md | ☐ Not Started |
 | 9 | Add Prompt Templates | SKILL.md | ☐ Not Started |
 | 10 | Write Test Cases | TEST-gemini-prompting-v2.md | ☐ Not Started |

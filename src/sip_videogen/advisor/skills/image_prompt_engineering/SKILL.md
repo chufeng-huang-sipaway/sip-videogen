@@ -2,6 +2,7 @@
 name: image-prompt-engineering
 description: Craft effective prompts for Gemini image generation - MUST READ before any generate_image call
 triggers:
+  #Core image generation
   - image
   - generate_image
   - generate image
@@ -23,6 +24,39 @@ triggers:
   - graphic
   - illustration
   - render
+  #Infographics and diagrams
+  - infographic
+  - diagram
+  - chart
+  #Layout and sketches (specific phrases)
+  - sketch layout
+  - wireframe
+  - layout mockup
+  - blueprint
+  - schematic
+  - follow this layout
+  - based on this sketch
+  - turn this wireframe
+  #Editing (specific phrases to avoid false positives on code/API tasks)
+  - remove background
+  - colorize image
+  - colorize photo
+  - enhance image
+  - photo enhancement
+  - edit image
+  - edit photo
+  - restore photo
+  - restore image
+  - cleanup image
+  - clean up photo
+  - relight photo
+  - relight image
+  #Dimensional conversion
+  - 3D render
+  - 3D mockup
+  - 2D to 3D
+  - 3D to 2D
+  - dimensional conversion
 tools_required:
   - generate_image
 priority: high
