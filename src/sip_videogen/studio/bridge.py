@@ -174,6 +174,7 @@ class StudioBridge:
         import subprocess
         from pathlib import Path
         from .utils.path_utils import resolve_assets_path
+        from .utils.os_utils import copy_image_to_clipboard_macos
         try:
             path=Path(image_path)
             #Handle relative paths (e.g. "generated/project__image.png")
@@ -184,16 +185,15 @@ class StudioBridge:
                 if err:return bridge_error(err)
                 path=resolved
             if not path.exists():return bridge_error(f"File not found: {image_path}")
-            script=f'''osascript -e 'set the clipboard to (read (POSIX file "{path}") as «class PNGf»)' 2>/dev/null || osascript -e 'set the clipboard to (read (POSIX file "{path}") as JPEG picture)' '''
-            subprocess.run(script,shell=True,check=True,capture_output=True)
+            copy_image_to_clipboard_macos(path)
             return bridge_ok({"copied":True,"path":str(path)})
         except subprocess.CalledProcessError as e:return bridge_error(f"Failed to copy: {e}")
         except Exception as e:return bridge_error(str(e))
     def share_image(self,image_path:str)->dict:
         """Reveal image in Finder."""
-        import subprocess
         from pathlib import Path
         from .utils.path_utils import resolve_assets_path
+        from .utils.os_utils import reveal_in_file_manager
         try:
             path=Path(image_path)
             #Handle relative paths (e.g. "generated/project__image.png")
@@ -204,7 +204,6 @@ class StudioBridge:
                 if err:return bridge_error(err)
                 path=resolved
             if not path.exists():return bridge_error(f"File not found: {image_path}")
-            #Reveal in Finder with file selected
-            subprocess.Popen(['open','-R',str(path)])
+            reveal_in_file_manager(path)
             return bridge_ok({"shared":True,"path":str(path)})
         except Exception as e:return bridge_error(str(e))
