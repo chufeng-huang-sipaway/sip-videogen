@@ -2,11 +2,10 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  /* Minimalist Monochrome Theme */
-  --color-background: hsl(0 0% 100%);
-  /* Pure White */
+  /* Minimalist Floating Studio Theme */
+  --color-background: hsl(240 10% 98%);
+  /* Soft off-white for global bg */
   --color-foreground: hsl(240 10% 10%);
-  /* Soft Black */
 
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(240 10% 10%);
@@ -14,12 +13,12 @@
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(240 10% 10%);
 
-  /* Primary is now a sophisticated dark charcoal/slate, not black */
+  /* Primary is a deep, rich slate */
   --color-primary: hsl(240 5% 15%);
   --color-primary-foreground: hsl(0 0% 100%);
 
   --color-secondary: hsl(240 5% 96%);
-  /* Very light gray */
+  /* Very light gray for fills */
   --color-secondary-foreground: hsl(240 5% 15%);
 
   --color-muted: hsl(240 5% 96%);
@@ -35,47 +34,50 @@
   --color-input: hsl(240 6% 90%);
   --color-ring: hsl(240 5% 15%);
 
-  --radius: 0.75rem;
+  --radius: 0.85rem;
+  /* Slightly friendlier rounding */
 
   /* Custom Shadow Utilities */
-  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.02);
-  --shadow-float: 0 10px 40px -10px rgba(0, 0, 0, 0.08), 0 0 20px -5px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 10px 30px -5px rgba(0, 0, 0, 0.06);
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 8px -2px rgba(0, 0, 0, 0.02);
+  --shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 8px 32px -6px rgba(0, 0, 0, 0.06);
 
   /* Animation keyframes */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-shimmer: shimmer 2s linear infinite;
+  --animate-fade-in-up: fadeInUp 0.4s ease-out;
 }
 
-/* Dark mode colors - Adjusted for deep monochrome */
+/* Dark mode colors - Deep and Rich */
 .dark {
-  --color-background: hsl(240 10% 3.9%);
+  --color-background: hsl(240 10% 6%);
+  /* Slightly lighter than pure black */
   --color-foreground: hsl(0 0% 98%);
 
-  --color-card: hsl(240 10% 3.9%);
+  --color-card: hsl(240 10% 8%);
   --color-card-foreground: hsl(0 0% 98%);
 
-  --color-popover: hsl(240 10% 3.9%);
+  --color-popover: hsl(240 10% 8%);
   --color-popover-foreground: hsl(0 0% 98%);
 
   --color-primary: hsl(0 0% 98%);
   --color-primary-foreground: hsl(240 5.9% 10%);
 
-  --color-secondary: hsl(240 3.7% 15.9%);
+  --color-secondary: hsl(240 4% 16%);
   --color-secondary-foreground: hsl(0 0% 98%);
 
-  --color-muted: hsl(240 3.7% 15.9%);
+  --color-muted: hsl(240 4% 16%);
   --color-muted-foreground: hsl(240 5% 64.9%);
 
-  --color-accent: hsl(240 3.7% 15.9%);
+  --color-accent: hsl(240 4% 16%);
   --color-accent-foreground: hsl(0 0% 98%);
 
   --color-destructive: hsl(0 62.8% 30.6%);
   --color-destructive-foreground: hsl(0 0% 98%);
 
-  --color-border: hsl(240 3.7% 15.9%);
-  --color-input: hsl(240 3.7% 15.9%);
+  --color-border: hsl(240 4% 16%);
+  --color-input: hsl(240 4% 16%);
   --color-ring: hsl(240 4.9% 83.9%);
 }
 
@@ -109,10 +111,22 @@
   }
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Scrollbar refinement */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -120,52 +134,75 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.12);
 }
 
 /* Glassmorphism Utilities */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .dark .glass {
-  background: rgba(20, 20, 20, 0.7);
+  background: rgba(20, 20, 20, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glass-sidebar {
-  background: rgba(255, 255, 255, 0.85);
-  /* Slightly more opaque for cleanliness which user preferred */
-  backdrop-filter: blur(40px) saturate(120%);
-  /* Softer blur */
-  -webkit-backdrop-filter: blur(40px) saturate(120%);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(32px) saturate(140%);
+  -webkit-backdrop-filter: blur(32px) saturate(140%);
+  border-right: 1px solid rgba(0, 0, 0, 0.03);
+  /* Extremely subtle border */
 }
 
 .dark .glass-sidebar {
-  background: rgba(30, 30, 30, 0.8);
+  background: rgba(18, 18, 18, 0.7);
+  border-right: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: var(--shadow-float);
   border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 9999px;
+}
+
+.dark .glass-pill {
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Prevent elastic scrolling/bounce on macOS */
+html,
+body {
+  overscroll-behavior: none;
+  overflow: hidden;
 }
 
 /* Base styles for cleaner typography */
 body {
   font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
-  /* ss01 for alternate sans-serif chars often */
 }
 
 /* Utilities for soft shadows */
@@ -175,4 +212,8 @@ body {
 
 .shadow-float {
   box-shadow: var(--shadow-float);
+}
+
+.animate-fade-in-up {
+  animation: var(--animate-fade-in-up);
 }

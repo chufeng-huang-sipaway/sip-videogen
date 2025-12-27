@@ -323,7 +323,27 @@ export interface ImageGenerationMetadata {
 
 export interface GeneratedImage {
   url: string
+  path?: string
+  id?: string
+  sourceTemplatePath?: string
   metadata?: ImageGenerationMetadata | null
+}
+//Image status types for workstation curation
+export type ImageStatusType = 'unsorted'
+export interface ImageStatusEntry {
+  id: string
+  status: ImageStatusType
+  originalPath: string
+  currentPath: string
+  prompt?: string | null
+  sourceTemplatePath?: string | null
+  timestamp: string
+  viewedAt?: string | null
+}
+export interface RegisterImageInput {
+  path: string
+  prompt?: string
+  sourceTemplatePath?: string
 }
 
 //Video generation metadata
@@ -411,6 +431,8 @@ interface PyWebViewAPI {
   get_assets(slug?: string): Promise<BridgeResponse<{ tree: AssetNode[] }>>
   get_asset_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   get_asset_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  get_image_thumbnail(image_path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  get_image_data(image_path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   open_asset_in_finder(path: string): Promise<BridgeResponse<void>>
   delete_asset(path: string): Promise<BridgeResponse<void>>
   rename_asset(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
@@ -483,6 +505,7 @@ interface PyWebViewAPI {
   set_active_project(project_slug: string | null): Promise<BridgeResponse<{ active_project: string | null }>>
   get_active_project(): Promise<BridgeResponse<{ active_project: string | null }>>
   get_project_assets(project_slug: string): Promise<BridgeResponse<{ assets: string[] }>>
+  get_general_assets(brand_slug?: string): Promise<BridgeResponse<{ assets: string[]; count: number }>>
 
   // App updates
   get_app_version(): Promise<BridgeResponse<AppVersionInfo>>
@@ -502,6 +525,15 @@ interface PyWebViewAPI {
   regenerate_brand_identity(confirm: boolean): Promise<BridgeResponse<BrandIdentityFull>>
   list_identity_backups(): Promise<BridgeResponse<{ backups: BackupEntry[] }>>
   restore_identity_backup(filename: string): Promise<BridgeResponse<BrandIdentityFull>>
+  //Image status methods (workstation curation)
+  get_unsorted_images(brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
+  mark_image_viewed(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  register_image(image_path: string, brand_slug?: string, prompt?: string, source_template_path?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  register_generated_images(images: RegisterImageInput[], brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
+  cancel_generation(brand_slug?: string): Promise<BridgeResponse<{ cancelled: boolean }>>
+  backfill_images(brand_slug?: string): Promise<BridgeResponse<{ added: ImageStatusEntry[]; count: number }>>
+  copy_image_to_clipboard(image_path: string): Promise<BridgeResponse<{ copied: boolean; path: string }>>
+  share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
 }
 
 declare global {
@@ -566,6 +598,8 @@ export const bridge = {
   getAssets: async (s?: string) => (await callBridge(() => window.pywebview!.api.get_assets(s))).tree,
   getAssetThumbnail: async (p: string) => (await callBridge(() => window.pywebview!.api.get_asset_thumbnail(p))).dataUrl,
   getAssetFull: async (p: string) => (await callBridge(() => window.pywebview!.api.get_asset_full(p))).dataUrl,
+  getImageThumbnail: async (p: string) => (await callBridge(() => window.pywebview!.api.get_image_thumbnail(p))).dataUrl,
+  getImageData: async (p: string) => (await callBridge(() => window.pywebview!.api.get_image_data(p))).dataUrl,
   openAssetInFinder: (p: string) => callBridge(() => window.pywebview!.api.open_asset_in_finder(p)),
   deleteAsset: (p: string) => callBridge(() => window.pywebview!.api.delete_asset(p)),
   renameAsset: async (p: string, n: string) => (await callBridge(() => window.pywebview!.api.rename_asset(p, n))).newPath,
@@ -657,6 +691,8 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.get_active_project())).active_project,
   getProjectAssets: async (projectSlug: string) =>
     (await callBridge(() => window.pywebview!.api.get_project_assets(projectSlug))).assets,
+  getGeneralAssets: async (brandSlug?: string) =>
+    await callBridge(() => window.pywebview!.api.get_general_assets(brandSlug)),
 
   // App updates
   getAppVersion: () => callBridge(() => window.pywebview!.api.get_app_version()),
@@ -679,4 +715,13 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.list_identity_backups())).backups,
   restoreIdentityBackup: (filename: string) =>
     callBridge(() => window.pywebview!.api.restore_identity_backup(filename)),
+  //Image status (workstation curation)
+  getUnsortedImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.get_unsorted_images(brandSlug)),
+  markImageViewed: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.mark_image_viewed(imageId, brandSlug)),
+  registerImage: (imagePath: string, brandSlug?: string, prompt?: string, sourceTemplatePath?: string) => callBridge(() => window.pywebview!.api.register_image(imagePath, brandSlug, prompt, sourceTemplatePath)),
+  registerGeneratedImages: (images: RegisterImageInput[], brandSlug?: string) => callBridge(() => window.pywebview!.api.register_generated_images(images, brandSlug)),
+  cancelGeneration: (brandSlug?: string) => callBridge(() => window.pywebview!.api.cancel_generation(brandSlug)),
+  backfillImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.backfill_images(brandSlug)),
+  copyImageToClipboard: (imagePath: string) => callBridge(() => window.pywebview!.api.copy_image_to_clipboard(imagePath)),
+  shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
 }

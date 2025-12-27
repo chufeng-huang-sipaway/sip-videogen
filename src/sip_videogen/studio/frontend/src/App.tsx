@@ -1,14 +1,16 @@
-import{useCallback,useEffect,useState}from'react'
-import{Sidebar}from'@/components/Sidebar'
-import{ChatPanel}from'@/components/ChatPanel'
-import{ApiKeySetup}from'@/components/Setup/ApiKeySetup'
-import{UpdateModal}from'@/components/Update'
-import{BrandMemory}from'@/components/BrandMemory'
-import{Toaster}from'@/components/ui/toaster'
-import{useBrand}from'@/context/BrandContext'
-import{bridge,waitForPyWebViewReady}from'@/lib/bridge'
-import type{UpdateCheckResult}from'@/lib/bridge'
-import{useTheme}from'@/hooks/useTheme'
+import { useCallback, useEffect, useState } from 'react'
+import { Sidebar } from '@/components/Sidebar'
+import { Workstation } from '@/components/Workstation'
+import { ChatPanel } from '@/components/ChatPanel'
+import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
+import { UpdateModal } from '@/components/Update'
+import { BrandMemory } from '@/components/BrandMemory'
+import { Toaster } from '@/components/ui/toaster'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { useBrand } from '@/context/BrandContext'
+import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
+import type { UpdateCheckResult } from '@/lib/bridge'
+import { useTheme } from '@/hooks/useTheme'
 
 const SIDEBAR_COLLAPSED_KEY = 'brand-studio-sidebar-collapsed'
 
@@ -89,22 +91,19 @@ function App() {
     return <ApiKeySetup onComplete={() => setNeedsSetup(false)} />
   }
 
-  return (
-    <div className="flex h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+  return (<TooltipProvider>
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={toggleSidebar}
         onOpenBrandMemory={() => setBrandMemoryOpen(true)}
       />
-      <ChatPanel brandSlug={activeBrand} />
-
-      {/* Brand Memory modal - keeps ChatPanel mounted underneath */}
+      <Workstation />
+      <div className="w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
-
-{/* Update notification modal */}
-{updateInfo&&(<UpdateModal updateInfo={updateInfo} onClose={()=>setUpdateInfo(null)} onSkipVersion={handleSkipVersion}/>)}
-<Toaster/>
-</div>)
+      {updateInfo && (<UpdateModal updateInfo={updateInfo} onClose={() => setUpdateInfo(null)} onSkipVersion={handleSkipVersion} />)}
+      <Toaster />
+    </div></TooltipProvider>)
 }
 
 export default App

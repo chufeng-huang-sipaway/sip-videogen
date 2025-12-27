@@ -95,7 +95,7 @@ def main():
     )
 
     api.set_window(window)
-    webview.start(debug=is_dev_mode())
+    webview.start(debug=is_dev_mode(), http_server=True)
 
 
 if __name__ == "__main__":

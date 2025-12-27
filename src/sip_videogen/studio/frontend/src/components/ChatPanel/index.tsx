@@ -8,12 +8,14 @@ import { useChat } from '@/hooks/useChat'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
 import { useTemplates } from '@/context/TemplateContext'
+import { useWorkstation } from '@/context/WorkstationContext'
 import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
 import { AttachedProducts } from './AttachedProducts'
 import { AttachedTemplates } from './AttachedTemplates'
 import { ProductPickerDialog } from './ProductPickerDialog'
 import { ProjectSelector } from './ProjectSelector'
+import type { ImageStatusEntry } from '@/lib/bridge'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -45,6 +47,20 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     refresh: refreshTemplates,
   } = useTemplates()
 
+  const { prependToBatch } = useWorkstation()
+
+  const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
+    const batch = images.map(img => ({
+      id: img.id,
+      path: img.currentPath,
+      prompt: img.prompt || undefined,
+      sourceTemplatePath: img.sourceTemplatePath || undefined,
+      timestamp: img.timestamp,
+      viewedAt: img.viewedAt ?? null,
+    }))
+    prependToBatch(batch)
+  }, [prependToBatch])
+
   const {
     messages,
     isLoading,
@@ -55,15 +71,16 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     attachments,
     sendMessage,
     clearMessages,
+    cancelGeneration,
     regenerateMessage,
     resolveInteraction,
     addFilesAsAttachments,
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
-  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates() })
+  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated })
 
-  const activeProjectEntry = projects.find(p => p.slug === activeProject) || null
+
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
@@ -206,7 +223,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         onDragLeave: handleNativeDragLeave,
         onDrop: handleNativeDrop,
       })}
-      className="flex-1 flex flex-col h-screen bg-transparent relative"
+      className="flex-1 flex flex-col h-screen glass-sidebar border-l border-white/10 relative"
     >
       <input {...getInputProps()} />
 
@@ -226,7 +243,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       )}
 
       {/* Header - Minimalist */}
-      <div className="h-14 flex items-center justify-between px-8 bg-transparent z-10">
+      <div className="h-16 flex items-center justify-between px-6 pt-4 pb-2 bg-transparent z-10">
         <div className="flex items-center gap-2">
           {/* Project Selector acts as Breadcrumb now */}
           <ProjectSelector
@@ -238,7 +255,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         </div>
 
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => {
             clearMessages()
@@ -246,7 +263,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             clearTemplateAttachments()
           }}
           disabled={isLoading || messages.length === 0}
-          className="gap-2 text-xs font-medium h-8 rounded-full bg-background border-border/40 hover:bg-secondary/50 shadow-sm transition-all"
+          className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 hover:bg-white border border-transparent hover:border-black/5 shadow-sm transition-all text-muted-foreground hover:text-foreground"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
@@ -276,7 +293,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       }
 
       <ScrollArea className="flex-1">
-        <div className="px-4 pb-4 max-w-4xl mx-auto w-full">
+        <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
           <MessageList
             messages={messages}
             progress={progress}
@@ -337,21 +354,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
         <MessageInput
           disabled={isLoading || !brandSlug}
-          placeholder={
-            brandSlug
-              ? activeProjectEntry
-                ? `Ask me to create something for ${activeProjectEntry.name}...`
-                : 'Ask me to create something...'
-              : 'Select a brand to start...'
-          }
-          onSend={async (text) => {
-            await sendMessage(text, {
-              project_slug: activeProject,
-              attached_products: attachedProducts.length > 0 ? attachedProducts : undefined,
-              attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined,
-            })
-            await refreshProducts()
-          }}
+          isGenerating={isLoading}
+          onCancel={cancelGeneration}
+          placeholder=""
+          onSend={async (text) => { await sendMessage(text, { project_slug: activeProject, attached_products: attachedProducts.length > 0 ? attachedProducts : undefined, attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined }); await refreshProducts() }}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
           onOpenProductPicker={() => setIsProductPickerOpen(true)}

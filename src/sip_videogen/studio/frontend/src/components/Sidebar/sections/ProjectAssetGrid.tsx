@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Image, Loader2, RefreshCw, AlertTriangle, Play, Film } from 'lucide-react'
 import { useProjects } from '@/context/ProjectContext'
 import { useBrand } from '@/context/BrandContext'
+import { useWorkstation } from '@/context/WorkstationContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
-import { ImageViewer } from '@/components/ui/image-viewer'
+import { buildStatusByAssetPath, normalizeAssetPath } from '@/lib/imageStatus'
 import { VideoViewer } from '@/components/ui/video-viewer'
 import { Button } from '@/components/ui/button'
 
@@ -208,11 +209,11 @@ const POLL_INTERVAL_BACKOFF = 5000 // 5 seconds after errors
 export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAssetGridProps) {
   const { activeBrand } = useBrand()
   const { getProjectAssets, refresh: refreshProjects } = useProjects()
+  const { setCurrentBatch, setSelectedIndex } = useWorkstation()
   const [assets, setAssets] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState<{ src: string; path: string } | null>(null)
   const [previewVideo, setPreviewVideo] = useState<{ src: string; path: string } | null>(null)
   const [missingAssetsBanner, setMissingAssetsBanner] = useState(false)
   const [thumbnailReloadNonce, setThumbnailReloadNonce] = useState(0)
@@ -366,20 +367,48 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     }, 500)
   }, [loadAssets])
 
-  const handlePreview = useCallback(async (path: string) => {
+  // Memoize sorted assets (newest first based on filename patterns)
+  const sortedAssets = useMemo(() => {
+    return [...assets].sort((a, b) => {
+      const nameA = a.split('/').pop() ?? a
+      const nameB = b.split('/').pop() ?? b
+      return nameB.localeCompare(nameA)
+    })
+  }, [assets])
+
+  const handlePreview = useCallback(async (clickedPath: string) => {
     if (!isPyWebView()) return
     try {
-      const dataUrl = await bridge.getAssetFull(path)
-      setPreviewImage({ src: dataUrl, path })
-    } catch (err) {
-      console.error('Failed to load preview:', err)
-      const message = getErrorMessage(err)
-      // Only remove if we are sure the file is missing (not a transient bridge error).
-      if (isNotFoundError(message)) {
-        handleThumbnailError(path)
+      //Filter to images only (exclude videos)
+      const imageAssets = sortedAssets.filter(p => !isVideoAsset(p))
+      let statusByAssetPath = new Map()
+      if (activeBrand) {
+        try {
+          statusByAssetPath = buildStatusByAssetPath(await bridge.getUnsortedImages(activeBrand))
+        } catch (e) {
+          console.warn('Failed to load image status for project asset grid:', e)
+        }
       }
+      //Create batch - clicked image will be loaded lazily via originalPath
+      const allImages = imageAssets.map((assetPath) => {
+        const status = statusByAssetPath.get(normalizeAssetPath(assetPath))
+        return {
+          id: status?.id ?? assetPath,
+          path: '',
+          originalPath: assetPath,
+          prompt: status?.prompt ?? undefined,
+          sourceTemplatePath: status?.sourceTemplatePath ?? undefined,
+          timestamp: status?.timestamp ?? new Date().toISOString(),
+          viewedAt: status ? (status.viewedAt ?? null) : undefined,
+        }
+      })
+      const clickedIndex = imageAssets.findIndex(p => p === clickedPath)
+      setCurrentBatch(allImages)
+      setSelectedIndex(clickedIndex >= 0 ? clickedIndex : 0)
+    } catch (err) {
+      console.error('Failed to load image:', err)
     }
-  }, [handleThumbnailError])
+  }, [activeBrand, sortedAssets, setCurrentBatch, setSelectedIndex])
 
   const handlePreviewVideo = useCallback(async (path: string) => {
     if (!isPyWebView()) return
@@ -406,16 +435,6 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     setThumbnailReloadNonce((n) => n + 1)
     void loadAssets(false)
   }, [loadAssets])
-
-  // Memoize sorted assets (newest first based on filename patterns)
-  const sortedAssets = useMemo(() => {
-    return [...assets].sort((a, b) => {
-      // Sort by filename descending (assuming timestamp-based or sequential naming)
-      const nameA = a.split('/').pop() ?? a
-      const nameB = b.split('/').pop() ?? b
-      return nameB.localeCompare(nameA)
-    })
-  }, [assets])
 
   if (isLoading) {
     return (
@@ -507,12 +526,6 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
           )
         ))}
       </div>
-      <ImageViewer
-        src={previewImage?.src ?? null}
-        filePath={previewImage?.path}
-        fileType="asset"
-        onClose={() => setPreviewImage(null)}
-      />
       <VideoViewer
         src={previewVideo?.src ?? null}
         filePath={previewVideo?.path}

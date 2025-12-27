@@ -1,67 +1,31 @@
-import { useState } from 'react'
-import { Info } from 'lucide-react'
-import { ImageViewer } from '@/components/ui/image-viewer'
-import { PromptDetailsModal } from './PromptDetailsModal'
-import type { GeneratedImage, ImageGenerationMetadata } from '@/lib/bridge'
-
-interface ChatImageGalleryProps {
-  images: GeneratedImage[] | string[]
-}
-
-export function ChatImageGallery({ images }: ChatImageGalleryProps) {
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
-  const [selectedMetadata, setSelectedMetadata] = useState<ImageGenerationMetadata | null>(null)
-
-  if (images.length === 0) return null
-
-  // Normalize to GeneratedImage format for backward compatibility
-  const normalizedImages: GeneratedImage[] = images.map(img =>
-    typeof img === 'string' ? { url: img } : img
-  )
-
-  // Dynamic column count based on image count
-  const columnClass =
-    normalizedImages.length === 1
-      ? 'columns-1'
-      : normalizedImages.length <= 3
-        ? 'columns-2'
-        : 'columns-3'
-
-  return (
-    <>
-      <div className={`${columnClass} gap-2 mt-3`}>
-        {normalizedImages.map((img, i) => (
-          <div key={i} className="break-inside-avoid mb-2 relative group">
-            <img
-              src={img.url}
-              alt=""
-              onClick={() => setPreviewSrc(img.url)}
-              className="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity
-                       border border-gray-200 dark:border-gray-700"
-            />
-            {/* Tooltip icon - top right corner, visible on hover */}
-            {img.metadata && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setSelectedMetadata(img.metadata!)
-                }}
-                className="absolute top-2 right-2 p-1.5 rounded-full
-                           bg-black/50 hover:bg-black/70 text-white
-                           opacity-0 group-hover:opacity-100 transition-opacity"
-                title="View prompt details"
-              >
-                <Info className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-      <ImageViewer src={previewSrc} onClose={() => setPreviewSrc(null)} />
-      <PromptDetailsModal
-        metadata={selectedMetadata}
-        onClose={() => setSelectedMetadata(null)}
-      />
-    </>
-  )
-}
+import{useState}from'react'
+import{Images}from'lucide-react'
+import{ImageViewer}from'@/components/ui/image-viewer'
+import{useWorkstation}from'@/context/WorkstationContext'
+import type{GeneratedImage}from'@/lib/bridge'
+interface ChatImageGalleryProps{images:GeneratedImage[]|string[]}
+export function ChatImageGallery({images}:ChatImageGalleryProps){
+const[previewSrc,setPreviewSrc]=useState<string|null>(null)
+const{setCurrentBatch,setSelectedIndex}=useWorkstation()
+if(images.length===0)return null
+//Normalize to GeneratedImage format for backward compatibility
+const norm:GeneratedImage[]=images.map(img=>typeof img==='string'?{url:img}:img)
+//Open image in workstation
+const openInWorkstation=(index:number)=>{
+const batch=norm.map((img,i)=>({id:img.id||`chat-${i}`,path:img.path||img.url,prompt:img.metadata?.prompt,sourceTemplatePath:img.sourceTemplatePath||img.metadata?.reference_image||img.metadata?.reference_images?.[0]||undefined,timestamp:new Date().toISOString()}))
+setCurrentBatch(batch)
+setSelectedIndex(index)}
+//Show compact summary with tiny thumbnails
+const maxThumbs=4
+const shown=norm.slice(0,maxThumbs)
+const extra=norm.length-maxThumbs
+return(<>
+<div className="mt-2 flex items-center gap-1.5">
+<div className="flex items-center gap-1 text-xs text-muted-foreground"><Images className="h-3.5 w-3.5"/><span>Generated {norm.length} image{norm.length>1?'s':''}</span></div>
+</div>
+<div className="mt-1.5 flex flex-wrap gap-1">
+{shown.map((img,i)=>(<button key={i} onClick={()=>openInWorkstation(i)} className="w-12 h-12 rounded border border-border/60 overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all" title="View in Workstation"><img src={img.url} alt="" className="w-full h-full object-cover"/></button>))}
+{extra>0&&(<button onClick={()=>openInWorkstation(maxThumbs)} className="w-12 h-12 rounded border border-border/60 bg-muted flex items-center justify-center text-xs text-muted-foreground hover:bg-muted/80 transition-colors">+{extra}</button>)}
+</div>
+<ImageViewer src={previewSrc} onClose={()=>setPreviewSrc(null)}/>
+</>)}

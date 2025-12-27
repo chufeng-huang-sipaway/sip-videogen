@@ -4,11 +4,12 @@ from .services.asset_service import AssetService
 from .services.brand_service import BrandService
 from .services.chat_service import ChatService
 from .services.document_service import DocumentService
+from .services.image_status import ImageStatusService
 from .services.product_service import ProductService
 from .services.project_service import ProjectService
 from .services.template_service import TemplateService
 from .services.update_service import UpdateService
-from .utils.bridge_types import BridgeResponse
+from .utils.bridge_types import BridgeResponse,bridge_ok,bridge_error
 from .utils.config_store import check_api_keys as do_check_api_keys,load_api_keys_from_config,save_api_keys as do_save_api_keys
 #Load API keys on module import (app startup)
 load_api_keys_from_config()
@@ -24,6 +25,7 @@ class StudioBridge:
         self._template=TemplateService(self._state)
         self._chat=ChatService(self._state)
         self._update=UpdateService(self._state)
+        self._image_status=ImageStatusService(self._state)
     def set_window(self,window):self._state.window=window
     #===========================================================================
     #Configuration / Setup
@@ -63,6 +65,8 @@ class StudioBridge:
     def get_assets(self,slug:str|None=None)->dict:return self._asset.get_assets(slug)
     def get_asset_thumbnail(self,relative_path:str)->dict:return self._asset.get_asset_thumbnail(relative_path)
     def get_asset_full(self,relative_path:str)->dict:return self._asset.get_asset_full(relative_path)
+    def get_image_thumbnail(self,image_path:str)->dict:return self._asset.get_image_thumbnail(image_path)
+    def get_image_data(self,image_path:str)->dict:return self._asset.get_image_data(image_path)
     def upload_asset(self,filename:str,data_base64:str,category:str="generated")->dict:return self._asset.upload_asset(filename,data_base64,category)
     def delete_asset(self,relative_path:str)->dict:return self._asset.delete_asset(relative_path)
     def rename_asset(self,relative_path:str,new_name:str)->dict:return self._asset.rename_asset(relative_path,new_name)
@@ -109,6 +113,7 @@ class StudioBridge:
     def set_active_project(self,project_slug:str|None)->dict:return self._project.set_active_project(project_slug)
     def get_active_project(self)->dict:return self._project.get_active_project()
     def get_project_assets(self,project_slug:str)->dict:return self._project.get_project_assets(project_slug)
+    def get_general_assets(self,brand_slug:str|None=None)->dict:return self._project.get_general_assets(brand_slug)
     #===========================================================================
     #Chat
     #===========================================================================
@@ -126,3 +131,80 @@ class StudioBridge:
     def skip_update_version(self,version:str)->dict:return self._update.skip_update_version(version)
     def get_update_settings(self)->dict:return self._update.get_update_settings()
     def set_update_check_on_startup(self,enabled:bool)->dict:return self._update.set_update_check_on_startup(enabled)
+    #===========================================================================
+    #Image Status (Workstation Curation)
+    #===========================================================================
+    def get_unsorted_images(self,brand_slug:str|None=None)->dict:
+        """Get all unsorted images for a brand."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.list_by_status(slug,"unsorted")
+    def mark_image_viewed(self,image_id:str,brand_slug:str|None=None)->dict:
+        """Mark image as viewed (read)."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.mark_viewed(slug,image_id)
+    def register_image(self,image_path:str,brand_slug:str|None=None,prompt:str|None=None,source_template_path:str|None=None)->dict:
+        """Register a new image with unsorted status."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.register_image(slug,image_path,prompt,source_template_path)
+    def register_generated_images(self,images:list[dict],brand_slug:str|None=None)->dict:
+        """Register multiple generated images at once."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        try:
+            registered=[]
+            for img in images:
+                path=img.get("path","");prompt=img.get("prompt");src=img.get("sourceTemplatePath")
+                result=self._image_status.register_image(slug,path,prompt,src)
+                if result.get("success"):registered.append(result.get("data"))
+            return bridge_ok(registered)
+        except Exception as e:return bridge_error(str(e))
+    def cancel_generation(self,brand_slug:str|None=None)->dict:
+        """Cancel ongoing image generation (placeholder for future implementation)."""
+        return bridge_ok({"cancelled":True})
+    def backfill_images(self,brand_slug:str|None=None)->dict:
+        """Backfill image status from existing folders. Called on brand selection."""
+        slug=brand_slug or self._state.get_active_slug()
+        if not slug:return bridge_error("No brand selected")
+        return self._image_status.backfill_from_folders(slug)
+    def copy_image_to_clipboard(self,image_path:str)->dict:
+        """Copy image file to system clipboard (macOS)."""
+        import subprocess
+        from pathlib import Path
+        from .utils.path_utils import resolve_assets_path
+        try:
+            path=Path(image_path)
+            #Handle relative paths (e.g. "generated/project__image.png")
+            if not path.is_absolute():
+                brand_dir,err=self._state.get_brand_dir()
+                if err:return bridge_error(err)
+                resolved,err=resolve_assets_path(brand_dir,image_path)
+                if err:return bridge_error(err)
+                path=resolved
+            if not path.exists():return bridge_error(f"File not found: {image_path}")
+            script=f'''osascript -e 'set the clipboard to (read (POSIX file "{path}") as «class PNGf»)' 2>/dev/null || osascript -e 'set the clipboard to (read (POSIX file "{path}") as JPEG picture)' '''
+            subprocess.run(script,shell=True,check=True,capture_output=True)
+            return bridge_ok({"copied":True,"path":str(path)})
+        except subprocess.CalledProcessError as e:return bridge_error(f"Failed to copy: {e}")
+        except Exception as e:return bridge_error(str(e))
+    def share_image(self,image_path:str)->dict:
+        """Reveal image in Finder."""
+        import subprocess
+        from pathlib import Path
+        from .utils.path_utils import resolve_assets_path
+        try:
+            path=Path(image_path)
+            #Handle relative paths (e.g. "generated/project__image.png")
+            if not path.is_absolute():
+                brand_dir,err=self._state.get_brand_dir()
+                if err:return bridge_error(err)
+                resolved,err=resolve_assets_path(brand_dir,image_path)
+                if err:return bridge_error(err)
+                path=resolved
+            if not path.exists():return bridge_error(f"File not found: {image_path}")
+            #Reveal in Finder with file selected
+            subprocess.Popen(['open','-R',str(path)])
+            return bridge_ok({"revealed":True,"path":str(path)})
+        except Exception as e:return bridge_error(str(e))

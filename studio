@@ -23,9 +23,9 @@ case "${1:-}" in
         echo "Building frontend..."
         (cd src/sip_videogen/studio/frontend && npm run build)
         echo "Starting Brand Studio..."
-        .venv/bin/python -m sip_videogen.studio
+        STUDIO_DEV=0 .venv/bin/python -m sip_videogen.studio
         ;;
     *)
-        .venv/bin/python -m sip_videogen.studio
+        STUDIO_DEV=0 .venv/bin/python -m sip_videogen.studio
         ;;
 esac
