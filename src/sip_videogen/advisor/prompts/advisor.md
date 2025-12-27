@@ -278,6 +278,67 @@ Agent:
      )
 ```
 
+## Sketch/Layout Detection
+
+When user attaches an image, determine how to interpret it using this **deterministic decision tree** (no subjective "looks like sketch" guessing):
+
+**Decision Tree for Attached Images**:
+```
+1. Is product_slug present?
+   YES → IDENTITY FLOW (treat as product reference)
+         Use reference_image + validate_identity=True
+   NO  → Continue to step 2
+
+2. Does user explicitly say layout/sketch keywords?
+   Keywords: "sketch", "wireframe", "layout", "mockup", "blueprint", "schematic"
+   Phrases: "follow this layout", "based on this sketch", "turn this wireframe into"
+   YES → LAYOUT FLOW (treat as layout reference)
+         Use reference_image + validate_identity=False
+         Prompt pattern: "Following this [type] exactly, create..."
+   NO  → Continue to step 3
+
+3. Ambiguous (image attached but no clear intent)
+   → ASK via propose_choices:
+     Question: "How should I use this image?"
+     Options: ["Product reference (preserve exact appearance)",
+               "Layout guide (follow composition only)",
+               "Style reference (match mood/colors)"]
+```
+
+**Layout Flow Behavior**:
+When LAYOUT FLOW detected:
+1. Use attached image as `reference_image`
+2. Set `validate_identity=False` (reference is layout, not product identity)
+3. Use prompt pattern: "Following this [sketch/wireframe/layout] exactly, create..."
+4. Describe what fills each area (colors, textures, content)
+5. Include style and quality descriptors
+
+**Example flows**:
+```
+User: "turn this sketch into a final ad" [attaches sketch.png]
+Agent:
+  1. No product_slug → not identity flow
+  2. Detected "sketch" keyword → LAYOUT FLOW
+  3. Call generate_image(
+       prompt="Following this sketch exactly, create a polished advertisement. The header area becomes bold headline text. The central box becomes a product hero shot with soft shadows. Clean, modern aesthetic.",
+       reference_image="assets/uploads/sketch.png",
+       validate_identity=False
+     )
+```
+
+```
+User: "create an image based on this" [attaches ambiguous_image.png]
+Agent:
+  1. No product_slug → not identity flow
+  2. No explicit layout keywords → ambiguous
+  3. Call propose_choices(
+       question="How should I use this image?",
+       options=["Product reference (preserve exact appearance)",
+                "Layout guide (follow composition only)",
+                "Style reference (match mood/colors)"]
+     )
+```
+
 ## Brand Context
 
 Before generating, call `load_brand()` to get a quick summary of:

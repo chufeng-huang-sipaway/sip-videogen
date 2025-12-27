@@ -200,6 +200,58 @@ generate_image(
 
 **Why this matters**: Nano-Banana Pro understands editing intent from natural language. By describing the outcome ("remove background", "add warmth") rather than pixel operations, you get better results with less effort.
 
+### Layout Control via Sketch/Wireframe
+When user provides a sketch, wireframe, or layout reference, Nano-Banana Pro can follow the spatial arrangement while filling in polished details.
+
+**Key Principle**: The sketch defines WHERE elements go; your prompt describes WHAT fills those areas with polished detail.
+
+**When to Use**: Only when user explicitly indicates layout/sketch intent:
+- User says "sketch", "wireframe", "layout", "mockup", "blueprint", "schematic"
+- User says "follow this layout", "based on this sketch", "turn this wireframe into"
+
+**When NOT to Use**: If `product_slug` is present → treat as product identity reference, NOT layout.
+
+**Prompt Pattern**:
+```
+Following this [sketch/wireframe/layout/mockup] exactly, create [final output type].
+[Describe what fills each area: colors, textures, content]
+[Style and quality descriptors]
+```
+
+**Critical Settings**:
+- Use sketch as `reference_image`
+- Set `validate_identity=False` (reference is layout, not product identity)
+
+**Examples**:
+```python
+# Ad layout from sketch
+generate_image(
+    prompt="Following this wireframe exactly, create a polished advertisement. The header area becomes bold 'SUMMER SALE' text in sans-serif. The central box becomes a product hero shot with soft shadows. The footer shows brand logo and tagline. Clean, modern aesthetic with soft gradient background.",
+    reference_image="assets/uploads/ad_sketch.png",
+    validate_identity=False  # Reference is layout, not product
+)
+```
+
+```python
+# UI mockup from wireframe
+generate_image(
+    prompt="Following this wireframe layout exactly, create a polished mobile app screen. Navigation bar at top with icons. Hero image area filled with lifestyle photography. Card components below with product thumbnails. Modern iOS aesthetic with subtle shadows and rounded corners.",
+    reference_image="assets/uploads/app_wireframe.png",
+    validate_identity=False
+)
+```
+
+```python
+# Floor plan to 3D interior
+generate_image(
+    prompt="Following this floor plan layout exactly, create a photorealistic 3D interior render. The living room area features modern furniture with warm wood tones. Kitchen zone shows marble counters and pendant lighting. Large windows along the south wall. Warm afternoon lighting throughout.",
+    reference_image="assets/uploads/floor_plan.png",
+    validate_identity=False
+)
+```
+
+**Why this matters**: Sketches are powerful for controlling composition without constraining style. The model excels at understanding spatial intent from rough drawings and translating to polished output.
+
 ---
 
 ## The 5-Point Prompt Formula
