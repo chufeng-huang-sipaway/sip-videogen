@@ -176,8 +176,8 @@ function ProductCard({
   onDelete
 }: ProductCardProps) {
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('application/x-brand-product', product.slug)
     e.dataTransfer.setData('text/plain', product.slug)
+    try { e.dataTransfer.setData('application/x-brand-product', product.slug) } catch { /* ignore */ }
     e.dataTransfer.effectAllowed = 'copy'
   }
 

@@ -235,6 +235,8 @@ Relative: assets/generated/hero_001.png  ← Use this for reference_image
 
 When user wants to MODIFY an existing image (not generate new content), use edit mode.
 
+**Core Principle**: PRESERVE EVERYTHING not explicitly mentioned. If user says "change the background", keep subject, lighting, angle, pose, colors, and all other elements identical. Only modify what they specifically ask to change.
+
 **Trigger phrases** (use ONLY these specific phrases to avoid false positives):
 - "remove background", "remove the background"
 - "edit image", "edit photo", "edit this image"

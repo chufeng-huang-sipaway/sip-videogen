@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -9,6 +9,7 @@ import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
 import { useTemplates } from '@/context/TemplateContext'
 import { useWorkstation } from '@/context/WorkstationContext'
+import { useDrag } from '@/context/DragContext'
 import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
 import { AttachedProducts } from './AttachedProducts'
@@ -19,6 +20,19 @@ import type { ImageStatusEntry } from '@/lib/bridge'
 
 interface ChatPanelProps {
   brandSlug: string | null
+}
+
+function getDataTransferTypes(dt: DataTransfer): string[] {
+  // `DataTransfer.types` is a `DOMStringList` in some WebKit environments (no `.includes`).
+  return Array.from(dt.types)
+}
+
+function looksLikeAssetPath(value: string): boolean {
+  const v = value.trim()
+  if (!v) return false
+  if (v.startsWith('file://')) return true
+  if (v.includes('/') || v.includes('\\')) return true
+  return /\.(png|jpe?g|gif|webp|svg|bmp|tiff?)$/i.test(v)
 }
 
 export function ChatPanel({ brandSlug }: ChatPanelProps) {
@@ -48,11 +62,15 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   } = useTemplates()
 
   const { prependToBatch } = useWorkstation()
+  const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
+  const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
+  const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
       id: img.id,
       path: img.currentPath,
+      originalPath: img.originalPath,
       prompt: img.prompt || undefined,
       sourceTemplatePath: img.sourceTemplatePath || undefined,
       timestamp: img.timestamp,
@@ -87,6 +105,22 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   // Product picker dialog state
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false)
+
+  // Register as drop zone for mouse-based drag (bypasses PyWebView HTML5 drag issues)
+  useEffect(() => {
+    if (!mainEl) return
+    const handleDrop = (data: { type: string; path: string }) => {
+      if (!brandSlug) {
+        setAttachmentError('Select a brand before attaching files.')
+        return
+      }
+      if (data.type === 'asset') addAttachmentReference(data.path)
+      else if (data.type === 'template') attachTemplate(data.path)
+      else if (data.type === 'product') attachProduct(data.path)
+    }
+    registerDropZone('chat-panel', mainEl, handleDrop)
+    return () => unregisterDropZone('chat-panel')
+  }, [mainEl, brandSlug, addAttachmentReference, attachTemplate, attachProduct, registerDropZone, unregisterDropZone, setAttachmentError])
 
   // Handle image selection from file input
   const handleSelectImages = useCallback((files: File[]) => {
@@ -131,17 +165,24 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   // Handle native drag events for internal asset drags (not detected by react-dropzone)
   const handleNativeDragOver = useCallback((e: React.DragEvent) => {
-    // Check if this is an internal asset, product, or template drag
-    if (
-      e.dataTransfer.types.includes('application/x-brand-asset') ||
-      e.dataTransfer.types.includes('application/x-brand-product') ||
-      e.dataTransfer.types.includes('application/x-brand-template')
-    ) {
+    // Always allow drops when context drag is active (use getDragData for sync read)
+    if (getDragData()) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+    const types = getDataTransferTypes(e.dataTransfer)
+    const hasFiles = (e.dataTransfer.files?.length ?? 0) > 0
+    const isFileDrag = hasFiles || types.includes('Files')
+
+    // WebKit/PyWebView can omit custom types during dragover, which prevents `drop`
+    // unless we call `preventDefault()`. Treat any drag-without-files as internal.
+    if (!isFileDrag) {
       e.preventDefault()
       e.stopPropagation()
       setIsInternalDragOver(true)
     }
-  }, [])
+  }, [getDragData])
 
   const handleNativeDragLeave = useCallback((e: React.DragEvent) => {
     // Only reset if leaving the container entirely
@@ -155,10 +196,31 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   const handleNativeDrop = useCallback((e: React.DragEvent) => {
     setIsInternalDragOver(false)
+    const currentDrag = getDragData()
+    if (currentDrag) {
+      e.preventDefault()
+      e.stopPropagation()
+      if (!brandSlug) {
+        setAttachmentError('Select a brand before attaching files.')
+        clearDrag()
+        return
+      }
+      if (currentDrag.type === 'asset') addAttachmentReference(currentDrag.path)
+      else if (currentDrag.type === 'template') attachTemplate(currentDrag.path)
+      else if (currentDrag.type === 'product') attachProduct(currentDrag.path)
+      clearDrag()
+      return
+    }
+
+    const textPlain = e.dataTransfer.getData('text/plain').trim()
 
     // Check for template drag first
     const templateSlug = e.dataTransfer.getData('application/x-brand-template')
-    if (templateSlug && templateSlug.trim()) {
+    const fallbackTemplateSlug =
+      !templateSlug && textPlain && templates.some(t => t.slug === textPlain) ? textPlain : ''
+    const finalTemplateSlug = (templateSlug || fallbackTemplateSlug).trim()
+
+    if (finalTemplateSlug) {
       e.preventDefault()
       e.stopPropagation()
 
@@ -167,13 +229,17 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         return
       }
 
-      attachTemplate(templateSlug.trim())
+      attachTemplate(finalTemplateSlug)
       return
     }
 
     // Check for product drag
     const productSlug = e.dataTransfer.getData('application/x-brand-product')
-    if (productSlug && productSlug.trim()) {
+    const fallbackProductSlug =
+      !productSlug && textPlain && products.some(p => p.slug === textPlain) ? textPlain : ''
+    const finalProductSlug = (productSlug || fallbackProductSlug).trim()
+
+    if (finalProductSlug) {
       e.preventDefault()
       e.stopPropagation()
 
@@ -182,13 +248,16 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         return
       }
 
-      attachProduct(productSlug.trim())
+      attachProduct(finalProductSlug)
       return
     }
 
     // Check for asset drag
     const assetPath = e.dataTransfer.getData('application/x-brand-asset')
-    if (assetPath && assetPath.trim()) {
+    const fallbackAssetPath = !assetPath && looksLikeAssetPath(textPlain) ? textPlain : ''
+    const finalAssetPath = (assetPath || fallbackAssetPath).trim()
+
+    if (finalAssetPath) {
       e.preventDefault()
       e.stopPropagation()
 
@@ -197,9 +266,19 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         return
       }
 
-      addAttachmentReference(assetPath.trim())
+      addAttachmentReference(finalAssetPath)
     }
-  }, [addAttachmentReference, attachProduct, attachTemplate, brandSlug, setAttachmentError])
+  }, [
+    addAttachmentReference,
+    attachProduct,
+    attachTemplate,
+    brandSlug,
+    clearDrag,
+    getDragData,
+    products,
+    setAttachmentError,
+    templates,
+  ])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     noClick: true,
@@ -213,8 +292,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     onDrop: handleDrop,
   })
 
-  // Show overlay when either react-dropzone detects drag OR internal asset drag
-  const showDragOverlay = isDragActive || isInternalDragOver
+  // Show overlay when either react-dropzone detects drag, internal asset drag, or context drag
+  const showDragOverlay = isDragActive || isInternalDragOver || dragData !== null
 
   return (
     <main
@@ -223,14 +302,15 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         onDragLeave: handleNativeDragLeave,
         onDrop: handleNativeDrop,
       })}
+      ref={mainRef}
       className="flex-1 flex flex-col h-screen glass-sidebar border-l border-white/10 relative"
     >
       <input {...getInputProps()} />
 
-      {/* Prominent drag overlay - Updated for minimalism */}
+      {/* Prominent drag overlay - handles drop directly, click to dismiss if stuck */}
       {showDragOverlay && (
-        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center pointer-events-none transition-all duration-200">
-          <div className="bg-card text-card-foreground px-10 py-8 rounded-3xl shadow-float flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200 border border-border/20">
+        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center transition-all duration-200 cursor-pointer" onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }} onDrop={handleNativeDrop} onClick={() => { clearDrag(); setIsInternalDragOver(false) }}>
+          <div className="bg-card text-card-foreground px-10 py-8 rounded-3xl shadow-float flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200 border border-border/20 pointer-events-none">
             <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center">
               <Upload className="h-8 w-8 text-foreground/50" strokeWidth={1.5} />
             </div>

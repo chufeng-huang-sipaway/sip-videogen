@@ -79,8 +79,9 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onPreviewVid
 
   const handleDragStart = (e: React.DragEvent) => {
     if (node.type !== 'image') return
-    e.dataTransfer.setData('application/x-brand-asset', node.path)
     e.dataTransfer.setData('text/plain', node.path)
+    try { e.dataTransfer.setData('text/uri-list', node.path) } catch { /* ignore */ }
+    try { e.dataTransfer.setData('application/x-brand-asset', node.path) } catch { /* ignore */ }
     e.dataTransfer.effectAllowed = 'copy'
     // Set a custom drag image for better feedback
     const dragEl = e.currentTarget as HTMLElement

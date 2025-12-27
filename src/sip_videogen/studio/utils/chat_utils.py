@@ -31,10 +31,23 @@ async def process_attachments(attachments:list[dict]|None,brand_dir:Path,resolve
                 rel_path=target.relative_to(brand_dir).as_posix();full_path=target;safe_name=unique_name
             except Exception:continue
         elif ref_path:
-            resolved,error=resolve_assets_fn(ref_path)
-            if error:resolved,error=resolve_docs_fn(ref_path)
-            if not error and resolved and resolved.exists():
-                rel_path=resolved.relative_to(brand_dir).as_posix();full_path=resolved;safe_name=resolved.name
+            rp=Path(ref_path)
+            # Allow absolute paths, but restrict them to within the active brand directory.
+            if rp.is_absolute():
+                try:
+                    resolved=rp.resolve()
+                    resolved.relative_to(brand_dir.resolve())
+                    if resolved.exists():
+                        rel_path=resolved.relative_to(brand_dir).as_posix()
+                        full_path=resolved
+                        safe_name=resolved.name
+                except Exception:
+                    pass
+            if not full_path:
+                resolved,error=resolve_assets_fn(ref_path)
+                if error:resolved,error=resolve_docs_fn(ref_path)
+                if not error and resolved and resolved.exists():
+                    rel_path=resolved.relative_to(brand_dir).as_posix();full_path=resolved;safe_name=resolved.name
         if rel_path and full_path:
             is_image=full_path.suffix.lower()in ALLOWED_IMAGE_EXTS
             saved.append((safe_name,rel_path,full_path,is_image))

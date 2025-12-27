@@ -8,6 +8,7 @@ import { BrandMemory } from '@/components/BrandMemory'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useBrand } from '@/context/BrandContext'
+import { DragProvider } from '@/context/DragContext'
 import { bridge, waitForPyWebViewReady } from '@/lib/bridge'
 import type { UpdateCheckResult } from '@/lib/bridge'
 import { useTheme } from '@/hooks/useTheme'
@@ -91,7 +92,7 @@ function App() {
     return <ApiKeySetup onComplete={() => setNeedsSetup(false)} />
   }
 
-  return (<TooltipProvider>
+  return (<TooltipProvider><DragProvider>
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -103,7 +104,7 @@ function App() {
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
       {updateInfo && (<UpdateModal updateInfo={updateInfo} onClose={() => setUpdateInfo(null)} onSkipVersion={handleSkipVersion} />)}
       <Toaster />
-    </div></TooltipProvider>)
+    </div></DragProvider></TooltipProvider>)
 }
 
 export default App

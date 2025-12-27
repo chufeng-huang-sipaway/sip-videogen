@@ -45,7 +45,7 @@ export function Workstation() {
             if(!ready||cancelled)return
             try{
                 const images=await bridge.getUnsortedImages(activeBrand);if(cancelled)return
-                const batch=images.map((img)=>({id:img.id,path:img.currentPath,prompt:img.prompt??undefined,sourceTemplatePath:img.sourceTemplatePath??undefined,timestamp:img.timestamp,viewedAt:img.viewedAt??null}))
+                const batch=images.map((img)=>({id:img.id,path:img.currentPath,originalPath:img.originalPath,prompt:img.prompt??undefined,sourceTemplatePath:img.sourceTemplatePath??undefined,timestamp:img.timestamp,viewedAt:img.viewedAt??null}))
                 setCurrentBatch(batch)
             }catch(e){console.error('Failed to load images:',e)}
         }

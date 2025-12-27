@@ -1,6 +1,7 @@
 //ImageDisplay component - displays the currently selected image with transitions and preloading
 import{useState,useEffect,useRef}from'react'
 import{useWorkstation}from'../../context/WorkstationContext'
+import{useDrag}from'../../context/DragContext'
 import{bridge,isPyWebView}from'../../lib/bridge'
 import{Loader2}from'lucide-react'
 import{getFullCached,setFullCached,hasFullCached}from'../../lib/thumbnailCache'
@@ -8,6 +9,7 @@ const PRELOAD_RADIUS=2
 function np(path:string):string{return path.startsWith('file://')?path.slice('file://'.length):path}
 export function ImageDisplay(){
 const{currentBatch,selectedIndex,updateImagePath}=useWorkstation()
+const{setDragData}=useDrag()
 const currentImage=currentBatch[selectedIndex]
 const[isLoading,setIsLoading]=useState(true)
 const[isVisible,setIsVisible]=useState(false)
@@ -75,6 +77,8 @@ return()=>{cancelled=true}
 },[selectedIndex,currentBatch,currentImage,isLoading])
 const handleLoad=()=>{setIsLoading(false)}
 const handleError=()=>{setIsLoading(false);setError('Failed to load image')}
+//Use mousedown to initiate drag (bypasses PyWebView/WebKit HTML5 drag issues)
+const handleMouseDown=(e:React.MouseEvent)=>{if(e.button!==0)return;const path=currentImage?.originalPath||currentImage?.path;if(!path||path.startsWith('data:'))return;setDragData({type:'asset',path})}
 if(!currentImage)return null
-return(<div className="w-full h-full flex items-center justify-center relative">{isLoading&&(<div className="absolute inset-0 flex items-center justify-center z-10"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/50"/></div>)}{!isLoading&&error&&(<div className="text-sm text-muted-foreground">{error}</div>)}{src&&(<img src={src} alt={currentImage.prompt||'Generated image'} onLoad={handleLoad} onError={handleError} className={`max-w-full max-h-full object-contain rounded-xl shadow-lg transition-all duration-500 ease-out ${isVisible&&!isLoading&&!error?'opacity-100 scale-100':'opacity-0 scale-98'}`}/>)}{!src&&!isLoading&&!error&&(<div className="text-sm text-muted-foreground">Image unavailable</div>)}</div>)
+return(<div className="w-full h-full flex items-center justify-center relative">{isLoading&&(<div className="absolute inset-0 flex items-center justify-center z-10"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/50"/></div>)}{!isLoading&&error&&(<div className="text-sm text-muted-foreground">{error}</div>)}{src&&(<img draggable={false} onMouseDown={handleMouseDown} src={src} alt={currentImage.prompt||'Generated image'} onLoad={handleLoad} onError={handleError} className={`max-w-full max-h-full object-contain rounded-xl shadow-lg transition-all duration-500 ease-out cursor-grab active:cursor-grabbing select-none ${isVisible&&!isLoading&&!error?'opacity-100 scale-100':'opacity-0 scale-98'}`}/>)}{!src&&!isLoading&&!error&&(<div className="text-sm text-muted-foreground">Image unavailable</div>)}</div>)
 }

@@ -6,6 +6,52 @@ from pathlib import Path
 
 logger=logging.getLogger(__name__)
 
+def _patch_pywebview_cocoa_drag()->None:
+    """Work around PyWebView Cocoa bug that breaks HTML drag events."""
+    if sys.platform!="darwin":return
+    try:
+        import webview.platforms.cocoa as cocoa
+    except Exception:return
+    try:
+        host_cls=cocoa.BrowserView.WebKitHost
+        mouse_dragged=getattr(host_cls,"mouseDragged_",None)
+        code=getattr(mouse_dragged,"__code__",None)
+    except Exception:return
+    # pywebview 6.1 calls `super(...).mouseDown_(event)` inside `mouseDragged_`, which
+    # prevents native WebKit drag handling (HTML5 dragstart/dragover/drop never fire).
+    if not code or "mouseDown_" not in code.co_names:return
+
+    AppKit=cocoa.AppKit
+    BrowserView=cocoa.BrowserView
+    state=cocoa._state
+
+    def mouseDragged_(self,event):  # type: ignore[no-redef]
+        i=BrowserView.get_instance("webview",self)
+        window=self.window()
+
+        if i and i.frameless and i.easy_drag:
+            screenFrame=i.screen
+            if screenFrame is None:raise RuntimeError("Failed to obtain screen")
+            windowFrame=window.frame()
+            if windowFrame is None:raise RuntimeError("Failed to obtain frame")
+
+            currentLocation=window.convertBaseToScreen_(window.mouseLocationOutsideOfEventStream())
+            newOrigin=AppKit.NSMakePoint(
+                (currentLocation.x-self.initialLocation.x),
+                (currentLocation.y-self.initialLocation.y),
+            )
+            if (newOrigin.y+windowFrame.size.height)>(screenFrame.origin.y+screenFrame.size.height):
+                newOrigin.y=screenFrame.origin.y+(screenFrame.size.height+windowFrame.size.height)
+            window.setFrameOrigin_(newOrigin)
+
+        if event.modifierFlags()&getattr(AppKit,"NSEventModifierFlagControl",1<<18):
+            if not state.get("debug"):return
+
+        return super(BrowserView.WebKitHost,self).mouseDragged_(event)
+
+    host_cls.mouseDragged_=mouseDragged_  # type: ignore[assignment]
+    logger.info("Patched PyWebView Cocoa drag handler (mouseDragged_)")
+
 
 def is_dev_mode() -> bool:
     """Check if running in development mode."""
@@ -76,6 +122,8 @@ def main():
     except ImportError:
         logger.error("pywebview is not installed. Run: pip install pywebview>=5.0")
         sys.exit(1)
+
+    _patch_pywebview_cocoa_drag()
 
     from sip_videogen.studio.bridge import StudioBridge
 
