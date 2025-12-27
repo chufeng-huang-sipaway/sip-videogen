@@ -206,5 +206,5 @@ class StudioBridge:
             if not path.exists():return bridge_error(f"File not found: {image_path}")
             #Reveal in Finder with file selected
             subprocess.Popen(['open','-R',str(path)])
-            return bridge_ok({"revealed":True,"path":str(path)})
+            return bridge_ok({"shared":True,"path":str(path)})
         except Exception as e:return bridge_error(str(e))
