@@ -1543,6 +1543,34 @@ def rename_document(brand_slug:str,relative_path:str,new_name:str)->tuple[str|No
     logger.debug("Renamed document %s to %s for brand %s",relative_path,new_rel,brand_slug)
     return new_rel,None
 #=============================================================================
+#Image Status Storage Functions
+#=============================================================================
+IMAGE_STATUS_FILE="image_status.json"
+def load_image_status_raw(brand_slug:str)->dict:
+    """Load raw image status data from file (no migrations applied).
+    Returns empty structure if file missing or invalid.
+    """
+    fp=get_brand_dir(brand_slug)/IMAGE_STATUS_FILE
+    if not fp.exists():return {"version":1,"images":{}}
+    try:
+        with open(fp,"r",encoding="utf-8")as f:data=json.load(f)
+    except(json.JSONDecodeError,OSError):return {"version":1,"images":{}}
+    if not isinstance(data,dict):return {"version":1,"images":{}}
+    if not isinstance(data.get("version"),int):data["version"]=1
+    if not isinstance(data.get("images"),dict):data["images"]={}
+    return data
+def save_image_status(brand_slug:str,data:dict)->None:
+    """Atomically save image status data to file.
+    Uses temp file + rename for atomicity.
+    """
+    import os as _os
+    fp=get_brand_dir(brand_slug)/IMAGE_STATUS_FILE
+    tmp=fp.with_suffix(".json.tmp")
+    fp.parent.mkdir(parents=True,exist_ok=True)
+    with open(tmp,"w",encoding="utf-8")as f:json.dump(data,f,indent=2)
+    _os.replace(tmp,fp)
+    logger.debug("Saved image status for brand %s",brand_slug)
+#=============================================================================
 #Asset Storage Functions
 #=============================================================================
 def get_assets_dir(brand_slug:str)->Path:
