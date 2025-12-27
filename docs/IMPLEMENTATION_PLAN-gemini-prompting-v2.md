@@ -284,7 +284,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 
 ---
 
-### ☐ Task 8: Update Critical Do's and Don'ts Section
+### ✅ Task 8: Update Critical Do's and Don'ts Section
 
 **Background**: The "Critical Do's" section is a quick-reference checklist for the agent. With new capabilities, we need to add new items and reinforce existing ones.
 
@@ -361,7 +361,7 @@ For multi-product refinement, agent should regenerate fresh with same `product_s
 | 5 | Sketch/Layout Control ⚠️ | SKILL.md, advisor.md | ✅ Complete |
 | 6 | Dimensional Translation | SKILL.md | ✅ Complete |
 | 7 | Expand Trigger Keywords ⚠️ | SKILL.md | ✅ Complete |
-| 8 | Update Critical Do's/Don'ts | SKILL.md | ☐ Not Started |
+| 8 | Update Critical Do's/Don'ts | SKILL.md | ✅ Complete |
 | 9 | Add Prompt Templates | SKILL.md | ☐ Not Started |
 | 10 | Write Test Cases | TEST-gemini-prompting-v2.md | ☐ Not Started |
 

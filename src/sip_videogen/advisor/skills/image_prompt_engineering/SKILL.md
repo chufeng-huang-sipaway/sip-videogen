@@ -398,6 +398,9 @@ Hero image for premium food brand website.
 - **Be specific over generic**: "ornate Victorian brass keyhole" not "old keyhole"
 - **Include material textures**: surface finishes, material properties, realistic imperfections
 - **Quote exact text for rendering**: Use **"EXACT TEXT"** in double quotes with typography details
+- **Use reference_image for edits**: Previous output as reference + modified prompt, not fresh re-roll
+- **Prefer iterative refinement**: When image is 80% right, edit targeted aspects rather than regenerating
+- **"Following this sketch exactly"**: For layout references, explicit sketch-following prompt pattern
 - **State purpose**: "A hero image for a luxury skincare homepage" gives context
 - **Use positive framing**: "an empty street at dawn" not "a street with no cars"
 - **Layer details**: Start broad, then add specific elements
@@ -405,6 +408,8 @@ Hero image for premium food brand website.
 ### DON'T:
 - **List disconnected keywords**: "modern, sleek, professional, blue" (no context)
 - **Use negatives**: "no people", "without text", "not busy" (Gemini ignores these)
+- **Re-roll when refinement works**: If only lighting or angle needs change, use iterative edit
+- **Forget path conversion**: Absolute paths must become brand-relative for reference_image
 - **Be vague about style**: "make it look good" or "professional quality"
 - **Assume context**: The model doesn't know your brand unless you describe it
 - **Over-specify**: Too many constraints can conflict; focus on what matters most
