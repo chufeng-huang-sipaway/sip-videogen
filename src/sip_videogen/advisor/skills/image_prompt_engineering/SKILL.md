@@ -41,6 +41,30 @@ priority: high
 | "coffee shop, cozy, warm lighting, minimalist" | "A minimalist coffee shop interior with warm pendant lighting casting soft shadows on blonde wood tables. Morning sunlight streams through floor-to-ceiling windows." |
 | "dog, park, happy" | "A golden retriever puppy with floppy ears bounding through a sun-dappled meadow, tongue out, pure joy in motion." |
 
+## Advanced Prompting Techniques
+
+### Texture & Material Details
+When describing subjects, include surface and material properties for photorealism:
+- **Surface finish**: matte, glossy, frosted, brushed, satin, textured, polished
+- **Material properties**: soft velvet, cold steel, warm wood grain, cool ceramic, supple leather
+- **Imperfections for realism**: condensation droplets, dust particles, fingerprint smudges, micro-scratches, patina
+
+**Examples**:
+```
+"A frosted glass bottle with visible condensation droplets running down its surface,
+brushed copper cap showing subtle machining marks and a soft patina..."
+
+"Matte black packaging with a soft-touch finish, catching light at the edges
+to reveal a subtle texture, slight dust particles visible in the studio lighting..."
+
+"Warm oak wood table with visible grain patterns and natural knots,
+a few minor scratches from use adding authentic character..."
+```
+
+**Why this matters**: Nano-Banana Pro excels at rendering fine details. Including texture and material information produces more realistic, believable images with depth and tactile quality.
+
+---
+
 ## The 5-Point Prompt Formula
 
 Build every prompt with these elements:
@@ -106,6 +130,7 @@ Hero image for premium food brand website.
 
 ### DO:
 - **Be specific over generic**: "ornate Victorian brass keyhole" not "old keyhole"
+- **Include material textures**: surface finishes, material properties, realistic imperfections
 - **State purpose**: "A hero image for a luxury skincare homepage" gives context
 - **Use positive framing**: "an empty street at dawn" not "a street with no cars"
 - **Describe text precisely**: "The word 'BLOOM' in elegant serif, centered below the flower"
