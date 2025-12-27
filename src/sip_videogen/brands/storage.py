@@ -1542,3 +1542,54 @@ def rename_document(brand_slug:str,relative_path:str,new_name:str)->tuple[str|No
     new_rel=str(new_path.relative_to(docs_dir))
     logger.debug("Renamed document %s to %s for brand %s",relative_path,new_rel,brand_slug)
     return new_rel,None
+#=============================================================================
+#Asset Storage Functions
+#=============================================================================
+def get_assets_dir(brand_slug:str)->Path:
+    """Get the assets directory for a brand."""
+    return get_brand_dir(brand_slug)/"assets"
+def list_assets(brand_slug:str,category:str|None=None)->list[dict]:
+    """List assets for a brand, optionally filtered by category.
+    Args:
+        brand_slug: Brand identifier.
+        category: Optional category to filter (e.g., 'logo', 'marketing', 'generated').
+    Returns:
+        List of asset entries with filename, path, category, and type.
+    """
+    assets_dir=get_assets_dir(brand_slug)
+    if not assets_dir.exists():return []
+    allowed=ALLOWED_IMAGE_EXTS|ALLOWED_VIDEO_EXTS
+    assets:list[dict]=[]
+    cats=[category]if category else ASSET_CATEGORIES
+    for cat in cats:
+        cat_dir=assets_dir/cat
+        if not cat_dir.exists():continue
+        for p in sorted(cat_dir.iterdir()):
+            if not p.is_file()or p.name.startswith(".")or p.suffix.lower()not in allowed:continue
+            atype="video"if p.suffix.lower()in ALLOWED_VIDEO_EXTS else"image"
+            assets.append({"filename":p.name,"path":str(p),"category":cat,"type":atype})
+    return assets
+def save_asset(brand_slug:str,category:str,filename:str,data:bytes)->tuple[str|None,str|None]:
+    """Save an asset to the brand's assets directory.
+    Args:
+        brand_slug: Brand identifier.
+        category: Asset category (e.g., 'logo', 'marketing', 'generated').
+        filename: Filename (must not contain path separators).
+        data: Binary content.
+    Returns:
+        Tuple of (relative_path, error). relative_path is 'category/filename'.
+    """
+    if category not in ASSET_CATEGORIES:return None,f"Invalid category: {category}"
+    if"/"in filename or"\\"in filename:return None,"Invalid filename: path separators not allowed"
+    suffix=Path(filename).suffix.lower()
+    allowed=ALLOWED_IMAGE_EXTS|ALLOWED_VIDEO_EXTS
+    if suffix not in allowed:return None,f"Unsupported file type: {suffix}"
+    assets_dir=get_assets_dir(brand_slug)
+    cat_dir=assets_dir/category
+    cat_dir.mkdir(parents=True,exist_ok=True)
+    target=cat_dir/filename
+    if target.exists():return None,f"File already exists: {filename}"
+    target.write_bytes(data)
+    rel_path=f"{category}/{filename}"
+    logger.debug("Saved asset %s for brand %s",rel_path,brand_slug)
+    return rel_path,None

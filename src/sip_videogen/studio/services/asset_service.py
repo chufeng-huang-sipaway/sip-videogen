@@ -2,7 +2,6 @@
 from __future__ import annotations
 import base64
 import hashlib
-import io
 import subprocess
 import sys
 from pathlib import Path
@@ -18,7 +17,7 @@ def _get_cache_key(source_path:Path)->str:
     return hashlib.md5(key.encode()).hexdigest()
 
 from sip_videogen.brands.memory import list_brand_assets
-from sip_videogen.brands.storage import get_active_brand, get_brand_dir
+from sip_videogen.brands.storage import get_active_brand,save_asset as storage_save_asset
 
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS,ASSET_CATEGORIES,MIME_TYPES,VIDEO_MIME_TYPES,bridge_ok,bridge_error
@@ -206,15 +205,10 @@ class AssetService:
         try:
             slug=get_active_brand()
             if not slug:return bridge_error("No brand selected")
-            if category not in ASSET_CATEGORIES:return bridge_error("Invalid category")
-            if"/"in filename or"\\"in filename:return bridge_error("Invalid filename")
-            if Path(filename).suffix.lower()not in ALLOWED_IMAGE_EXTS:return bridge_error("Unsupported file type")
-            brand_dir=get_brand_dir(slug);target_dir=brand_dir/"assets"/category
-            target_dir.mkdir(parents=True,exist_ok=True)
-            target_path=target_dir/filename
-            if target_path.exists():return bridge_error(f"File already exists: {filename}")
-            content=base64.b64decode(data_base64);target_path.write_bytes(content)
-            return bridge_ok({"path":f"{category}/{filename}"})
+            content=base64.b64decode(data_base64)
+            rel_path,err=storage_save_asset(slug,category,filename,content)
+            if err:return bridge_error(err)
+            return bridge_ok({"path":rel_path})
         except Exception as e:return bridge_error(str(e))
     def get_video_data(self,relative_path:str)->dict:
         """Get base64-encoded video data.

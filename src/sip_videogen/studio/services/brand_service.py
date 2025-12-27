@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from sip_videogen.brands.models import AudienceProfile,BrandCoreIdentity,BrandIdentityFull,BrandIndexEntry,CompetitivePositioning,VisualIdentity,VoiceGuidelines
-from sip_videogen.brands.storage import backup_brand_identity,get_active_brand,get_brand_dir,list_brand_backups,list_brands,load_brand,load_brand_summary,restore_brand_backup,save_brand,set_active_brand
+from sip_videogen.brands.storage import backup_brand_identity,get_active_brand,get_brand_dir,list_brand_backups,list_brands,load_brand,load_brand_summary,restore_brand_backup,save_asset,save_brand,save_document,set_active_brand
 from sip_videogen.brands.storage import create_brand as storage_create_brand
 from sip_videogen.brands.storage import delete_brand as storage_delete_brand
 from ..state import BridgeState
@@ -226,9 +226,8 @@ class BrandService:
         except Exception as e:
             logger.exception("AI brand director error: %s",e)
             return None,f"Failed to create brand: {e}"
-    def _persist_materials(self,brand_dir:Path,images:list[dict],documents:list[dict])->None:
-        """Save image and document files to brand directory."""
-        assets_dir=brand_dir/"assets";docs_dir=brand_dir/"docs"
+    def _persist_materials(self,slug:str,images:list[dict],documents:list[dict])->None:
+        """Save image and document files to brand directory via storage layer."""
         logger.debug("Saving %d images...",len(images))
         for img in images:
             fn=img.get("filename","");data=img.get("data","")
@@ -236,18 +235,18 @@ class BrandService:
             ext=Path(fn).suffix.lower()
             if ext not in ALLOWED_IMAGE_EXTS:logger.debug("Skipping %s (unsupported ext)",fn);continue
             cat="logo"if"logo"in fn.lower()else"marketing"
-            target_dir=assets_dir/cat;target_dir.mkdir(parents=True,exist_ok=True)
-            target=target_dir/fn
-            if not target.exists():target.write_bytes(base64.b64decode(data));logger.debug("Saved: %s/%s",cat,fn)
+            rel_path,err=save_asset(slug,cat,fn,base64.b64decode(data))
+            if err:logger.debug("Skipping %s: %s",fn,err)
+            else:logger.debug("Saved: %s",rel_path)
         logger.debug("Saving %d documents...",len(documents))
-        docs_dir.mkdir(parents=True,exist_ok=True)
         for doc in documents:
             fn=doc.get("filename","");data=doc.get("data","")
             if not fn or not data:continue
             ext=Path(fn).suffix.lower()
             if ext not in ALLOWED_TEXT_EXTS:logger.debug("Skipping %s (unsupported ext)",fn);continue
-            target=docs_dir/fn
-            if not target.exists():target.write_bytes(base64.b64decode(data));logger.debug("Saved: docs/%s",fn)
+            rel_path,err=save_document(slug,fn,base64.b64decode(data))
+            if err:logger.debug("Skipping %s: %s",fn,err)
+            else:logger.debug("Saved: docs/%s",rel_path)
     def create_brand_from_materials(self,description:str,images:list[dict],documents:list[dict])->dict:
         """Create a new brand using AI agents with user-provided materials."""
         logger.info("Starting brand creation - desc:%d chars, images:%d, docs:%d",len(description),len(images),len(documents))
@@ -261,9 +260,9 @@ class BrandService:
             #Save brand
             self._state.current_progress="Saving brand..."
             storage_create_brand(identity)
-            slug=identity.slug;brand_dir=get_brand_dir(slug)
+            slug=identity.slug
             #Persist materials
-            self._persist_materials(brand_dir,images,documents)
+            self._persist_materials(slug,images,documents)
             self._state.current_progress=""
             logger.info("SUCCESS! Brand '%s' created",identity.core.name)
             return bridge_ok({"slug":slug,"name":identity.core.name})
