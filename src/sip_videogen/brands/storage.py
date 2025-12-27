@@ -12,7 +12,8 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS
+from sip_videogen.constants import (
+    ALLOWED_IMAGE_EXTS,ALLOWED_TEXT_EXTS,ALLOWED_VIDEO_EXTS,ASSET_CATEGORIES)
 from .models import (
     BrandIdentityFull,
     BrandIndex,
@@ -1456,3 +1457,88 @@ def sync_template_index(brand_slug: str) -> int:
     if changes > 0:
         save_template_index(brand_slug, index)
     return changes
+#=============================================================================
+#Document Storage Functions
+#=============================================================================
+def _safe_resolve_in_dir(base_dir:Path,rel_path:str)->tuple[Path|None,str|None]:
+    """Resolve path safely within base directory (stdlib-only, no external imports)."""
+    try:
+        r=(base_dir/rel_path).resolve()
+        if not r.is_relative_to(base_dir.resolve()):
+            return None,"Invalid path: outside allowed directory"
+        return r,None
+    except(ValueError,OSError)as e:return None,f"Invalid path: {e}"
+def get_docs_dir(brand_slug:str)->Path:
+    """Get the docs directory for a brand."""
+    return get_brand_dir(brand_slug)/"docs"
+def list_documents(brand_slug:str)->list[dict]:
+    """List all documents for a brand.
+    Supports nested subdirectories via rglob.
+    Returns:
+        List of document entries with name, path (relative to docs/), and size.
+    """
+    docs_dir=get_docs_dir(brand_slug)
+    if not docs_dir.exists():return []
+    documents:list[dict]=[]
+    for p in sorted(docs_dir.rglob("*")):
+        if not p.is_file()or p.name.startswith(".")or p.suffix.lower()not in ALLOWED_TEXT_EXTS:
+            continue
+        rel=str(p.relative_to(docs_dir))
+        documents.append({"name":p.name,"path":rel,"size":p.stat().st_size})
+    return documents
+def save_document(brand_slug:str,relative_path:str,content:bytes)->tuple[str|None,str|None]:
+    """Save a document to the brand's docs directory.
+    Args:
+        brand_slug: Brand identifier.
+        relative_path: Path relative to docs/ (supports nested dirs).
+        content: Document binary content.
+    Returns:
+        Tuple of (saved_path, error). saved_path is relative to docs/.
+    """
+    docs_dir=get_docs_dir(brand_slug)
+    docs_dir.mkdir(parents=True,exist_ok=True)
+    resolved,err=_safe_resolve_in_dir(docs_dir,relative_path)
+    if err:return None,err
+    #Ensure parent directories exist
+    resolved.parent.mkdir(parents=True,exist_ok=True)
+    resolved.write_bytes(content)
+    logger.debug("Saved document %s for brand %s",relative_path,brand_slug)
+    return relative_path,None
+def delete_document(brand_slug:str,relative_path:str)->tuple[bool,str|None]:
+    """Delete a document from the brand's docs directory.
+    Args:
+        brand_slug: Brand identifier.
+        relative_path: Path relative to docs/.
+    Returns:
+        Tuple of (success, error).
+    """
+    docs_dir=get_docs_dir(brand_slug)
+    if not docs_dir.exists():return False,"Docs directory not found"
+    resolved,err=_safe_resolve_in_dir(docs_dir,relative_path)
+    if err:return False,err
+    if not resolved.exists():return False,"Document not found"
+    if resolved.is_dir():return False,"Cannot delete folders"
+    resolved.unlink()
+    logger.debug("Deleted document %s for brand %s",relative_path,brand_slug)
+    return True,None
+def rename_document(brand_slug:str,relative_path:str,new_name:str)->tuple[str|None,str|None]:
+    """Rename a document in the brand's docs directory.
+    Args:
+        brand_slug: Brand identifier.
+        relative_path: Current path relative to docs/.
+        new_name: New filename (not a path, just the name).
+    Returns:
+        Tuple of (new_relative_path, error).
+    """
+    docs_dir=get_docs_dir(brand_slug)
+    if not docs_dir.exists():return None,"Docs directory not found"
+    resolved,err=_safe_resolve_in_dir(docs_dir,relative_path)
+    if err:return None,err
+    if not resolved.exists():return None,"Document not found"
+    if"/"in new_name or"\\"in new_name:return None,"Invalid filename: path separators not allowed"
+    new_path=resolved.parent/new_name
+    if new_path.exists():return None,f"File already exists: {new_name}"
+    resolved.rename(new_path)
+    new_rel=str(new_path.relative_to(docs_dir))
+    logger.debug("Renamed document %s to %s for brand %s",relative_path,new_rel,brand_slug)
+    return new_rel,None
