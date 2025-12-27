@@ -47,7 +47,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     refresh: refreshTemplates,
   } = useTemplates()
 
-  const { setCurrentBatch } = useWorkstation()
+  const { prependToBatch } = useWorkstation()
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
@@ -58,8 +58,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       timestamp: img.timestamp,
       viewedAt: img.viewedAt ?? null,
     }))
-    setCurrentBatch(batch)
-  }, [setCurrentBatch])
+    prependToBatch(batch)
+  }, [prependToBatch])
 
   const {
     messages,

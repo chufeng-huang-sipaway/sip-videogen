@@ -31,8 +31,8 @@ function Thumb({ path, isUnread }: { path: string; isUnread: boolean }) {
 export function ThumbnailStrip() {
     const { currentBatch, selectedIndex, setSelectedIndex } = useWorkstation()
     const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
-    //Auto-center selected thumbnail
-    useEffect(() => { const btn = btnRefs.current[selectedIndex]; if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) }, [selectedIndex])
+    //Auto-center selected thumbnail (also triggers when batch changes to handle prepend)
+    useEffect(() => { const btn = btnRefs.current[selectedIndex]; if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) }, [selectedIndex, currentBatch.length, currentBatch[0]?.id])
     if (currentBatch.length <= 1) return null
     return (
         <div className="flex-shrink-0 w-full">
