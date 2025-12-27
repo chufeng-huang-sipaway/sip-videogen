@@ -217,3 +217,13 @@ body {
 .animate-fade-in-up {
   animation: var(--animate-fade-in-up);
 }
+
+/* Prevent text selection during drag operations */
+body.is-dragging,
+body.is-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+body.is-dragging img {
+  pointer-events: none;
+}

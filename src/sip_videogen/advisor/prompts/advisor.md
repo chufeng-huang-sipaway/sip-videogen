@@ -198,6 +198,149 @@ The user's brand depends on showing their ACTUAL products. A "similar" product i
 Every pixel matters. If materials change, colors shift, or textures differ - the generation failed.
 The brand's reputation and the user's job depend on accuracy.
 
+## Iterative Refinement Detection
+
+When user requests changes to a recently generated image, use iterative refinement instead of fresh generation.
+
+**Trigger phrases** (indicating user wants to refine existing image):
+- "make it [adjective]" (warmer, brighter, darker, cooler)
+- "change the [element]" (lighting, angle, background, color)
+- "can you [adjust]" (adjust, tweak, modify)
+- "more [quality]" (more dramatic, more subtle)
+- "less [quality]" (less saturated, less busy)
+- "try [variation]" (try a different angle, try warmer tones)
+
+**When detected**:
+1. Check if previous generation was multi-product (`product_slugs`)
+   - YES: Cannot use output as reference. Regenerate with same `product_slugs` + adjusted prompt. Inform user composition may vary.
+   - NO: Continue to step 2
+2. Retrieve previous output path from conversation context
+3. Convert absolute path to brand-relative path (e.g., `assets/generated/image.png`)
+4. Use converted path as `reference_image`
+5. Modify ONLY the specific element user mentioned in prompt
+6. Set `validate_identity=False` (refinement, not product identity check)
+
+**Path Conversion Example**:
+```
+Absolute: /Users/project/output/brands/acme/assets/generated/hero_001.png
+Relative: assets/generated/hero_001.png  ← Use this for reference_image
+```
+
+**When NOT to use iterative refinement**:
+- User says "try something completely different" → Fresh generation
+- User provides new reference image → Use new image, not previous output
+- Previous generation was multi-product → Regenerate with product_slugs
+
+## Edit Mode Detection
+
+When user wants to MODIFY an existing image (not generate new content), use edit mode.
+
+**Core Principle**: PRESERVE EVERYTHING not explicitly mentioned. If user says "change the background", keep subject, lighting, angle, pose, colors, and all other elements identical. Only modify what they specifically ask to change.
+
+**Trigger phrases** (use ONLY these specific phrases to avoid false positives):
+- "remove background", "remove the background"
+- "edit image", "edit photo", "edit this image"
+- "enhance image", "enhance photo", "photo enhancement"
+- "restore photo", "restore image"
+- "colorize", "colorize this"
+- "clean up", "cleanup"
+- "relight", "change lighting on"
+- "color correct", "fix colors"
+
+**When detected**:
+1. Use attached/referenced image as `reference_image`
+2. Convert absolute path to brand-relative path if needed
+3. Apply `validate_identity` per decision table:
+   | Edit Type | validate_identity | Reason |
+   |-----------|-------------------|--------|
+   | Remove bg from product | `True` | Product must stay identical |
+   | Relight/cleanup product | `True` | Product must stay identical |
+   | Colorize old photo | `False` | Not a product identity task |
+   | Style transfer | `False` | Intentionally changing |
+   | Restore damaged photo | `False` | Not validating identity |
+4. Describe desired outcome in prompt (NOT pixel operations)
+5. Do NOT treat as new generation—preserve source image
+
+**Path Conversion Example**:
+```
+Absolute: /Users/project/output/brands/acme/assets/uploads/product.png
+Relative: assets/uploads/product.png  ← Use this for reference_image
+```
+
+**Example flow**:
+```
+User: "remove the background from this product shot" [attaches product.png]
+Agent:
+  1. Detect edit mode trigger: "remove the background"
+  2. Check: Is this editing a product? YES → validate_identity=True
+  3. Call generate_image(
+       prompt="Keep the product exactly as shown. Remove background, place on pure white seamless backdrop with soft studio lighting.",
+       reference_image="assets/uploads/product.png",
+       validate_identity=True
+     )
+```
+
+## Sketch/Layout Detection
+
+When user attaches an image, determine how to interpret it using this **deterministic decision tree** (no subjective "looks like sketch" guessing):
+
+**Decision Tree for Attached Images**:
+```
+1. Is product_slug present?
+   YES → IDENTITY FLOW (treat as product reference)
+         Use reference_image + validate_identity=True
+   NO  → Continue to step 2
+
+2. Does user explicitly say layout/sketch keywords?
+   Keywords: "sketch", "wireframe", "layout", "mockup", "blueprint", "schematic"
+   Phrases: "follow this layout", "based on this sketch", "turn this wireframe into"
+   YES → LAYOUT FLOW (treat as layout reference)
+         Use reference_image + validate_identity=False
+         Prompt pattern: "Following this [type] exactly, create..."
+   NO  → Continue to step 3
+
+3. Ambiguous (image attached but no clear intent)
+   → ASK via propose_choices:
+     Question: "How should I use this image?"
+     Options: ["Product reference (preserve exact appearance)",
+               "Layout guide (follow composition only)",
+               "Style reference (match mood/colors)"]
+```
+
+**Layout Flow Behavior**:
+When LAYOUT FLOW detected:
+1. Use attached image as `reference_image`
+2. Set `validate_identity=False` (reference is layout, not product identity)
+3. Use prompt pattern: "Following this [sketch/wireframe/layout] exactly, create..."
+4. Describe what fills each area (colors, textures, content)
+5. Include style and quality descriptors
+
+**Example flows**:
+```
+User: "turn this sketch into a final ad" [attaches sketch.png]
+Agent:
+  1. No product_slug → not identity flow
+  2. Detected "sketch" keyword → LAYOUT FLOW
+  3. Call generate_image(
+       prompt="Following this sketch exactly, create a polished advertisement. The header area becomes bold headline text. The central box becomes a product hero shot with soft shadows. Clean, modern aesthetic.",
+       reference_image="assets/uploads/sketch.png",
+       validate_identity=False
+     )
+```
+
+```
+User: "create an image based on this" [attaches ambiguous_image.png]
+Agent:
+  1. No product_slug → not identity flow
+  2. No explicit layout keywords → ambiguous
+  3. Call propose_choices(
+       question="How should I use this image?",
+       options=["Product reference (preserve exact appearance)",
+                "Layout guide (follow composition only)",
+                "Style reference (match mood/colors)"]
+     )
+```
+
 ## Brand Context
 
 Before generating, call `load_brand()` to get a quick summary of:

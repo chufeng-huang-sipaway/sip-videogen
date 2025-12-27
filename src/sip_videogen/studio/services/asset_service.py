@@ -75,8 +75,14 @@ class AssetService:
         try:
             brand_dir,err=self._state.get_brand_dir()
             if err:return bridge_error(err)
-            resolved,error=resolve_assets_path(brand_dir,relative_path)
-            if error:return bridge_error(error)
+            rp=Path(relative_path)
+            if rp.is_absolute():
+                resolved=rp.resolve()
+                try:resolved.relative_to((brand_dir/"assets").resolve())
+                except ValueError:return bridge_error("Invalid path: outside assets directory")
+            else:
+                resolved,error=resolve_assets_path(brand_dir,relative_path)
+                if error:return bridge_error(error)
             if not resolved.exists():return bridge_error("Asset not found")
             suffix=resolved.suffix.lower()
             if suffix not in ALLOWED_IMAGE_EXTS:return bridge_error("Unsupported file type")
@@ -102,8 +108,14 @@ class AssetService:
         try:
             brand_dir,err=self._state.get_brand_dir()
             if err:return bridge_error(err)
-            resolved,error=resolve_assets_path(brand_dir,relative_path)
-            if error:return bridge_error(error)
+            rp=Path(relative_path)
+            if rp.is_absolute():
+                resolved=rp.resolve()
+                try:resolved.relative_to((brand_dir/"assets").resolve())
+                except ValueError:return bridge_error("Invalid path: outside assets directory")
+            else:
+                resolved,error=resolve_assets_path(brand_dir,relative_path)
+                if error:return bridge_error(error)
             if not resolved.exists():return bridge_error("Asset not found")
             suffix=resolved.suffix.lower()
             if suffix not in ALLOWED_IMAGE_EXTS:return bridge_error("Unsupported file type")

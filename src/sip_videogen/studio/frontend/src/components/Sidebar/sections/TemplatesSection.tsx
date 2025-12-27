@@ -94,8 +94,8 @@ onEdit:()=>void
 onDelete:()=>void}
 function TemplateCard({template,isAttached,attachedStrict,isExpanded,onToggleExpand,onAttach,onDetach,onToggleStrict,onViewDetail,onEdit,onDelete}:TemplateCardProps){
 const handleDragStart=(e:React.DragEvent)=>{
-e.dataTransfer.setData('application/x-brand-template',template.slug)
 e.dataTransfer.setData('text/plain',template.slug)
+try{e.dataTransfer.setData('application/x-brand-template',template.slug)}catch{/*ignore*/}
 e.dataTransfer.effectAllowed='copy'}
 const handleClick=(e:React.MouseEvent)=>{
 if(e.defaultPrevented)return

@@ -135,8 +135,9 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
   }, [path, loadThumbnail])
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('application/x-brand-asset', path)
     e.dataTransfer.setData('text/plain', path)
+    try { e.dataTransfer.setData('text/uri-list', path) } catch { /* ignore */ }
+    try { e.dataTransfer.setData('application/x-brand-asset', path) } catch { /* ignore */ }
     e.dataTransfer.effectAllowed = 'copy'
   }
 
