@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Package, Paperclip, Bot, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
-//Bot icon kept for empty state
+import { Package, Paperclip, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { type GeneratedVideo, type TemplateSummary, type ProductEntry } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
@@ -9,10 +8,8 @@ import { ExecutionTrace } from './ExecutionTrace'
 import { InteractionRenderer } from './InteractionRenderer'
 import { ChatImageGallery } from './ChatImageGallery'
 import { cn } from '@/lib/utils'
-import { useBrand } from '@/context/BrandContext'
 import { useTemplates } from '@/context/TemplateContext'
 import { Button } from '@/components/ui/button'
-import { BrandSelector } from './BrandSelector'
 
 
 //Video gallery component for rendering generated videos
@@ -349,42 +346,10 @@ export function MessageList({ messages, progress, loadedSkills, isLoading, produ
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, progress])
 
-  const { brands, activeBrand, selectBrand } = useBrand()
   const { templates: contextTemplates } = useTemplates()
   const allTemplates = templates || contextTemplates
 
-  if (messages.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
-
-        {/* Minimal Empty State */}
-        <div className="relative w-full max-w-sm mx-auto flex flex-col items-center gap-6">
-
-          {/* Icon - Simplified */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-b from-background to-secondary border border-border/40 flex items-center justify-center shadow-soft">
-            <Bot className="w-6 h-6 text-foreground/70" strokeWidth={1.2} />
-          </div>
-
-          <div className="space-y-2 text-center">
-            <h2 className="text-xl font-medium tracking-tight text-foreground">
-              {activeBrand ? `Brand Studio` : 'Welcome'}
-            </h2>
-            <p className="text-muted-foreground text-sm font-light">
-              {activeBrand
-                ? `You are working with ${brands.find(b => b.slug === activeBrand)?.name}.`
-                : "Select a brand to begin aligned creation."}
-            </p>
-          </div>
-
-          {!activeBrand && (
-            <div className="flex justify-center mt-2 w-full max-w-xs">
-              <BrandSelector brands={brands} activeBrand={activeBrand} onSelect={selectBrand} />
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
+  if (messages.length === 0) return null
 
   // Find if there is an active "thinking" process to show at the end
   const showActivity = isLoading || progress
