@@ -454,6 +454,7 @@ class TestPerTurnContextInjection:
             brand_slug="test-brand",
             product_slugs=None,
             project_slug="holiday-campaign",
+            attached_templates=None,
         )
 
         # Verify prompt contains project context
@@ -500,6 +501,7 @@ class TestPerTurnContextInjection:
             brand_slug="test-brand",
             product_slugs=["night-cream", "day-serum"],
             project_slug=None,
+            attached_templates=None,
         )
 
         # Verify prompt contains product context
@@ -546,6 +548,7 @@ class TestPerTurnContextInjection:
             brand_slug="test-brand",
             product_slugs=["sunscreen"],
             project_slug="summer-sale",
+            attached_templates=None,
         )
 
     @pytest.mark.asyncio
@@ -685,6 +688,7 @@ class TestPerTurnContextInjection:
             brand_slug="test-brand",
             product_slugs=["product-a", "product-b"],
             project_slug="my-project",
+            attached_templates=None,
         )
 
         # Verify response structure

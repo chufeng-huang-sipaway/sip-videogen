@@ -918,7 +918,7 @@ class TestProductContextBuilder:
         context = builder.build_context_section()
 
         assert "products/night-cream/images/main.png" in context
-        assert "[PRIMARY - use as reference]" in context
+        assert "[PRIMARY - used first]" in context
 
 
 class TestBuildProductContext:
