@@ -1,6 +1,6 @@
 //DragContext unit tests - verifies drag state management
 import{describe,it,expect,vi,beforeEach}from'vitest'
-import{render,screen,act}from'@testing-library/react'
+import{render,act}from'@testing-library/react'
 import{DragProvider,useDrag}from'./DragContext'
 //Test component that exposes DragContext internals
 function TestConsumer({onMount}:{onMount:(api:ReturnType<typeof useDrag>)=>void}){

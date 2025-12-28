@@ -183,8 +183,8 @@ class TestGenerateWithValidation:
                 max_retries=3,
             )
 
-        assert "test_output.png" in result
-        assert "[Warning" not in result
+        assert result.path.endswith("test_output.png")
+        assert result.warning is None
 
     @pytest.mark.asyncio
     async def test_retries_on_validation_failure(
@@ -228,8 +228,8 @@ class TestGenerateWithValidation:
             )
 
         assert call_count[0] == 2  # Two validation calls
-        assert "test_output.png" in result
-        assert "[Warning" not in result
+        assert result.path.endswith("test_output.png")
+        assert result.warning is None
 
     @pytest.mark.asyncio
     async def test_returns_best_attempt_on_exhaustion(
@@ -257,8 +257,8 @@ class TestGenerateWithValidation:
                 max_retries=3,
             )
 
-        assert "[Warning" in result
-        assert "0.6" in result  # Similarity score mentioned
+        assert result.warning is not None
+        assert "0.6" in result.warning  # Similarity score mentioned
 
     @pytest.mark.asyncio
     async def test_tracks_best_attempt_across_retries(
@@ -308,7 +308,8 @@ class TestGenerateWithValidation:
             )
 
         # Should report the best score (0.7)
-        assert "0.7" in result
+        assert result.warning is not None
+        assert "0.7" in result.warning
 
     @pytest.mark.asyncio
     async def test_handles_generation_errors_gracefully(
