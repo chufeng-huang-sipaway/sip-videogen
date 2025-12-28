@@ -12,11 +12,12 @@ from .services.update_service import UpdateService
 from .utils.bridge_types import BridgeResponse,bridge_ok,bridge_error
 from .utils.config_store import check_api_keys as do_check_api_keys,load_api_keys_from_config,save_api_keys as do_save_api_keys
 from ..constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS,ALLOWED_TEXT_EXTS,MIME_TYPES,VIDEO_MIME_TYPES
-#Load API keys on module import (app startup)
-load_api_keys_from_config()
 class StudioBridge:
     """API exposed to the frontend via PyWebView."""
     def __init__(self):
+        # Load API keys on bridge initialization rather than module import, to avoid
+        # side effects when the module is imported (e.g., during tests).
+        load_api_keys_from_config()
         self._state=BridgeState()
         self._brand=BrandService(self._state)
         self._document=DocumentService(self._state)
