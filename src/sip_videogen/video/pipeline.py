@@ -68,7 +68,6 @@ class PipelineError(Exception):
 @dataclass
 class PipelineConfig:
     """Configuration for the video generation pipeline.
-
     Attributes:
         idea: The video concept/idea to generate.
         num_scenes: Target number of scenes (default: 3).
@@ -79,6 +78,10 @@ class PipelineConfig:
         dry_run: If True, only generate script without video (default: False).
         existing_script: Pre-existing script to use (skips script development).
         project_id: Custom project ID. If None, auto-generated.
+        image_max_concurrent: Max concurrent image generations (default: 8).
+        skip_image_review: Skip image quality review for faster drafts (default: False).
+        image_variants_per_request: Number of image variants per element (default: 1).
+            If >1, generates multiple variants and uses early-exit review. Max 4.
     """
     idea: str
     num_scenes: int = 3
@@ -89,6 +92,9 @@ class PipelineConfig:
     dry_run: bool = False
     existing_script: VideoScript | None = None
     project_id: str | None = None
+    image_max_concurrent: int = 8
+    skip_image_review: bool = False
+    image_variants_per_request: int = 1
 
 
 @dataclass
@@ -309,17 +315,17 @@ class VideoPipeline:
         generated_assets: list[GeneratedAsset] = []
 
         def on_complete(element_id: str, result) -> None:
-            status = "✓" if result.status in ("success", "fallback") else "✗"
+            status = "✓" if result.status in ("success", "fallback", "unreviewed") else "✗"
             self._emit_progress("images", f"{status} {element_id}")
-
         results = await image_production.generate_all_with_review_parallel(
             elements=script.shared_elements,
-            max_concurrent=4,
+            max_concurrent=self.config.image_max_concurrent,
             on_complete=on_complete,
+            skip_review=self.config.skip_image_review,
+            num_variants=self.config.image_variants_per_request,
         )
-
         for result in results:
-            if result.status in ("success", "fallback"):
+            if result.status in ("success", "fallback", "unreviewed"):
                 asset = GeneratedAsset(
                     asset_type=AssetType.REFERENCE_IMAGE,
                     element_id=result.element_id,

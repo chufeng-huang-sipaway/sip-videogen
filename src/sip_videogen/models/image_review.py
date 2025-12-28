@@ -58,8 +58,8 @@ class ImageGenerationResult(BaseModel):
     """
 
     element_id: str = Field(description="ID of the shared element")
-    status: Literal["success", "fallback", "failed"] = Field(
-        description="Final status: success, fallback (kept despite rejection), or failed"
+    status: Literal["success", "fallback", "failed", "unreviewed"] = Field(
+        description="Final status: success, fallback (kept despite rejection), failed, or unreviewed (skip_review mode)"
     )
     local_path: str = Field(
         default="", description="Path to the generated image (if success or fallback)"
