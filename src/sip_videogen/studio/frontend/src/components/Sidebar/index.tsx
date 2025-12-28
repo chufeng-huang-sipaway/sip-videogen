@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Layout, ChevronRight } from 'lucide-react'
+import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Palette, ChevronRight } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { ProductsSection } from './sections/ProductsSection'
 import { TemplatesSection } from './sections/TemplatesSection'
@@ -67,7 +67,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-foreground text-background">
-            <p>Brand Memory</p>
+            <p>Brand Profile</p>
           </TooltipContent>
         </Tooltip>
 
@@ -84,8 +84,8 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             disabled={!activeBrand}
           />
           <NavIcon
-            icon={<Layout className="w-5 h-5" strokeWidth={1.5} />}
-            label={`Templates (${templates.length})`}
+            icon={<Palette className="w-5 h-5" strokeWidth={1.5} />}
+            label={`Style Guides (${templates.length})`}
             isActive={activeSection === 'templates'}
             onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('templates'); }}
             count={templates.length}
@@ -134,8 +134,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             <Brain className="w-4.5 h-4.5" strokeWidth={1.5} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-foreground/90">Brand Memory</div>
-            <div className="text-[11px] text-muted-foreground truncate">Active & Learning</div>
+            <div className="text-sm font-medium text-foreground/90">Brand Profile</div>
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
         </div>
@@ -171,10 +170,10 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             <ProductsSection />
           </NavGroup>
 
-          {/* Templates Section */}
+          {/* Style Guides Section */}
           <NavGroup
-            title="Templates"
-            icon={<Layout className="w-4 h-4" />}
+            title="Style Guides"
+            icon={<Palette className="w-4 h-4" />}
             isOpen={activeSection === 'templates'}
             onToggle={() => toggleSection('templates')}
             onAdd={() => setIsCreateTemplateOpen(true)}

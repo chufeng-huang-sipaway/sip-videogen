@@ -1,5 +1,5 @@
 import {useState,useEffect} from 'react'
-import {Layout,Plus,X,Star,Pencil,ChevronRight,ChevronDown,Loader2,Lock,Unlock} from 'lucide-react'
+import {Layout,X,Star,Pencil,ChevronRight,ChevronDown,Loader2,Lock,Unlock} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {ContextMenu,ContextMenuContent,ContextMenuItem,ContextMenuSeparator,ContextMenuTrigger,} from '@/components/ui/context-menu'
 import {Alert,AlertDescription} from '@/components/ui/alert'
@@ -176,13 +176,6 @@ Error: {error}
 </div>)}
 return(
 <div className="space-y-2 pl-2 pr-1">
-<div className="flex items-center justify-between">
-<span className="text-xs text-gray-500">
-{templates.length} template{templates.length!==1?'s':''}
-{attachedTemplates.length>0&&` (${attachedTemplates.length} attached)`}</span>
-<Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={()=>setIsCreateDialogOpen(true)} title="Add template">
-<Plus className="h-4 w-4"/></Button>
-</div>
 {actionError&&(
 <Alert variant="destructive" className="py-2 px-3">
 <AlertDescription className="flex items-center justify-between text-xs">

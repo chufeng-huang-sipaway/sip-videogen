@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FolderKanban, Plus, X, Archive, Pencil, RefreshCw, Inbox } from 'lucide-react'
+import { FolderOpen, X, Archive, Pencil, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -15,7 +15,6 @@ import { useWorkstation } from '@/context/WorkstationContext'
 import { bridge, isPyWebView, type ProjectEntry } from '@/lib/bridge'
 import { buildStatusByAssetPath, normalizeAssetPath } from '@/lib/imageStatus'
 import { EditProjectDialog } from '../EditProjectDialog'
-import { CreateProjectDialog } from '../CreateProjectDialog'
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.webm'])
 function isVideoAsset(path: string): boolean { const dot = path.lastIndexOf('.'); return dot >= 0 && VIDEO_EXTS.has(path.slice(dot).toLowerCase()) }
 
@@ -46,7 +45,7 @@ function ProjectCard({ project, isActive, onClick, onEdit, onArchive, onDelete }
           `}
           title="View project assets"
         >
-          <FolderKanban
+          <FolderOpen
             className={`h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-foreground' : 'text-muted-foreground/70 group-hover:text-foreground'}`}
             strokeWidth={1.5}
           />
@@ -87,12 +86,11 @@ function ProjectCard({ project, isActive, onClick, onEdit, onArchive, onDelete }
 
 export function ProjectsSection() {
   const { activeBrand } = useBrand()
-  const { projects, activeProject, isLoading, isRefreshing, error, refresh, updateProject, deleteProject, getProjectAssets } = useProjects()
+  const { projects, activeProject, isLoading, error, refresh, updateProject, deleteProject, getProjectAssets } = useProjects()
   const { setCurrentBatch, setSelectedIndex } = useWorkstation()
   const [generalCount, setGeneralCount] = useState(0)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingProjectSlug, setEditingProjectSlug] = useState<string | null>(null)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   //Load general assets count
   useEffect(() => {
     if (!activeBrand || !isPyWebView()) { setGeneralCount(0); return }
@@ -140,10 +138,6 @@ export function ProjectsSection() {
     }
   }
 
-  const handleCreateProject = useCallback(() => {
-    setIsCreateDialogOpen(true)
-  }, [])
-
   if (!activeBrand) {
     return <div className="text-sm text-gray-500">Select a brand</div>
   }
@@ -169,34 +163,6 @@ export function ProjectsSection() {
 
   return (
     <div className="space-y-2 pl-2 pr-1">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-500">
-          {projects.length} project{projects.length !== 1 ? 's' : ''}
-          {activeProject && ' (1 active)'}
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={refresh}
-            disabled={isRefreshing}
-            title="Refresh projects"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={handleCreateProject}
-            title="Add project"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
       {actionError && (
         <Alert variant="destructive" className="py-2 px-3">
           <AlertDescription className="flex items-center justify-between text-xs">
@@ -213,8 +179,8 @@ export function ProjectsSection() {
         </Alert>
       )}
 
-      {/* General (non-project) assets section */}
-      <div className="mb-2"><div className="flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden hover:bg-muted/50 text-muted-foreground hover:text-foreground" title="Assets not associated with any project"><Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" /><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className="text-sm font-medium truncate text-foreground/90 italic">General</span></div><span className="text-[10px] truncate block text-muted-foreground/60">{generalCount} asset{generalCount !== 1 ? 's' : ''}</span></div></div></div>
+      {/* Unsorted (non-project) assets section */}
+      <div className="mb-2"><div className="flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden hover:bg-muted/50 text-muted-foreground hover:text-foreground" title="Assets not associated with any project"><Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" /><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className="text-sm font-medium truncate text-foreground/90 italic">Unsorted</span></div><span className="text-[10px] truncate block text-muted-foreground/60">{generalCount} asset{generalCount !== 1 ? 's' : ''}</span></div></div></div>
 
       {sortedProjects.length === 0 ? (<p className="text-sm text-gray-400 italic">{isLoading ? 'Loading...' : 'No projects yet. Click + to create a campaign.'}</p>) : (<div className="space-y-1">{sortedProjects.map((project) => (<ProjectCard key={project.slug} project={project} isActive={activeProject === project.slug} onClick={() => loadProjectAssets(project.slug)} onEdit={() => setEditingProjectSlug(project.slug)} onArchive={() => handleArchive(project.slug)} onDelete={() => handleDelete(project.slug)} />))}</div>)}
 
@@ -227,11 +193,6 @@ export function ProjectsSection() {
           projectSlug={editingProjectSlug}
         />
       )}
-
-      <CreateProjectDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-      />
     </div>
   )
 }
