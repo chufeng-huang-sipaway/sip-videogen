@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry, type RegisterImageInput } from '@/lib/bridge'
-import { ALLOWED_ATTACHMENT_EXTS, ALLOWED_IMAGE_EXTS } from '@/lib/constants'
+import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
 
 export interface Message {
   id: string
@@ -76,10 +76,11 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
     const prepared: PendingAttachment[] = []
+    const allowedAttachmentExts = getAllowedAttachmentExts()
 
     for (const file of files) {
       const ext = getExt(file.name)
-      if (ext && !ALLOWED_ATTACHMENT_EXTS.has(ext)) {
+      if (ext && !allowedAttachmentExts.has(ext)) {
         setAttachmentError(`Unsupported file type: ${ext}`)
         continue
       }
@@ -119,7 +120,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const addAttachmentReference = useCallback(async (path: string, name?: string) => {
     const fileName = name || path.split('/').pop() || path
     const ext = getExt(fileName).toLowerCase()
-    const isImage=(ALLOWED_IMAGE_EXTS as readonly string[]).includes(ext)
+    const isImage=getAllowedImageExts().includes(ext)
 
     let preview: string | undefined
     if (isImage && isPyWebView()) {

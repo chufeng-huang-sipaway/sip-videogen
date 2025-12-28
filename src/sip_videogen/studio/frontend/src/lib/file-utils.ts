@@ -1,11 +1,11 @@
 //Utility functions for file processing and conversion
-import{ALLOWED_IMAGE_EXTS,ALLOWED_TEXT_EXTS}from'./constants'
+import{getAllowedImageExts,getAllowedTextExts}from'./constants'
 //Get file extension with leading dot
 export function getFileExtension(filename:string):string{const parts=filename.split('.');return parts.length>1?'.'+parts.pop()!.toLowerCase():''}
 //Check if file extension is an allowed image type
-export function isAllowedImageExt(filename:string):boolean{const ext=getFileExtension(filename);return(ALLOWED_IMAGE_EXTS as readonly string[]).includes(ext)}
+export function isAllowedImageExt(filename:string):boolean{const ext=getFileExtension(filename);return getAllowedImageExts().includes(ext)}
 //Check if file extension is an allowed text type
-export function isAllowedTextExt(filename:string):boolean{const ext=getFileExtension(filename);return(ALLOWED_TEXT_EXTS as readonly string[]).includes(ext)}
+export function isAllowedTextExt(filename:string):boolean{const ext=getFileExtension(filename);return getAllowedTextExts().includes(ext)}
 //Convert a file to data URL (includes mime type prefix)
 export function fileToDataUrl(file:File):Promise<string>{return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result as string);reader.onerror=()=>reject(new Error(`Failed to read file: ${file.name}`));reader.readAsDataURL(file)})}
 //Convert a file to base64 string (without mime type prefix)
@@ -28,6 +28,6 @@ processed.push({file,dataUrl,base64,type})
 }catch{rejected.push(file.name)}}
 return{processed,rejected}}
 //Process image files only
-export function processImageFiles(files:FileList|File[]):Promise<ProcessFilesResult>{return processUploadedFiles(files,ALLOWED_IMAGE_EXTS)}
+export function processImageFiles(files:FileList|File[]):Promise<ProcessFilesResult>{return processUploadedFiles(files,getAllowedImageExts())}
 //Process document files only
-export function processDocumentFiles(files:FileList|File[]):Promise<ProcessFilesResult>{return processUploadedFiles(files,ALLOWED_TEXT_EXTS)}
+export function processDocumentFiles(files:FileList|File[]):Promise<ProcessFilesResult>{return processUploadedFiles(files,getAllowedTextExts())}

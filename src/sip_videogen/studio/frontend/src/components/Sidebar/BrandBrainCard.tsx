@@ -12,7 +12,7 @@ import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import { RegenerateConfirmDialog } from '@/components/BrandMemory/RegenerateConfirmDialog'
 import { BackupDialog } from '@/components/BrandMemory/BackupDialog'
-import { ALLOWED_IMAGE_EXTS, ALLOWED_TEXT_EXTS } from '@/lib/constants'
+import { getAllowedImageExts, getAllowedTextExts } from '@/lib/constants'
 import type { BrandIdentityFull } from '@/types/brand-identity'
 
 
@@ -51,9 +51,10 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
 
     setIsUploadingDoc(true)
     try {
+      const allowedTextExts = getAllowedTextExts()
       for (const file of Array.from(e.target.files)) {
         const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
-        if (!ALLOWED_TEXT_EXTS.includes(ext)) continue
+        if (!allowedTextExts.includes(ext)) continue
 
         const reader = new FileReader()
         await new Promise<void>((resolve, reject) => {
@@ -82,9 +83,10 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
 
     setIsUploadingImage(true)
     try {
+      const allowedImageExts = getAllowedImageExts()
       for (const file of Array.from(e.target.files)) {
         const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
-        if (!ALLOWED_IMAGE_EXTS.includes(ext)) continue
+        if (!allowedImageExts.includes(ext)) continue
 
         const reader = new FileReader()
         await new Promise<void>((resolve, reject) => {
@@ -248,7 +250,7 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
           type="file"
           className="hidden"
           multiple
-          accept={ALLOWED_TEXT_EXTS.join(',')}
+          accept={getAllowedTextExts().join(',')}
           onChange={handleDocUpload}
         />
         <input
@@ -256,7 +258,7 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
           type="file"
           className="hidden"
           multiple
-          accept={ALLOWED_IMAGE_EXTS.join(',')}
+          accept={getAllowedImageExts().join(',')}
           onChange={handleImageUpload}
         />
       </div>

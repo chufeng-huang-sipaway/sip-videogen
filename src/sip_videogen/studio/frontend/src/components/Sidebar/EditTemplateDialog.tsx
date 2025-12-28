@@ -10,7 +10,7 @@ import{useAsyncAction}from'@/hooks/useAsyncAction'
 import{processImageFiles}from'@/lib/file-utils'
 import type{ProcessedFile}from'@/lib/file-utils'
 import{bridge,isPyWebView,isV2Analysis}from'@/lib/bridge'
-import{ALLOWED_IMAGE_EXTS}from'@/lib/constants'
+import{getAllowedImageExts}from'@/lib/constants'
 import{toast}from'@/components/ui/toaster'
 import type{TemplateFull}from'@/lib/bridge'
 interface ExistingImage{path:string;filename:string;thumbnailUrl:string|null;isPrimary:boolean}
@@ -145,7 +145,7 @@ className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full bo
 </div>)}
 {/*Dropzone*/}
 {(visibleExistingImages.length+newImages.length<2)&&(
-<Dropzone accept={{'image/*':ALLOWED_IMAGE_EXTS.map(e=>e)}} maxFiles={2-visibleExistingImages.length-newImages.length} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed p-3">
+<Dropzone accept={{'image/*':getAllowedImageExts().map(e=>e)}} maxFiles={2-visibleExistingImages.length-newImages.length} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed p-3">
 <DropzoneEmptyState><div className="flex flex-col items-center"><p className="text-xs mb-1">Drop images to add</p></div></DropzoneEmptyState>
 </Dropzone>)}
 <p className="text-xs text-muted-foreground">Click the star to set the primary image.</p>
