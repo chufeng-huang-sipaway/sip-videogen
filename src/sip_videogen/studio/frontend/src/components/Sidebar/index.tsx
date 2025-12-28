@@ -278,7 +278,7 @@ function NavGroup({ title, icon, isOpen, onToggle, onAdd, children }: any) {
         "grid transition-all duration-200 ease-in-out pl-2",
         isOpen ? "grid-rows-[1fr] opacity-100 mb-4" : "grid-rows-[0fr] opacity-0"
       )}>
-        <div className="overflow-hidden">
+        <div className="overflow-hidden pb-1">
           {children}
         </div>
       </div>

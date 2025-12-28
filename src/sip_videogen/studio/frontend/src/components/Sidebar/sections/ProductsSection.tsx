@@ -210,7 +210,6 @@ function ProductCard({
             <div className="flex-1 min-w-0 overflow-hidden">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-medium truncate text-foreground/90">{product.name}</span>
-                {isAttached && <Star className="h-3 w-3 text-primary fill-primary shrink-0 animate-in zoom-in spin-in-90 duration-300" />}
               </div>
               <span className="text-xs text-muted-foreground truncate block">
                 {product.description.length > 40
