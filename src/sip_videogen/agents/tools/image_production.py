@@ -26,8 +26,11 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Maximum number of retries for image generation (2 retries = 3 total attempts)
+#Maximum number of retries for image generation (2 retries = 3 total attempts)
 MAX_RETRIES = 2
+#Default concurrency limits
+_IMAGE_GEN_MAX_CONCURRENT = 8  #Generation limit (Gemini ~300 RPM)
+_REVIEW_MAX_CONCURRENT = 4     #Review limit (separate semaphore)
 
 
 class ImageProductionManager:
@@ -290,17 +293,15 @@ class ImageProductionManager:
     async def generate_all_with_review_parallel(
         self,
         elements: list[SharedElement],
-        max_concurrent: int = 4,
+        max_concurrent: int = _IMAGE_GEN_MAX_CONCURRENT,
         on_complete: Callable[[str, ImageGenerationResult], None] | None = None,
     ) -> list[ImageGenerationResult]:
         """Generate reference images for all elements in parallel with review.
-
         Each element's full generate→review→retry cycle runs independently
         and concurrently, controlled by a semaphore.
-
         Args:
             elements: List of SharedElements to generate images for.
-            max_concurrent: Maximum number of concurrent generations (default 4).
+            max_concurrent: Maximum number of concurrent generations (default 8).
             on_complete: Optional callback called when each element completes.
                          Receives (element_id, result).
 

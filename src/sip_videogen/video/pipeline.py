@@ -68,7 +68,6 @@ class PipelineError(Exception):
 @dataclass
 class PipelineConfig:
     """Configuration for the video generation pipeline.
-
     Attributes:
         idea: The video concept/idea to generate.
         num_scenes: Target number of scenes (default: 3).
@@ -79,6 +78,7 @@ class PipelineConfig:
         dry_run: If True, only generate script without video (default: False).
         existing_script: Pre-existing script to use (skips script development).
         project_id: Custom project ID. If None, auto-generated.
+        image_max_concurrent: Max concurrent image generations (default: 8).
     """
     idea: str
     num_scenes: int = 3
@@ -89,6 +89,7 @@ class PipelineConfig:
     dry_run: bool = False
     existing_script: VideoScript | None = None
     project_id: str | None = None
+    image_max_concurrent: int = 8
 
 
 @dataclass
@@ -314,7 +315,7 @@ class VideoPipeline:
 
         results = await image_production.generate_all_with_review_parallel(
             elements=script.shared_elements,
-            max_concurrent=4,
+            max_concurrent=self.config.image_max_concurrent,
             on_complete=on_complete,
         )
 
