@@ -62,22 +62,24 @@ class ImageProductionManager:
     async def generate_with_review(
         self,
         element: SharedElement,
+        *,
+        skip_review: bool = False,
     ) -> ImageGenerationResult:
         """Generate a reference image with review and automatic retry.
-
         This method:
         1. Generates an image using the ImageGenerator
-        2. Sends it to the ImageReviewer for quality assessment
+        2. Sends it to the ImageReviewer for quality assessment (unless skip_review=True)
         3. If rejected, improves the prompt and retries (up to max_retries)
         4. If all attempts fail, keeps the last generated image as fallback
         5. Returns the final result with all attempt history
-
         Args:
             element: The SharedElement to generate an image for.
-
+            skip_review: If True, skip quality review and return immediately (status="unreviewed").
         Returns:
             ImageGenerationResult with status, path, and attempt history.
         """
+        if skip_review:
+            return await self._generate_without_review(element)
         attempts: list[ImageGenerationAttempt] = []
         current_prompt = element.visual_description
         last_generated_path: str = ""  # Track last successfully generated image
@@ -258,6 +260,17 @@ class ImageProductionManager:
             return f"{original_prompt}. {', '.join(improvements)}."
         return original_prompt
 
+    async def _generate_without_review(self,element: SharedElement) -> ImageGenerationResult:
+        """Generate image without quality review (skip_review mode)."""
+        logger.info(f"Generating image for {element.id} (skip_review mode)")
+        try:
+            aspect_ratio = self.generator._get_aspect_ratio_for_element(element)
+            asset = await self.generator.generate_reference_image(element=element,output_dir=self.output_dir,aspect_ratio=aspect_ratio)
+            return ImageGenerationResult(element_id=element.id,status="unreviewed",local_path=asset.local_path,attempts=[ImageGenerationAttempt(attempt_number=1,prompt_used=element.visual_description,outcome="success")],final_prompt=element.visual_description)
+        except ImageGenerationError as e:
+            logger.warning(f"Generation error for {element.id}: {e}")
+            return ImageGenerationResult(element_id=element.id,status="failed",local_path="",attempts=[ImageGenerationAttempt(attempt_number=1,prompt_used=element.visual_description,outcome="error",error_message=str(e))],final_prompt=element.visual_description)
+
     async def generate_all_with_review(
         self,
         elements: list[SharedElement],
@@ -295,6 +308,8 @@ class ImageProductionManager:
         elements: list[SharedElement],
         max_concurrent: int = _IMAGE_GEN_MAX_CONCURRENT,
         on_complete: Callable[[str, ImageGenerationResult], None] | None = None,
+        *,
+        skip_review: bool = False,
     ) -> list[ImageGenerationResult]:
         """Generate reference images for all elements in parallel with review.
         Each element's full generate→review→retry cycle runs independently
@@ -304,24 +319,21 @@ class ImageProductionManager:
             max_concurrent: Maximum number of concurrent generations (default 8).
             on_complete: Optional callback called when each element completes.
                          Receives (element_id, result).
-
+            skip_review: If True, skip quality review (status="unreviewed").
         Returns:
             List of ImageGenerationResult for all elements, in the same order
             as the input elements list.
         """
         if not elements:
             return []
-
         semaphore = asyncio.Semaphore(max_concurrent)
         results: dict[str, ImageGenerationResult] = {}
-
         async def generate_single(element: SharedElement) -> None:
             """Generate a single element with semaphore control."""
             async with semaphore:
                 logger.info(f"Starting parallel generation for {element.id}")
-                result = await self.generate_with_review(element)
+                result = await self.generate_with_review(element,skip_review=skip_review)
                 results[element.id] = result
-
                 if on_complete:
                     try:
                         on_complete(element.id, result)
@@ -341,13 +353,11 @@ class ImageProductionManager:
         successful = sum(1 for r in ordered_results if r.status == "success")
         fallback = sum(1 for r in ordered_results if r.status == "fallback")
         failed = sum(1 for r in ordered_results if r.status == "failed")
-
-        logger.info(
-            f"Parallel image production complete: {successful} accepted, "
-            f"{fallback} fallback, {failed} failed (total: {len(elements)}, "
-            f"max_concurrent: {max_concurrent})"
-        )
-
+        unreviewed = sum(1 for r in ordered_results if r.status == "unreviewed")
+        if unreviewed:
+            logger.info(f"Parallel image production complete: {unreviewed} unreviewed, {failed} failed (total: {len(elements)}, max_concurrent: {max_concurrent})")
+        else:
+            logger.info(f"Parallel image production complete: {successful} accepted, {fallback} fallback, {failed} failed (total: {len(elements)}, max_concurrent: {max_concurrent})")
         return ordered_results
 
 

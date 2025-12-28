@@ -79,6 +79,7 @@ class PipelineConfig:
         existing_script: Pre-existing script to use (skips script development).
         project_id: Custom project ID. If None, auto-generated.
         image_max_concurrent: Max concurrent image generations (default: 8).
+        skip_image_review: Skip image quality review for faster drafts (default: False).
     """
     idea: str
     num_scenes: int = 3
@@ -90,6 +91,7 @@ class PipelineConfig:
     existing_script: VideoScript | None = None
     project_id: str | None = None
     image_max_concurrent: int = 8
+    skip_image_review: bool = False
 
 
 @dataclass
@@ -310,17 +312,16 @@ class VideoPipeline:
         generated_assets: list[GeneratedAsset] = []
 
         def on_complete(element_id: str, result) -> None:
-            status = "✓" if result.status in ("success", "fallback") else "✗"
+            status = "✓" if result.status in ("success", "fallback", "unreviewed") else "✗"
             self._emit_progress("images", f"{status} {element_id}")
-
         results = await image_production.generate_all_with_review_parallel(
             elements=script.shared_elements,
             max_concurrent=self.config.image_max_concurrent,
             on_complete=on_complete,
+            skip_review=self.config.skip_image_review,
         )
-
         for result in results:
-            if result.status in ("success", "fallback"):
+            if result.status in ("success", "fallback", "unreviewed"):
                 asset = GeneratedAsset(
                     asset_type=AssetType.REFERENCE_IMAGE,
                     element_id=result.element_id,
