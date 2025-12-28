@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Layout, ChevronRight } from 'lucide-react'
+import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Palette, ChevronRight } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { ProductsSection } from './sections/ProductsSection'
 import { TemplatesSection } from './sections/TemplatesSection'
@@ -53,7 +53,10 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
       style={{ width }}
     >
       <div className="flex-1 flex flex-col items-center py-6 gap-4">
-        {/* Brand Memory Icon */}
+        {/* Compact Brand Selector */}
+        <BrandSelector compact />
+
+        {/* Brand Profile Icon */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -67,42 +70,55 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-foreground text-background">
-            <p>Brand Memory</p>
+            <p>Brand Profile</p>
           </TooltipContent>
         </Tooltip>
 
         <Separator className="w-8 bg-black/5 dark:bg-white/5" />
 
-        {/* Nav Icons */}
+        {/* Nav Icons - same order as expanded: Projects, Products, Style Guides */}
         <div className="flex flex-col gap-3">
-          <NavIcon
-            icon={<Package className="w-5 h-5" strokeWidth={1.5} />}
-            label={`Products (${products.length})`}
-            isActive={activeSection === 'products'}
-            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('products'); }}
-            count={products.length}
-            disabled={!activeBrand}
-          />
-          <NavIcon
-            icon={<Layout className="w-5 h-5" strokeWidth={1.5} />}
-            label={`Templates (${templates.length})`}
-            isActive={activeSection === 'templates'}
-            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('templates'); }}
-            count={templates.length}
-            disabled={!activeBrand}
-          />
           <NavIcon
             icon={<FolderOpen className="w-5 h-5" strokeWidth={1.5} />}
             label={`Projects (${projects.length})`}
             isActive={activeSection === 'projects'}
             onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('projects'); }}
-            count={projects.length}
+            disabled={!activeBrand}
+          />
+          <NavIcon
+            icon={<Package className="w-5 h-5" strokeWidth={1.5} />}
+            label={`Products (${products.length})`}
+            isActive={activeSection === 'products'}
+            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('products'); }}
+            disabled={!activeBrand}
+          />
+          <NavIcon
+            icon={<Palette className="w-5 h-5" strokeWidth={1.5} />}
+            label={`Style Guides (${templates.length})`}
+            isActive={activeSection === 'templates'}
+            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('templates'); }}
             disabled={!activeBrand}
           />
         </div>
 
         <div className="flex-1" />
 
+        {/* Settings Icon */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-10 h-10 rounded-2xl text-muted-foreground hover:text-foreground"
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              <Settings className="w-5 h-5" strokeWidth={1.5} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Settings</TooltipContent>
+        </Tooltip>
+
+        {/* Expand Button */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="w-10 h-10 rounded-2xl text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
@@ -112,6 +128,9 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
           <TooltipContent side="right">Expand</TooltipContent>
         </Tooltip>
       </div>
+
+      {/* Settings Dialog for collapsed mode */}
+      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </aside>
   ) : (
     <aside
@@ -134,8 +153,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             <Brain className="w-4.5 h-4.5" strokeWidth={1.5} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-foreground/90">Brand Memory</div>
-            <div className="text-[11px] text-muted-foreground truncate">Active & Learning</div>
+            <div className="text-sm font-medium text-foreground/90">Brand Profile</div>
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
         </div>
@@ -171,10 +189,10 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             <ProductsSection />
           </NavGroup>
 
-          {/* Templates Section */}
+          {/* Style Guides Section */}
           <NavGroup
-            title="Templates"
-            icon={<Layout className="w-4 h-4" />}
+            title="Style Guides"
+            icon={<Palette className="w-4 h-4" />}
             isOpen={activeSection === 'templates'}
             onToggle={() => toggleSection('templates')}
             onAdd={() => setIsCreateTemplateOpen(true)}
@@ -221,7 +239,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
 // Helper Components
 
-function NavIcon({ icon, label, isActive, onClick, count, disabled }: any) {
+function NavIcon({ icon, label, isActive, onClick, disabled }: any) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -229,16 +247,13 @@ function NavIcon({ icon, label, isActive, onClick, count, disabled }: any) {
           variant="ghost"
           size="icon"
           className={cn(
-            "w-10 h-10 rounded-xl relative transition-all",
+            "w-10 h-10 rounded-xl transition-all",
             isActive ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background/60"
           )}
           onClick={onClick}
           disabled={disabled}
         >
           {icon}
-          {count > 0 && (
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full" />
-          )}
         </Button>
       </TooltipTrigger>
       <TooltipContent side="right" className="bg-foreground text-background">
@@ -279,7 +294,7 @@ function NavGroup({ title, icon, isOpen, onToggle, onAdd, children }: any) {
         "grid transition-all duration-200 ease-in-out pl-2",
         isOpen ? "grid-rows-[1fr] opacity-100 mb-4" : "grid-rows-[0fr] opacity-0"
       )}>
-        <div className="overflow-hidden">
+        <div className="overflow-hidden pb-1">
           {children}
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Package, Plus, X, Star, Pencil, ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
+import { Package, X, Star, Pencil, ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -12,7 +12,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useProducts } from '@/context/ProductContext'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView, type ProductEntry, type ProductFull } from '@/lib/bridge'
-import { CreateProductDialog } from '../CreateProductDialog'
 import { EditProductDialog } from '../EditProductDialog'
 
 function ProductThumbnail({ path, size = 'sm' }: { path: string; size?: 'sm' | 'lg' }) {
@@ -211,7 +210,6 @@ function ProductCard({
             <div className="flex-1 min-w-0 overflow-hidden">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-medium truncate text-foreground/90">{product.name}</span>
-                {isAttached && <Star className="h-3 w-3 text-primary fill-primary shrink-0 animate-in zoom-in spin-in-90 duration-300" />}
               </div>
               <span className="text-xs text-muted-foreground truncate block">
                 {product.description.length > 40
@@ -268,7 +266,6 @@ export function ProductsSection() {
     deleteProduct,
   } = useProducts()
   const [actionError, setActionError] = useState<string | null>(null)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingProductSlug, setEditingProductSlug] = useState<string | null>(null)
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
@@ -314,22 +311,6 @@ export function ProductsSection() {
 
   return (
     <div className="space-y-2 pl-2 pr-1">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-500">
-          {products.length} product{products.length !== 1 ? 's' : ''}
-          {attachedProducts.length > 0 && ` (${attachedProducts.length} attached)`}
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0"
-          onClick={() => setIsCreateDialogOpen(true)}
-          title="Add product"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-
       {actionError && (
         <Alert variant="destructive" className="py-2 px-3">
           <AlertDescription className="flex items-center justify-between text-xs">
@@ -367,11 +348,6 @@ export function ProductsSection() {
           ))}
         </div>
       )}
-
-      <CreateProductDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-      />
 
       {editingProductSlug && (
         <EditProductDialog

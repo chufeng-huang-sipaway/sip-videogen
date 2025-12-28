@@ -42,7 +42,8 @@ const{currentBatch,selectedIndex,setSelectedIndex}=useWorkstation()
 const{setDragData,clearDrag}=useDrag()
 const btnRefs=useRef<(HTMLButtonElement|null)[]>([])
 //Auto-center selected thumbnail (also triggers when batch changes to handle prepend)
-useEffect(()=>{const btn=btnRefs.current[selectedIndex];if(btn)btn.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'})},[selectedIndex,currentBatch.length,currentBatch[0]?.id])
+//Use requestAnimationFrame to ensure refs are populated after render
+useEffect(()=>{requestAnimationFrame(()=>{const btn=btnRefs.current[selectedIndex];if(btn)btn.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'})})},[selectedIndex,currentBatch.length,currentBatch[0]?.id])
 const handleDragStart=(e:React.DragEvent,path:string)=>{if(!path||path.startsWith('data:'))return;
 //Create drag image from thumbnail
 const btn=e.currentTarget as HTMLElement;const img=btn.querySelector('img');if(img&&img.naturalWidth>0){const size=80,canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(ctx){const scale=Math.min(size/img.naturalWidth,size/img.naturalHeight);canvas.width=img.naturalWidth*scale;canvas.height=img.naturalHeight*scale;ctx.drawImage(img,0,0,canvas.width,canvas.height);e.dataTransfer.setDragImage(canvas,canvas.width/2,canvas.height/2)}}

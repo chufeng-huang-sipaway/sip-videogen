@@ -11,8 +11,8 @@ interface WorkstationContextType extends WorkstationState{setCurrentBatch:(image
 const WorkstationContext=createContext<WorkstationContextType|null>(null)
 export function WorkstationProvider({children}:{children:ReactNode}){
 const[state,setState]=useState<WorkstationState>({currentBatch:[],selectedIndex:0,statusVersion:0,browseMode:'preview'})
-const setCurrentBatch=useCallback((images:GeneratedImage[])=>{setState(s=>({...s,currentBatch:images,selectedIndex:0}))},[])
-//Prepend new images to existing batch, focus on first new image
+const setCurrentBatch=useCallback((images:GeneratedImage[])=>{setState(s=>({...s,currentBatch:images,selectedIndex:Math.max(0,images.length-1)}))},[])
+//Prepend new images to existing batch, focus on first new image (newest prepended at start)
 const prependToBatch=useCallback((images:GeneratedImage[])=>{setState(s=>({...s,currentBatch:[...images,...s.currentBatch],selectedIndex:0}))},[])
 const setSelectedIndex=useCallback((index:number)=>{setState(s=>({...s,selectedIndex:Math.max(0,Math.min(index,s.currentBatch.length-1))}))},[])
 const clearCurrentBatch=useCallback(()=>{setState(s=>({...s,currentBatch:[],selectedIndex:0}))},[])

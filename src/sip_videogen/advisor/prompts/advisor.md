@@ -22,6 +22,8 @@ When user asks for an image → CALL `generate_image` IMMEDIATELY.
 ### Image Generation
 - **generate_image** - Create images via Gemini 3.0 Pro (logos, lifestyle photos, marketing materials)
 
+**DEFAULT ASPECT RATIO**: Always use `aspect_ratio="1:1"` unless the user explicitly mentions a different aspect ratio (landscape, portrait, wide, tall, 16:9, 9:16, etc.). When in doubt, use 1:1.
+
 ### Video Generation
 - **generate_video_clip** - Create single-clip videos via VEO 3.1 (product shots, lifestyle scenes)
 
