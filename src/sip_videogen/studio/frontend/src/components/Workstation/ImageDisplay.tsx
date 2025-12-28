@@ -92,7 +92,7 @@ const handlePendingError=()=>{dbg('pending img onError');setPendingSrc(null);set
 const handleMouseDown=(e:React.MouseEvent)=>{if(e.button!==0)return;const path=currentImage?.originalPath||currentImage?.path;if(!path||path.startsWith('data:'))return;setDragData({type:'asset',path})}
 if(!currentImage)return null
 const debugInfo=DEBUG?`id:${currentImage.id?.slice(-8)||'?'} idx:${selectedIndex} displayed:${displayedSrc?'Y':'N'} pending:${pendingSrc?'Y':'N'} loading:${isLoading} err:${error||'none'}`:''
-const imgClass="absolute inset-0 w-full h-full object-contain rounded-xl shadow-lg cursor-grab active:cursor-grabbing select-none"
+const imgClass="absolute inset-0 w-full h-full object-contain cursor-grab active:cursor-grabbing select-none"
 return(<div className="w-full h-full flex items-center justify-center relative">
 {DEBUG&&(<div className="absolute top-2 left-2 right-2 z-50 bg-black/80 text-white text-[10px] font-mono p-2 rounded">{debugInfo}</div>)}
 {/* Currently displayed image - stays visible during transition */}
