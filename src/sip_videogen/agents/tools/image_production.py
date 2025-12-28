@@ -31,6 +31,13 @@ MAX_RETRIES = 2
 #Default concurrency limits
 _IMAGE_GEN_MAX_CONCURRENT = 8  #Generation limit (Gemini ~300 RPM)
 _REVIEW_MAX_CONCURRENT = 4     #Review limit (separate semaphore)
+_review_semaphore: asyncio.Semaphore|None = None
+def _get_review_semaphore() -> asyncio.Semaphore:
+    """Get or create the review semaphore (lazy init, module-level)."""
+    global _review_semaphore
+    if _review_semaphore is None:
+        _review_semaphore = asyncio.Semaphore(_REVIEW_MAX_CONCURRENT)
+    return _review_semaphore
 
 
 class ImageProductionManager:
@@ -116,15 +123,16 @@ class ImageProductionManager:
                 with open(image_path, "rb") as f:
                     image_data = base64.b64encode(f.read()).decode("utf-8")
 
-                # Review the image
+                # Review the image (with semaphore to limit concurrent OpenAI calls)
                 logger.info(f"Reviewing generated image for {element.id}")
-                review_result = await review_image(
-                    element_id=element.id,
-                    element_type=element.element_type.value,
-                    element_name=element.name,
-                    visual_description=current_prompt,
-                    image_base64=image_data,
-                )
+                async with _get_review_semaphore():
+                    review_result = await review_image(
+                        element_id=element.id,
+                        element_type=element.element_type.value,
+                        element_name=element.name,
+                        visual_description=current_prompt,
+                        image_base64=image_data,
+                    )
 
                 if review_result.decision == ReviewDecision.ACCEPT:
                     # Image accepted
@@ -302,7 +310,8 @@ class ImageProductionManager:
                 with open(vpath,"rb") as f:
                     image_data=base64.b64encode(f.read()).decode("utf-8")
                 logger.info(f"Reviewing variant {attempt_num}/{len(variant_paths)} for {element.id}")
-                review_result=await review_image(element_id=element.id,element_type=element.element_type.value,element_name=element.name,visual_description=element.visual_description,image_base64=image_data)
+                async with _get_review_semaphore():
+                    review_result=await review_image(element_id=element.id,element_type=element.element_type.value,element_name=element.name,visual_description=element.visual_description,image_base64=image_data)
                 if review_result.decision==ReviewDecision.ACCEPT:
                     logger.info(f"Variant {attempt_num} accepted for {element.id}: {review_result.reasoning}")
                     attempts.append(ImageGenerationAttempt(attempt_number=attempt_num,prompt_used=element.visual_description,outcome="success"))
