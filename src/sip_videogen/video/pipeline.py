@@ -80,6 +80,8 @@ class PipelineConfig:
         project_id: Custom project ID. If None, auto-generated.
         image_max_concurrent: Max concurrent image generations (default: 8).
         skip_image_review: Skip image quality review for faster drafts (default: False).
+        image_variants_per_request: Number of image variants per element (default: 1).
+            If >1, generates multiple variants and uses early-exit review. Max 4.
     """
     idea: str
     num_scenes: int = 3
@@ -92,6 +94,7 @@ class PipelineConfig:
     project_id: str | None = None
     image_max_concurrent: int = 8
     skip_image_review: bool = False
+    image_variants_per_request: int = 1
 
 
 @dataclass
@@ -319,6 +322,7 @@ class VideoPipeline:
             max_concurrent=self.config.image_max_concurrent,
             on_complete=on_complete,
             skip_review=self.config.skip_image_review,
+            num_variants=self.config.image_variants_per_request,
         )
         for result in results:
             if result.status in ("success", "fallback", "unreviewed"):

@@ -264,21 +264,50 @@ class ImageGenerator:
 
         return "\n".join(prompt_parts)
 
+    async def generate_reference_image_variants(self,element: SharedElement,output_dir: Path,num_variants: int=2,*,aspect_ratio: str|None=None) -> list[str]:
+        """Generate multiple variant images for a shared element in parallel.
+        Args:
+            element: The SharedElement to generate images for.
+            output_dir: Directory to save the generated images.
+            num_variants: Number of variants to generate (default 2, max 4).
+            aspect_ratio: Optional aspect ratio override.
+        Returns:
+            List of file paths to successfully generated variant images.
+        """
+        num_variants=min(max(num_variants,1),4)
+        ar=aspect_ratio or self._get_aspect_ratio_for_element(element)
+        logger.info(f"Generating {num_variants} variants for: {element.name} ({element.id})")
+        output_dir.mkdir(parents=True,exist_ok=True)
+        async def gen_variant(idx: int) -> str|None:
+            try:
+                prompt=self._build_prompt(element)
+                response=self.client.models.generate_content(model=self.model,contents=prompt,config=types.GenerateContentConfig(response_modalities=["IMAGE"],image_config=types.ImageConfig(aspect_ratio=ar,image_size="4K")))
+                for part in response.parts:
+                    if part.inline_data:
+                        image=part.as_image()
+                        path=output_dir/f"{element.id}_v{idx}.png"
+                        image.save(str(path))
+                        logger.debug(f"Saved variant {idx} to: {path}")
+                        return str(path)
+                return None
+            except Exception as e:
+                logger.warning(f"Failed to generate variant {idx} for {element.id}: {e}")
+                return None
+        tasks=[gen_variant(i) for i in range(num_variants)]
+        results=await asyncio.gather(*tasks)
+        paths=[p for p in results if p]
+        logger.info(f"Generated {len(paths)}/{num_variants} variants for {element.id}")
+        return paths
+
     def _get_aspect_ratio_for_element(self, element: SharedElement) -> str:
         """Determine the best aspect ratio for an element type.
-
         Args:
             element: The SharedElement to determine aspect ratio for.
-
         Returns:
             Aspect ratio string (e.g., "1:1", "16:9").
         """
-        # Use square for characters (good for consistency)
-        # Use wide for environments (establishes scene)
-        # Use square for props (clear detail)
-        aspect_ratios = {
-            "character": "1:1",
-            "environment": "16:9",
-            "prop": "1:1",
-        }
-        return aspect_ratios.get(element.element_type.value, "1:1")
+        #Use square for characters (good for consistency)
+        #Use wide for environments (establishes scene)
+        #Use square for props (clear detail)
+        aspect_ratios={"character":"1:1","environment":"16:9","prop":"1:1"}
+        return aspect_ratios.get(element.element_type.value,"1:1")

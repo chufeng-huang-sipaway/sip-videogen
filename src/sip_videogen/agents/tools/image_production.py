@@ -271,6 +271,74 @@ class ImageProductionManager:
             logger.warning(f"Generation error for {element.id}: {e}")
             return ImageGenerationResult(element_id=element.id,status="failed",local_path="",attempts=[ImageGenerationAttempt(attempt_number=1,prompt_used=element.visual_description,outcome="error",error_message=str(e))],final_prompt=element.visual_description)
 
+    async def generate_with_variants(self,element: SharedElement,*,num_variants: int=2,skip_review: bool=False) -> ImageGenerationResult:
+        """Generate multiple variants and use early-exit review strategy.
+        Generates num_variants images in parallel, then reviews them one-by-one until
+        one is accepted. Unused variants are cleaned up immediately.
+        Args:
+            element: The SharedElement to generate images for.
+            num_variants: Number of variants to generate (default 2, max 4).
+            skip_review: If True, skip review and return first variant (with warning).
+        Returns:
+            ImageGenerationResult with status and path.
+        """
+        if skip_review:
+            logger.warning(f"skip_review + num_variants: using first variant for {element.id}")
+            return await self._generate_without_review(element)
+        num_variants=min(max(num_variants,1),4)
+        logger.info(f"Generating {num_variants} variants for {element.id} with early-exit review")
+        #Generate all variants in parallel
+        variant_paths=await self.generator.generate_reference_image_variants(element,self.output_dir,num_variants)
+        if not variant_paths:
+            logger.warning(f"No variants generated for {element.id}")
+            return ImageGenerationResult(element_id=element.id,status="failed",local_path="",attempts=[ImageGenerationAttempt(attempt_number=1,prompt_used=element.visual_description,outcome="error",error_message="All variant generations failed")],final_prompt=element.visual_description)
+        attempts: list[ImageGenerationAttempt]=[]
+        accepted_path: str=""
+        final_path=self.output_dir/f"{element.id}.png"
+        #Review variants one-by-one (early exit on accept)
+        for idx,vpath in enumerate(variant_paths):
+            attempt_num=idx+1
+            try:
+                with open(vpath,"rb") as f:
+                    image_data=base64.b64encode(f.read()).decode("utf-8")
+                logger.info(f"Reviewing variant {attempt_num}/{len(variant_paths)} for {element.id}")
+                review_result=await review_image(element_id=element.id,element_type=element.element_type.value,element_name=element.name,visual_description=element.visual_description,image_base64=image_data)
+                if review_result.decision==ReviewDecision.ACCEPT:
+                    logger.info(f"Variant {attempt_num} accepted for {element.id}: {review_result.reasoning}")
+                    attempts.append(ImageGenerationAttempt(attempt_number=attempt_num,prompt_used=element.visual_description,outcome="success"))
+                    accepted_path=vpath
+                    break
+                else:
+                    logger.info(f"Variant {attempt_num} rejected for {element.id}: {review_result.reasoning}")
+                    attempts.append(ImageGenerationAttempt(attempt_number=attempt_num,prompt_used=element.visual_description,outcome="rejected",rejection_reason=review_result.reasoning))
+            except Exception as e:
+                logger.warning(f"Error reviewing variant {attempt_num} for {element.id}: {e}")
+                attempts.append(ImageGenerationAttempt(attempt_number=attempt_num,prompt_used=element.visual_description,outcome="error",error_message=str(e)))
+        #Determine which path to keep (accepted or last as fallback)
+        keep_path=accepted_path
+        if not keep_path and variant_paths:
+            #Find last existing variant for fallback
+            for vp in reversed(variant_paths):
+                if Path(vp).exists():
+                    keep_path=vp
+                    break
+        #Cleanup unused variants
+        for vp in variant_paths:
+            vp_path=Path(vp)
+            if vp!=keep_path and vp_path.exists():
+                vp_path.unlink()
+                logger.debug(f"Cleaned up unused variant: {vp}")
+        if accepted_path:
+            Path(accepted_path).rename(final_path)
+            logger.info(f"Renamed accepted variant to: {final_path}")
+            return ImageGenerationResult(element_id=element.id,status="success",local_path=str(final_path),attempts=attempts,final_prompt=element.visual_description)
+        #No variant accepted - use last as fallback
+        if keep_path and Path(keep_path).exists():
+            Path(keep_path).rename(final_path)
+            logger.warning(f"Using last variant as fallback for {element.id}")
+            return ImageGenerationResult(element_id=element.id,status="fallback",local_path=str(final_path),attempts=attempts,final_prompt=element.visual_description)
+        return ImageGenerationResult(element_id=element.id,status="failed",local_path="",attempts=attempts,final_prompt=element.visual_description)
+
     async def generate_all_with_review(
         self,
         elements: list[SharedElement],
@@ -310,6 +378,7 @@ class ImageProductionManager:
         on_complete: Callable[[str, ImageGenerationResult], None] | None = None,
         *,
         skip_review: bool = False,
+        num_variants: int = 1,
     ) -> list[ImageGenerationResult]:
         """Generate reference images for all elements in parallel with review.
         Each element's full generate→review→retry cycle runs independently
@@ -320,6 +389,8 @@ class ImageProductionManager:
             on_complete: Optional callback called when each element completes.
                          Receives (element_id, result).
             skip_review: If True, skip quality review (status="unreviewed").
+            num_variants: Number of variants per element (default 1). If >1, uses
+                         early-exit review strategy. Max 4.
         Returns:
             List of ImageGenerationResult for all elements, in the same order
             as the input elements list.
@@ -328,11 +399,15 @@ class ImageProductionManager:
             return []
         semaphore = asyncio.Semaphore(max_concurrent)
         results: dict[str, ImageGenerationResult] = {}
+        use_variants=num_variants>1
         async def generate_single(element: SharedElement) -> None:
             """Generate a single element with semaphore control."""
             async with semaphore:
                 logger.info(f"Starting parallel generation for {element.id}")
-                result = await self.generate_with_review(element,skip_review=skip_review)
+                if use_variants:
+                    result=await self.generate_with_variants(element,num_variants=num_variants,skip_review=skip_review)
+                else:
+                    result = await self.generate_with_review(element,skip_review=skip_review)
                 results[element.id] = result
                 if on_complete:
                     try:

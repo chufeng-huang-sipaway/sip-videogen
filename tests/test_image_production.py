@@ -104,3 +104,128 @@ class TestUnreviewedStatusInModel:
         for status in ["success","fallback","failed","unreviewed"]:
             result=ImageGenerationResult(element_id="test",status=status,local_path="/tmp/test.png" if status!="failed" else "",attempts=[],final_prompt="test")
             assert result.status==status
+class TestVariantsGeneration:
+    """Tests for multi-variant image generation with early-exit review."""
+    @pytest.fixture
+    def mock_generator_variants(self,tmp_path:Path):
+        """Create mock ImageGenerator with variant support."""
+        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+            instance=MockGen.return_value
+            async def mock_variants(elem,out_dir,num_variants,aspect_ratio=None):
+                paths=[]
+                for i in range(num_variants):
+                    p=tmp_path/f"{elem.id}_v{i}.png"
+                    p.write_bytes(b"fake png data")
+                    paths.append(str(p))
+                return paths
+            instance.generate_reference_image_variants=mock_variants
+            instance._get_aspect_ratio_for_element=MagicMock(return_value="1:1")
+            yield instance
+    @pytest.mark.asyncio
+    async def test_generate_with_variants_accepts_first(self,sample_shared_element:SharedElement,tmp_path:Path,mock_generator_variants):
+        """Test that early-exit review accepts first passing variant."""
+        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
+            from sip_videogen.models.image_review import ImageReviewResult,ReviewDecision
+            mock_review.return_value=ImageReviewResult(decision=ReviewDecision.ACCEPT,element_id="test",reasoning="Good")
+            manager=ImageProductionManager(gemini_api_key="test-key",output_dir=tmp_path)
+            manager.generator=mock_generator_variants
+            result=await manager.generate_with_variants(sample_shared_element,num_variants=3)
+            assert result.status=="success"
+            assert len(result.attempts)==1  #Early exit after first accept
+            mock_review.assert_called_once()
+    @pytest.mark.asyncio
+    async def test_generate_with_variants_rejects_then_accepts(self,sample_shared_element:SharedElement,tmp_path:Path,mock_generator_variants):
+        """Test that variant review continues until acceptance."""
+        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
+            from sip_videogen.models.image_review import ImageReviewResult,ReviewDecision
+            call_count=0
+            def review_side_effect(**kwargs):
+                nonlocal call_count
+                call_count+=1
+                if call_count<3:
+                    return ImageReviewResult(decision=ReviewDecision.REJECT,element_id="test",reasoning="Bad",improvement_suggestions="Try again")
+                return ImageReviewResult(decision=ReviewDecision.ACCEPT,element_id="test",reasoning="Good")
+            mock_review.side_effect=review_side_effect
+            manager=ImageProductionManager(gemini_api_key="test-key",output_dir=tmp_path)
+            manager.generator=mock_generator_variants
+            result=await manager.generate_with_variants(sample_shared_element,num_variants=3)
+            assert result.status=="success"
+            assert len(result.attempts)==3
+            assert result.attempts[0].outcome=="rejected"
+            assert result.attempts[1].outcome=="rejected"
+            assert result.attempts[2].outcome=="success"
+    @pytest.mark.asyncio
+    async def test_generate_with_variants_all_rejected_uses_fallback(self,sample_shared_element:SharedElement,tmp_path:Path,mock_generator_variants):
+        """Test fallback behavior when all variants are rejected."""
+        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
+            from sip_videogen.models.image_review import ImageReviewResult,ReviewDecision
+            mock_review.return_value=ImageReviewResult(decision=ReviewDecision.REJECT,element_id="test",reasoning="Bad",improvement_suggestions="")
+            manager=ImageProductionManager(gemini_api_key="test-key",output_dir=tmp_path)
+            manager.generator=mock_generator_variants
+            result=await manager.generate_with_variants(sample_shared_element,num_variants=2)
+            assert result.status=="fallback"
+            assert len(result.attempts)==2
+    @pytest.mark.asyncio
+    async def test_generate_with_variants_cleans_up_unused(self,sample_shared_element:SharedElement,tmp_path:Path,mock_generator_variants):
+        """Test that unused variants are cleaned up after acceptance."""
+        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
+            from sip_videogen.models.image_review import ImageReviewResult,ReviewDecision
+            mock_review.return_value=ImageReviewResult(decision=ReviewDecision.ACCEPT,element_id="test",reasoning="Good")
+            manager=ImageProductionManager(gemini_api_key="test-key",output_dir=tmp_path)
+            manager.generator=mock_generator_variants
+            await manager.generate_with_variants(sample_shared_element,num_variants=3)
+            #After cleanup, only final file should exist (no _v0, _v1, _v2 variants)
+            variant_files=[f for f in tmp_path.iterdir() if "_v" in f.name]
+            assert len(variant_files)==0
+    @pytest.mark.asyncio
+    async def test_generate_with_variants_skip_review_uses_first(self,sample_shared_element:SharedElement,tmp_path:Path):
+        """Test that skip_review + num_variants returns first variant."""
+        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+            mock_asset=GeneratedAsset(asset_type=AssetType.REFERENCE_IMAGE,element_id="test",local_path=str(tmp_path/"test.png"))
+            instance=MockGen.return_value
+            instance.generate_reference_image=AsyncMock(return_value=mock_asset)
+            instance._get_aspect_ratio_for_element=MagicMock(return_value="1:1")
+            manager=ImageProductionManager(gemini_api_key="test-key",output_dir=tmp_path)
+            manager.generator=instance
+            result=await manager.generate_with_variants(sample_shared_element,num_variants=3,skip_review=True)
+            assert result.status=="unreviewed"
+            #Should not have generated variants since skip_review=True
+            instance.generate_reference_image_variants=AsyncMock()
+            instance.generate_reference_image_variants.assert_not_called()
+    @pytest.mark.asyncio
+    async def test_parallel_with_variants(self,sample_shared_element:SharedElement,sample_environment_element:SharedElement,tmp_path:Path):
+        """Test parallel generation with variants enabled."""
+        async def mock_variants(elem,out_dir,num_variants,aspect_ratio=None):
+            paths=[]
+            for i in range(num_variants):
+                p=tmp_path/f"{elem.id}_v{i}.png"
+                p.write_bytes(b"fake png data")
+                paths.append(str(p))
+            return paths
+        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+            instance=MockGen.return_value
+            instance.generate_reference_image_variants=mock_variants
+            instance._get_aspect_ratio_for_element=MagicMock(return_value="1:1")
+            with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
+                from sip_videogen.models.image_review import ImageReviewResult,ReviewDecision
+                mock_review.return_value=ImageReviewResult(decision=ReviewDecision.ACCEPT,element_id="test",reasoning="Good")
+                manager=ImageProductionManager(gemini_api_key="test-key",output_dir=tmp_path)
+                manager.generator=instance
+                elements=[sample_shared_element,sample_environment_element]
+                results=await manager.generate_all_with_review_parallel(elements,num_variants=2)
+                assert len(results)==2
+                assert all(r.status=="success" for r in results)
+    @pytest.mark.asyncio
+    async def test_variants_generation_fails_gracefully(self,sample_shared_element:SharedElement,tmp_path:Path):
+        """Test that variant generation failure is handled gracefully."""
+        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+            async def mock_variants_fail(*args,**kwargs):
+                return []  #No variants generated
+            instance=MockGen.return_value
+            instance.generate_reference_image_variants=mock_variants_fail
+            instance._get_aspect_ratio_for_element=MagicMock(return_value="1:1")
+            manager=ImageProductionManager(gemini_api_key="test-key",output_dir=tmp_path)
+            manager.generator=instance
+            result=await manager.generate_with_variants(sample_shared_element,num_variants=3)
+            assert result.status=="failed"
+            assert "All variant generations failed" in result.attempts[0].error_message
