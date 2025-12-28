@@ -123,6 +123,11 @@
   }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Scrollbar refinement */
 ::-webkit-scrollbar {
   width: 5px;

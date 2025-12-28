@@ -102,10 +102,21 @@ class ImageStatusService:
             return bridge_ok(entry)
         except Exception as e:return bridge_error(str(e))
     def list_by_status(self,brand_slug:str,status:ImageStatus)->dict:
-        """List all images with a specific status."""
+        """List all images with a specific status, filtering out missing files."""
         try:
             data=self._load_status_data(brand_slug);images=data.get("images",{})
-            filtered=[v for v in images.values()if v.get("status")==status]
+            #Filter by status and verify file exists on disk
+            filtered=[];stale_ids=[]
+            for img_id,v in images.items():
+                if v.get("status")!=status:continue
+                path=v.get("originalPath")or v.get("currentPath")
+                if path and Path(path).exists():filtered.append(v)
+                else:stale_ids.append(img_id)
+            #Clean up stale entries from index
+            if stale_ids:
+                for img_id in stale_ids:del images[img_id]
+                data["images"]=images;self._save_status_data(brand_slug,data)
+                logger.info(f"Cleaned up {len(stale_ids)} stale image entries")
             return bridge_ok(filtered)
         except Exception as e:return bridge_error(str(e))
     def register_image(self,brand_slug:str,image_path:str,prompt:str|None=None,source_template_path:str|None=None)->dict:
