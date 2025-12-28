@@ -4,7 +4,7 @@ import{Button}from'@/components/ui/button'
 import{FormDialog}from'@/components/ui/form-dialog'
 import{Dropzone,DropzoneEmptyState}from'@/components/ui/dropzone'
 import{bridge,isPyWebView}from'@/lib/bridge'
-import{ALLOWED_IMAGE_EXTS,ALLOWED_TEXT_EXTS}from'@/lib/constants'
+import{getAllowedImageExts,getAllowedTextExts}from'@/lib/constants'
 import{processUploadedFiles}from'@/lib/file-utils'
 import type{ProcessedFile}from'@/lib/file-utils'
 import{useAsyncAction}from'@/hooks/useAsyncAction'
@@ -17,7 +17,7 @@ const[files,setFiles]=useState<ProcessedFile[]>([])
 const[uploadError,setUploadError]=useState<string|null>(null)
 const handleFilesAdded=useCallback(async(newFiles:File[])=>{
 setUploadError(null)
-const allExts=[...ALLOWED_IMAGE_EXTS,...ALLOWED_TEXT_EXTS]
+const allExts=[...getAllowedImageExts(),...getAllowedTextExts()]
 const{processed,rejected}=await processUploadedFiles(newFiles,allExts)
 //Check doc size
 const validFiles:ProcessedFile[]=[]
@@ -42,7 +42,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Create New Bran
 <Button onClick={()=>execute()} disabled={isLoading||(!description.trim()&&files.length===0)} className="bg-purple-600 hover:bg-purple-700">{isLoading?'Creating...':'Create Brand'}</Button>
 </>}>
 {/* Dropzone */}
-<Dropzone accept={{'image/*':ALLOWED_IMAGE_EXTS.map(e=>e),'text/*':ALLOWED_TEXT_EXTS.map(e=>e)}} maxFiles={20} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
+<Dropzone accept={{'image/*':getAllowedImageExts().map(e=>e),'text/*':getAllowedTextExts().map(e=>e)}} maxFiles={20} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
 <DropzoneEmptyState><div className="flex flex-col items-center"><p className="text-sm font-medium mb-1">Drag & drop images or documents</p><p className="text-xs text-muted-foreground">PNG, JPG, SVG, MD, TXT</p></div></DropzoneEmptyState>
 </Dropzone>
 {/* File List */}

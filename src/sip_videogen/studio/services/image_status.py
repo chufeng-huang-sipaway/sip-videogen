@@ -1,12 +1,10 @@
 """Image status tracking service for workstation curation."""
 from __future__ import annotations
-import json
-import os
 import uuid
 from datetime import datetime,timezone
 from pathlib import Path
 from typing import Literal
-from sip_videogen.brands.storage import get_brand_dir
+from sip_videogen.brands.storage import get_brand_dir,load_image_status_raw,save_image_status
 from ..state import BridgeState
 from ..utils.bridge_types import bridge_ok,bridge_error
 ImageStatus=Literal["unsorted","kept","trashed"]
@@ -21,15 +19,7 @@ class ImageStatusService:
         return get_brand_dir(brand_slug)/STATUS_FILE_NAME
     def _load_status_data(self,brand_slug:str)->dict:
         """Load status data from file, creating empty structure if missing."""
-        fp=self._get_status_file(brand_slug)
-        if not fp.exists():return {"version":CURRENT_VERSION,"images":{}}
-        try:
-            with open(fp,"r",encoding="utf-8")as f:data=json.load(f)
-        except(json.JSONDecodeError,OSError):return {"version":CURRENT_VERSION,"images":{}}
-        if not isinstance(data,dict):return {"version":CURRENT_VERSION,"images":{}}
-        #Normalize basic shape
-        if not isinstance(data.get("version"),int):data["version"]=CURRENT_VERSION
-        if not isinstance(data.get("images"),dict):data["images"]={}
+        data=load_image_status_raw(brand_slug)
         #Migrate legacy data: ensure unread tracking baseline exists + mark legacy images as viewed
         baseline,changed=self._ensure_unread_tracking_started_at(data)
         changed=self._migrate_legacy_viewed_at(data,baseline)or changed
@@ -38,10 +28,7 @@ class ImageStatusService:
         return data
     def _save_status_data(self,brand_slug:str,data:dict)->None:
         """Atomically save status data to file."""
-        fp=self._get_status_file(brand_slug);tmp=fp.with_suffix(".json.tmp")
-        fp.parent.mkdir(parents=True,exist_ok=True)
-        with open(tmp,"w",encoding="utf-8")as f:json.dump(data,f,indent=2)
-        os.replace(tmp,fp)
+        save_image_status(brand_slug,data)
     def _generate_id(self)->str:
         """Generate unique image ID."""
         return f"img_{uuid.uuid4().hex[:12]}"

@@ -8,7 +8,7 @@ import{useProducts}from'@/context/ProductContext'
 import{useAsyncAction}from'@/hooks/useAsyncAction'
 import{processImageFiles}from'@/lib/file-utils'
 import type{ProcessedFile}from'@/lib/file-utils'
-import{ALLOWED_IMAGE_EXTS}from'@/lib/constants'
+import{getAllowedImageExts}from'@/lib/constants'
 import{toast}from'@/components/ui/toaster'
 interface CreateProductDialogProps{open:boolean;onOpenChange:(open:boolean)=>void;onCreated?:(slug:string)=>void}
 export function CreateProductDialog({open,onOpenChange,onCreated}:CreateProductDialogProps){
@@ -51,7 +51,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Add New Product
 {/* Image Dropzone */}
 <div className="space-y-2">
 <label className="text-sm font-medium">Product Images</label>
-<Dropzone accept={{'image/*':ALLOWED_IMAGE_EXTS.map(e=>e)}} maxFiles={20} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
+<Dropzone accept={{'image/*':getAllowedImageExts().map(e=>e)}} maxFiles={20} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
 <DropzoneEmptyState><div className="flex flex-col items-center"><p className="text-sm mb-1">Drag & drop product images</p><p className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP</p></div></DropzoneEmptyState>
 </Dropzone>
 </div>

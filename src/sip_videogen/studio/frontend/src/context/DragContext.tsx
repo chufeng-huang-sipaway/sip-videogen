@@ -15,7 +15,7 @@ const getDragData=useCallback(()=>dragDataRef.current,[])
 const registerDropZone=useCallback((id:string,el:HTMLElement,handler:DropHandler)=>{dropZonesRef.current.set(id,{el,handler})},[])
 const unregisterDropZone=useCallback((id:string)=>{dropZonesRef.current.delete(id)},[])
 //Global mouseup listener - check if release is over a drop zone
-useEffect(()=>{const onMouseUp=(e:MouseEvent)=>{const data=dragDataRef.current;if(!data)return;let handled=false;dropZonesRef.current.forEach(({el,handler})=>{const rect=el.getBoundingClientRect();if(e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom){handler(data);handled=true}});if(!handled)dragDataRef.current=null;setDragDataState(null);document.body.classList.remove('is-dragging')};document.addEventListener('mouseup',onMouseUp);return()=>document.removeEventListener('mouseup',onMouseUp)},[])
+useEffect(()=>{const onMouseUp=(e:MouseEvent)=>{const data=dragDataRef.current;if(!data)return;dropZonesRef.current.forEach(({el,handler})=>{const rect=el.getBoundingClientRect();if(e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom){handler(data)}});dragDataRef.current=null;setDragDataState(null);document.body.classList.remove('is-dragging')};document.addEventListener('mouseup',onMouseUp);return()=>document.removeEventListener('mouseup',onMouseUp)},[])
 return<DragContext.Provider value={{dragData,setDragData,clearDrag,getDragData,registerDropZone,unregisterDropZone}}>{children}</DragContext.Provider>
 }
 export function useDrag(){const ctx=useContext(DragContext);if(!ctx)throw new Error('useDrag must be used within DragProvider');return ctx}

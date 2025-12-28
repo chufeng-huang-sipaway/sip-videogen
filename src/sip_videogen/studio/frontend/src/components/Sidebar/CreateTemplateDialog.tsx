@@ -9,7 +9,7 @@ import{useTemplates}from'@/context/TemplateContext'
 import{useAsyncAction}from'@/hooks/useAsyncAction'
 import{processImageFiles}from'@/lib/file-utils'
 import type{ProcessedFile}from'@/lib/file-utils'
-import{ALLOWED_IMAGE_EXTS}from'@/lib/constants'
+import{getAllowedImageExts}from'@/lib/constants'
 import{toast}from'@/components/ui/toaster'
 interface CreateTemplateDialogProps{open:boolean;onOpenChange:(open:boolean)=>void;onCreated?:(slug:string)=>void}
 export function CreateTemplateDialog({open,onOpenChange,onCreated}:CreateTemplateDialogProps){
@@ -68,7 +68,7 @@ className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full bo
 {/*Image Dropzone*/}
 <div className="space-y-2">
 <label className="text-sm font-medium">Template Images <span className="text-red-500">*</span> <span className="text-xs text-muted-foreground">(1-2 images)</span></label>
-<Dropzone accept={{'image/*':ALLOWED_IMAGE_EXTS.map(e=>e)}} maxFiles={2} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
+<Dropzone accept={{'image/*':getAllowedImageExts().map(e=>e)}} maxFiles={2} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
 <DropzoneEmptyState><div className="flex flex-col items-center"><p className="text-sm mb-1">Drag & drop layout images</p><p className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP</p></div></DropzoneEmptyState>
 </Dropzone>
 </div>

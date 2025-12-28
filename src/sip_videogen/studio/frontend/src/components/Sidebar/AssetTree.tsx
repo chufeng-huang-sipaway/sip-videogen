@@ -12,11 +12,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBrand } from '@/context/BrandContext'
 import { useAssets } from '@/hooks/useAssets'
 import { bridge, isPyWebView, type AssetNode } from '@/lib/bridge'
-import { ALLOWED_IMAGE_EXTS } from '@/lib/constants'
+import { getAllowedImageExts } from '@/lib/constants'
 import { ImageViewer } from '../ui/image-viewer'
 import { VideoViewer } from '../ui/video-viewer'
-
-const ALLOWED_IMAGE_EXTS_SET = new Set(ALLOWED_IMAGE_EXTS)
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -230,6 +228,8 @@ export function AssetTree() {
 
     const files = Array.from(e.dataTransfer.files)
     const rejectedFiles: string[] = []
+    const allowedImageExts = getAllowedImageExts()
+    const allowedImageExtsSet = new Set(allowedImageExts)
 
     for (const file of files) {
       const lower = file.name.toLowerCase()
@@ -238,7 +238,7 @@ export function AssetTree() {
 
       // Check both MIME type and extension for better validation
       const isValidMime = file.type.startsWith('image/')
-      const isValidExt = ALLOWED_IMAGE_EXTS_SET.has(ext)
+      const isValidExt = allowedImageExtsSet.has(ext)
 
       if (!isValidMime && !isValidExt) {
         console.warn(`[AssetTree] Rejected file "${file.name}": not a valid image. Type: "${file.type}", Extension: "${ext}"`)
@@ -255,7 +255,7 @@ export function AssetTree() {
     }
 
     if (rejectedFiles.length > 0) {
-      const allowedList = ALLOWED_IMAGE_EXTS.join(', ')
+      const allowedList = allowedImageExts.join(', ')
       setUploadError(`Unsupported file(s): ${rejectedFiles.join(', ')}. Allowed types: ${allowedList}`)
     }
   }, [uploadAsset])

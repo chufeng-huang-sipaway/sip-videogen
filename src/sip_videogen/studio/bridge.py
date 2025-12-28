@@ -11,6 +11,7 @@ from .services.template_service import TemplateService
 from .services.update_service import UpdateService
 from .utils.bridge_types import BridgeResponse,bridge_ok,bridge_error
 from .utils.config_store import check_api_keys as do_check_api_keys,load_api_keys_from_config,save_api_keys as do_save_api_keys
+from ..constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS,ALLOWED_TEXT_EXTS,MIME_TYPES,VIDEO_MIME_TYPES
 #Load API keys on module import (app startup)
 load_api_keys_from_config()
 class StudioBridge:
@@ -27,6 +28,12 @@ class StudioBridge:
         self._update=UpdateService(self._state)
         self._image_status=ImageStatusService(self._state)
     def set_window(self,window):self._state.window=window
+    #===========================================================================
+    #Constants (Single Source of Truth)
+    #===========================================================================
+    def get_constants(self)->dict:
+        """Return all constants for frontend consumption. Sets converted to sorted lists."""
+        return bridge_ok({"asset_categories":list(ASSET_CATEGORIES),"allowed_image_exts":sorted(ALLOWED_IMAGE_EXTS),"allowed_video_exts":sorted(ALLOWED_VIDEO_EXTS),"allowed_text_exts":sorted(ALLOWED_TEXT_EXTS),"mime_types":MIME_TYPES,"video_mime_types":VIDEO_MIME_TYPES})
     #===========================================================================
     #Configuration / Setup
     #===========================================================================
@@ -174,6 +181,7 @@ class StudioBridge:
         import subprocess
         from pathlib import Path
         from .utils.path_utils import resolve_assets_path
+        from .utils.os_utils import copy_image_to_clipboard_macos
         try:
             path=Path(image_path)
             #Handle relative paths (e.g. "generated/project__image.png")
@@ -184,16 +192,15 @@ class StudioBridge:
                 if err:return bridge_error(err)
                 path=resolved
             if not path.exists():return bridge_error(f"File not found: {image_path}")
-            script=f'''osascript -e 'set the clipboard to (read (POSIX file "{path}") as «class PNGf»)' 2>/dev/null || osascript -e 'set the clipboard to (read (POSIX file "{path}") as JPEG picture)' '''
-            subprocess.run(script,shell=True,check=True,capture_output=True)
+            copy_image_to_clipboard_macos(path)
             return bridge_ok({"copied":True,"path":str(path)})
         except subprocess.CalledProcessError as e:return bridge_error(f"Failed to copy: {e}")
         except Exception as e:return bridge_error(str(e))
     def share_image(self,image_path:str)->dict:
         """Reveal image in Finder."""
-        import subprocess
         from pathlib import Path
         from .utils.path_utils import resolve_assets_path
+        from .utils.os_utils import reveal_in_file_manager
         try:
             path=Path(image_path)
             #Handle relative paths (e.g. "generated/project__image.png")
@@ -204,7 +211,6 @@ class StudioBridge:
                 if err:return bridge_error(err)
                 path=resolved
             if not path.exists():return bridge_error(f"File not found: {image_path}")
-            #Reveal in Finder with file selected
-            subprocess.Popen(['open','-R',str(path)])
-            return bridge_ok({"revealed":True,"path":str(path)})
+            reveal_in_file_manager(path)
+            return bridge_ok({"shared":True,"path":str(path)})
         except Exception as e:return bridge_error(str(e))

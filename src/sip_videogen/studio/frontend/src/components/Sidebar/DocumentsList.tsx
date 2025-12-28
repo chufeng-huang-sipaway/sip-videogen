@@ -13,10 +13,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useBrand } from '@/context/BrandContext'
 import { useDocuments } from '@/hooks/useDocuments'
 import { isPyWebView } from '@/lib/bridge'
-import { ALLOWED_TEXT_EXTS } from '@/lib/constants'
+import { getAllowedTextExts } from '@/lib/constants'
 import { MarkdownContent } from '../ChatPanel/MarkdownContent'
-
-const ALLOWED_DOC_EXTS = new Set(ALLOWED_TEXT_EXTS)
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -62,13 +60,14 @@ export function DocumentsList() {
 
     const files = Array.from(e.dataTransfer.files)
     const rejectedFiles: string[] = []
+    const allowedDocExts = new Set(getAllowedTextExts())
 
     for (const file of files) {
       const lower = file.name.toLowerCase()
       const dot = lower.lastIndexOf('.')
       const ext = dot >= 0 ? lower.slice(dot) : ''
-      if (!ALLOWED_DOC_EXTS.has(ext)) {
-        console.warn(`[DocumentsList] Rejected file "${file.name}": unsupported extension "${ext}". Allowed: ${Array.from(ALLOWED_DOC_EXTS).join(', ')}`)
+      if (!allowedDocExts.has(ext)) {
+        console.warn(`[DocumentsList] Rejected file "${file.name}": unsupported extension "${ext}". Allowed: ${Array.from(allowedDocExts).join(', ')}`)
         rejectedFiles.push(file.name)
         continue
       }
@@ -81,7 +80,7 @@ export function DocumentsList() {
     }
 
     if (rejectedFiles.length > 0) {
-      const allowedList = Array.from(ALLOWED_DOC_EXTS).join(', ')
+      const allowedList = Array.from(allowedDocExts).join(', ')
       setUploadError(`Unsupported file(s): ${rejectedFiles.join(', ')}. Allowed types: ${allowedList}`)
     }
   }, [activeBrand, uploadDocument])
