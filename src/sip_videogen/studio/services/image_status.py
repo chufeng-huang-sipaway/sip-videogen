@@ -5,8 +5,10 @@ from datetime import datetime,timezone
 from pathlib import Path
 from typing import Literal
 from sip_videogen.brands.storage import get_brand_dir,load_image_status_raw,save_image_status
+from sip_videogen.config.logging import get_logger
 from ..state import BridgeState
 from ..utils.bridge_types import bridge_ok,bridge_error
+logger=get_logger(__name__)
 ImageStatus=Literal["unsorted","kept","trashed"]
 STATUS_FILE_NAME="image_status.json"
 CURRENT_VERSION=1
@@ -220,7 +222,7 @@ class ImageStatusService:
                 path=Path(entry.get("currentPath",""))
                 if path.exists():
                     try:path.unlink()
-                    except OSError:pass
+                    except OSError as e:logger.debug("Failed to delete trashed image %s: %s",path,e)
                 to_remove.append(image_id);deleted.append(entry)
             for image_id in to_remove:del images[image_id]
             if to_remove:data["images"]=images;self._save_status_data(brand_slug,data)

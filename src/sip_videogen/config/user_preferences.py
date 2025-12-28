@@ -14,6 +14,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field
 
 from sip_videogen.generators.base import VideoProvider
+from sip_videogen.utils.file_utils import write_atomically
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,8 @@ class UserPreferences(BaseModel):
 
         merged = dict(existing)
         merged.update(self.model_dump(mode="json"))
-        config_path.write_text(json.dumps(merged, indent=2))
+        # Config file may contain API keys; ensure restrictive permissions.
+        write_atomically(config_path, json.dumps(merged, indent=2), mode=0o600)
         logger.info("Saved user preferences to %s", config_path)
 
     @classmethod

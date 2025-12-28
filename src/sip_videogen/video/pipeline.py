@@ -53,6 +53,7 @@ from sip_videogen.models import (
     ProductionPackage,
     VideoScript,
 )
+from sip_videogen.utils.file_utils import write_atomically
 
 if TYPE_CHECKING:
     from sip_videogen.generators.base import BaseVideoGenerator
@@ -183,9 +184,9 @@ class VideoPipeline:
         script = await self._develop_script()
         stages_completed.append("script_development")
 
-        # Save script
+        # Save script atomically
         script_path = project_dir / "script.json"
-        script_path.write_text(script.model_dump_json(indent=2))
+        write_atomically(script_path,script.model_dump_json(indent=2))
         self._emit_progress("script", f"Script saved to {script_path}")
 
         # Early return for dry run

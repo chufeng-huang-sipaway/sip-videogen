@@ -32,6 +32,7 @@ from agents import function_tool
 from typing_extensions import NotRequired, TypedDict
 
 from sip_videogen.brands.models import ProductAttribute, ProductFull, TemplateFull, TemplateSummary
+from sip_videogen.utils.file_utils import write_atomically
 from sip_videogen.brands.product_description import (
     extract_attributes_from_description,
     has_attributes_block,
@@ -305,10 +306,10 @@ def store_image_metadata(path: str, metadata: ImageGenerationMetadata) -> None:
     import json
     data = asdict(metadata)
     _image_metadata[path] = data
-    #Persist to .meta.json file
+    #Persist to .meta.json file atomically
     try:
         meta_path = _get_metadata_path(path)
-        meta_path.write_text(json.dumps(data, indent=2))
+        write_atomically(meta_path,json.dumps(data, indent=2))
         logger.debug(f"Saved image metadata to {meta_path}")
     except Exception as e:
         logger.warning(f"Failed to save image metadata: {e}")
@@ -1123,7 +1124,7 @@ def store_video_metadata(path: str, metadata: dict) -> None:
     _video_metadata[path] = metadata
     try:
         meta_path = Path(path).with_suffix(".meta.json")
-        meta_path.write_text(json.dumps(metadata, indent=2))
+        write_atomically(meta_path,json.dumps(metadata, indent=2))
         logger.debug(f"Saved video metadata to {meta_path}")
     except Exception as e:
         logger.warning(f"Failed to save video metadata: {e}")
@@ -2011,11 +2012,8 @@ def _impl_write_file(path: str, content: str) -> str:
         return "Error: No active brand selected. Use load_brand() first."
 
     try:
-        # Create parent directories
-        resolved.parent.mkdir(parents=True, exist_ok=True)
-
-        # Write content
-        resolved.write_text(content, encoding="utf-8")
+        # Write content atomically
+        write_atomically(resolved,content)
 
         logger.info(f"Wrote file: {resolved}")
         return f"Successfully wrote to: {path}"
@@ -2889,7 +2887,7 @@ def update_memory(
         "updated_at": datetime.utcnow().isoformat(),
     }
 
-    memory_path.write_text(json.dumps(memory, indent=2))
+    write_atomically(memory_path,json.dumps(memory, indent=2))
     _pending_memory_update = {"message": display_message}
 
     return f"Memory updated: {key}"

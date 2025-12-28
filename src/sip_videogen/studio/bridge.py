@@ -39,11 +39,11 @@ class StudioBridge:
     #===========================================================================
     def check_api_keys(self)->dict:
         """Check if required API keys are configured."""
-        return BridgeResponse(success=True,data=do_check_api_keys()).to_dict()
+        return bridge_ok(do_check_api_keys())
     def save_api_keys(self,openai_key:str,gemini_key:str,firecrawl_key:str="")->dict:
         """Save API keys to environment and persist to config file."""
-        try:do_save_api_keys(openai_key,gemini_key,firecrawl_key);return BridgeResponse(success=True).to_dict()
-        except Exception as e:return BridgeResponse(success=False,error=str(e)).to_dict()
+        try:do_save_api_keys(openai_key,gemini_key,firecrawl_key);return bridge_ok()
+        except Exception as e:return bridge_error(str(e))
     #===========================================================================
     #Brand Management
     #===========================================================================
