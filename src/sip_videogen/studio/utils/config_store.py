@@ -1,6 +1,7 @@
 """API key configuration storage."""
 import json,os
 from pathlib import Path
+from sip_videogen.utils.file_utils import write_atomically
 #Config file for persistent settings (API keys, preferences)
 CONFIG_PATH=Path.home()/".sip-videogen"/"config.json"
 def _load_config()->dict:
@@ -10,9 +11,8 @@ def _load_config()->dict:
         except(json.JSONDecodeError,OSError):pass
     return{}
 def _save_config(config:dict)->None:
-    """Save config to disk."""
-    CONFIG_PATH.parent.mkdir(parents=True,exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(config,indent=2))
+    """Save config to disk atomically with restrictive permissions (contains API keys)."""
+    write_atomically(CONFIG_PATH,json.dumps(config,indent=2),mode=0o600)
 def load_api_keys_from_config()->None:
     """Load API keys from config into environment (called on startup)."""
     c=_load_config();keys=c.get("api_keys",{})

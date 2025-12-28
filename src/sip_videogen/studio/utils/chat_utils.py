@@ -29,7 +29,7 @@ async def process_attachments(attachments:list[dict]|None,brand_dir:Path,resolve
                 stem=Path(safe_name).stem;unique_name=f"{stem}-{int(time.time()*1000)}{suffix}"
                 target=upload_dir/unique_name;target.write_bytes(content)
                 rel_path=target.relative_to(brand_dir).as_posix();full_path=target;safe_name=unique_name
-            except Exception:continue
+            except Exception as e:logger.debug("Failed to decode/write attachment %s: %s",safe_name,e);continue
         elif ref_path:
             rp=Path(ref_path)
             # Allow absolute paths, but restrict them to within the active brand directory.
@@ -41,8 +41,7 @@ async def process_attachments(attachments:list[dict]|None,brand_dir:Path,resolve
                         rel_path=resolved.relative_to(brand_dir).as_posix()
                         full_path=resolved
                         safe_name=resolved.name
-                except Exception:
-                    pass
+                except Exception as e:logger.debug("Failed to resolve absolute path %s: %s",rp,e)
             if not full_path:
                 resolved,error=resolve_assets_fn(ref_path)
                 if error:resolved,error=resolve_docs_fn(ref_path)
@@ -83,7 +82,7 @@ def encode_new_images(paths:list[str],get_image_metadata_fn:Callable)->list[dict
             mime={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp"}.get(path.suffix.lower(),"image/png")
             metadata=get_image_metadata_fn(img_path)
             image_data.append({"url":f"data:{mime};base64,{encoded}","path":str(path),"metadata":metadata})
-        except Exception:pass
+        except Exception as e:logger.debug("Failed to encode image %s: %s",img_path,e)
     return image_data
 
 
@@ -108,5 +107,5 @@ def encode_new_videos(paths:list[str],get_video_metadata_fn:Callable)->list[dict
             mime=mime_types.get(path.suffix.lower(),"video/mp4")
             metadata=get_video_metadata_fn(vid_path)
             video_data.append({"url":f"data:{mime};base64,{encoded}","path":str(path),"filename":path.name,"metadata":metadata})
-        except Exception:pass
+        except Exception as e:logger.debug("Failed to encode video %s: %s",vid_path,e)
     return video_data

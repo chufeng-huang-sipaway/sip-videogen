@@ -14,6 +14,7 @@ from pathlib import Path
 
 from sip_videogen.constants import (
     ALLOWED_IMAGE_EXTS,ALLOWED_TEXT_EXTS,ALLOWED_VIDEO_EXTS,ASSET_CATEGORIES)
+from sip_videogen.utils.file_utils import write_atomically
 from .models import (
     BrandIdentityFull,
     BrandIndex,
@@ -86,10 +87,9 @@ def load_index() -> BrandIndex:
 
 
 def save_index(index: BrandIndex) -> None:
-    """Save the brand index to disk."""
+    """Save the brand index to disk atomically."""
     index_path = get_index_path()
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(index.model_dump_json(indent=2))
+    write_atomically(index_path,index.model_dump_json(indent=2))
     logger.debug("Saved brand index with %d brands", len(index.brands))
 
 
@@ -124,12 +124,12 @@ def create_brand(identity: BrandIdentityFull) -> BrandSummary:
     #Initialize templates directory with empty index
     templates_dir=brand_dir/"templates"
     templates_dir.mkdir(exist_ok=True)
-    (templates_dir/"index.json").write_text(TemplateIndex().model_dump_json(indent=2))
+    write_atomically(templates_dir/"index.json",TemplateIndex().model_dump_json(indent=2))
 
-    # Save identity files
+    # Save identity files atomically
     summary = identity.to_summary()
-    (brand_dir / "identity.json").write_text(summary.model_dump_json(indent=2))
-    (brand_dir / "identity_full.json").write_text(identity.model_dump_json(indent=2))
+    write_atomically(brand_dir/"identity.json",summary.model_dump_json(indent=2))
+    write_atomically(brand_dir/"identity_full.json",identity.model_dump_json(indent=2))
 
     # Update index
     index = load_index()
@@ -216,10 +216,10 @@ def save_brand(identity: BrandIdentityFull) -> BrandSummary:
     # Update timestamp
     identity.updated_at = datetime.utcnow()
 
-    # Save files
+    # Save files atomically
     summary = identity.to_summary()
-    (brand_dir / "identity.json").write_text(summary.model_dump_json(indent=2))
-    (brand_dir / "identity_full.json").write_text(identity.model_dump_json(indent=2))
+    write_atomically(brand_dir/"identity.json",summary.model_dump_json(indent=2))
+    write_atomically(brand_dir/"identity_full.json",identity.model_dump_json(indent=2))
 
     # Update index (re-register if missing for resilience)
     index = load_index()
@@ -310,12 +310,12 @@ def update_brand_summary_stats(slug: str) -> bool:
                 for fp in cat_dir.iterdir():
                     if fp.suffix.lower()in ALLOWED_IMAGE_EXTS:asset_count+=1
 
-    # Load, update, and save summary
+    # Load, update, and save summary atomically
     try:
         data = json.loads(summary_path.read_text())
         data["asset_count"] = asset_count
         data["last_generation"] = datetime.utcnow().isoformat()
-        summary_path.write_text(json.dumps(data, indent=2))
+        write_atomically(summary_path,json.dumps(data, indent=2))
         logger.debug(
             "Updated brand %s stats: %d assets", slug, asset_count
         )
@@ -564,10 +564,9 @@ def load_product_index(brand_slug: str) -> ProductIndex:
 
 
 def save_product_index(brand_slug: str, index: ProductIndex) -> None:
-    """Save the product index for a brand."""
+    """Save the product index for a brand atomically."""
     index_path = get_product_index_path(brand_slug)
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(index.model_dump_json(indent=2))
+    write_atomically(index_path,index.model_dump_json(indent=2))
     logger.debug(
         "Saved product index for %s with %d products",
         brand_slug,
@@ -602,10 +601,10 @@ def create_product(brand_slug: str, product: ProductFull) -> ProductSummary:
     product_dir.mkdir(parents=True, exist_ok=True)
     (product_dir / "images").mkdir(exist_ok=True)
 
-    # Save product files
+    # Save product files atomically
     summary = product.to_summary()
-    (product_dir / "product.json").write_text(summary.model_dump_json(indent=2))
-    (product_dir / "product_full.json").write_text(product.model_dump_json(indent=2))
+    write_atomically(product_dir/"product.json",summary.model_dump_json(indent=2))
+    write_atomically(product_dir/"product_full.json",product.model_dump_json(indent=2))
 
     # Update index
     index = load_product_index(brand_slug)
@@ -680,10 +679,10 @@ def save_product(brand_slug: str, product: ProductFull) -> ProductSummary:
     # Update timestamp
     product.updated_at = datetime.utcnow()
 
-    # Save files
+    # Save files atomically
     summary = product.to_summary()
-    (product_dir / "product.json").write_text(summary.model_dump_json(indent=2))
-    (product_dir / "product_full.json").write_text(product.model_dump_json(indent=2))
+    write_atomically(product_dir/"product.json",summary.model_dump_json(indent=2))
+    write_atomically(product_dir/"product_full.json",product.model_dump_json(indent=2))
 
     # Update index
     index = load_product_index(brand_slug)
@@ -893,10 +892,9 @@ def load_project_index(brand_slug: str) -> ProjectIndex:
 
 
 def save_project_index(brand_slug: str, index: ProjectIndex) -> None:
-    """Save the project index for a brand."""
+    """Save the project index for a brand atomically."""
     index_path = get_project_index_path(brand_slug)
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(index.model_dump_json(indent=2))
+    write_atomically(index_path,index.model_dump_json(indent=2))
     logger.debug(
         "Saved project index for %s with %d projects",
         brand_slug,
@@ -982,11 +980,11 @@ def create_project(brand_slug: str, project: ProjectFull) -> ProjectSummary:
     # Create directory
     project_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save project files (asset_count is 0 for new projects)
+    # Save project files atomically (asset_count is 0 for new projects)
     asset_count = count_project_assets(brand_slug, project.slug)
     summary = project.to_summary(asset_count=asset_count)
-    (project_dir / "project.json").write_text(summary.model_dump_json(indent=2))
-    (project_dir / "project_full.json").write_text(project.model_dump_json(indent=2))
+    write_atomically(project_dir/"project.json",summary.model_dump_json(indent=2))
+    write_atomically(project_dir/"project_full.json",project.model_dump_json(indent=2))
 
     # Update index
     index = load_project_index(brand_slug)
@@ -1061,11 +1059,11 @@ def save_project(brand_slug: str, project: ProjectFull) -> ProjectSummary:
     # Update timestamp
     project.updated_at = datetime.utcnow()
 
-    # Save files (recalculate asset_count)
+    # Save files atomically (recalculate asset_count)
     asset_count = count_project_assets(brand_slug, project.slug)
     summary = project.to_summary(asset_count=asset_count)
-    (project_dir / "project.json").write_text(summary.model_dump_json(indent=2))
-    (project_dir / "project_full.json").write_text(project.model_dump_json(indent=2))
+    write_atomically(project_dir/"project.json",summary.model_dump_json(indent=2))
+    write_atomically(project_dir/"project_full.json",project.model_dump_json(indent=2))
 
     # Update index
     index = load_project_index(brand_slug)
@@ -1184,10 +1182,9 @@ def load_template_index(brand_slug: str) -> TemplateIndex:
 
 
 def save_template_index(brand_slug: str, index: TemplateIndex) -> None:
-    """Save the template index for a brand."""
+    """Save the template index for a brand atomically."""
     index_path = get_template_index_path(brand_slug)
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(index.model_dump_json(indent=2))
+    write_atomically(index_path,index.model_dump_json(indent=2))
     logger.debug("Saved template index for %s with %d templates",brand_slug,len(index.templates))
 
 
@@ -1213,10 +1210,10 @@ def create_template(brand_slug: str, template: TemplateFull) -> TemplateSummary:
     #Create directory structure
     template_dir.mkdir(parents=True, exist_ok=True)
     (template_dir / "images").mkdir(exist_ok=True)
-    #Save template files
+    #Save template files atomically
     summary = template.to_summary()
-    (template_dir / "template.json").write_text(summary.model_dump_json(indent=2))
-    (template_dir / "template_full.json").write_text(template.model_dump_json(indent=2))
+    write_atomically(template_dir/"template.json",summary.model_dump_json(indent=2))
+    write_atomically(template_dir/"template_full.json",template.model_dump_json(indent=2))
     #Update index
     index = load_template_index(brand_slug)
     index.add_template(summary)
@@ -1280,10 +1277,10 @@ def save_template(brand_slug: str, template: TemplateFull) -> TemplateSummary:
         return create_template(brand_slug, template)
     #Update timestamp
     template.updated_at = datetime.utcnow()
-    #Save files
+    #Save files atomically
     summary = template.to_summary()
-    (template_dir / "template.json").write_text(summary.model_dump_json(indent=2))
-    (template_dir / "template_full.json").write_text(template.model_dump_json(indent=2))
+    write_atomically(template_dir/"template.json",summary.model_dump_json(indent=2))
+    write_atomically(template_dir/"template_full.json",template.model_dump_json(indent=2))
     #Update index
     index = load_template_index(brand_slug)
     index.add_template(summary)
