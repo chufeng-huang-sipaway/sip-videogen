@@ -384,6 +384,7 @@ class BrandAdvisor:
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
         attached_templates: list[dict] | None = None,
+        aspect_ratio: str | None = None,
     ) -> dict:
         """Send a message and get a response plus UI metadata.
 
@@ -392,6 +393,7 @@ class BrandAdvisor:
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
             attached_templates: List of template dicts with template_slug and strict.
+            aspect_ratio: Aspect ratio for video/image generation (e.g., "1:1", "16:9").
 
         Returns:
             Dict with response, interaction, and memory_update.
@@ -430,6 +432,10 @@ class BrandAdvisor:
                 attached_templates=attached_templates,
             )
             turn_context = builder.build_turn_context()
+        #Add aspect ratio to turn context if provided (chat_with_metadata only)
+        if aspect_ratio:
+            ar_ctx=f"**Aspect Ratio**: Use {aspect_ratio} for any image or video generation."
+            turn_context=f"{turn_context}\n\n{ar_ctx}" if turn_context else ar_ctx
 
         # Build augmented message with turn context prepended
         if turn_context:
