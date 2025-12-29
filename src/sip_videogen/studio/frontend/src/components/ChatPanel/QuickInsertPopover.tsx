@@ -82,7 +82,7 @@ return(
 <Popover.Root open={open} onOpenChange={onOpenChange}>
 <Popover.Trigger asChild>{trigger}</Popover.Trigger>
 <Popover.Portal>
-<Popover.Content align="start" sideOffset={10} className="z-50 w-72 rounded-2xl border border-border/30 bg-popover shadow-float p-3 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95" onKeyDown={handleKeyDown}>
+<Popover.Content align="start" sideOffset={10} className="z-50 w-72 rounded-2xl border border-border/30 bg-popover text-popover-foreground shadow-float p-3 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95" onKeyDown={handleKeyDown}>
 <Tabs value={tab} onValueChange={v=>setTab(v as 'products'|'templates')} className="w-full">
 <TabsList className="w-full grid grid-cols-2 mb-2">
 <TabsTrigger value="products" className="text-xs">Products</TabsTrigger>
@@ -90,8 +90,8 @@ return(
 </TabsList>
 {/* Search input */}
 <div className="relative mb-2">
-<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-<input ref={searchRef} type="text" placeholder={`Search ${tab}...`} value={query} onChange={e=>setQuery(e.target.value)} className="w-full h-8 pl-8 pr-3 rounded-lg border border-border bg-background text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"/>
+<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70"/>
+<input ref={searchRef} type="text" placeholder={`Search ${tab}...`} value={query} onChange={e=>setQuery(e.target.value)} className="w-full h-8 pl-8 pr-3 rounded-lg bg-transparent text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:bg-muted/30"/>
 </div>
 {/* Products list */}
 <TabsContent value="products" className="mt-0">
@@ -101,7 +101,7 @@ return(
 const att=attachedProducts.includes(p.slug)
 return(<button key={p.slug} data-idx={i} onClick={()=>toggleProd(p.slug)} className={`w-full flex items-center gap-2.5 p-1.5 rounded-lg text-left transition-colors ${att?'bg-primary/10 hover:bg-primary/15':hlIdx===i?'bg-muted':'hover:bg-muted'}`}>
 <ProdThumb path={p.primary_image}/>
-<div className="flex-1 min-w-0"><div className="font-medium text-xs truncate">{p.name}</div>{p.description&&<div className="text-[10px] text-muted-foreground truncate">{p.description}</div>}</div>
+<div className="flex-1 min-w-0"><div className="font-medium text-xs text-foreground truncate">{p.name}</div>{p.description&&<div className="text-[10px] text-muted-foreground truncate">{p.description}</div>}</div>
 {att&&<Check className="h-3.5 w-3.5 text-primary shrink-0"/>}
 </button>)})}</div>)}</div>
 </TabsContent>
@@ -113,13 +113,13 @@ return(<button key={p.slug} data-idx={i} onClick={()=>toggleProd(p.slug)} classN
 const att=attachedTemplates.some(a=>a.template_slug===t.slug)
 return(<button key={t.slug} data-idx={i} onClick={()=>toggleTpl(t.slug)} className={`w-full flex items-center gap-2.5 p-1.5 rounded-lg text-left transition-colors ${att?'bg-primary/10 hover:bg-primary/15':hlIdx===i?'bg-muted':'hover:bg-muted'}`}>
 <TplThumb path={t.primary_image}/>
-<div className="flex-1 min-w-0"><div className="font-medium text-xs truncate">{t.name}</div>{t.description&&<div className="text-[10px] text-muted-foreground truncate">{t.description}</div>}</div>
+<div className="flex-1 min-w-0"><div className="font-medium text-xs text-foreground truncate">{t.name}</div>{t.description&&<div className="text-[10px] text-muted-foreground truncate">{t.description}</div>}</div>
 {att&&<Check className="h-3.5 w-3.5 text-primary shrink-0"/>}
 </button>)})}</div>)}</div>
 </TabsContent>
 </Tabs>
 {/* Upload Image action */}
-{onUploadImage&&(<button onClick={()=>{onUploadImage();onOpenChange(false)}} className="w-full flex items-center gap-2 px-2 py-2 mt-2 border-t border-border/30 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+{onUploadImage&&(<button onClick={()=>{onUploadImage();onOpenChange(false)}} className="w-full flex items-center gap-2 px-2 py-2 mt-2 pt-3 border-t border-border/20 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors">
 <Upload className="h-3.5 w-3.5"/><span>Upload Image</span></button>)}
 </Popover.Content>
 </Popover.Portal>
