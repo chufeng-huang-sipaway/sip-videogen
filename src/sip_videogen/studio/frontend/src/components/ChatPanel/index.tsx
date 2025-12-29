@@ -15,6 +15,7 @@ import{MessageList}from'./MessageList'
 import{AttachedProducts}from'./AttachedProducts'
 import{AttachedTemplates}from'./AttachedTemplates'
 import{ProjectSelector}from'./ProjectSelector'
+import{AspectRatioSelector}from'./AspectRatioSelector'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
 
@@ -97,6 +98,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     error,
     attachmentError,
     attachments,
+    aspectRatio,
     sendMessage,
     clearMessages,
     cancelGeneration,
@@ -106,6 +108,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
+    setAspectRatio,
   } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated })
 
 
@@ -439,6 +442,11 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         )}
       </div>
 
+      {/* Aspect Ratio Selector */}
+      <div className="px-4 max-w-3xl mx-auto w-full">
+        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug}/>
+      </div>
+
       {/* Input Area - Clean, no gradient background */}
       <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
         <MessageInput
@@ -457,7 +465,7 @@ const tplMap=new Map<string,AttachedTemplate>()
 for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
 for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
 const allTemplates=Array.from(tplMap.values())
-await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined})
+await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined,aspect_ratio:aspectRatio})
 await refreshProducts()}}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
