@@ -496,7 +496,7 @@ const getIcon = (type: string) => {
 - Shows spinner when generating with 0 steps
 - Shows "Working..." after steps while still generating
 
-**Status**: Not Started
+**Status**: Complete
 
 ---
 

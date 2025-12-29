@@ -13,14 +13,11 @@ export function ExecutionTrace({ events }: Props) {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'thinking':
-        return <Brain className="h-3 w-3 text-purple-500" />
-      case 'tool_start':
-        return <Wrench className="h-3 w-3 text-blue-500" />
-      case 'tool_end':
-        return <CheckCircle className="h-3 w-3 text-green-500" />
-      default:
-        return null
+      case 'thinking': return <Brain className="h-3 w-3 text-purple-500" />
+      case 'thinking_step': return <CheckCircle className="h-3 w-3 text-green-500" />
+      case 'tool_start': return <Wrench className="h-3 w-3 text-blue-500" />
+      case 'tool_end': return <CheckCircle className="h-3 w-3 text-green-500" />
+      default: return null
     }
   }
 

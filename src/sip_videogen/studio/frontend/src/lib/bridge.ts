@@ -12,7 +12,7 @@ interface BridgeResponse<T> {
   error?: string
 }
 
-export type ActivityEventType = 'thinking' | 'tool_start' | 'tool_end' | 'skill_loaded' | ''
+export type ActivityEventType = 'thinking' | 'tool_start' | 'tool_end' | 'skill_loaded' | 'thinking_step' | ''
 
 export interface ExecutionEvent {
   type: ActivityEventType
@@ -21,10 +21,18 @@ export interface ExecutionEvent {
   detail: string
 }
 
+export interface ThinkingStep {
+  id: string
+  step: string
+  detail: string
+  timestamp: number
+}
+
 export interface ProgressStatus {
   status: string
   type: ActivityEventType
   skills: string[]
+  thinking_steps: ThinkingStep[]
 }
 
 export interface BrandEntry {
