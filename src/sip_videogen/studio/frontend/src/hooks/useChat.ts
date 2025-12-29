@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry, type RegisterImageInput } from '@/lib/bridge'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
+import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/types/aspectRatio'
 
 export interface Message {
   id: string
@@ -57,6 +58,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [error, setError] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
@@ -66,12 +68,13 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     attachmentsRef.current = attachments
   }, [attachments])
 
-  // Clear messages when brand changes
+//Clear messages when brand changes
   useEffect(() => {
     setMessages([])
     setError(null)
     setAttachments([])
     setAttachmentError(null)
+    setAspectRatio(DEFAULT_ASPECT_RATIO)
   }, [brandSlug])
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
@@ -323,11 +326,12 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     }
   }, [brandSlug, isLoading])
 
-  const clearMessages = useCallback(() => {
+const clearMessages = useCallback(() => {
     setMessages([])
     setError(null)
     setAttachments([])
     setAttachmentError(null)
+    setAspectRatio(DEFAULT_ASPECT_RATIO)
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
 
@@ -377,7 +381,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     })
   }, [messages, isLoading, brandSlug, sendMessage])
 
-  return {
+return {
     messages,
     isLoading,
     progress,
@@ -386,6 +390,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     error,
     attachmentError,
     attachments,
+    aspectRatio,
     sendMessage,
     clearMessages,
     cancelGeneration,
@@ -395,5 +400,6 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
+    setAspectRatio,
   }
 }

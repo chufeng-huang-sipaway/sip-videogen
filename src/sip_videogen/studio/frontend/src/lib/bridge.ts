@@ -243,11 +243,13 @@ export interface AttachedTemplate {
   template_slug: string
   strict: boolean
 }
-// Chat context types
+//Chat context types
+import type { AspectRatio } from '../types/aspectRatio'
 export interface ChatContext {
   project_slug?: string | null
   attached_products?: string[]
   attached_templates?: AttachedTemplate[]
+  aspect_ratio?: AspectRatio
 }
 
 interface ApiKeyStatus {
