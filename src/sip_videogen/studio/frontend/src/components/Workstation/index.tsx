@@ -4,6 +4,7 @@ import{useBrand}from'@/context/BrandContext'
 import{TabBar}from'./TabBar'
 import{ProjectTabContent}from'./ProjectTabContent'
 import{ProductTabContent}from'./ProductTabContent'
+import{TemplateTabContent}from'./TemplateTabContent'
 import{EmptyState}from'./EmptyState'
 import{cn}from'@/lib/utils'
 //Tab content wrapper - renders content based on tab type
@@ -12,11 +13,8 @@ function TabContent({type,slug,isActive}:{type:string;slug:string;isActive:boole
 return(<div className={cn("flex-1 flex flex-col min-h-0",isActive?"":"hidden")} style={{display:isActive?'flex':'none'}}>
 {type==='project'&&<ProjectTabContent projectSlug={slug} isActive={isActive}/>}
 {type==='product'&&<ProductTabContent productSlug={slug} isActive={isActive}/>}
-{type==='template'&&<TemplateTabPlaceholder slug={slug}/>}
+{type==='template'&&<TemplateTabContent templateSlug={slug} isActive={isActive}/>}
 </div>)}
-//Placeholder for Template tab (will be implemented in Stage 5)
-function TemplateTabPlaceholder({slug}:{slug:string}){
-return(<div className="flex-1 flex items-center justify-center"><div className="text-center"><p className="text-lg font-medium text-muted-foreground mb-2">Template: {slug}</p><p className="text-sm text-muted-foreground/60">Template editing view coming in Stage 5</p></div></div>)}
 export function Workstation(){
 const{tabs,activeTabId}=useTabs()
 const{activeBrand}=useBrand()
