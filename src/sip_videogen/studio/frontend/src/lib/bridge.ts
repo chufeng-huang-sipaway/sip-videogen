@@ -449,7 +449,8 @@ interface PyWebViewAPI {
     attachments?: ChatAttachment[],
     project_slug?: string | null,
     attached_products?: string[],
-    attached_templates?: AttachedTemplate[]
+    attached_templates?: AttachedTemplate[],
+    aspect_ratio?: string
   ): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
@@ -629,7 +630,8 @@ export const bridge = {
         attachments || [],
         context?.project_slug,
         context?.attached_products,
-        context?.attached_templates
+        context?.attached_templates,
+        context?.aspect_ratio || '1:1'
       )
     ),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
