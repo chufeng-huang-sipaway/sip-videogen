@@ -1151,7 +1151,7 @@ def load_video_metadata(path: str) -> dict | None:
 async def _impl_generate_video_clip(
     prompt: str | None = None,
     concept_image_path: str | None = None,
-    aspect_ratio: str = "16:9",
+    aspect_ratio: str = "1:1",
     duration: int | None = None,
     provider: str = "veo",
 ) -> str:
@@ -1160,7 +1160,7 @@ async def _impl_generate_video_clip(
     Args:
         prompt: Video description. Uses stored prompt from concept image if provided.
         concept_image_path: Path to concept image (from generate_image).
-        aspect_ratio: Video aspect ratio ("16:9" or "9:16").
+        aspect_ratio: Video aspect ratio ("1:1", "16:9", "9:16", "4:3", "3:4").
         duration: Clip duration in seconds (4, 6, or 8). Forced to 8 with refs.
         provider: Video provider (only "veo" supported).
 
@@ -2631,7 +2631,7 @@ async def generate_image(
 async def generate_video_clip(
     prompt: str | None = None,
     concept_image_path: str | None = None,
-    aspect_ratio: Literal["16:9", "9:16"] = "16:9",
+    aspect_ratio: Literal["1:1", "16:9", "9:16", "5:3", "3:5", "4:3", "3:4", "3:2", "2:3"] = "1:1",
     duration: int | None = None,
     provider: Literal["veo"] = "veo",
 ) -> str:
@@ -2651,8 +2651,11 @@ async def generate_video_clip(
             - Uses the image as a visual reference for the video
             - Duration is forced to 8 seconds (VEO constraint)
         aspect_ratio: Video aspect ratio.
-            - "16:9" for landscape (default)
+            - "1:1" for square (default)
+            - "16:9" for landscape
             - "9:16" for portrait/vertical
+            - "4:3" for classic
+            - "3:4" for portrait classic
         duration: Clip duration in seconds. Valid values: 4, 6, or 8.
             Forced to 8 when using reference images. Defaults to 8.
         provider: Video generation provider. Only "veo" is supported.

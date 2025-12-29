@@ -12,11 +12,15 @@ class AspectRatio(str,Enum):
     SQUARE="1:1"
     LANDSCAPE_16_9="16:9"
     PORTRAIT_9_16="9:16"
+    CINEMATIC_5_3="5:3"
+    PORTRAIT_CINEMATIC_3_5="3:5"
     CLASSIC_4_3="4:3"
     PORTRAIT_CLASSIC_3_4="3:4"
+    PHOTO_3_2="3:2"
+    PORTRAIT_PHOTO_2_3="2:3"
 #Provider-specific supported ratios
 PROVIDER_SUPPORTED_RATIOS:dict[str,list[str]]={
-"veo":["1:1","16:9","9:16","4:3","3:4"],#VEO supports all
+"veo":["1:1","16:9","9:16","5:3","3:5","4:3","3:4","3:2","2:3"],#VEO supports all
 "kling":["1:1","16:9","9:16"],#Kling: standard ratios only
 "sora":["16:9","9:16"],#Sora: landscape/portrait only
 }
@@ -60,7 +64,7 @@ def get_supported_ratio(requested:AspectRatio,provider:str)->tuple[AspectRatio,b
         logger.error(f"Cannot parse ratio {requested.value}, falling back to first supported")
         return(AspectRatio(supported[0]),True)
     is_portrait=req_h>req_w
-    orientation_fallbacks=["9:16","3:4"] if is_portrait else ["16:9","4:3"]
+    orientation_fallbacks=["9:16","3:5","2:3","3:4"] if is_portrait else ["16:9","5:3","3:2","4:3"]
     for fallback in orientation_fallbacks:
         if fallback in supported:
             logger.warning(f"Provider {provider} doesn't support {requested.value}, using {fallback}")  # noqa: E501
