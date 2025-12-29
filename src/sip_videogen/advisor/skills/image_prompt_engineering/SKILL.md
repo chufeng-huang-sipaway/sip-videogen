@@ -556,3 +556,8 @@ Mental checklist:
 | Composition off | Add camera language: "close-up", "wide shot", "overhead view" |
 | Mood doesn't match | Describe lighting specifically: "soft diffused", "dramatic shadows" |
 | Text rendering issues | Describe font style: "bold sans-serif", "elegant script" |
+
+---
+
+**REMINDER**: Before calling `generate_image`, you MUST call `report_thinking` at least once
+to explain your approach. Users need to see your reasoning process.

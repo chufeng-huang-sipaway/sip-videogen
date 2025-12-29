@@ -362,7 +362,7 @@ to explain your approach. Users need to see your reasoning process.
 - Manual test: Verify no system prompt content in steps
 - Manual test: Edit image → verify thinking steps appear
 
-**Status**: Not Started
+**Status**: Complete
 
 ---
 
