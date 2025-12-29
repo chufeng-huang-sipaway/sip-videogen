@@ -1,21 +1,22 @@
-import { useCallback, useState, useEffect } from 'react'
-import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { AlertCircle, Paperclip, X, Upload, Plus } from 'lucide-react'
-import { useChat } from '@/hooks/useChat'
-import { useProducts } from '@/context/ProductContext'
-import { useProjects } from '@/context/ProjectContext'
-import { useTemplates } from '@/context/TemplateContext'
-import { useWorkstation } from '@/context/WorkstationContext'
-import { useDrag } from '@/context/DragContext'
-import { MessageInput } from './MessageInput'
-import { MessageList } from './MessageList'
-import { AttachedProducts } from './AttachedProducts'
-import { AttachedTemplates } from './AttachedTemplates'
-import { ProjectSelector } from './ProjectSelector'
-import type { ImageStatusEntry } from '@/lib/bridge'
+import{useCallback,useState,useEffect}from'react'
+import{useDropzone,type DropEvent,type FileRejection}from'react-dropzone'
+import{ScrollArea}from'@/components/ui/scroll-area'
+import{Alert,AlertDescription}from'@/components/ui/alert'
+import{Button}from'@/components/ui/button'
+import{AlertCircle,Paperclip,X,Upload,Plus}from'lucide-react'
+import{useChat}from'@/hooks/useChat'
+import{useProducts}from'@/context/ProductContext'
+import{useProjects}from'@/context/ProjectContext'
+import{useTemplates}from'@/context/TemplateContext'
+import{useWorkstation}from'@/context/WorkstationContext'
+import{useDrag}from'@/context/DragContext'
+import{MessageInput}from'./MessageInput'
+import{MessageList}from'./MessageList'
+import{AttachedProducts}from'./AttachedProducts'
+import{AttachedTemplates}from'./AttachedTemplates'
+import{ProjectSelector}from'./ProjectSelector'
+import{resolveMentions}from'@/lib/mentionParser'
+import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -434,7 +435,18 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           isGenerating={isLoading}
           onCancel={cancelGeneration}
           placeholder=""
-          onSend={async (text) => { await sendMessage(text, { project_slug: activeProject, attached_products: attachedProducts.length > 0 ? attachedProducts : undefined, attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined }); await refreshProducts() }}
+          onSend={async(text)=>{
+//Parse mentions from text and merge with Quick Insert attachments
+const mentionAtts=resolveMentions(text,products,templates)
+//Merge products (dedupe)
+const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])]
+//Merge templates (Quick Insert wins for strictness)
+const tplMap=new Map<string,AttachedTemplate>()
+for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
+for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
+const allTemplates=Array.from(tplMap.values())
+await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined})
+await refreshProducts()}}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
           hasProducts={products.length > 0}

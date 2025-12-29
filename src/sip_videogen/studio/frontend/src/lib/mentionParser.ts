@@ -1,0 +1,63 @@
+//Mention parser for @product:slug and @template:slug syntax
+import type {ProductEntry} from './bridge'
+import type {TemplateSummary} from './bridge'
+export interface ParsedMention{type:'product'|'template';slug:string}
+export interface MentionAttachments{products:string[];templates:Array<{template_slug:string;strict:boolean}>}
+//Regex to match @type:slug mentions
+const MENTION_REGEX=/@(product|template):([a-z0-9-]+)/gi
+//Parse all mentions from text
+export function parseMentions(text:string):ParsedMention[]{
+const mentions:ParsedMention[]=[]
+let match:RegExpExecArray|null
+const regex=new RegExp(MENTION_REGEX.source,'gi')
+while((match=regex.exec(text))!==null){
+const type=match[1].toLowerCase() as 'product'|'template'
+const slug=match[2].toLowerCase()
+//Dedupe by type+slug
+if(!mentions.some(m=>m.type===type&&m.slug===slug)){mentions.push({type,slug})}}
+return mentions}
+//Parse mentions and resolve to attachments using product/template lists
+export function resolveMentions(text:string,products:ProductEntry[],templates:TemplateSummary[]):MentionAttachments{
+const parsed=parseMentions(text)
+const productSlugs=new Set(products.map(p=>p.slug))
+const templateMap=new Map(templates.map(t=>[t.slug,t]))
+const result:MentionAttachments={products:[],templates:[]}
+for(const m of parsed){
+if(m.type==='product'){
+if(productSlugs.has(m.slug)&&!result.products.includes(m.slug)){result.products.push(m.slug)}}
+else if(m.type==='template'){
+const template=templateMap.get(m.slug)
+if(template&&!result.templates.some(t=>t.template_slug===m.slug)){
+result.templates.push({template_slug:m.slug,strict:template.default_strict??true})}}}
+return result}
+//Check if @ is at a valid trigger position (token boundary)
+export function isValidTriggerPosition(text:string,caretPos:number):boolean{
+if(caretPos===0)return false
+if(text[caretPos-1]!=='@')return false
+if(caretPos===1)return true//@ at start of text
+const charBefore=text[caretPos-2]
+//Valid if after whitespace or punctuation
+return/[\s,.;:!?()[\]{}'"<>]/.test(charBefore)}
+//Get current mention being typed (for autocomplete)
+export function getCurrentMention(text:string,caretPos:number):{start:number;query:string;type:'product'|'template'|'all'}|null{
+//Look backwards from caret for @
+let start=-1
+for(let i=caretPos-1;i>=0;i--){
+if(text[i]==='@'){
+//Check if valid trigger position
+if(i===0||/[\s,.;:!?()[\]{}'"<>]/.test(text[i-1])){start=i;break}
+return null}
+//Stop if we hit whitespace (not in a mention)
+if(/\s/.test(text[i]))return null}
+if(start===-1)return null
+const afterAt=text.slice(start+1,caretPos)
+//Check if typing @product: or @template:
+const colonIdx=afterAt.indexOf(':')
+if(colonIdx!==-1){
+const prefix=afterAt.slice(0,colonIdx).toLowerCase()
+if(prefix==='product')return{start,query:afterAt.slice(colonIdx+1).toLowerCase(),type:'product'}
+if(prefix==='template')return{start,query:afterAt.slice(colonIdx+1).toLowerCase(),type:'template'}
+//Invalid prefix, no autocomplete
+return null}
+//Just @ or @partial - show all, filter by query
+return{start,query:afterAt.toLowerCase(),type:'all'}}
