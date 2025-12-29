@@ -1,5 +1,5 @@
 import {useState,useEffect,useMemo,useRef,useCallback} from 'react'
-import {Search,Package,FileImage,Check} from 'lucide-react'
+import {Search,Package,FileImage,Check,Upload} from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
 import {Tabs,TabsList,TabsTrigger,TabsContent} from '@/components/ui/tabs'
 import {useProducts} from '@/context/ProductContext'
@@ -32,8 +32,9 @@ return <img src={src} alt="" className="h-9 w-9 rounded-lg object-cover shrink-0
 interface QuickInsertPopoverProps {
 open:boolean
 onOpenChange:(open:boolean)=>void
-trigger:React.ReactNode}
-export function QuickInsertPopover({open,onOpenChange,trigger}:QuickInsertPopoverProps){
+trigger:React.ReactNode
+onUploadImage?:()=>void}
+export function QuickInsertPopover({open,onOpenChange,trigger,onUploadImage}:QuickInsertPopoverProps){
 const {products,attachedProducts,attachProduct,detachProduct}=useProducts()
 const {templates,attachedTemplates,attachTemplate,detachTemplate}=useTemplates()
 const [tab,setTab]=useState<'products'|'templates'>('products')
@@ -117,6 +118,9 @@ return(<button key={t.slug} data-idx={i} onClick={()=>toggleTpl(t.slug)} classNa
 </button>)})}</div>)}</div>
 </TabsContent>
 </Tabs>
+{/* Upload Image action */}
+{onUploadImage&&(<button onClick={()=>{onUploadImage();onOpenChange(false)}} className="w-full flex items-center gap-2 px-2 py-2 mt-2 border-t border-border/30 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+<Upload className="h-3.5 w-3.5"/><span>Upload Image</span></button>)}
 </Popover.Content>
 </Popover.Portal>
 </Popover.Root>)}

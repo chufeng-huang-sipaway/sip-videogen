@@ -15,8 +15,9 @@ onSelectImages?:(files:File[])=>void
 hasProducts?:boolean
 hasTemplates?:boolean
 isGenerating?:boolean
-onCancel?:()=>void}
-export function MessageInput({disabled,placeholder,onSend,canSendWithoutText=false,onSelectImages,hasProducts=false,hasTemplates=false,isGenerating=false,onCancel}:MessageInputProps){
+onCancel?:()=>void
+onMessageChange?:(text:string)=>void}
+export function MessageInput({disabled,placeholder,onSend,canSendWithoutText=false,onSelectImages,hasProducts=false,hasTemplates=false,isGenerating=false,onCancel,onMessageChange}:MessageInputProps){
 const[message,setMessage]=useState('')
 const[popoverOpen,setPopoverOpen]=useState(false)
 const[showMention,setShowMention]=useState(false)
@@ -40,6 +41,7 @@ const val=e.target.value
 const pos=e.target.selectionStart||0
 setMessage(val)
 setCaretPos(pos)
+onMessageChange?.(val)
 //Check if we just typed @ at valid position
 if(isValidTriggerPosition(val,pos)){setShowMention(true)}
 //Close autocomplete if we deleted the @
@@ -49,7 +51,7 @@ let hasAt=false
 for(let i=pos-1;i>=0;i--){
 if(val[i]==='@'){hasAt=true;break}
 if(/\s/.test(val[i]))break}
-if(!hasAt)setShowMention(false)}},[showMention])
+if(!hasAt)setShowMention(false)}},[showMention,onMessageChange])
 //Track caret position on selection change
 const handleSelect=useCallback(()=>{
 const el=textareaRef.current
@@ -61,6 +63,7 @@ const after=message.slice(caretPos)
 const mention=`@${type}:${slug} `
 const newMsg=before+mention+after
 setMessage(newMsg)
+onMessageChange?.(newMsg)
 setShowMention(false)
 //Set caret after inserted mention
 setTimeout(()=>{
@@ -68,7 +71,7 @@ const el=textareaRef.current
 if(el){
 const newPos=start+mention.length
 el.setSelectionRange(newPos,newPos)
-el.focus()}},0)},[message,caretPos])
+el.focus()}},0)},[message,caretPos,onMessageChange])
 const closeMention=useCallback(()=>setShowMention(false),[])
 const submit=()=>{
 const text=message.trim()
@@ -76,7 +79,8 @@ if(!text&&!canSendWithoutText)return
 if(disabled)return
 onSend(text)
 setMessage('')
-setShowMention(false)}
+setShowMention(false)
+onMessageChange?.('')}
 const handleKeyDown=(e:React.KeyboardEvent<HTMLTextAreaElement>)=>{
 //Don't handle during IME composition
 if(e.nativeEvent.isComposing)return
@@ -94,7 +98,7 @@ return(
 <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect}/>
 {/* Attachment Menu - Show QuickInsert when products/templates exist */}
 {showQuickInsert?(
-<QuickInsertPopover open={popoverOpen} onOpenChange={setPopoverOpen} trigger={
+<QuickInsertPopover open={popoverOpen} onOpenChange={setPopoverOpen} onUploadImage={onSelectImages?()=>fileInputRef.current?.click():undefined} trigger={
 <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:bg-muted/50 transition-colors" disabled={disabled}>
 <Plus className="h-5 w-5" strokeWidth={1.5}/>
 </Button>}/>

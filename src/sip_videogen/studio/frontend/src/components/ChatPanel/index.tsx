@@ -1,4 +1,4 @@
-import{useCallback,useState,useEffect}from'react'
+import{useCallback,useState,useEffect,useMemo}from'react'
 import{useDropzone,type DropEvent,type FileRejection}from'react-dropzone'
 import{ScrollArea}from'@/components/ui/scroll-area'
 import{Alert,AlertDescription}from'@/components/ui/alert'
@@ -65,6 +65,16 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
+  const [inputText, setInputText] = useState('')
+  //Compute combined attachments (Quick Insert + mentions) for display
+  const combinedAttachments=useMemo(()=>{
+    const mentionAtts=resolveMentions(inputText,products,templates)
+    const allProductSlugs=[...new Set([...attachedProducts,...mentionAtts.products])]
+    const tplMap=new Map<string,AttachedTemplate>()
+    for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
+    for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
+    return{products:allProductSlugs,templates:Array.from(tplMap.values())}
+  },[inputText,products,templates,attachedProducts,attachedTemplates])
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
@@ -339,6 +349,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             clearMessages()
             clearAttachments()
             clearTemplateAttachments()
+            setInputText('')
           }}
           disabled={isLoading || messages.length === 0}
           className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"
@@ -392,12 +403,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       <div className="px-4 max-w-3xl mx-auto w-full flex flex-col gap-2 mb-2">
         <AttachedProducts
           products={products}
-          attachedSlugs={attachedProducts}
+          attachedSlugs={combinedAttachments.products}
           onDetach={detachProduct}
         />
         <AttachedTemplates
           templates={templates}
-          attachedTemplates={attachedTemplates}
+          attachedTemplates={combinedAttachments.templates}
           onDetach={detachTemplate}
           onToggleStrict={setTemplateStrictness}
         />
@@ -435,6 +446,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           isGenerating={isLoading}
           onCancel={cancelGeneration}
           placeholder=""
+          onMessageChange={setInputText}
           onSend={async(text)=>{
 //Parse mentions from text and merge with Quick Insert attachments
 const mentionAtts=resolveMentions(text,products,templates)
