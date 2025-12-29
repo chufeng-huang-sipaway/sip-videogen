@@ -1,51 +1,37 @@
-import { useState } from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Package, FolderOpen, PanelLeftClose, Brain, Plus, Settings, Palette, ChevronRight } from 'lucide-react'
-import { BrandSelector } from './BrandSelector'
-import { ProductsSection } from './sections/ProductsSection'
-import { TemplatesSection } from './sections/TemplatesSection'
-import { ProjectsSection } from './sections/ProjectsSection'
-import { CreateProductDialog } from './CreateProductDialog'
-import { CreateProjectDialog } from './CreateProjectDialog'
-import { SettingsDialog } from '@/components/Settings/SettingsDialog'
-import { useBrand } from '@/context/BrandContext'
-import { useProducts } from '@/context/ProductContext'
-import { useTemplates } from '@/context/TemplateContext'
-import { useProjects } from '@/context/ProjectContext'
-import { cn } from '@/lib/utils'
+import {useState} from 'react'
+import {ScrollArea} from '@/components/ui/scroll-area'
+import {Separator} from '@/components/ui/separator'
+import {Button} from '@/components/ui/button'
+import {Tooltip,TooltipContent,TooltipProvider,TooltipTrigger} from '@/components/ui/tooltip'
+import {FolderOpen,PanelLeftClose,Brain,Plus,Settings,Library,ChevronRight} from 'lucide-react'
+import {BrandSelector} from './BrandSelector'
+import {ProjectsSection} from './sections/ProjectsSection'
+import {LibrarySection} from './sections/LibrarySection'
+import {CreateProductDialog} from './CreateProductDialog'
+import {CreateProjectDialog} from './CreateProjectDialog'
+import {SettingsDialog} from '@/components/Settings/SettingsDialog'
+import {useBrand} from '@/context/BrandContext'
+import {useProducts} from '@/context/ProductContext'
+import {useTemplates} from '@/context/TemplateContext'
+import {useProjects} from '@/context/ProjectContext'
+import {cn} from '@/lib/utils'
 
-const SIDEBAR_EXPANDED_WIDTH = 280 // Reduced from 320 for tighter feel
-const SIDEBAR_COLLAPSED_WIDTH = 68
-
-interface SidebarProps {
-  collapsed: boolean
-  onToggleCollapse: () => void
-  onOpenBrandMemory?: () => void
-}
-
-type NavSection = 'products' | 'templates' | 'projects' | null
-
-export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: SidebarProps) {
-  const { activeBrand } = useBrand()
-  const { products } = useProducts()
-  const { templates } = useTemplates()
-  const { projects } = useProjects()
-
-  const [activeSection, setActiveSection] = useState<NavSection>('projects')
-  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
-  const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false)
-  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-
-  const width = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH
-
-  // Shared function to toggle sections
-  const toggleSection = (section: NavSection) => {
-    setActiveSection(current => current === section ? null : section)
-  }
+const SIDEBAR_EXPANDED_WIDTH=280
+const SIDEBAR_COLLAPSED_WIDTH=68
+interface SidebarProps{collapsed:boolean;onToggleCollapse:()=>void;onOpenBrandMemory?:()=>void}
+type NavSection='library'|'projects'|null
+export function Sidebar({collapsed,onToggleCollapse,onOpenBrandMemory}:SidebarProps){
+const {activeBrand}=useBrand()
+const {products}=useProducts()
+const {templates}=useTemplates()
+const {projects}=useProjects()
+const [activeSection,setActiveSection]=useState<NavSection>('projects')
+const [isCreateProductOpen,setIsCreateProductOpen]=useState(false)
+const [isCreateTemplateOpen,setIsCreateTemplateOpen]=useState(false)
+const [isCreateProjectOpen,setIsCreateProjectOpen]=useState(false)
+const [isSettingsOpen,setIsSettingsOpen]=useState(false)
+const width=collapsed?SIDEBAR_COLLAPSED_WIDTH:SIDEBAR_EXPANDED_WIDTH
+const toggleSection=(section:NavSection)=>{setActiveSection(current=>current===section?null:section)}
 
   const content = collapsed ? (
     <aside
@@ -76,30 +62,11 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
         <Separator className="w-8 bg-black/5 dark:bg-white/5" />
 
-        {/* Nav Icons - same order as expanded: Projects, Products, Style Guides */}
-        <div className="flex flex-col gap-3">
-          <NavIcon
-            icon={<FolderOpen className="w-5 h-5" strokeWidth={1.5} />}
-            label={`Projects (${projects.length})`}
-            isActive={activeSection === 'projects'}
-            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('projects'); }}
-            disabled={!activeBrand}
-          />
-          <NavIcon
-            icon={<Package className="w-5 h-5" strokeWidth={1.5} />}
-            label={`Products (${products.length})`}
-            isActive={activeSection === 'products'}
-            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('products'); }}
-            disabled={!activeBrand}
-          />
-          <NavIcon
-            icon={<Palette className="w-5 h-5" strokeWidth={1.5} />}
-            label={`Style Guides (${templates.length})`}
-            isActive={activeSection === 'templates'}
-            onClick={() => { if (activeBrand) onToggleCollapse(); setActiveSection('templates'); }}
-            disabled={!activeBrand}
-          />
-        </div>
+{/*Nav Icons - Projects and Library*/}
+<div className="flex flex-col gap-3">
+<NavIcon icon={<FolderOpen className="w-5 h-5" strokeWidth={1.5}/>} label={`Projects (${projects.length})`} isActive={activeSection==='projects'} onClick={()=>{if(activeBrand)onToggleCollapse();setActiveSection('projects')}} disabled={!activeBrand}/>
+<NavIcon icon={<Library className="w-5 h-5" strokeWidth={1.5}/>} label={`Library (${products.length+templates.length})`} isActive={activeSection==='library'} onClick={()=>{if(activeBrand)onToggleCollapse();setActiveSection('library')}} disabled={!activeBrand}/>
+</div>
 
         <div className="flex-1" />
 
@@ -163,45 +130,16 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
         <Separator className="bg-black/5 dark:bg-white/5" />
       </div>
 
-      {/* Main Navigation */}
-      <ScrollArea className="flex-1 px-3">
-        <div className="space-y-1 py-2">
-
-          {/* Projects Section - Default Open often */}
-          <NavGroup
-            title="Projects"
-            icon={<FolderOpen className="w-4 h-4" />}
-            isOpen={activeSection === 'projects'}
-            onToggle={() => toggleSection('projects')}
-            onAdd={() => setIsCreateProjectOpen(true)}
-          >
-            <ProjectsSection />
-          </NavGroup>
-
-          {/* Products Section */}
-          <NavGroup
-            title="Products"
-            icon={<Package className="w-4 h-4" />}
-            isOpen={activeSection === 'products'}
-            onToggle={() => toggleSection('products')}
-            onAdd={() => setIsCreateProductOpen(true)}
-          >
-            <ProductsSection />
-          </NavGroup>
-
-          {/* Style Guides Section */}
-          <NavGroup
-            title="Style Guides"
-            icon={<Palette className="w-4 h-4" />}
-            isOpen={activeSection === 'templates'}
-            onToggle={() => toggleSection('templates')}
-            onAdd={() => setIsCreateTemplateOpen(true)}
-          >
-            <TemplatesSection createDialogOpen={isCreateTemplateOpen} onCreateDialogChange={setIsCreateTemplateOpen} />
-          </NavGroup>
-
-        </div>
-      </ScrollArea>
+{/*Main Navigation*/}
+<ScrollArea className="flex-1 px-3">
+<div className="space-y-1 py-2">
+{/*Projects Section*/}
+<NavGroup title="Projects" icon={<FolderOpen className="w-4 h-4"/>} isOpen={activeSection==='projects'} onToggle={()=>toggleSection('projects')} onAdd={()=>setIsCreateProjectOpen(true)}>
+<ProjectsSection/></NavGroup>
+{/*Library Section - Products & Templates*/}
+<LibrarySection onCreateProduct={()=>setIsCreateProductOpen(true)} onCreateTemplate={()=>setIsCreateTemplateOpen(true)} createTemplateOpen={isCreateTemplateOpen} onCreateTemplateChange={setIsCreateTemplateOpen}/>
+</div>
+</ScrollArea>
 
       {/* Footer */}
       <div className="p-4 border-t border-border/30 flex items-center justify-between gap-2 bg-gradient-to-t from-background/50 to-transparent">
