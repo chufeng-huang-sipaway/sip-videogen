@@ -3,6 +3,7 @@ import{useTabs}from'@/context/TabContext'
 import{useBrand}from'@/context/BrandContext'
 import{TabBar}from'./TabBar'
 import{ProjectTabContent}from'./ProjectTabContent'
+import{ProductTabContent}from'./ProductTabContent'
 import{EmptyState}from'./EmptyState'
 import{cn}from'@/lib/utils'
 //Tab content wrapper - renders content based on tab type
@@ -10,12 +11,9 @@ function TabContent({type,slug,isActive}:{type:string;slug:string;isActive:boole
 //Use display:none for hidden tabs (keeps them mounted, preserves state)
 return(<div className={cn("flex-1 flex flex-col min-h-0",isActive?"":"hidden")} style={{display:isActive?'flex':'none'}}>
 {type==='project'&&<ProjectTabContent projectSlug={slug} isActive={isActive}/>}
-{type==='product'&&<ProductTabPlaceholder slug={slug}/>}
+{type==='product'&&<ProductTabContent productSlug={slug} isActive={isActive}/>}
 {type==='template'&&<TemplateTabPlaceholder slug={slug}/>}
 </div>)}
-//Placeholder for Product tab (will be implemented in Stage 4)
-function ProductTabPlaceholder({slug}:{slug:string}){
-return(<div className="flex-1 flex items-center justify-center"><div className="text-center"><p className="text-lg font-medium text-muted-foreground mb-2">Product: {slug}</p><p className="text-sm text-muted-foreground/60">Product editing view coming in Stage 4</p></div></div>)}
 //Placeholder for Template tab (will be implemented in Stage 5)
 function TemplateTabPlaceholder({slug}:{slug:string}){
 return(<div className="flex-1 flex items-center justify-center"><div className="text-center"><p className="text-lg font-medium text-muted-foreground mb-2">Template: {slug}</p><p className="text-sm text-muted-foreground/60">Template editing view coming in Stage 5</p></div></div>)}
