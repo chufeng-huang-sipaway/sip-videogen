@@ -23,7 +23,7 @@ function resetWheelGestureState(state:WheelGestureState){state.active=false;stat
 function scheduleWheelGestureReset(state:WheelGestureState){if(state.idleTimer!==null)window.clearTimeout(state.idleTimer);state.idleTimer=window.setTimeout(()=>{state.active=false;state.handled=false;state.accX=0;state.accY=0;state.idleTimer=null},WHEEL_GESTURE_IDLE_MS)}
 export function ImageDisplay(){
 const{currentBatch,selectedIndex,updateImagePath,setSelectedIndex}=useWorkstation()
-const{setDragData}=useDrag()
+const{setDragData,dragData}=useDrag()
 const currentImage=currentBatch[selectedIndex]
 const[isLoading,setIsLoading]=useState(false)
 const[displayedSrc,setDisplayedSrc]=useState<string|null>(null)//Currently shown image
@@ -145,17 +145,18 @@ return()=>{cancelled=true}
 const handlePendingLoad=()=>{dbg('pending img onLoad - promoting to displayed');setDisplayedSrc(pendingSrc);setPendingSrc(null);setIsLoading(false)}
 const handlePendingError=()=>{dbg('pending img onError');setPendingSrc(null);setIsLoading(false);setError('Failed to load image')}
 //Use mousedown to initiate drag (bypasses PyWebView/WebKit HTML5 drag issues)
-const handleMouseDown=(e:React.MouseEvent)=>{if(e.button!==0)return;const path=currentImage?.originalPath||currentImage?.path;if(!path||path.startsWith('data:'))return;setDragData({type:'asset',path})}
+const handleMouseDown=(e:React.MouseEvent)=>{if(e.button!==0)return;const path=currentImage?.originalPath||currentImage?.path;if(!path||path.startsWith('data:'))return;setDragData({type:'asset',path,thumbnailUrl:displayedSrc||undefined})}
 if(!currentImage)return null
 const debugInfo=DEBUG?`id:${currentImage.id?.slice(-8)||'?'} idx:${selectedIndex} displayed:${displayedSrc?'Y':'N'} pending:${pendingSrc?'Y':'N'} loading:${isLoading} err:${error||'none'}`:''
-const imgClass="absolute inset-0 w-full h-full object-contain cursor-grab active:cursor-grabbing select-none"
+const isDragging=!!dragData
+const imgClass=cn("absolute inset-0 w-full h-full object-contain cursor-grab active:cursor-grabbing select-none transition-opacity duration-200",isDragging&&"opacity-50")
 const navBtnClass="absolute top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white/90 backdrop-blur-sm transition-all hover:bg-black/70 hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
 return(<div className="w-full h-full flex items-center justify-center relative" onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onWheel={handleWheel}>
 {DEBUG&&(<div className="absolute top-2 left-2 right-2 z-50 bg-black/80 text-white text-[10px] font-mono p-2 rounded">{debugInfo}</div>)}
 {/* Currently displayed image - stays visible during transition */}
-{displayedSrc&&!error&&(<img draggable={false} onMouseDown={handleMouseDown} src={displayedSrc} alt="" className={`${imgClass} transition-opacity duration-300`}/>)}
+{displayedSrc&&!error&&(<img draggable={false} onMouseDown={handleMouseDown} src={displayedSrc} alt="" className={imgClass}/>)}
 {/* Pending image - fades in on top, then becomes displayed */}
-{pendingSrc&&pendingSrc!==displayedSrc&&(<img draggable={false} src={pendingSrc} alt={currentImage.prompt||'Generated image'} onLoad={handlePendingLoad} onError={handlePendingError} className={`${imgClass}`} style={{animation:'fadeIn 200ms ease-out forwards'}}/>)}
+{pendingSrc&&pendingSrc!==displayedSrc&&(<img draggable={false} src={pendingSrc} alt={currentImage.prompt||'Generated image'} onLoad={handlePendingLoad} onError={handlePendingError} className={imgClass} style={{animation:'fadeIn 200ms ease-out forwards'}}/>)}
 {/* Loading indicator - subtle, doesn't block view */}
 {isLoading&&!displayedSrc&&(<div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/30"/></div>)}
 {/* Error state */}
