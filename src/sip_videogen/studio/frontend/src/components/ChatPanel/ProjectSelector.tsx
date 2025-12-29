@@ -45,7 +45,7 @@ export function ProjectSelector({
       <DropdownMenuContent align="start" className="w-48">
         <DropdownMenuItem
           onClick={() => onSelect(null)}
-          className="text-gray-500"
+          className="text-muted-foreground"
         >
           <span className="flex-1">No Project</span>
           {!activeProject && <Check className="h-4 w-4 text-green-500" />}
@@ -69,7 +69,7 @@ export function ProjectSelector({
         {activeProjects.length === 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled className="text-xs text-gray-400 italic">
+            <DropdownMenuItem disabled className="text-xs text-muted-foreground/60 italic">
               No projects yet
             </DropdownMenuItem>
           </>

@@ -32,8 +32,8 @@ function ProductThumbnail({ path }: { path: string }) {
 
   if (!src) {
     return (
-      <div className="h-8 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-        <Package className="h-4 w-4 text-gray-400" />
+      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
+        <Package className="h-4 w-4 text-muted-foreground" />
       </div>
     )
   }

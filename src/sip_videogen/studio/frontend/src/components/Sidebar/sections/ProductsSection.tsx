@@ -42,11 +42,11 @@ function ProductThumbnail({ path, size = 'sm' }: { path: string; size?: 'sm' | '
 
   if (!src) {
     return (
-      <div className={`${sizeClasses} rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0`}>
+      <div className={`${sizeClasses} rounded bg-muted flex items-center justify-center shrink-0`}>
         {size === 'lg' ? (
-          <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+          <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
         ) : (
-          <Package className="h-4 w-4 text-gray-400" />
+          <Package className="h-4 w-4 text-muted-foreground" />
         )}
       </div>
     )
@@ -94,7 +94,7 @@ function ProductPreview({ productSlug }: ProductPreviewProps) {
 
   if (isLoading) {
     return (
-      <div className="py-3 flex items-center gap-2 text-xs text-gray-400">
+      <div className="py-3 flex items-center gap-2 text-xs text-muted-foreground">
         <Loader2 className="h-3 w-3 animate-spin" />
         Loading...
       </div>
@@ -138,15 +138,15 @@ function ProductPreview({ productSlug }: ProductPreviewProps) {
       {/* Description */}
       {product.description && (
         <div className="space-y-1">
-          <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Description</span>
-          <p className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Description</span>
+          <p className="text-xs text-foreground/80 whitespace-pre-wrap">
             {product.description}
           </p>
         </div>
       )}
 
       {/* Quick Stats */}
-      <div className="flex items-center gap-3 text-[10px] text-gray-400 pt-1 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1 border-t border-border">
         <span>{images.length} image{images.length !== 1 ? 's' : ''}</span>
       </div>
     </div>
@@ -191,9 +191,9 @@ function ProductCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-2.5 py-2 px-2.5 rounded-lg border border-transparent hover:bg-accent/50 cursor-pointer group overflow-hidden transition-all duration-200 ${isAttached
-              ? 'bg-secondary/50 border-input shadow-sm'
-              : ''
+            className={`flex items-center gap-2.5 py-1.5 px-2 rounded-md border border-transparent hover:bg-sidebar-accent/50 cursor-pointer group overflow-hidden transition-all duration-200 ${isAttached
+              ? 'bg-sidebar-accent/50 border-input shadow-sm'
+              : 'text-muted-foreground/80 hover:text-foreground'
               }`}
             draggable
             onDragStart={handleDragStart}
@@ -235,7 +235,7 @@ function ProductCard({
             Edit Product
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={onDelete} className="text-red-600">
+          <ContextMenuItem onClick={onDelete} className="text-destructive">
             Delete Product
           </ContextMenuItem>
         </ContextMenuContent>
@@ -295,7 +295,7 @@ export function ProductsSection() {
   }
 
   if (!activeBrand) {
-    return <div className="text-sm text-gray-500">Select a brand</div>
+    return <div className="text-sm text-muted-foreground">Select a brand</div>
   }
 
   if (error) {
@@ -328,7 +328,7 @@ export function ProductsSection() {
       )}
 
       {products.length === 0 ? (
-        <p className="text-sm text-gray-400 italic">
+        <p className="text-sm text-muted-foreground italic">
           {isLoading ? 'Loading...' : 'No products yet. Click + to add one.'}
         </p>
       ) : (

@@ -1,22 +1,22 @@
-import { useCallback, useState, useEffect } from 'react'
-import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { AlertCircle, Paperclip, X, Upload, Plus } from 'lucide-react'
-import { useChat } from '@/hooks/useChat'
-import { useProducts } from '@/context/ProductContext'
-import { useProjects } from '@/context/ProjectContext'
-import { useTemplates } from '@/context/TemplateContext'
-import { useWorkstation } from '@/context/WorkstationContext'
-import { useDrag } from '@/context/DragContext'
-import { MessageInput } from './MessageInput'
-import { MessageList } from './MessageList'
-import { AttachedProducts } from './AttachedProducts'
-import { AttachedTemplates } from './AttachedTemplates'
-import { ProductPickerDialog } from './ProductPickerDialog'
-import { ProjectSelector } from './ProjectSelector'
-import type { ImageStatusEntry } from '@/lib/bridge'
+import{useCallback,useState,useEffect,useMemo}from'react'
+import{useDropzone,type DropEvent,type FileRejection}from'react-dropzone'
+import{ScrollArea}from'@/components/ui/scroll-area'
+import{Alert,AlertDescription}from'@/components/ui/alert'
+import{Button}from'@/components/ui/button'
+import{AlertCircle,Paperclip,X,Upload,Plus}from'lucide-react'
+import{useChat}from'@/hooks/useChat'
+import{useProducts}from'@/context/ProductContext'
+import{useProjects}from'@/context/ProjectContext'
+import{useTemplates}from'@/context/TemplateContext'
+import{useWorkstation}from'@/context/WorkstationContext'
+import{useDrag}from'@/context/DragContext'
+import{MessageInput}from'./MessageInput'
+import{MessageList}from'./MessageList'
+import{AttachedProducts}from'./AttachedProducts'
+import{AttachedTemplates}from'./AttachedTemplates'
+import{ProjectSelector}from'./ProjectSelector'
+import{resolveMentions}from'@/lib/mentionParser'
+import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -65,6 +65,16 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
+  const [inputText, setInputText] = useState('')
+  //Compute combined attachments (Quick Insert + mentions) for display
+  const combinedAttachments=useMemo(()=>{
+    const mentionAtts=resolveMentions(inputText,products,templates)
+    const allProductSlugs=[...new Set([...attachedProducts,...mentionAtts.products])]
+    const tplMap=new Map<string,AttachedTemplate>()
+    for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
+    for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
+    return{products:allProductSlugs,templates:Array.from(tplMap.values())}
+  },[inputText,products,templates,attachedProducts,attachedTemplates])
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
@@ -103,8 +113,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
 
-  // Product picker dialog state
-  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false)
 
   // Register as drop zone for mouse-based drag (bypasses PyWebView HTML5 drag issues)
   useEffect(() => {
@@ -341,9 +349,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             clearMessages()
             clearAttachments()
             clearTemplateAttachments()
+            setInputText('')
           }}
           disabled={isLoading || messages.length === 0}
-          className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 hover:bg-white border border-transparent hover:border-black/5 shadow-sm transition-all text-muted-foreground hover:text-foreground"
+          className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
@@ -394,12 +403,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       <div className="px-4 max-w-3xl mx-auto w-full flex flex-col gap-2 mb-2">
         <AttachedProducts
           products={products}
-          attachedSlugs={attachedProducts}
+          attachedSlugs={combinedAttachments.products}
           onDetach={detachProduct}
         />
         <AttachedTemplates
           templates={templates}
-          attachedTemplates={attachedTemplates}
+          attachedTemplates={combinedAttachments.templates}
           onDetach={detachTemplate}
           onToggleStrict={setTemplateStrictness}
         />
@@ -409,7 +418,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             {attachments.map((att) => (
               <div
                 key={att.id}
-                className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 backdrop-blur-sm px-3 py-1 shadow-sm"
+                className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 dark:bg-white/10 backdrop-blur-sm px-3 py-1 shadow-sm"
               >
                 {att.preview ? (
                   <img src={att.preview} alt={att.name} className="h-4 w-4 rounded object-cover" />
@@ -437,22 +446,26 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           isGenerating={isLoading}
           onCancel={cancelGeneration}
           placeholder=""
-          onSend={async (text) => { await sendMessage(text, { project_slug: activeProject, attached_products: attachedProducts.length > 0 ? attachedProducts : undefined, attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined }); await refreshProducts() }}
+          onMessageChange={setInputText}
+          onSend={async(text)=>{
+//Parse mentions from text and merge with Quick Insert attachments
+const mentionAtts=resolveMentions(text,products,templates)
+//Merge products (dedupe)
+const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])]
+//Merge templates (Quick Insert wins for strictness)
+const tplMap=new Map<string,AttachedTemplate>()
+for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
+for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
+const allTemplates=Array.from(tplMap.values())
+await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined})
+await refreshProducts()}}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
-          onOpenProductPicker={() => setIsProductPickerOpen(true)}
           hasProducts={products.length > 0}
+          hasTemplates={templates.length > 0}
         />
       </div>
 
-      {/* Product Picker Dialog */}
-      <ProductPickerDialog
-        open={isProductPickerOpen}
-        onOpenChange={setIsProductPickerOpen}
-        products={products}
-        attachedSlugs={attachedProducts}
-        onSelect={attachProduct}
-      />
     </main >
   )
 }

@@ -68,9 +68,8 @@ export function Workstation() {
         if (!currentImage) return
         const path = currentImage.originalPath || currentImage.path
         if (!path || path.startsWith('data:')) { toast.error('Cannot delete this image'); return }
-        //Always remove from UI first, then attempt backend delete (handles missing files gracefully)
+        //Remove from UI first for instant feedback
         removeFromBatchByPath(path)
-        bumpStatusVersion()
         try {
             await bridge.deleteAsset(path)
             toast.success('Moved to Trash')
@@ -78,6 +77,8 @@ export function Workstation() {
             //File might already be gone - that's OK, we already removed from UI
             console.warn('Delete failed (file may not exist):', e)
         }
+        //Bump after deletion so sidebar refreshes with accurate count
+        bumpStatusVersion()
     }, [currentImage, removeFromBatchByPath, bumpStatusVersion])
 
     useEffect(() => {
@@ -110,7 +111,7 @@ export function Workstation() {
                             {isGrid ? (<div className="w-full h-full overflow-y-auto pr-2"><ImageGrid /></div>) : (
                                 <div className="absolute inset-4 flex items-center justify-center">
                                     <div className="relative transition-all duration-300 transform h-full w-full flex items-center justify-center">
-                                        <ImageDisplay key={`${selectedIndex}-${currentImage?.id}`} />
+                                        <ImageDisplay />
                                         {/* Floating Action Toolbar - Overlay on image with auto-hide */}
                                         <div className={cn("absolute bottom-4 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-300", toolbarVisible ? "opacity-100" : "opacity-0 pointer-events-none")}>
                                             <div className="px-2 py-1.5 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-xl shadow-lg">
