@@ -33,6 +33,7 @@ from sip_videogen.generators.prompt_builder import (
     build_structured_scene_prompt,
 )
 from sip_videogen.models.assets import AssetType, GeneratedAsset
+from sip_videogen.models.aspect_ratio import get_supported_ratio, validate_aspect_ratio
 from sip_videogen.models.script import SceneAction, VideoScript
 
 logger = logging.getLogger(__name__)
@@ -170,7 +171,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
         scene: SceneAction,
         output_dir: str,
         reference_images: list[GeneratedAsset] | None = None,
-        aspect_ratio: str = "16:9",
+        aspect_ratio: str = "1:1",
         generate_audio: bool = True,
         total_scenes: int | None = None,
         script: VideoScript | None = None,
@@ -199,7 +200,15 @@ class SoraVideoGenerator(BaseVideoGenerator):
             scene, total_scenes, reference_images, script, constraints_context
         )
         duration = self.map_duration(scene.duration_seconds)
-        size = self._map_aspect_ratio_to_size(aspect_ratio)
+
+        # Validate and apply provider-specific fallback for aspect ratio
+        validated_ratio=validate_aspect_ratio(aspect_ratio)
+        actual_ratio,was_fallback=get_supported_ratio(validated_ratio,self.PROVIDER_NAME)
+        if was_fallback:
+            logger.warning(f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})")
+        final_aspect_ratio=actual_ratio.value
+
+        size = self._map_aspect_ratio_to_size(final_aspect_ratio)
 
         logger.info(
             "Generating video for scene %d with Sora (model: %s, duration: %ds, size: %s)",

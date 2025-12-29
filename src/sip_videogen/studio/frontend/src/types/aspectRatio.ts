@@ -1,0 +1,32 @@
+//Aspect ratio type definitions for video generation
+export type AspectRatio='1:1'|'16:9'|'9:16'|'5:3'|'3:5'|'4:3'|'3:4'|'3:2'|'2:3'
+export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number}>={
+'1:1':{label:'Square',w:1,h:1},
+'16:9':{label:'Widescreen',w:16,h:9},
+'9:16':{label:'Portrait Widescreen',w:9,h:16},
+'5:3':{label:'Cinematic',w:5,h:3},
+'3:5':{label:'Portrait Cinematic',w:3,h:5},
+'4:3':{label:'Classic',w:4,h:3},
+'3:4':{label:'Portrait Classic',w:3,h:4},
+'3:2':{label:'Photo',w:3,h:2},
+'2:3':{label:'Portrait Photo',w:2,h:3}}
+export const DEFAULT_ASPECT_RATIO:AspectRatio='1:1'
+//Safe type guard using Object.hasOwn (avoids prototype chain)
+export function isValidAspectRatio(v:string):v is AspectRatio{
+return Object.prototype.hasOwnProperty.call(ASPECT_RATIOS,v)}
+//Base ratios (bigger number first, used for UI selector)
+export const BASE_RATIOS=['16:9','5:3','4:3','3:2'] as const
+export type BaseRatio=typeof BASE_RATIOS[number]
+export type Orientation='landscape'|'portrait'
+//Get actual ratio from base+orientation
+export function getActualRatio(base:BaseRatio,o:Orientation):AspectRatio{
+if(o==='landscape')return base
+const[w,h]=base.split(':')
+return `${h}:${w}` as AspectRatio}
+//Parse ratio to determine orientation (returns null for 1:1)
+export function parseRatioOrientation(r:AspectRatio):{base:BaseRatio,orientation:Orientation}|null{
+if(r==='1:1')return null
+const[w,h]=r.split(':').map(Number)
+const isL=w>h
+const base=(isL?r:`${h}:${w}`) as BaseRatio
+return{base,orientation:isL?'landscape':'portrait'}}
