@@ -24,11 +24,12 @@ const templateMap=new Map(templates.map(t=>[t.slug,t]))
 const result:MentionAttachments={products:[],templates:[]}
 for(const m of parsed){
 if(m.type==='product'){
-if(productSlugs.has(m.slug)&&!result.products.includes(m.slug)){result.products.push(m.slug)}}
+if(productSlugs.has(m.slug)){if(!result.products.includes(m.slug))result.products.push(m.slug)}
+else console.warn(`[mention] Invalid product slug: @product:${m.slug}`)}
 else if(m.type==='template'){
 const template=templateMap.get(m.slug)
-if(template&&!result.templates.some(t=>t.template_slug===m.slug)){
-result.templates.push({template_slug:m.slug,strict:template.default_strict??true})}}}
+if(template){if(!result.templates.some(t=>t.template_slug===m.slug))result.templates.push({template_slug:m.slug,strict:template.default_strict??true})}
+else console.warn(`[mention] Invalid template slug: @template:${m.slug}`)}}
 return result}
 //Check if @ is at a valid trigger position (token boundary)
 export function isValidTriggerPosition(text:string,caretPos:number):boolean{
