@@ -14,7 +14,6 @@ import { MessageInput } from './MessageInput'
 import { MessageList } from './MessageList'
 import { AttachedProducts } from './AttachedProducts'
 import { AttachedTemplates } from './AttachedTemplates'
-import { ProductPickerDialog } from './ProductPickerDialog'
 import { ProjectSelector } from './ProjectSelector'
 import type { ImageStatusEntry } from '@/lib/bridge'
 
@@ -103,8 +102,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
 
-  // Product picker dialog state
-  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false)
 
   // Register as drop zone for mouse-based drag (bypasses PyWebView HTML5 drag issues)
   useEffect(() => {
@@ -440,19 +437,11 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           onSend={async (text) => { await sendMessage(text, { project_slug: activeProject, attached_products: attachedProducts.length > 0 ? attachedProducts : undefined, attached_templates: attachedTemplates.length > 0 ? attachedTemplates : undefined }); await refreshProducts() }}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
-          onOpenProductPicker={() => setIsProductPickerOpen(true)}
           hasProducts={products.length > 0}
+          hasTemplates={templates.length > 0}
         />
       </div>
 
-      {/* Product Picker Dialog */}
-      <ProductPickerDialog
-        open={isProductPickerOpen}
-        onOpenChange={setIsProductPickerOpen}
-        products={products}
-        attachedSlugs={attachedProducts}
-        onSelect={attachProduct}
-      />
     </main >
   )
 }
