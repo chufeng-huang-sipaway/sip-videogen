@@ -59,7 +59,7 @@ class BaseVideoGenerator(ABC):
         scene: SceneAction,
         output_dir: str,
         reference_images: list[GeneratedAsset] | None = None,
-        aspect_ratio: str = "16:9",
+        aspect_ratio: str = "1:1",
         generate_audio: bool = True,
         total_scenes: int | None = None,
         script: VideoScript | None = None,

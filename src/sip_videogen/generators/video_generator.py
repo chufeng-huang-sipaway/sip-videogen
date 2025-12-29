@@ -23,6 +23,7 @@ from sip_videogen.generators.base import (
 )
 from sip_videogen.generators.prompt_builder import build_structured_scene_prompt
 from sip_videogen.models.assets import AssetType, GeneratedAsset
+from sip_videogen.models.aspect_ratio import AspectRatio, get_supported_ratio, validate_aspect_ratio
 from sip_videogen.models.script import SceneAction, VideoScript
 
 logger = get_logger(__name__)
@@ -89,7 +90,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
         scene: SceneAction,
         output_dir: str,
         reference_images: list[GeneratedAsset] | None = None,
-        aspect_ratio: str = "16:9",
+        aspect_ratio: str = "1:1",
         generate_audio: bool = True,
         total_scenes: int | None = None,
         script: VideoScript | None = None,
@@ -120,6 +121,13 @@ class VEOVideoGenerator(BaseVideoGenerator):
         """
         logger.info(f"Generating video clip for scene {scene.scene_number}")
 
+        # Validate and apply provider-specific fallback for aspect ratio
+        validated_ratio=validate_aspect_ratio(aspect_ratio)
+        actual_ratio,was_fallback=get_supported_ratio(validated_ratio,self.PROVIDER_NAME)
+        if was_fallback:
+            logger.warning(f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})")
+        final_aspect_ratio=actual_ratio.value
+
         # Build reference image configs (max 3)
         ref_configs = None
         if reference_images:
@@ -149,7 +157,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 config=GenerateVideosConfig(
                     reference_images=ref_configs,
                     duration_seconds=duration,
-                    aspect_ratio=aspect_ratio,
+                    aspect_ratio=final_aspect_ratio,
                 ),
             )
 
