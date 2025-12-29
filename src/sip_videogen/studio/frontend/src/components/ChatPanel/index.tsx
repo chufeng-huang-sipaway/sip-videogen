@@ -95,6 +95,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     isLoading,
     progress,
     loadedSkills,
+    thinkingSteps,
     error,
     attachmentError,
     attachments,
@@ -390,6 +391,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             messages={messages}
             progress={progress}
             loadedSkills={loadedSkills}
+            thinkingSteps={thinkingSteps}
             isLoading={isLoading}
             products={products}
             onInteractionSelect={async (messageId, selection) => {

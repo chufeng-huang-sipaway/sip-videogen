@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Package, Paperclip, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { type GeneratedVideo, type TemplateSummary, type ProductEntry } from '@/lib/bridge'
+import { type GeneratedVideo, type TemplateSummary, type ProductEntry, type ThinkingStep } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
+import { ThinkingSteps } from './ThinkingSteps'
 import { InteractionRenderer } from './InteractionRenderer'
 import { ChatImageGallery } from './ChatImageGallery'
 import { cn } from '@/lib/utils'
@@ -65,6 +66,7 @@ interface MessageListProps {
   messages: Message[]
   progress: string
   loadedSkills: string[]
+  thinkingSteps: ThinkingStep[]
   isLoading: boolean
   products: ProductEntry[]
   templates?: TemplateSummary[]
@@ -205,11 +207,13 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }
           </div>
         )}
 
+        {/* Thinking Steps (Persisted from completed messages) */}
+        {message.role === 'assistant' && message.thinkingSteps && message.thinkingSteps.length > 0 && (
+          <div className="mt-2 w-full"><ThinkingSteps steps={message.thinkingSteps} isGenerating={false} /></div>
+        )}
         {/* Execution Trace (Minimal) */}
         {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (
-          <div className="mt-2 w-full">
-            <ExecutionTrace events={message.executionTrace} />
-          </div>
+          <div className="mt-2 w-full"><ExecutionTrace events={message.executionTrace} /></div>
         )}
 
         {/* Interaction Request */}
@@ -339,43 +343,23 @@ function ActivityCard({ progress, loadedSkills }: ActivityCardProps) {
   )
 }
 
-export function MessageList({ messages, progress, loadedSkills, isLoading, products, templates, onInteractionSelect, onRegenerate }: MessageListProps) {
+export function MessageList({ messages, progress, loadedSkills, thinkingSteps, isLoading, products, templates, onInteractionSelect, onRegenerate }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, progress])
-
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, progress, thinkingSteps])
   const { templates: contextTemplates } = useTemplates()
   const allTemplates = templates || contextTemplates
-
   if (messages.length === 0) return null
-
-  // Find if there is an active "thinking" process to show at the end
+  //Find if there is an active "thinking" process to show at the end
   const showActivity = isLoading || progress
-
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
       {messages.map((message) => (
-        <MessageBubble
-          key={message.id}
-          message={message}
-          products={products}
-          templates={allTemplates}
-          onInteractionSelect={onInteractionSelect}
-          isLoading={isLoading}
-          onRegenerate={onRegenerate}
-        />
+        <MessageBubble key={message.id} message={message} products={products} templates={allTemplates} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} />
       ))}
-
+      {/* Thinking Steps (Real-time during loading) */}
+      {isLoading && <div className="px-6"><ThinkingSteps steps={thinkingSteps} isGenerating={true} /></div>}
       {/* Activity Indicator */}
-      {showActivity && (
-        <ActivityCard
-          progress={progress}
-          loadedSkills={loadedSkills}
-        />
-      )}
-
+      {showActivity && <ActivityCard progress={progress} loadedSkills={loadedSkills} />}
       <div ref={bottomRef} className="h-px" />
     </div>
   )
