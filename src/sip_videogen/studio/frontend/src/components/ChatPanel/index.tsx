@@ -343,7 +343,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             clearTemplateAttachments()
           }}
           disabled={isLoading || messages.length === 0}
-          className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 hover:bg-white border border-transparent hover:border-black/5 shadow-sm transition-all text-muted-foreground hover:text-foreground"
+          className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
@@ -409,7 +409,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             {attachments.map((att) => (
               <div
                 key={att.id}
-                className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 backdrop-blur-sm px-3 py-1 shadow-sm"
+                className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 dark:bg-white/10 backdrop-blur-sm px-3 py-1 shadow-sm"
               >
                 {att.preview ? (
                   <img src={att.preview} alt={att.name} className="h-4 w-4 rounded object-cover" />

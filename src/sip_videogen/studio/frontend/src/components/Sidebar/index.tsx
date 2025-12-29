@@ -62,7 +62,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
             <Button
               variant="ghost"
               size="icon"
-              className="w-10 h-10 rounded-2xl bg-white/40 text-foreground hover:bg-white hover:shadow-soft transition-all"
+              className="w-10 h-10 rounded-2xl bg-white/40 dark:bg-white/10 text-foreground hover:bg-white dark:hover:bg-white/20 hover:shadow-soft transition-all"
               onClick={onOpenBrandMemory}
               disabled={!activeBrand}
             >
@@ -145,11 +145,11 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
         <div
           onClick={activeBrand ? onOpenBrandMemory : undefined}
           className={cn(
-            "group flex items-center gap-3 p-3 rounded-2xl border border-transparent bg-white/40 hover:bg-white/80 hover:shadow-soft transition-all cursor-pointer",
+            "group flex items-center gap-3 p-3 rounded-2xl border border-transparent bg-white/40 dark:bg-white/10 hover:bg-white/80 dark:hover:bg-white/20 hover:shadow-soft transition-all cursor-pointer",
             !activeBrand && "opacity-50 pointer-events-none"
           )}
         >
-          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-sm border border-black/5 text-foreground group-hover:scale-105 transition-transform">
+          <div className="w-9 h-9 rounded-xl bg-white dark:bg-white/10 flex items-center justify-center shadow-sm border border-black/5 dark:border-white/10 text-foreground group-hover:scale-105 transition-transform">
             <Brain className="w-4.5 h-4.5" strokeWidth={1.5} />
           </div>
           <div className="flex-1 min-w-0">

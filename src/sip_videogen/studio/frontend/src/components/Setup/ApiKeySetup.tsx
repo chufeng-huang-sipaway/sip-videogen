@@ -22,14 +22,14 @@ export function ApiKeySetup({ onComplete }: ApiKeySetupProps) {
     finally {setIsSaving(false)}
   }
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mx-auto mb-4">
             <Key className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold">Welcome to Brand Studio</h1>
-          <p className="text-gray-500 mt-2">Enter your API keys to get started</p>
+          <p className="text-muted-foreground mt-2">Enter your API keys to get started</p>
         </div>
         {error && (<Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>)}
         <form onSubmit={onSubmit} className="space-y-4">
@@ -42,13 +42,13 @@ export function ApiKeySetup({ onComplete }: ApiKeySetupProps) {
             <Input type="password" placeholder="AI…" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">FireCrawl API Key <span className="text-gray-400 text-xs">(optional)</span></label>
+            <label className="block text-sm font-medium mb-1">FireCrawl API Key <span className="text-muted-foreground/60 text-xs">(optional)</span></label>
             <Input type="password" placeholder="fc-…" value={firecrawlKey} onChange={(e) => setFirecrawlKey(e.target.value)} />
-            <p className="text-xs text-gray-400 mt-1">Enables reading URLs shared in chat</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Enables reading URLs shared in chat</p>
           </div>
           <Button type="submit" className="w-full" disabled={isSaving}>{isSaving ? 'Saving…' : 'Get Started'}</Button>
         </form>
-        <p className="text-xs text-center text-gray-400">Keys are saved locally in ~/.sip-videogen/config.json</p>
+        <p className="text-xs text-center text-muted-foreground/60">Keys are saved locally in ~/.sip-videogen/config.json</p>
       </div>
     </div>
   )

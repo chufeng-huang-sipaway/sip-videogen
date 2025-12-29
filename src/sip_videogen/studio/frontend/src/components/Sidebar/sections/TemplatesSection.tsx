@@ -24,8 +24,8 @@ load()
 return ()=>{cancelled=true}},[path,size])
 const sizeClasses=size==='lg'?'h-24 w-24':'h-8 w-8'
 if(!src){return(
-<div className={`${sizeClasses} rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0`}>
-{size==='lg'?(<Loader2 className="h-4 w-4 text-gray-400 animate-spin"/>):(<Layout className="h-4 w-4 text-gray-400"/>)}
+<div className={`${sizeClasses} rounded bg-muted flex items-center justify-center shrink-0`}>
+{size==='lg'?(<Loader2 className="h-4 w-4 text-muted-foreground animate-spin"/>):(<Layout className="h-4 w-4 text-muted-foreground"/>)}
 </div>)}
 return <img src={src} alt="" className={`${sizeClasses} rounded object-cover shrink-0`}/>}
 //Preview component for expanded template view
@@ -47,7 +47,7 @@ if(!cancelled){setTemplate(templateData);setImages(imagePaths)}
 load()
 return ()=>{cancelled=true}},[templateSlug,getTemplate,getTemplateImages])
 if(isLoading){return(
-<div className="py-3 flex items-center gap-2 text-xs text-gray-400">
+<div className="py-3 flex items-center gap-2 text-xs text-muted-foreground">
 <Loader2 className="h-3 w-3 animate-spin"/>Loading...</div>)}
 if(!template){return(<div className="py-2 text-xs text-red-500">Failed to load template</div>)}
 return(
@@ -68,11 +68,11 @@ return(
 {/*Description*/}
 {template.description&&(
 <div className="space-y-1">
-<span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Description</span>
-<p className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{template.description}</p>
+<span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Description</span>
+<p className="text-xs text-foreground/80 whitespace-pre-wrap">{template.description}</p>
 </div>)}
 {/*Default strictness and stats*/}
-<div className="flex items-center gap-3 text-[10px] text-gray-400 pt-1 border-t border-gray-200 dark:border-gray-700">
+<div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1 border-t border-border">
 <span className="flex items-center gap-1">
 {template.default_strict?<Lock className="h-3 w-3"/>:<Unlock className="h-3 w-3"/>}
 {template.default_strict?'Strict by default':'Loose by default'}</span>
@@ -135,7 +135,7 @@ draggable onDragStart={handleDragStart} onClick={handleClick} title="Click to pr
 <ContextMenuItem onClick={onViewDetail}><Layout className="h-4 w-4 mr-2"/>View Details</ContextMenuItem>
 <ContextMenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2"/>Edit Template</ContextMenuItem>
 <ContextMenuSeparator/>
-<ContextMenuItem onClick={onDelete} className="text-red-600">Delete Template</ContextMenuItem>
+<ContextMenuItem onClick={onDelete} className="text-destructive">Delete Template</ContextMenuItem>
 </ContextMenuContent>
 </ContextMenu>
 {/*Expanded preview*/}
@@ -168,7 +168,7 @@ if(confirm(`Delete template "${slug}"? This cannot be undone.`)){
 try{await deleteTemplate(slug);if(expandedTemplate===slug)setExpandedTemplate(null);if(detailViewSlug===slug)setDetailViewSlug(null)}
 catch(err){setActionError(err instanceof Error?err.message:'Failed to delete template')}}}
 const handleOpenDetail=(slug:string)=>{setDetailViewSlug(slug);setExpandedTemplate(null)}
-if(!activeBrand){return<div className="text-sm text-gray-500">Select a brand</div>}
+if(!activeBrand){return<div className="text-sm text-muted-foreground">Select a brand</div>}
 if(error){return(
 <div className="text-sm text-red-500">
 Error: {error}
@@ -185,7 +185,7 @@ return(
 </AlertDescription>
 </Alert>)}
 {templates.length===0?(
-<p className="text-sm text-gray-400 italic">
+<p className="text-sm text-muted-foreground italic">
 {isLoading?'Loading...':'No templates yet. Click + to add one.'}</p>):(
 <div className="space-y-1">
 {templates.map((template)=>{

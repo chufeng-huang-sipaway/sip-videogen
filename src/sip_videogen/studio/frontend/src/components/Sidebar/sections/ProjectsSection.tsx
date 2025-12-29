@@ -76,7 +76,7 @@ function ProjectCard({ project, isActive, onClick, onEdit, onArchive, onDelete }
           </>
         )}
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={onDelete} className="text-red-600">
+        <ContextMenuItem onClick={onDelete} className="text-destructive">
           Delete Project
         </ContextMenuItem>
       </ContextMenuContent>
@@ -139,7 +139,7 @@ export function ProjectsSection() {
   }
 
   if (!activeBrand) {
-    return <div className="text-sm text-gray-500">Select a brand</div>
+    return <div className="text-sm text-muted-foreground">Select a brand</div>
   }
 
   if (error) {
@@ -182,7 +182,7 @@ export function ProjectsSection() {
       {/* Unsorted (non-project) assets section */}
       <div className="mb-2"><div className="flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden hover:bg-muted/50 text-muted-foreground hover:text-foreground" title="Assets not associated with any project"><Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" /><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className="text-sm font-medium truncate text-foreground/90 italic">Unsorted</span></div><span className="text-[10px] truncate block text-muted-foreground/60">{generalCount} asset{generalCount !== 1 ? 's' : ''}</span></div></div></div>
 
-      {sortedProjects.length === 0 ? (<p className="text-sm text-gray-400 italic">{isLoading ? 'Loading...' : 'No projects yet. Click + to create a campaign.'}</p>) : (<div className="space-y-1">{sortedProjects.map((project) => (<ProjectCard key={project.slug} project={project} isActive={activeProject === project.slug} onClick={() => loadProjectAssets(project.slug)} onEdit={() => setEditingProjectSlug(project.slug)} onArchive={() => handleArchive(project.slug)} onDelete={() => handleDelete(project.slug)} />))}</div>)}
+      {sortedProjects.length === 0 ? (<p className="text-sm text-muted-foreground italic">{isLoading ? 'Loading...' : 'No projects yet. Click + to create a campaign.'}</p>) : (<div className="space-y-1">{sortedProjects.map((project) => (<ProjectCard key={project.slug} project={project} isActive={activeProject === project.slug} onClick={() => loadProjectAssets(project.slug)} onEdit={() => setEditingProjectSlug(project.slug)} onArchive={() => handleArchive(project.slug)} onDelete={() => handleDelete(project.slug)} />))}</div>)}
 
       {editingProjectSlug && (
         <EditProjectDialog
