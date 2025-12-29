@@ -191,9 +191,9 @@ function ProductCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-2.5 py-2 px-2.5 rounded-lg border border-transparent hover:bg-accent/50 cursor-pointer group overflow-hidden transition-all duration-200 ${isAttached
-              ? 'bg-secondary/50 border-input shadow-sm'
-              : ''
+            className={`flex items-center gap-2.5 py-1.5 px-2 rounded-md border border-transparent hover:bg-sidebar-accent/50 cursor-pointer group overflow-hidden transition-all duration-200 ${isAttached
+              ? 'bg-sidebar-accent/50 border-input shadow-sm'
+              : 'text-muted-foreground/80 hover:text-foreground'
               }`}
             draggable
             onDragStart={handleDragStart}

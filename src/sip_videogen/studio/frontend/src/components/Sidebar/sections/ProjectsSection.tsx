@@ -36,10 +36,10 @@ function ProjectCard({ project, isActive, onClick, onEdit, onArchive, onDelete }
         <div
           onClick={onClick}
           className={`
-            flex items-center gap-2.5 py-2 px-3 rounded-lg cursor-pointer group transition-all duration-200 overflow-hidden 
+            flex items-center gap-2.5 py-1.5 px-2 rounded-md cursor-pointer group transition-all duration-200 overflow-hidden 
             ${isActive
-              ? 'bg-secondary text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/5 font-medium'
-              : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
+              ? 'bg-sidebar-accent text-foreground shadow-sm font-medium'
+              : 'text-muted-foreground/80 hover:bg-sidebar-accent/50 hover:text-foreground'
             } 
             ${isArchived ? 'opacity-60' : ''}
           `}
