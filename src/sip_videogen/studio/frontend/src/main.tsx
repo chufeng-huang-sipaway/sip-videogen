@@ -6,6 +6,7 @@ import {ProductProvider} from '@/context/ProductContext'
 import {ProjectProvider} from '@/context/ProjectContext'
 import {TemplateProvider} from '@/context/TemplateContext'
 import {WorkstationProvider} from '@/context/WorkstationContext'
+import {TabProvider} from '@/context/TabContext'
 import './index.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
 <React.StrictMode>
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 <ProductProvider>
 <TemplateProvider>
 <WorkstationProvider>
+<TabProvider>
 <App/>
+</TabProvider>
 </WorkstationProvider>
 </TemplateProvider>
 </ProductProvider>
