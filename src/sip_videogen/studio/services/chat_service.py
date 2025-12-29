@@ -18,12 +18,17 @@ class ChatService:
     def __init__(self,state:BridgeState):self._state=state
     def _progress_callback(self,progress)->None:
         """Called by BrandAdvisor during execution."""
-        event={"type":progress.event_type,"timestamp":int(time.time()*1000),"message":progress.message,"detail":progress.detail or""}
+        ts=int(time.time()*1000)
+        event={"type":progress.event_type,"timestamp":ts,"message":progress.message,"detail":progress.detail or""}
         self._state.execution_trace.append(event)
         if progress.event_type=="skill_loaded":
             skill_name=progress.message.replace("Loading ","").replace(" skill","")
             if skill_name not in self._state.matched_skills:self._state.matched_skills.append(skill_name)
-        if progress.event_type=="tool_end":self._state.current_progress="";self._state.current_progress_type=""
+        #Accumulate thinking steps for real-time polling; do NOT update current_progress_type
+        if progress.event_type=="thinking_step":
+            step_id=f"{ts}-{len(self._state.thinking_steps)}"
+            self._state.thinking_steps.append({"id":step_id,"step":progress.message,"detail":progress.detail or"","timestamp":ts})
+        elif progress.event_type=="tool_end":self._state.current_progress="";self._state.current_progress_type=""
         else:self._state.current_progress=progress.message;self._state.current_progress_type=progress.event_type
     def _ensure_advisor(self)->tuple[BrandAdvisor|None,str|None]:
         """Initialize or get the brand advisor."""
@@ -48,10 +53,10 @@ class ChatService:
         return sorted(after-before)
     def get_progress(self)->dict:
         """Get current operation progress."""
-        return bridge_ok({"status":self._state.current_progress,"type":self._state.current_progress_type,"skills":self._state.matched_skills})
+        return bridge_ok({"status":self._state.current_progress,"type":self._state.current_progress_type,"skills":self._state.matched_skills,"thinking_steps":self._state.thinking_steps})
     def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None,aspect_ratio:str|None=None)->dict:
         """Send a message to the Brand Advisor with optional context."""
-        self._state.execution_trace=[];self._state.matched_skills=[]
+        self._state.execution_trace=[];self._state.matched_skills=[];self._state.thinking_steps=[]
         try:
             advisor,err=self._ensure_advisor()
             if err or advisor is None:return bridge_error(err or "No brand selected")

@@ -260,7 +260,7 @@ def get_progress(self) -> dict:
 - Integration test: No "tool_start" event for report_thinking
 - Integration test: `current_progress_type` not affected by thinking_step
 
-**Status**: Not Started
+**Status**: Complete
 
 ---
 

@@ -15,6 +15,7 @@ class BridgeState:
     current_progress_type:str=""
     matched_skills:list[str]=field(default_factory=list)
     execution_trace:list[dict]=field(default_factory=list)
+    thinking_steps:list[dict]=field(default_factory=list)
     update_progress:dict|None=None
     window:object=None
     def get_active_slug(self)->str|None:
