@@ -68,9 +68,8 @@ export function Workstation() {
         if (!currentImage) return
         const path = currentImage.originalPath || currentImage.path
         if (!path || path.startsWith('data:')) { toast.error('Cannot delete this image'); return }
-        //Always remove from UI first, then attempt backend delete (handles missing files gracefully)
+        //Remove from UI first for instant feedback
         removeFromBatchByPath(path)
-        bumpStatusVersion()
         try {
             await bridge.deleteAsset(path)
             toast.success('Moved to Trash')
@@ -78,6 +77,8 @@ export function Workstation() {
             //File might already be gone - that's OK, we already removed from UI
             console.warn('Delete failed (file may not exist):', e)
         }
+        //Bump after deletion so sidebar refreshes with accurate count
+        bumpStatusVersion()
     }, [currentImage, removeFromBatchByPath, bumpStatusVersion])
 
     useEffect(() => {
