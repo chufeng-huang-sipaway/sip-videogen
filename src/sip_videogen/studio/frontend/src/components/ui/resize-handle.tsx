@@ -46,10 +46,10 @@ export function ResizeHandle({ onResize, onResizeEnd }: ResizeHandleProps) {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className="w-1 hover:w-1.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize transition-all duration-150 flex-shrink-0 group"
+      className="w-1 hover:w-1.5 bg-transparent hover:bg-brand-500/50 cursor-col-resize transition-all duration-150 flex-shrink-0 group"
       title="Drag to resize"
     >
-      <div className="w-full h-full group-hover:bg-blue-500/30" />
+      <div className="w-full h-full group-hover:bg-brand-500/30" />
     </div>
   )
 }

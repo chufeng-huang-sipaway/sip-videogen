@@ -59,7 +59,7 @@ function TemplatePreview({ templateSlug }: TemplatePreviewProps) {
             <div className="py-3 flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" />Loading...</div>)
     }
-    if (!template) { return (<div className="py-2 text-xs text-red-500">Failed to load template</div>) }
+    if (!template) { return (<div className="py-2 text-xs text-destructive">Failed to load template</div>) }
     return (
         <div className="py-3 space-y-3">
             {/*Image Gallery*/}
@@ -190,7 +190,7 @@ export function TemplatesSection({ createDialogOpen, onCreateDialogChange }: Tem
     if (!activeBrand) { return <div className="text-sm text-muted-foreground">Select a brand</div> }
     if (error) {
         return (
-            <div className="text-sm text-red-500">
+            <div className="text-sm text-destructive">
                 Error: {error}
                 <Button variant="ghost" size="sm" onClick={refresh}>Retry</Button>
             </div>)

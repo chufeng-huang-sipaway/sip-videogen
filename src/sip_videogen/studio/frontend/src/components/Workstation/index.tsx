@@ -54,7 +54,7 @@ return(<div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-
 <ExportActions variant="dark"/>
 <QuickEditButton variant="dark"/>
 <div className="w-px h-5 bg-white/20 mx-1"/>
-<Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleDelete} disabled={!currentImage} className="h-9 w-9 rounded-full text-white/90 hover:bg-red-500/20 hover:text-red-400 transition-all hover:scale-110"><Trash2 className="w-4 h-4"/></Button></TooltipTrigger><TooltipContent side="top">Delete (T)</TooltipContent></Tooltip>
+<Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleDelete} disabled={!currentImage} className="h-9 w-9 rounded-full text-white/90 hover:bg-destructive/20 hover:text-destructive transition-all hover:scale-110"><Trash2 className="w-4 h-4"/></Button></TooltipTrigger><TooltipContent side="top">Delete (T)</TooltipContent></Tooltip>
 </div></div>)}
 </div></div>)}
 </div>

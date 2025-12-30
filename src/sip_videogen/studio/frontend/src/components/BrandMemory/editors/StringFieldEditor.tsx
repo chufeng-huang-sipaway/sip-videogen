@@ -48,7 +48,7 @@ export function StringFieldEditor({
   const labelElement = (
     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
       {label}
-      {required && <span className="text-red-500 ml-1">*</span>}
+      {required && <span className="text-destructive ml-1">*</span>}
     </label>
   );
 
