@@ -187,38 +187,7 @@ function ProductCard({
   }
 
   return (
-    <div>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div
-            className={`flex items-center gap-2.5 py-1.5 px-2 rounded-md border border-transparent hover:bg-sidebar-accent/50 cursor-pointer group overflow-hidden transition-all duration-200 ${isAttached
-              ? 'bg-sidebar-accent/50 border-input shadow-sm'
-              : 'text-muted-foreground/80 hover:text-foreground'
-              }`}
-            draggable
-            onDragStart={handleDragStart}
-            onClick={handleClick}
-            title="Click to preview, drag to attach to chat"
-          >
-            {/* Expand/collapse chevron */}
-            {isExpanded ? (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 group-hover:text-foreground/80 transition-colors" />
-            )}
-            <ProductThumbnail path={product.primary_image} />
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-medium truncate text-foreground/90">{product.name}</span>
-              </div>
-              <span className="text-xs text-muted-foreground truncate block">
-                {product.description.length > 40
-                  ? product.description.slice(0, 40) + '...'
-                  : product.description}
-              </span>
-            </div>
-          </div>
-        </ContextMenuTrigger>
+    <div><ContextMenu><ContextMenuTrigger asChild><div className={`flex items-center gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer group overflow-hidden transition-colors duration-150 ${isAttached?'bg-primary/10 text-foreground':'text-muted-foreground/80 hover:bg-muted/50 hover:text-foreground'}`} draggable onDragStart={handleDragStart} onClick={handleClick} title="Click to preview, drag to attach to chat">{isExpanded?(<ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"/>):(<ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 group-hover:text-foreground/80 transition-colors duration-150"/>)}<ProductThumbnail path={product.primary_image}/><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1.5"><span className={`text-sm truncate ${isAttached?'font-medium text-foreground':'text-foreground/90'}`}>{product.name}</span></div><span className="text-xs text-muted-foreground/70 truncate block">{product.description.length>50?product.description.slice(0,50)+'...':product.description}</span></div></div></ContextMenuTrigger>
         <ContextMenuContent>
           {isAttached ? (
             <ContextMenuItem onClick={onDetach}>
@@ -242,16 +211,7 @@ function ProductCard({
       </ContextMenu>
 
       {/* Expanded preview */}
-      {isExpanded && (
-        <div className="pl-6 pr-2 border-l-2 border-border/50 ml-[11px] mt-1 relative">
-          {/* Connecting line dot */}
-          <div className="absolute top-0 -left-[5px] w-2 h-2 rounded-full bg-border/50"></div>
-          <ProductPreview productSlug={product.slug} />
-        </div>
-      )}
-    </div>
-  )
-}
+      {isExpanded&&(<div className="pl-6 pr-2 border-l border-border/30 ml-[11px] mt-1 relative"><div className="absolute top-0 -left-[3px] w-1.5 h-1.5 rounded-full bg-border/50"></div><ProductPreview productSlug={product.slug}/></div>)}</div>)}
 
 export function ProductsSection() {
   const { activeBrand } = useBrand()
@@ -310,44 +270,7 @@ export function ProductsSection() {
   }
 
   return (
-    <div className="space-y-2 pl-2 pr-1">
-      {actionError && (
-        <Alert variant="destructive" className="py-2 px-3">
-          <AlertDescription className="flex items-center justify-between text-xs">
-            <span>{actionError}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-4 w-4 shrink-0"
-              onClick={() => setActionError(null)}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {products.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">
-          {isLoading ? 'Loading...' : 'No products yet. Click + to add one.'}
-        </p>
-      ) : (
-        <div className="space-y-1">
-          {products.map((product) => (
-            <ProductCard
-              key={product.slug}
-              product={product}
-              isAttached={attachedProducts.includes(product.slug)}
-              isExpanded={expandedProduct === product.slug}
-              onToggleExpand={() => handleToggleExpand(product.slug)}
-              onAttach={() => attachProduct(product.slug)}
-              onDetach={() => detachProduct(product.slug)}
-              onEdit={() => setEditingProductSlug(product.slug)}
-              onDelete={() => handleDelete(product.slug)}
-            />
-          ))}
-        </div>
-      )}
+    <div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{products.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No products yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{products.map((product)=>(<ProductCard key={product.slug} product={product} isAttached={attachedProducts.includes(product.slug)} isExpanded={expandedProduct===product.slug} onToggleExpand={()=>handleToggleExpand(product.slug)} onAttach={()=>attachProduct(product.slug)} onDetach={()=>detachProduct(product.slug)} onEdit={()=>setEditingProductSlug(product.slug)} onDelete={()=>handleDelete(product.slug)}/>))}</div>)}
 
       {editingProductSlug && (
         <EditProductDialog

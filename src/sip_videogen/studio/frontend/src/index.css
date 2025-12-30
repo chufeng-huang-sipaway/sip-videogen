@@ -244,74 +244,34 @@ body.is-dragging img {
   pointer-events: none;
 }
 
-/* AI Quick Edit Button - Holographic Opal (Elegant) */
+/* AI Quick Edit Button - Brand Holographic */
 .quick-edit-btn {
   position: relative;
-  /* Elegant Opal Gradient: Soft Blue -> Pale Purple -> Rose Quartz -> White Shine */
-  background: linear-gradient(135deg, #e0faff, #e0e7ff, #fae8ff, #ffffff, #e0faff);
+  /* Brand gradient: Rose -> Pink -> White shine - using brand red tones */
+  background: linear-gradient(135deg, #fce7f3, #fecdd3, #ffffff, #fed7aa, #fce7f3);
   background-size: 300% 300%;
   animation: jewel-shift 4s ease-in-out infinite;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
-    /* Bright crisp rim */
-    inset 0 2px 5px rgba(255, 255, 255, 1),
-    /* Strong highlights */
-    0 4px 15px rgba(165, 180, 252, 0.45),
-    /* Soft indigo aura */
-    0 2px 4px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.9), inset 0 2px 5px rgba(255,255,255,1), 0 4px 15px rgba(237,9,66,0.25), 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid rgba(255,255,255,0.6);
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-  color: #4f46e5;
-  /* Deep Indigo Icon for contrast against light bg */
+  transition: all 0.4s cubic-bezier(0.2,0.8,0.2,1);
+  color: #d4073b; /* brand-600 for icon */
 }
-
 .dark .quick-edit-btn {
-  /* Dark Pearl: Deep but soft */
-  background: linear-gradient(135deg, #1e1b4b, #312e81, #4c1d95, #1e1b4b);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
-    inset 0 1px 4px rgba(255, 255, 255, 0.4),
-    0 4px 16px rgba(139, 92, 246, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.4);
+  /* Dark mode: Deep brand red tones */
+  background: linear-gradient(135deg, #4a1520, #6b1a2a, #7f1d2f, #4a1520);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), inset 0 1px 4px rgba(255,255,255,0.3), 0 4px 16px rgba(237,9,66,0.4), 0 2px 6px rgba(0,0,0,0.4);
   color: white;
-  /* White icon in dark mode */
 }
-
 .quick-edit-btn:hover {
   transform: translateY(-2px) scale(1.08);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 1),
-    0 8px 25px rgba(192, 132, 252, 0.5),
-    /* Lavender glow */
-    0 4px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,1), 0 8px 25px rgba(237,9,66,0.35), 0 4px 10px rgba(0,0,0,0.05);
 }
-
 .dark .quick-edit-btn:hover {
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
-    0 8px 28px rgba(139, 92, 246, 0.6),
-    0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3), 0 8px 28px rgba(237,9,66,0.5), 0 4px 12px rgba(0,0,0,0.5);
 }
-
-.dark .quick-edit-btn:hover {
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.25),
-    0 8px 24px rgba(124, 58, 237, 0.6),
-    0 4px 8px rgba(0, 0, 0, 0.4);
-}
-
-.quick-edit-btn:active {
-  transform: scale(0.95);
-}
-
-.quick-edit-btn:disabled {
-  background: transparent;
-  animation: none;
-  box-shadow: none;
-  border-color: transparent;
-  opacity: 0.5;
-}
+.quick-edit-btn:active { transform: scale(0.95); }
+.quick-edit-btn:disabled { background: transparent; animation: none; box-shadow: none; border-color: transparent; opacity: 0.5; }
 
 @keyframes jewel-shift {
   0% {
@@ -327,106 +287,132 @@ body.is-dragging img {
   }
 }
 
-/* Quick Edit Shimmer Overlay - Minimalist Magical Glow */
+/* Quick Edit Shimmer Overlay - Four Corner Atmospheric Glow with Brand Color */
 .shimmer-overlay {
   position: absolute;
   inset: 0;
-  overflow: visible;
+  overflow: hidden;
   z-index: 15;
   pointer-events: none;
-  border-radius: inherit;
-
-  /* Soft ethereal outer glow - breathes gently */
-  box-shadow:
-    0 0 30px rgba(139, 92, 246, 0.15),
-    0 0 60px rgba(139, 92, 246, 0.08),
-    inset 0 0 20px rgba(139, 92, 246, 0.03);
-
-  animation: magic-breathe 3s ease-in-out infinite;
+  /* Four corner foggy radial gradients using brand red */
+  background:
+    radial-gradient(ellipse 70% 70% at 0% 0%, rgba(237, 9, 66, 0.5), rgba(237, 9, 66, 0.2) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 0%, rgba(237, 9, 66, 0.45), rgba(237, 9, 66, 0.18) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 0% 100%, rgba(237, 9, 66, 0.45), rgba(237, 9, 66, 0.18) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 100%, rgba(237, 9, 66, 0.5), rgba(237, 9, 66, 0.2) 50%, transparent 70%);
+  filter: blur(20px);
+  animation: corner-breathe 3.5s ease-in-out infinite;
 }
-
-/* Subtle corner sparkle accents */
+/* Sparkle orbs at opposite corners */
 .shimmer-overlay::before,
 .shimmer-overlay::after {
   content: '';
   position: absolute;
-  width: 6px;
-  height: 6px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(167, 139, 250, 0.6) 40%, transparent 70%);
-  box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
-  animation: sparkle-float 4s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(237, 9, 66, 0.35) 40%, transparent 70%);
+  filter: blur(15px);
+  animation: sparkle-pulse 2.5s ease-in-out infinite;
 }
-
-.shimmer-overlay::before {
-  top: 12px;
-  right: 12px;
-  animation-delay: 0s;
-}
-
-.shimmer-overlay::after {
-  bottom: 12px;
-  left: 12px;
-  animation-delay: 2s;
-}
-
+.shimmer-overlay::before { top: -50px; left: -50px; animation-delay: 0s; }
+.shimmer-overlay::after { bottom: -50px; right: -50px; animation-delay: 1.25s; }
 .dark .shimmer-overlay {
-  box-shadow:
-    0 0 40px rgba(139, 92, 246, 0.2),
-    0 0 80px rgba(139, 92, 246, 0.1),
-    inset 0 0 30px rgba(139, 92, 246, 0.05);
+  background:
+    radial-gradient(ellipse 70% 70% at 0% 0%, rgba(237, 9, 66, 0.6), rgba(237, 9, 66, 0.25) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 0%, rgba(237, 9, 66, 0.55), rgba(237, 9, 66, 0.22) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 0% 100%, rgba(237, 9, 66, 0.55), rgba(237, 9, 66, 0.22) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 100%, rgba(237, 9, 66, 0.6), rgba(237, 9, 66, 0.25) 50%, transparent 70%);
+  filter: blur(25px);
 }
-
 .dark .shimmer-overlay::before,
 .dark .shimmer-overlay::after {
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(167, 139, 250, 0.5) 40%, transparent 70%);
-  box-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(237, 9, 66, 0.45) 40%, transparent 70%);
+  filter: blur(18px);
 }
-
-/* Gentle breathing animation */
-@keyframes magic-breathe {
-
-  0%,
-  100% {
-    opacity: 0.7;
-    box-shadow:
-      0 0 30px rgba(139, 92, 246, 0.15),
-      0 0 60px rgba(139, 92, 246, 0.08),
-      inset 0 0 20px rgba(139, 92, 246, 0.03);
-  }
-
-  50% {
-    opacity: 1;
-    box-shadow:
-      0 0 40px rgba(139, 92, 246, 0.22),
-      0 0 80px rgba(139, 92, 246, 0.12),
-      inset 0 0 30px rgba(139, 92, 246, 0.05);
-  }
+/* Sparkle particles container */
+.shimmer-sparkles { position: absolute; inset: 0; z-index: 16; pointer-events: none; overflow: hidden; }
+/* Individual sparkle - 4-point star shape */
+.sparkle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  animation: sparkle-twinkle 1.8s ease-in-out infinite;
 }
-
-/* Subtle sparkle floating animation */
-@keyframes sparkle-float {
-
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(0.8) translateY(0);
-  }
-
-  25% {
-    opacity: 1;
-    transform: scale(1.1) translateY(-2px);
-  }
-
-  50% {
-    opacity: 0.6;
-    transform: scale(0.9) translateY(1px);
-  }
-
-  75% {
-    opacity: 0.9;
-    transform: scale(1) translateY(-1px);
-  }
+.sparkle::before, .sparkle::after {
+  content: '';
+  position: absolute;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 50%, transparent 100%);
+  border-radius: 2px;
+}
+.sparkle::before { width: 100%; height: 3px; top: 50%; left: 0; transform: translateY(-50%); }
+.sparkle::after { width: 3px; height: 100%; left: 50%; top: 0; transform: translateX(-50%); }
+/* Brand-colored sparkles */
+.sparkle.brand::before, .sparkle.brand::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(237,9,66,0.9) 50%, transparent 100%);
+}
+/* Position sparkles in corners - avoiding center */
+/* Top-left corner cluster */
+.sparkle:nth-child(1) { top: 3%; left: 3%; animation-delay: 0s; }
+.sparkle:nth-child(2) { top: 6%; left: 12%; animation-delay: 0.4s; }
+.sparkle:nth-child(3) { top: 10%; left: 5%; animation-delay: 0.85s; }
+.sparkle:nth-child(4) { top: 14%; left: 15%; animation-delay: 0.2s; }
+.sparkle:nth-child(5) { top: 8%; left: 22%; animation-delay: 1.1s; }
+.sparkle:nth-child(6) { top: 18%; left: 3%; animation-delay: 0.55s; }
+.sparkle:nth-child(7) { top: 22%; left: 10%; animation-delay: 0.95s; }
+.sparkle:nth-child(8) { top: 28%; left: 5%; animation-delay: 0.3s; }
+.sparkle:nth-child(9) { top: 3%; left: 28%; animation-delay: 0.7s; }
+/* Top-right corner cluster */
+.sparkle:nth-child(10) { top: 3%; right: 3%; animation-delay: 0.15s; }
+.sparkle:nth-child(11) { top: 7%; right: 12%; animation-delay: 0.6s; }
+.sparkle:nth-child(12) { top: 11%; right: 5%; animation-delay: 1.0s; }
+.sparkle:nth-child(13) { top: 15%; right: 18%; animation-delay: 0.35s; }
+.sparkle:nth-child(14) { top: 5%; right: 22%; animation-delay: 0.8s; }
+.sparkle:nth-child(15) { top: 20%; right: 3%; animation-delay: 0.25s; }
+.sparkle:nth-child(16) { top: 24%; right: 12%; animation-delay: 1.15s; }
+.sparkle:nth-child(17) { top: 30%; right: 5%; animation-delay: 0.5s; }
+.sparkle:nth-child(18) { top: 12%; right: 28%; animation-delay: 0.9s; }
+/* Bottom-left corner cluster */
+.sparkle:nth-child(19) { bottom: 3%; left: 3%; animation-delay: 0.45s; }
+.sparkle:nth-child(20) { bottom: 8%; left: 12%; animation-delay: 0.1s; }
+.sparkle:nth-child(21) { bottom: 12%; left: 5%; animation-delay: 0.75s; }
+.sparkle:nth-child(22) { bottom: 16%; left: 18%; animation-delay: 1.2s; }
+.sparkle:nth-child(23) { bottom: 6%; left: 24%; animation-delay: 0.4s; }
+.sparkle:nth-child(24) { bottom: 20%; left: 3%; animation-delay: 0.65s; }
+.sparkle:nth-child(25) { bottom: 24%; left: 10%; animation-delay: 0.05s; }
+.sparkle:nth-child(26) { bottom: 28%; left: 5%; animation-delay: 1.05s; }
+.sparkle:nth-child(27) { bottom: 14%; left: 28%; animation-delay: 0.3s; }
+/* Bottom-right corner cluster */
+.sparkle:nth-child(28) { bottom: 3%; right: 3%; animation-delay: 0.7s; }
+.sparkle:nth-child(29) { bottom: 7%; right: 14%; animation-delay: 0.2s; }
+.sparkle:nth-child(30) { bottom: 11%; right: 5%; animation-delay: 0.55s; }
+.sparkle:nth-child(31) { bottom: 15%; right: 20%; animation-delay: 0.95s; }
+.sparkle:nth-child(32) { bottom: 5%; right: 25%; animation-delay: 0.15s; }
+.sparkle:nth-child(33) { bottom: 19%; right: 3%; animation-delay: 1.25s; }
+.sparkle:nth-child(34) { bottom: 23%; right: 12%; animation-delay: 0.45s; }
+.sparkle:nth-child(35) { bottom: 27%; right: 5%; animation-delay: 0.85s; }
+.sparkle:nth-child(36) { bottom: 10%; right: 28%; animation-delay: 0.35s; }
+/* Edge sparkles (top/bottom center, left/right middle) */
+.sparkle:nth-child(37) { top: 4%; left: 42%; animation-delay: 0.6s; }
+.sparkle:nth-child(38) { bottom: 4%; right: 42%; animation-delay: 0.8s; }
+/* Four corner breathing animation - unchanged timing */
+@keyframes corner-breathe {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+/* Sparkle pulse animation */
+@keyframes sparkle-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+/* Twinkle animation - pop in, rotate, fade out */
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  15% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+  30% { opacity: 0.9; transform: scale(1) rotate(30deg); }
+  50% { opacity: 0.7; transform: scale(0.9) rotate(45deg); }
+  70% { opacity: 0.3; transform: scale(0.6) rotate(60deg); }
+  85% { opacity: 0; transform: scale(0.4) rotate(75deg); }
 }
 
 /* Magic Stop Button - Centered circle with breathing glow */
@@ -436,67 +422,35 @@ body.is-dragging img {
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 20;
-
   display: flex;
   align-items: center;
   justify-content: center;
   width: 64px;
   height: 64px;
   padding: 0;
-
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.15);
-
   cursor: pointer;
-
-  /* Soft glow matching shimmer - breathing effect */
-  box-shadow:
-    0 0 0 0 rgba(139, 92, 246, 0.4),
-    0 0 30px rgba(139, 92, 246, 0.2),
-    0 0 60px rgba(139, 92, 246, 0.1);
-
+  /* Soft glow using brand color - breathing effect */
+  box-shadow: 0 0 0 0 rgba(237, 9, 66, 0.4), 0 0 30px rgba(237, 9, 66, 0.2), 0 0 60px rgba(237, 9, 66, 0.1);
   animation: stop-btn-pulse 2s ease-in-out infinite;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
-
-.magic-stop-btn:hover {
-  background: rgba(0, 0, 0, 0.7);
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
-.magic-stop-btn:active {
-  transform: translate(-50%, -50%) scale(0.95);
-}
-
+.magic-stop-btn:hover { background: rgba(0, 0, 0, 0.7); border-color: rgba(255, 255, 255, 0.25); }
+.magic-stop-btn:active { transform: translate(-50%, -50%) scale(0.95); }
 /* Stop icon - clean square inside circle */
-.magic-stop-icon {
-  width: 18px;
-  height: 18px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 3px;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-}
-
-/* Pulsing breathing animation for stop button */
+.magic-stop-icon { width: 18px; height: 18px; background: rgba(255, 255, 255, 0.95); border-radius: 3px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+/* Pulsing breathing animation for stop button - brand color */
 @keyframes stop-btn-pulse {
-
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 0 rgba(139, 92, 246, 0.4),
-      0 0 20px rgba(139, 92, 246, 0.15),
-      0 0 40px rgba(139, 92, 246, 0.08);
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(237, 9, 66, 0.4), 0 0 20px rgba(237, 9, 66, 0.15), 0 0 40px rgba(237, 9, 66, 0.08);
     border-color: rgba(255, 255, 255, 0.15);
   }
-
   50% {
-    box-shadow:
-      0 0 0 12px rgba(139, 92, 246, 0),
-      0 0 40px rgba(139, 92, 246, 0.3),
-      0 0 80px rgba(139, 92, 246, 0.15);
-    border-color: rgba(167, 139, 250, 0.4);
+    box-shadow: 0 0 0 12px rgba(237, 9, 66, 0), 0 0 40px rgba(237, 9, 66, 0.3), 0 0 80px rgba(237, 9, 66, 0.15);
+    border-color: rgba(237, 9, 66, 0.4);
   }
 }

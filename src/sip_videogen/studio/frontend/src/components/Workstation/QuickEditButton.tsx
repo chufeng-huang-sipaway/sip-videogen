@@ -53,47 +53,11 @@ export function QuickEditButton({ }: QuickEditButtonProps) {
                 <TooltipContent side="top">{isGenerating ? 'Generating...' : 'Quick Edit'}</TooltipContent>
             </Tooltip>
             <PopoverContent side="top" sideOffset={16} className="w-96 p-0 border-0 bg-transparent shadow-none">
-                <div className="group relative overflow-hidden rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl transition-all duration-300 ease-out">
-
-                    <form onSubmit={handleSubmit} className="relative z-10 flex flex-col p-1.5">
-                        <div className="relative flex items-center gap-2 rounded-lg bg-muted/30 px-2 py-1 transition-all focus-within:bg-muted/50">
-                            <Input
-                                ref={inputRef}
-                                value={prompt}
-                                onChange={handleChange}
-                                placeholder="What do you want to update?"
-                                maxLength={MAX_LEN}
-                                className="h-10 flex-1 border-none bg-transparent px-2 text-sm font-medium placeholder:text-muted-foreground/50 focus-visible:ring-0"
-                            />
-                            <div className="flex items-center gap-1">
-                                {prompt.trim() && (
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        className="h-7 w-7 rounded-md bg-brand-500 hover:bg-brand-600 text-white p-0 shadow-sm transition-all"
-                                        disabled={!prompt.trim()}
-                                    >
-                                        <Wand2 className="w-3.5 h-3.5" />
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-
-                        {err && <p className="ml-2 mt-1.5 text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">{err}</p>}
-
-                        <div className="flex items-center justify-end px-1 pt-1">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setOpen(false)}
-                                className="h-5 text-[10px] text-muted-foreground/60 hover:text-foreground px-2 py-0.5 rounded-full transition-colors"
-                            >
-                                Esc
-                            </Button>
-                        </div>
-                    </form>
-                </div>
+                <form onSubmit={handleSubmit} className="relative rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-sm">
+                    <Input ref={inputRef} value={prompt} onChange={handleChange} placeholder="What do you want to update?" maxLength={MAX_LEN} className="h-auto min-h-[90px] border-none bg-transparent px-4 pt-4 pb-12 text-[13px] placeholder:text-neutral-400 focus-visible:ring-0"/>
+                    {err&&<p className="absolute left-4 bottom-12 text-xs text-brand-500">{err}</p>}
+                    <div className="absolute right-3 bottom-3"><Button type="submit" size="sm" className={cn("h-8 px-3 rounded-lg text-xs font-medium transition-all",prompt.trim()?"bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-300":"bg-neutral-100 dark:bg-neutral-800 text-neutral-300 dark:text-neutral-600 cursor-not-allowed")} disabled={!prompt.trim()}><Wand2 className="w-3.5 h-3.5 mr-1.5"/>Edit</Button></div>
+                </form>
             </PopoverContent>
         </Popover>)
 }

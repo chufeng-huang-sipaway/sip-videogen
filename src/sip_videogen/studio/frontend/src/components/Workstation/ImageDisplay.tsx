@@ -153,24 +153,30 @@ export function ImageDisplay() {
     if (!currentImage) return null
     const debugInfo = DEBUG ? `id:${currentImage.id?.slice(-8) || '?'} idx:${selectedIndex} displayed:${displayedSrc ? 'Y' : 'N'} pending:${pendingSrc ? 'Y' : 'N'} loading:${isLoading} err:${error || 'none'}` : ''
     const isDragging = !!dragData
-    const imgClass = cn("absolute inset-0 w-full h-full object-contain cursor-grab active:cursor-grabbing select-none transition-opacity duration-200", isDragging && "opacity-50")
+    const imgClass = cn("max-w-full max-h-full object-contain cursor-grab active:cursor-grabbing select-none transition-opacity duration-200", isDragging && "opacity-50")
     const navBtnClass = "absolute top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white/90 backdrop-blur-sm transition-all hover:bg-black/70 hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
     return (<div className="w-full h-full flex items-center justify-center relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onWheel={handleWheel}>
         {DEBUG && (<div className="absolute top-2 left-2 right-2 z-50 bg-black/80 text-white text-[10px] font-mono p-2 rounded">{debugInfo}</div>)}
-        {/* Currently displayed image - stays visible during transition */}
+        {/* Outer wrapper - centers content with padding */}
+        <div className="flex items-center justify-center overflow-hidden" style={{maxWidth:'calc(100% - 120px)',maxHeight:'calc(100% - 40px)'}}>
+        {/* Inner wrapper - sizes to displayed image, contains all overlays */}
+        <div className="relative max-w-full max-h-full">
+        {/* Currently displayed image */}
         {displayedSrc && !error && (<img draggable={false} onMouseDown={handleMouseDown} src={displayedSrc} alt="" className={imgClass} />)}
-        {/* Pending image - fades in on top, then becomes displayed */}
-        {pendingSrc && pendingSrc !== displayedSrc && (<img draggable={false} src={pendingSrc} alt={currentImage.prompt || 'Generated image'} onLoad={handlePendingLoad} onError={handlePendingError} className={imgClass} style={{ animation: 'fadeIn 200ms ease-out forwards' }} />)}
-        {/* Loading indicator - subtle, doesn't block view */}
+        {/* Pending image - fades in on top */}
+        {pendingSrc && pendingSrc !== displayedSrc && (<img draggable={false} src={pendingSrc} alt={currentImage.prompt || 'Generated image'} onLoad={handlePendingLoad} onError={handlePendingError} className={cn(imgClass, "absolute inset-0")} style={{ animation: 'fadeIn 200ms ease-out forwards' }} />)}
+        {/* Quick Edit result preview */}
+        {resultPath && !isGenerating && <QuickEditPreview />}
+        {/* Shimmer overlay with sparkles - now contained to image area */}
+        {isGenerating && (<><div className="shimmer-overlay rounded-lg" /><div className="shimmer-sparkles rounded-lg">{Array.from({length:38},(_,i)=><span key={i} className={`sparkle${i%3===1?' brand':''}`}/>)}</div><button onClick={cancelEdit} className="magic-stop-btn" style={{ pointerEvents: 'auto' }}><span className="magic-stop-icon" /></button></>)}
+        </div>
+        </div>
+        {/* Loading indicator */}
         {isLoading && !displayedSrc && (<div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/30" /></div>)}
         {/* Error state */}
         {!isLoading && error && !displayedSrc && (<div className="text-sm text-muted-foreground">{error}</div>)}
-        {/* Navigation buttons - appear on hover, disabled during generation */}
+        {/* Navigation buttons */}
         <button onClick={goPrev} disabled={!canPrev || isGenerating} className={cn(navBtnClass, "left-2 transition-opacity duration-200", hovered && !isGenerating ? "opacity-100" : "opacity-0")}><ChevronLeft className="w-6 h-6" /></button>
         <button onClick={goNext} disabled={!canNext || isGenerating} className={cn(navBtnClass, "right-2 transition-opacity duration-200", hovered && !isGenerating ? "opacity-100" : "opacity-0")}><ChevronRight className="w-6 h-6" /></button>
-        {/* Quick Edit result preview with comparison */}
-        {resultPath && !isGenerating && <QuickEditPreview />}
-        {/* Shimmer overlay during Quick Edit generation */}
-        {isGenerating && (<><div className="shimmer-overlay rounded-lg" /><button onClick={cancelEdit} className="magic-stop-btn" style={{ pointerEvents: 'auto' }}><span className="magic-stop-icon" /></button></>)}
     </div>)
 }
