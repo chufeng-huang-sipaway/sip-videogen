@@ -128,7 +128,7 @@ function TemplateCard({ template, isAttached, attachedStrict, isExpanded, onTogg
                                 <span className="text-sm font-medium truncate text-foreground/90">{template.name}</span>
                                 {isAttached && (
                                     <span className="flex items-center gap-0.5 shrink-0 animate-in zoom-in spin-in-90 duration-300">
-                                        {attachedStrict ? <Lock className="h-3 w-3 text-primary" /> : <Unlock className="h-3 w-3 text-amber-500" />}
+                                        {attachedStrict ? <Lock className="h-3 w-3 text-primary" /> : <Unlock className="h-3 w-3 text-muted-foreground" />}
                                     </span>)}
                             </div>
                             <span className="text-xs text-muted-foreground truncate block">

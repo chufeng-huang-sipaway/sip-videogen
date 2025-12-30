@@ -90,7 +90,7 @@ return(<div className="space-y-1.5">
 function AnalysisSummaryV1({analysis}:{analysis:TemplateAnalysisV1}){
 const{canvas,style,elements,product_slot,message}=analysis
 return(<div className="space-y-1.5">
-<div className="text-xs font-medium text-amber-500 mb-2">V1 Analysis (legacy)</div>
+<div className="text-xs font-medium text-muted-foreground mb-2">V1 Analysis (legacy)</div>
 <DetailSection title="Canvas" defaultOpen={true}>
 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
 <span className="text-muted-foreground">Aspect:</span><span className="font-medium">{canvas.aspect_ratio}</span>
@@ -159,11 +159,11 @@ if(!template)return null
 return(<div className="space-y-4 p-4">
 {/*Header*/}
 <div className="flex items-start gap-3">
-<div className="p-2 rounded-lg bg-indigo-500/10"><Layout className="h-5 w-5 text-indigo-500"/></div>
+<div className="p-2 rounded-lg bg-brand-a10"><Layout className="h-5 w-5 text-brand-500"/></div>
 <div className="flex-1 min-w-0">
 <div className="flex items-center gap-2">
 <h3 className="font-semibold text-base truncate">{template.name}</h3>
-{template.default_strict?<span title="Strict by default"><Lock className="h-3.5 w-3.5 text-primary"/></span>:<span title="Loose by default"><Unlock className="h-3.5 w-3.5 text-amber-500"/></span>}
+{template.default_strict?<span title="Strict by default"><Lock className="h-3.5 w-3.5 text-primary"/></span>:<span title="Loose by default"><Unlock className="h-3.5 w-3.5 text-muted-foreground"/></span>}
 </div>
 {template.description&&<p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{template.description}</p>}
 </div>
