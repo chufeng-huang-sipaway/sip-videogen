@@ -622,7 +622,7 @@ async def generate_with_validation(
             ref_pils = [PILImage.open(io.BytesIO(img_bytes)) for img_bytes in image_bytes_list]
             contents = [current_prompt, *ref_pils]
             # Emit thinking steps before API call
-            emit_tool_thinking("Final prompt", current_prompt[:200])
+            emit_tool_thinking("Prompt enhancement", current_prompt)
             emit_tool_thinking("Calling Gemini API", f"Attempt {attempt_number}/{max_retries}")
             # Generate image
             response = client.models.generate_content(
@@ -928,7 +928,7 @@ async def generate_with_multi_validation(
                     ref_pil = PILImage.open(io.BytesIO(ref_bytes))
                     contents.append(ref_pil)
             # Emit thinking steps before API call
-            emit_tool_thinking("Final prompt", current_prompt[:500])
+            emit_tool_thinking("Prompt enhancement", current_prompt)
             emit_tool_thinking(
                 "Calling Gemini API", f"Multi-product attempt {attempt_number}/{max_retries}"
             )

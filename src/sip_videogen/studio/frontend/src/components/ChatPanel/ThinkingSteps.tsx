@@ -2,7 +2,6 @@
 import { useState, type ReactNode } from 'react'
 import { ChevronRight, ChevronDown, CheckCircle2, Loader2 } from 'lucide-react'
 import type { ThinkingStep, ImageGenerationMetadata } from '@/lib/bridge'
-import { PromptDiff } from './PromptDiff'
 import { GenerationSummary } from './GenerationSummary'
 interface Props {steps:ThinkingStep[];isGenerating:boolean;skills?:string[];imageMetadata?:ImageGenerationMetadata|null;onViewFullDetails?:()=>void}
 export function ThinkingSteps({steps,isGenerating,skills,imageMetadata,onViewFullDetails}:Props){
@@ -14,10 +13,7 @@ return(<div className="space-y-1 py-2">
 {steps.map((s)=>(<StepItem key={s.id} step={s}/>))}
 {isGenerating&&(<div className="flex items-center gap-2 text-sm text-muted-foreground px-1"><Loader2 className="h-3 w-3 animate-spin"/><span>Working...</span></div>)}
 {/* Metadata-based steps - only show when NOT generating and metadata exists */}
-{!isGenerating&&imageMetadata&&(<>
-<StepItem key="synthetic-prompt-diff" step={{id:'synthetic-prompt-diff',step:'Prompt enhancement',detail:'',timestamp:0}} expandedContent={<PromptDiff originalPrompt={imageMetadata.original_prompt||''} finalPrompt={imageMetadata.prompt||''}/>}/>
-<StepItem key="synthetic-gen-details" step={{id:'synthetic-gen-details',step:'Generation details',detail:'',timestamp:0}} expandedContent={<GenerationSummary metadata={imageMetadata} onViewFullDetails={onViewFullDetails}/>}/>
-</>)}
+{!isGenerating&&imageMetadata&&(<StepItem key="synthetic-gen-details" step={{id:'synthetic-gen-details',step:'Generation details',detail:'',timestamp:0}} expandedContent={<GenerationSummary metadata={imageMetadata} onViewFullDetails={onViewFullDetails}/>}/>)}
 </div>)}
 function StepItem({step,expandedContent}:{step:ThinkingStep;expandedContent?:ReactNode}){
 const [exp,setExp]=useState(false)

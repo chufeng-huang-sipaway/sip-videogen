@@ -1042,8 +1042,8 @@ async def _impl_generate_image(
         else:
             contents = generation_prompt
             logger.info(f"Generating image: {generation_prompt[:100]}...")
-        #Emit thinking steps: first show final prompt, then indicate API call
-        emit_tool_thinking("Final prompt",generation_prompt[:200])
+        #Emit thinking steps: show enhanced prompt, then indicate API call
+        emit_tool_thinking("Prompt enhancement",generation_prompt)
         emit_tool_thinking("Calling Gemini API","Generating image with Gemini 3.0 Pro")
         response = client.models.generate_content(
             model=model,
