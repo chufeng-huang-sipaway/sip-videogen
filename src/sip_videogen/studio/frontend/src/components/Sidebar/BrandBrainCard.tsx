@@ -149,7 +149,7 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
             >
               {/* Header row */}
               <div className="flex items-center gap-2 mb-1">
-                <Brain className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                <Brain className="h-4 w-4 text-brand-500 flex-shrink-0" />
                 <span className="font-medium text-sm flex-1 truncate">Brand Memory</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               </div>
