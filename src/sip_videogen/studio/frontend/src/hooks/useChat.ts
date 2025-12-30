@@ -29,6 +29,8 @@ export interface Message {
   attachedTemplates?: AttachedTemplate[]
   /** Thinking steps parsed from executionTrace for completed messages */
   thinkingSteps?: ThinkingStep[]
+  /** Skills that were loaded during generation of this message */
+  loadedSkills?: string[]
 }
 
 interface PendingAttachment extends ChatAttachment {
@@ -57,6 +59,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [progress, setProgress] = useState('')
   const [progressType, setProgressType] = useState<ActivityEventType>('')
   const [loadedSkills, setLoadedSkills] = useState<string[]>([])
+  const loadedSkillsRef = useRef<string[]>([])
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
   const [error, setError] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
@@ -215,16 +218,21 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setMessages(prev => [...prev, userMessage, assistantMessage])
     setIsLoading(true)
 
-    //Clear thinking steps at start
+    //Clear thinking steps and skills at start
     setThinkingSteps([])
+    setLoadedSkills([])
+    loadedSkillsRef.current = []
     //Try polling for progress (may not work due to PyWebView concurrency)
     if (isPyWebView()) {
       progressInterval.current = setInterval(async () => {
         try {
           const ps = await bridge.getProgress()
           if (ps.status) { setProgress(ps.status); setProgressType(ps.type || '') }
-          //Always update skills (they accumulate during the request)
-          if (ps.skills && ps.skills.length > 0) setLoadedSkills(ps.skills)
+          //Accumulate skills with ref (closure-safe)
+          if (ps.skills && ps.skills.length > 0) {
+            const nu = ps.skills.filter((s: string) => !loadedSkillsRef.current.includes(s))
+            if (nu.length > 0) { loadedSkillsRef.current = [...loadedSkillsRef.current, ...nu]; setLoadedSkills([...loadedSkillsRef.current]) }
+          }
           //Accumulate thinking steps with ID-based dedupe
           if (ps.thinking_steps && ps.thinking_steps.length > 0) {
             setThinkingSteps(prev => {
@@ -260,9 +268,11 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       if (cancelledRequestIdRef.current === requestId) { return }
       //Extract thinking steps from execution trace for persistence
       const stepsFromTrace = (result.execution_trace || []).filter(e => e.type === 'thinking_step').map((e, i) => ({ id: `trace-${e.timestamp}-${i}`, step: e.message, detail: e.detail, timestamp: e.timestamp }))
+      //Persist skills with message (use ref for latest values)
+      const finalSkills = loadedSkillsRef.current.length > 0 ? [...loadedSkillsRef.current] : undefined
       setMessages(prev => prev.map(m =>
         m.id === assistantId
-          ? { ...m, content: result.response, images: result.images, videos: result.videos || [], executionTrace: result.execution_trace || [], interaction: result.interaction, memoryUpdate: result.memory_update, status: 'sent', thinkingSteps: stepsFromTrace }
+          ? { ...m, content: result.response, images: result.images, videos: result.videos || [], executionTrace: result.execution_trace || [], interaction: result.interaction, memoryUpdate: result.memory_update, status: 'sent', thinkingSteps: stepsFromTrace, loadedSkills: finalSkills }
           : m
       ))
       setAttachments([])

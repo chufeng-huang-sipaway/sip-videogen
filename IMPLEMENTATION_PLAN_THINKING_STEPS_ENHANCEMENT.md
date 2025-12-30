@@ -227,7 +227,7 @@ setMessages(prev => prev.map(m =>
 - [ ] Long skill names truncated, overflow handled
 - [ ] No skill leakage between concurrent messages
 
-**Status**: Not Started
+**Status**: Complete
 
 ---
 

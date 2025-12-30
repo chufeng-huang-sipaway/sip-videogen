@@ -209,7 +209,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }
 
         {/* Thinking Steps (Persisted from completed messages) */}
         {message.role === 'assistant' && message.thinkingSteps && message.thinkingSteps.length > 0 && (
-          <div className="mt-2 w-full"><ThinkingSteps steps={message.thinkingSteps} isGenerating={false} /></div>
+          <div className="mt-2 w-full"><ThinkingSteps steps={message.thinkingSteps} isGenerating={false} skills={message.loadedSkills} /></div>
         )}
         {/* Execution Trace (Fallback for non-report_thinking flows) */}
         {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (!message.thinkingSteps || message.thinkingSteps.length === 0) && (
@@ -357,7 +357,7 @@ export function MessageList({ messages, progress, loadedSkills, thinkingSteps, i
         <MessageBubble key={message.id} message={message} products={products} templates={allTemplates} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} />
       ))}
       {/* Thinking Steps (Real-time during loading) */}
-      {isLoading && <div className="px-6"><ThinkingSteps steps={thinkingSteps} isGenerating={true} /></div>}
+      {isLoading && <div className="px-6"><ThinkingSteps steps={thinkingSteps} isGenerating={true} skills={loadedSkills} /></div>}
       {/* Activity Indicator */}
       {showActivity && <ActivityCard progress={progress} loadedSkills={loadedSkills} />}
       <div ref={bottomRef} className="h-px" />
