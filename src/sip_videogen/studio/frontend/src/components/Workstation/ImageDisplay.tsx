@@ -5,6 +5,7 @@ import{useDrag}from'../../context/DragContext'
 import{useQuickEdit}from'../../context/QuickEditContext'
 import{bridge,isPyWebView}from'../../lib/bridge'
 import{Loader2,ChevronLeft,ChevronRight,X}from'lucide-react'
+import{QuickEditPreview}from'./QuickEditPreview'
 import{getFullCached,setFullCached,hasFullCached}from'../../lib/thumbnailCache'
 import{cn}from'@/lib/utils'
 const PRELOAD_RADIUS=2
@@ -25,7 +26,7 @@ function scheduleWheelGestureReset(state:WheelGestureState){if(state.idleTimer!=
 export function ImageDisplay(){
 const{currentBatch,selectedIndex,updateImagePath,setSelectedIndex}=useWorkstation()
 const{setDragData,dragData}=useDrag()
-const{isGenerating,cancelEdit}=useQuickEdit()
+const{isGenerating,cancelEdit,resultPath}=useQuickEdit()
 const currentImage=currentBatch[selectedIndex]
 const[isLoading,setIsLoading]=useState(false)
 const[displayedSrc,setDisplayedSrc]=useState<string|null>(null)//Currently shown image
@@ -166,6 +167,8 @@ return(<div className="w-full h-full flex items-center justify-center relative" 
 {/* Navigation buttons - appear on hover */}
 <button onClick={goPrev} disabled={!canPrev} className={cn(navBtnClass,"left-2 transition-opacity duration-200",hovered?"opacity-100":"opacity-0")}><ChevronLeft className="w-6 h-6"/></button>
 <button onClick={goNext} disabled={!canNext} className={cn(navBtnClass,"right-2 transition-opacity duration-200",hovered?"opacity-100":"opacity-0")}><ChevronRight className="w-6 h-6"/></button>
+{/* Quick Edit result preview with comparison */}
+{resultPath&&!isGenerating&&<QuickEditPreview/>}
 {/* Shimmer overlay during Quick Edit generation */}
 {isGenerating&&(<><div className="shimmer-overlay rounded-lg"/><button onClick={cancelEdit} className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-white/90 backdrop-blur-sm transition-all hover:bg-black/80 hover:scale-105" style={{pointerEvents:'auto'}}><X className="w-4 h-4"/></button></>)}
 </div>)
