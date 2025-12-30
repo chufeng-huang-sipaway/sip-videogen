@@ -25,13 +25,11 @@ interface StatusAlertProps {
 
 /**
  * StatusAlert - Inline status feedback component for Brand Memory.
- *
  * Features:
- * - Three variants: success (green), error (red), info (blue)
+ * - Three variants: success (green), error (brand red), info (neutral)
  * - Dismissible option with close button
  * - Auto-dismiss for success/info (errors persist until resolved)
  * - Consistent styling across Brand Memory UI
- *
  * Usage:
  * ```tsx
  * <StatusAlert variant="success" message="Changes saved successfully" dismissible />
@@ -69,26 +67,11 @@ export function StatusAlert({
     return null
   }
 
-  // Get variant-specific styles and icon
+  //Get variant-specific styles and icon
   const variantConfig = {
-    success: {
-      containerClass: 'bg-green-500/10 border-green-500/20',
-      textClass: 'text-green-700 dark:text-green-400',
-      icon: CheckCircle2,
-      iconClass: 'text-green-500',
-    },
-    error: {
-      containerClass: 'bg-destructive/10 border-destructive/20',
-      textClass: 'text-destructive',
-      icon: AlertCircle,
-      iconClass: 'text-destructive',
-    },
-    info: {
-      containerClass: 'bg-blue-500/10 border-blue-500/20',
-      textClass: 'text-blue-700 dark:text-blue-400',
-      icon: Info,
-      iconClass: 'text-blue-500',
-    },
+    success: {containerClass:'bg-success-a10 border-success/20',textClass:'text-success',icon:CheckCircle2,iconClass:'text-success'},
+    error: {containerClass:'bg-destructive/10 border-destructive/20',textClass:'text-destructive',icon:AlertCircle,iconClass:'text-destructive'},
+    info: {containerClass:'bg-muted border-border',textClass:'text-muted-foreground',icon:Info,iconClass:'text-muted-foreground'},
   }
 
   const config = variantConfig[variant]
