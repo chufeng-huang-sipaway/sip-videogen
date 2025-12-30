@@ -70,7 +70,7 @@ export function QuickEditButton({ }: QuickEditButtonProps) {
                                     <Button
                                         type="submit"
                                         size="sm"
-                                        className="h-7 w-7 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white p-0 shadow-sm transition-all"
+                                        className="h-7 w-7 rounded-md bg-brand-500 hover:bg-brand-600 text-white p-0 shadow-sm transition-all"
                                         disabled={!prompt.trim()}
                                     >
                                         <Wand2 className="w-3.5 h-3.5" />
@@ -79,7 +79,7 @@ export function QuickEditButton({ }: QuickEditButtonProps) {
                             </div>
                         </div>
 
-                        {err && <p className="ml-2 mt-1.5 text-xs font-medium text-rose-500 animate-in fade-in slide-in-from-top-1">{err}</p>}
+                        {err && <p className="ml-2 mt-1.5 text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">{err}</p>}
 
                         <div className="flex items-center justify-end px-1 pt-1">
                             <Button

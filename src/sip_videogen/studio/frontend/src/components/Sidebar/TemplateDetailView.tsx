@@ -20,7 +20,7 @@ try{const url=size==='sm'?await bridge.getTemplateImageThumbnail(path):await bri
 if(!c)setSrc(url)}catch{}}
 load();return()=>{c=true}},[path,size])
 const sz=size==='lg'?'h-32 w-32':size==='md'?'h-24 w-24':'h-12 w-12'
-if(!src)return(<div className={`${sz} rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0`}><Loader2 className="h-4 w-4 text-gray-400 animate-spin"/></div>)
+if(!src)return(<div className={`${sz} rounded bg-muted flex items-center justify-center shrink-0`}><Loader2 className="h-4 w-4 text-muted-foreground animate-spin"/></div>)
 return<img src={src} alt="" className={`${sz} rounded object-cover shrink-0`}/>}
 //Collapsible section
 function DetailSection({title,defaultOpen=false,children}:{title:string;defaultOpen?:boolean;children:React.ReactNode}){
@@ -90,7 +90,7 @@ return(<div className="space-y-1.5">
 function AnalysisSummaryV1({analysis}:{analysis:TemplateAnalysisV1}){
 const{canvas,style,elements,product_slot,message}=analysis
 return(<div className="space-y-1.5">
-<div className="text-xs font-medium text-amber-500 mb-2">V1 Analysis (legacy)</div>
+<div className="text-xs font-medium text-muted-foreground mb-2">V1 Analysis (legacy)</div>
 <DetailSection title="Canvas" defaultOpen={true}>
 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
 <span className="text-muted-foreground">Aspect:</span><span className="font-medium">{canvas.aspect_ratio}</span>
@@ -159,11 +159,11 @@ if(!template)return null
 return(<div className="space-y-4 p-4">
 {/*Header*/}
 <div className="flex items-start gap-3">
-<div className="p-2 rounded-lg bg-indigo-500/10"><Layout className="h-5 w-5 text-indigo-500"/></div>
+<div className="p-2 rounded-lg bg-brand-a10"><Layout className="h-5 w-5 text-brand-500"/></div>
 <div className="flex-1 min-w-0">
 <div className="flex items-center gap-2">
 <h3 className="font-semibold text-base truncate">{template.name}</h3>
-{template.default_strict?<span title="Strict by default"><Lock className="h-3.5 w-3.5 text-primary"/></span>:<span title="Loose by default"><Unlock className="h-3.5 w-3.5 text-amber-500"/></span>}
+{template.default_strict?<span title="Strict by default"><Lock className="h-3.5 w-3.5 text-primary"/></span>:<span title="Loose by default"><Unlock className="h-3.5 w-3.5 text-muted-foreground"/></span>}
 </div>
 {template.description&&<p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{template.description}</p>}
 </div>
@@ -194,7 +194,7 @@ return(<div className="space-y-4 p-4">
 {/*Actions*/}
 <div className="flex items-center gap-2 pt-2 border-t border-border/50">
 <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-1.5"/>Edit</Button>
-<Button variant="outline" size="sm" className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDelete}><Trash2 className="h-3.5 w-3.5 mr-1.5"/>Delete</Button>
+<Button variant="outline" size="sm" className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleDelete}><Trash2 className="h-3.5 w-3.5 mr-1.5"/>Delete</Button>
 </div>
 {/*Meta*/}
 <div className="text-[10px] text-muted-foreground/70 space-y-0.5">

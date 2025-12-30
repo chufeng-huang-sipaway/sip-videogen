@@ -63,7 +63,7 @@ if(restoredIdentity){setIdentity(restoredIdentity);toast.success('Brand identity
 return(<Dialog open={open} onOpenChange={handleClose}>
 <DialogContent className="max-w-3xl h-[85vh] flex flex-col overflow-hidden">
 <DialogHeader className="flex-shrink-0 pb-0">
-<DialogTitle className="flex items-center gap-2"><Brain className="h-5 w-5 text-purple-500"/>Brand Memory</DialogTitle>
+<DialogTitle className="flex items-center gap-2"><Brain className="h-5 w-5 text-brand-500"/>Brand Memory</DialogTitle>
 <DialogDescription className="flex items-center gap-2">
 {identity?`What the AI knows about ${identity.core.name}`:'Loading brand identity...'}
 {identity&&(<><span className="text-muted-foreground/50">·</span><span className="cursor-help" title={formatLastUpdated(identity.updated_at).absolute}>{formatLastUpdated(identity.updated_at).relative}</span></>)}
@@ -73,8 +73,8 @@ return(<Dialog open={open} onOpenChange={handleClose}>
 <Tabs defaultValue="memory" className="flex-1 flex flex-col min-h-0">
 <div className="flex items-center justify-between flex-shrink-0 border-b border-border">
 <TabsList className="h-10 bg-transparent p-0 border-0">
-<TabsTrigger value="memory" className="gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-purple-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0"><Brain className="h-4 w-4"/>Memory</TabsTrigger>
-<TabsTrigger value="files" className="gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-purple-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0"><FolderOpen className="h-4 w-4"/>Files</TabsTrigger>
+<TabsTrigger value="memory" className="gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-brand-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0"><Brain className="h-4 w-4"/>Memory</TabsTrigger>
+<TabsTrigger value="files" className="gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-brand-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0"><FolderOpen className="h-4 w-4"/>Files</TabsTrigger>
 </TabsList>
 {identity&&!isLoading&&(<DropdownMenu><DropdownMenuTrigger asChild>
 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={isRegenerating}>{isRegenerating?<Spinner className="h-4 w-4"/>:<MoreHorizontal className="h-4 w-4"/>}<span className="sr-only">Actions</span></Button>
@@ -87,17 +87,17 @@ return(<Dialog open={open} onOpenChange={handleClose}>
 </div>
 {/* Memory Tab */}
 <TabsContent value="memory" className="flex-1 min-h-0 mt-0">
-{isRegenerating&&(<div className="h-full flex items-center justify-center"><div className="flex flex-col items-center gap-4"><Spinner className="h-8 w-8 text-purple-500"/><p className="text-sm text-muted-foreground">Regenerating brand identity from source materials...</p><p className="text-xs text-muted-foreground">A backup has been created automatically</p></div></div>)}
-{isLoading&&!isRegenerating&&(<div className="h-full flex items-center justify-center"><div className="flex flex-col items-center gap-4"><Spinner className="h-8 w-8 text-purple-500"/><p className="text-sm text-muted-foreground">Loading brand memory...</p></div></div>)}
+{isRegenerating&&(<div className="h-full flex items-center justify-center"><div className="flex flex-col items-center gap-4"><Spinner className="h-8 w-8 text-brand-500"/><p className="text-sm text-muted-foreground">Regenerating brand identity from source materials...</p><p className="text-xs text-muted-foreground">A backup has been created automatically</p></div></div>)}
+{isLoading&&!isRegenerating&&(<div className="h-full flex items-center justify-center"><div className="flex flex-col items-center gap-4"><Spinner className="h-8 w-8 text-brand-500"/><p className="text-sm text-muted-foreground">Loading brand memory...</p></div></div>)}
 {error&&!isLoading&&!isRegenerating&&(<div className="p-4"><Alert variant="destructive"><AlertCircle className="h-4 w-4"/><AlertDescription>{error}</AlertDescription></Alert></div>)}
 {!activeBrand&&!isLoading&&!isRegenerating&&(<div className="h-full flex items-center justify-center"><p className="text-sm text-muted-foreground">No brand selected. Please select a brand from the sidebar.</p></div>)}
 {identity&&!isLoading&&!error&&!isRegenerating&&(<div className="h-full flex gap-0">
 <nav className="w-44 flex-shrink-0 border-r border-border pr-2 py-2"><ul className="space-y-1">
 {MEMORY_SECTIONS.map((section)=>{const Icon=section.icon;const isActive=activeSection===section.id
-return(<li key={section.id}><button onClick={()=>setActiveSection(section.id)} className={cn('w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors','hover:bg-muted/50',isActive?'bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-100':'text-muted-foreground hover:text-foreground')}><Icon className={cn('h-4 w-4',isActive&&'text-purple-600 dark:text-purple-400')}/>{section.label}</button></li>)})}
+return(<li key={section.id}><button onClick={()=>setActiveSection(section.id)} className={cn('w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors','hover:bg-muted/50',isActive?'bg-brand-a10 text-brand-600 dark:text-brand-500':'text-muted-foreground hover:text-foreground')}><Icon className={cn('h-4 w-4',isActive&&'text-brand-600 dark:text-brand-500')}/>{section.label}</button></li>)})}
 </ul></nav>
 <div className="flex-1 min-w-0 min-h-0 pl-4 flex flex-col">
-{regenerateSuccess&&(<Alert className="mb-4 flex-shrink-0 bg-green-50 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"><CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400"/><AlertDescription>Brand identity regenerated successfully. AI context refreshed automatically.</AlertDescription></Alert>)}
+{regenerateSuccess&&(<Alert className="mb-4 flex-shrink-0 bg-success-a10 text-success border-success/20"><CheckCircle className="h-4 w-4 text-success"/><AlertDescription>Brand identity regenerated successfully. AI context refreshed automatically.</AlertDescription></Alert>)}
 {regenerateError&&(<Alert variant="destructive" className="mb-4 flex-shrink-0"><AlertCircle className="h-4 w-4"/><AlertDescription>{regenerateError}</AlertDescription></Alert>)}
 <ScrollArea className="flex-1 min-h-0"><div className="pr-4 pb-4">
 {activeSection==='core'&&<CoreSection data={identity.core}/>}

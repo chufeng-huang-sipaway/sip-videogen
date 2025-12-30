@@ -4,7 +4,7 @@ import{Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTi
 import{Alert,AlertDescription}from'./alert'
 import{Spinner}from'./spinner'
 export interface FormDialogProps{open:boolean;onOpenChange:(open:boolean)=>void;title:string;description?:string;icon?:React.ReactNode;iconColor?:string;isLoading?:boolean;loadingMessage?:string;error?:string|null;onClearError?:()=>void;children:React.ReactNode;footer?:React.ReactNode;preventCloseWhileLoading?:boolean;maxWidth?:string}
-export function FormDialog({open,onOpenChange,title,description,icon,iconColor='text-purple-500',isLoading=false,loadingMessage='Loading...',error,onClearError,children,footer,preventCloseWhileLoading=true,maxWidth='max-w-md'}:FormDialogProps){
+export function FormDialog({open,onOpenChange,title,description,icon,iconColor='text-brand-500',isLoading=false,loadingMessage='Loading...',error,onClearError,children,footer,preventCloseWhileLoading=true,maxWidth='max-w-md'}:FormDialogProps){
 const handleOpenChange=(val:boolean)=>{if(!val&&isLoading&&preventCloseWhileLoading)return;if(!val)onClearError?.();onOpenChange(val)}
 return(<Dialog open={open} onOpenChange={handleOpenChange}>
 <DialogContent className={maxWidth}>

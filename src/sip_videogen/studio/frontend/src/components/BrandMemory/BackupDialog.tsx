@@ -163,7 +163,7 @@ export function BackupDialog({
         <DialogContent className="max-w-md max-h-[70vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5 text-blue-500" />
+              <History className="h-5 w-5 text-muted-foreground" />
               Backup History
             </DialogTitle>
             <DialogDescription>
@@ -176,7 +176,7 @@ export function BackupDialog({
               {/* Loading state */}
               {isLoading && (
                 <div className="py-8 flex flex-col items-center gap-4">
-                  <Spinner className="h-6 w-6 text-blue-500" />
+                  <Spinner className="h-6 w-6 text-brand-500" />
                   <p className="text-sm text-muted-foreground">Loading backups...</p>
                 </div>
               )}
@@ -199,8 +199,8 @@ export function BackupDialog({
 
               {/* Restore success */}
               {restoreSuccess && !isRestoring && (
-                <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                <Alert className="mb-4 bg-success-a10 text-success border-success/20">
+                  <CheckCircle className="h-4 w-4 text-success" />
                   <AlertDescription>
                     Backup restored successfully. AI context refreshed automatically.
                   </AlertDescription>
@@ -210,7 +210,7 @@ export function BackupDialog({
               {/* Restoring indicator */}
               {isRestoring && (
                 <div className="py-8 flex flex-col items-center gap-4">
-                  <Spinner className="h-6 w-6 text-blue-500" />
+                  <Spinner className="h-6 w-6 text-brand-500" />
                   <p className="text-sm text-muted-foreground">Restoring backup...</p>
                 </div>
               )}
@@ -271,7 +271,7 @@ export function BackupDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-blue-500" />
+              <RotateCcw className="h-5 w-5 text-muted-foreground" />
               Restore Backup?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
@@ -279,7 +279,7 @@ export function BackupDialog({
                 This will replace the current brand identity with the backup from{' '}
                 <strong>{confirmRestore && formatTimestamp(confirmRestore.timestamp)}</strong>.
               </p>
-              <p className="text-sm text-amber-600 dark:text-amber-400">
+              <p className="text-sm text-destructive">
                 Your current identity will be overwritten. Consider regenerating first to create a
                 backup of the current state.
               </p>

@@ -103,7 +103,7 @@ function ProductPreview({ productSlug }: ProductPreviewProps) {
 
   if (!product) {
     return (
-      <div className="py-2 text-xs text-red-500">
+      <div className="py-2 text-xs text-destructive">
         Failed to load product
       </div>
     )
@@ -300,7 +300,7 @@ export function ProductsSection() {
 
   if (error) {
     return (
-      <div className="text-sm text-red-500">
+      <div className="text-sm text-destructive">
         Error: {error}
         <Button variant="ghost" size="sm" onClick={refresh}>
           Retry

@@ -37,9 +37,9 @@ toast.success(`Brand "${result.name||result.slug}" created`);onCreated(result.sl
 })
 const handleClose=useCallback(()=>{if(!isLoading){onOpenChange(false);setDescription('');setFiles([]);clearError();setUploadError(null)}},[isLoading,onOpenChange,clearError])
 const combinedError=error||uploadError
-return(<FormDialog open={open} onOpenChange={handleClose} title="Create New Brand" description="Upload brand materials and describe your vision. Our AI will create a complete brand identity." icon={<Plus className="h-5 w-5"/>} iconColor="text-purple-500" isLoading={isLoading} loadingMessage="Creating your brand identity... This may take a minute as our AI team analyzes your materials." error={combinedError} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
+return(<FormDialog open={open} onOpenChange={handleClose} title="Create New Brand" description="Upload brand materials and describe your vision. Our AI will create a complete brand identity." icon={<Plus className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isLoading} loadingMessage="Creating your brand identity... This may take a minute as our AI team analyzes your materials." error={combinedError} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-<Button onClick={()=>execute()} disabled={isLoading||(!description.trim()&&files.length===0)} className="bg-purple-600 hover:bg-purple-700">{isLoading?'Creating...':'Create Brand'}</Button>
+<Button onClick={()=>execute()} disabled={isLoading||(!description.trim()&&files.length===0)} className="bg-brand-500 hover:bg-brand-600">{isLoading?'Creating...':'Create Brand'}</Button>
 </>}>
 {/* Dropzone */}
 <Dropzone accept={{'image/*':getAllowedImageExts().map(e=>e),'text/*':getAllowedTextExts().map(e=>e)}} maxFiles={20} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
@@ -47,14 +47,14 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Create New Bran
 </Dropzone>
 {/* File List */}
 {files.length>0&&(<div className="flex flex-wrap gap-2">
-{files.map((item,index)=>(<div key={index} className="flex items-center gap-2 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-sm">
-{item.type==='image'?(item.dataUrl?(<img src={item.dataUrl} alt="" className="h-5 w-5 rounded object-cover"/>):(<Image className="h-4 w-4 text-gray-500"/>)):(<FileText className="h-4 w-4 text-gray-500"/>)}
+{files.map((item,index)=>(<div key={index} className="flex items-center gap-2 px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded text-sm">
+{item.type==='image'?(item.dataUrl?(<img src={item.dataUrl} alt="" className="h-5 w-5 rounded object-cover"/>):(<Image className="h-4 w-4 text-muted-foreground"/>)):(<FileText className="h-4 w-4 text-muted-foreground"/>)}
 <span className="max-w-[120px] truncate">{item.file.name}</span>
-<button type="button" onClick={()=>removeFile(index)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4"/></button>
+<button type="button" onClick={()=>removeFile(index)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4"/></button>
 </div>))}
 </div>)}
 {/* Description */}
 <div>
-<textarea value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Tell us about your brand... (describe your concept, target audience, values, style preferences)" rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"/>
+<textarea value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Tell us about your brand... (describe your concept, target audience, values, style preferences)" rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"/>
 </div>
 </FormDialog>)}

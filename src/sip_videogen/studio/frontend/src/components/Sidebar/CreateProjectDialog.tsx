@@ -17,19 +17,19 @@ setName('');setInstructions('');onOpenChange(false)
 })
 const handleClose=useCallback(()=>{if(!isLoading){onOpenChange(false);clearError();setName('');setInstructions('')}},[isLoading,onOpenChange,clearError])
 const handleKeyDown=(e:React.KeyboardEvent)=>{if(e.key==='Enter'&&!e.shiftKey&&name.trim()){e.preventDefault();execute()}}
-return(<FormDialog open={open} onOpenChange={handleClose} title="New Project" description="Create a new campaign project to organize generated assets." icon={<FolderKanban className="h-5 w-5"/>} iconColor="text-green-600" isLoading={isLoading} loadingMessage="Creating project..." error={error} onClearError={clearError} footer={<>
+return(<FormDialog open={open} onOpenChange={handleClose} title="New Project" description="Create a new campaign project to organize generated assets." icon={<FolderKanban className="h-5 w-5"/>} iconColor="text-success" isLoading={isLoading} loadingMessage="Creating project..." error={error} onClearError={clearError} footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-<Button onClick={()=>execute()} disabled={isLoading||!name.trim()} className="bg-green-600 hover:bg-green-700">{isLoading?'Creating...':'Create Project'}</Button>
+<Button onClick={()=>execute()} disabled={isLoading||!name.trim()} className="bg-success hover:bg-success/90">{isLoading?'Creating...':'Create Project'}</Button>
 </>}>
 {/* Name Input */}
 <div className="space-y-2">
-<label htmlFor="create-project-name" className="text-sm font-medium">Name <span className="text-red-500">*</span></label>
+<label htmlFor="create-project-name" className="text-sm font-medium">Name <span className="text-destructive">*</span></label>
 <Input id="create-project-name" value={name} onChange={(e)=>setName(e.target.value)} onKeyDown={handleKeyDown} placeholder="e.g., Christmas Campaign" autoFocus/>
 </div>
 {/* Instructions Input */}
 <div className="space-y-2">
 <label htmlFor="create-project-instructions" className="text-sm font-medium">Campaign Instructions <span className="text-muted-foreground text-xs">(optional)</span></label>
-<textarea id="create-project-instructions" value={instructions} onChange={(e)=>setInstructions(e.target.value)} placeholder="Instructions for the AI when generating content for this campaign..." rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"/>
+<textarea id="create-project-instructions" value={instructions} onChange={(e)=>setInstructions(e.target.value)} placeholder="Instructions for the AI when generating content for this campaign..." rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-success resize-none"/>
 <p className="text-xs text-muted-foreground">These instructions will guide the AI when creating images for this project.</p>
 </div>
 </FormDialog>)}

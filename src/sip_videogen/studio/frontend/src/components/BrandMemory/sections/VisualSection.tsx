@@ -58,7 +58,7 @@ const updateField=<K extends keyof VisualIdentity>(field:K,value:VisualIdentity[
 //Color swatch component for view mode
 const ColorSwatch=({color}:{color:ColorDefinition})=>(<div className="flex items-center gap-2 p-2 rounded-md bg-muted/50"><div className="w-6 h-6 rounded border border-border shadow-sm" style={{backgroundColor:color.hex}}/><div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{color.name||color.hex}</div><div className="text-xs text-muted-foreground truncate">{color.usage}</div></div></div>)
 //View mode content
-const viewContent=(<div className="space-y-6">{saveSuccess&&(<Alert className="bg-green-500/10 border-green-500/20"><CheckCircle2 className="h-4 w-4 text-green-500"/><AlertDescription className="text-green-700 dark:text-green-400">Changes saved. AI context refreshed automatically.</AlertDescription></Alert>)}
+const viewContent=(<div className="space-y-6">{saveSuccess&&(<Alert className="bg-success-a10 border-success/20"><CheckCircle2 className="h-4 w-4 text-success"/><AlertDescription className="text-success">Changes saved. AI context refreshed automatically.</AlertDescription></Alert>)}
 {/* Colors */}
 <div className="space-y-4"><h4 className="text-sm font-medium">Color Palette</h4>
 {data.primary_colors.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary Colors</label><div className="mt-1 grid gap-2 sm:grid-cols-2">{data.primary_colors.map((color,i)=>(<ColorSwatch key={i} color={color}/>))}</div></div>)}
@@ -69,10 +69,10 @@ const viewContent=(<div className="space-y-6">{saveSuccess&&(<Alert className="b
 {/* Imagery */}
 <div className="space-y-4"><h4 className="text-sm font-medium">Imagery</h4>
 <div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Style</label><p className="mt-1 text-sm whitespace-pre-wrap">{data.imagery_style}</p></div>
-{data.imagery_keywords.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Keywords</label><div className="mt-1 flex flex-wrap gap-2">{data.imagery_keywords.map((kw,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">{kw}</span>))}</div></div>)}
-{data.imagery_avoid.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avoid</label><div className="mt-1 flex flex-wrap gap-2">{data.imagery_avoid.map((item,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">{item}</span>))}</div></div>)}</div>
+{data.imagery_keywords.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Keywords</label><div className="mt-1 flex flex-wrap gap-2">{data.imagery_keywords.map((kw,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">{kw}</span>))}</div></div>)}
+{data.imagery_avoid.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avoid</label><div className="mt-1 flex flex-wrap gap-2">{data.imagery_avoid.map((item,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-a10 text-brand-600 dark:text-brand-500">{item}</span>))}</div></div>)}</div>
 {/* Materials */}
-{data.materials.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Materials & Textures</label><div className="mt-1 flex flex-wrap gap-2">{data.materials.map((mat,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">{mat}</span>))}</div></div>)}
+{data.materials.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Materials & Textures</label><div className="mt-1 flex flex-wrap gap-2">{data.materials.map((mat,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">{mat}</span>))}</div></div>)}
 {/* Logo */}
 <div className="space-y-4"><h4 className="text-sm font-medium">Logo</h4>
 <div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label><p className="mt-1 text-sm whitespace-pre-wrap">{data.logo_description}</p></div>
@@ -80,7 +80,7 @@ const viewContent=(<div className="space-y-6">{saveSuccess&&(<Alert className="b
 {/* Overall Aesthetic */}
 <div className="space-y-4"><h4 className="text-sm font-medium">Overall Aesthetic</h4>
 <div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label><p className="mt-1 text-sm whitespace-pre-wrap">{data.overall_aesthetic}</p></div>
-{data.style_keywords.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Style Keywords</label><div className="mt-1 flex flex-wrap gap-2">{data.style_keywords.map((kw,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">{kw}</span>))}</div></div>)}</div></div>)
+{data.style_keywords.length>0&&(<div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Style Keywords</label><div className="mt-1 flex flex-wrap gap-2">{data.style_keywords.map((kw,i)=>(<span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">{kw}</span>))}</div></div>)}</div></div>)
 //Edit mode content
 const editContent=editData&&(<div className="space-y-6">{saveError&&(<Alert variant="destructive"><AlertCircle className="h-4 w-4"/><AlertDescription>{saveError}</AlertDescription></Alert>)}
 {/* Colors */}

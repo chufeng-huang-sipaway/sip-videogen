@@ -172,7 +172,7 @@ export function ProjectsSection() {
 
   if (error) {
     return (
-      <div className="text-sm text-red-500">
+      <div className="text-sm text-destructive">
         Error: {error}
         <Button variant="ghost" size="sm" onClick={refresh}>
           Retry

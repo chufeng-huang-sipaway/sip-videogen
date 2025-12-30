@@ -48,7 +48,7 @@ export function ProjectSelector({
           className="text-muted-foreground"
         >
           <span className="flex-1">No Project</span>
-          {!activeProject && <Check className="h-4 w-4 text-green-500" />}
+          {!activeProject && <Check className="h-4 w-4 text-success" />}
         </DropdownMenuItem>
         {activeProjects.length > 0 && (
           <>
@@ -60,7 +60,7 @@ export function ProjectSelector({
               >
                 <span className="flex-1 truncate">{project.name}</span>
                 {project.slug === activeProject && (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-success" />
                 )}
               </DropdownMenuItem>
             ))}

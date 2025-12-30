@@ -15,7 +15,7 @@ toast.success(`Brand "${brand.name}" deleted`);onDeleted();onOpenChange(false)
 })
 const handleClose=useCallback(()=>{if(!isLoading){onOpenChange(false);clearError()}},[isLoading,onOpenChange,clearError])
 if(!brand)return null
-return(<FormDialog open={open} onOpenChange={handleClose} title="Delete Brand" description={`Are you sure you want to delete "${brand.name}"?`} icon={<Trash2 className="h-5 w-5"/>} iconColor="text-red-500" isLoading={isLoading} loadingMessage="Deleting brand..." error={error} onClearError={clearError} footer={<>
+return(<FormDialog open={open} onOpenChange={handleClose} title="Delete Brand" description={`Are you sure you want to delete "${brand.name}"?`} icon={<Trash2 className="h-5 w-5"/>} iconColor="text-destructive" isLoading={isLoading} loadingMessage="Deleting brand..." error={error} onClearError={clearError} footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
 <Button variant="destructive" onClick={()=>execute()} disabled={isLoading}>{isLoading?'Deleting...':'Delete Brand'}</Button>
 </>}>
@@ -26,6 +26,6 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Delete Brand" d
 <li>All uploaded assets and documents</li>
 <li>All generated images</li>
 </ul>
-<p className="text-sm font-medium text-red-600 mt-4">This action cannot be undone.</p>
+<p className="text-sm font-medium text-destructive mt-4">This action cannot be undone.</p>
 </div>
 </FormDialog>)}

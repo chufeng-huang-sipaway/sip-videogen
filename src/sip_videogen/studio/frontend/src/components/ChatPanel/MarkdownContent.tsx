@@ -14,7 +14,7 @@ export function MarkdownContent({ content, className = '' }: Props) {
         components={{
           // Open links in new tab
           a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
               {children}
             </a>
           ),

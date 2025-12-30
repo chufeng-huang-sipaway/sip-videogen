@@ -45,7 +45,7 @@ function AssetThumbnail({ path }: { path: string }) {
   }, [path])
 
   if (!src) {
-    return <div className="h-5 w-5 rounded bg-gray-200 dark:bg-gray-700" />
+    return <div className="h-5 w-5 rounded bg-neutral-200 dark:bg-neutral-700" />
   }
 
   return <img src={src} alt="" className="h-5 w-5 rounded object-cover" />
@@ -93,7 +93,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onPreviewVid
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 group ${
+            className={`flex items-center gap-1 py-1 px-2 rounded hover:bg-muted/50 group ${
               node.type === 'image' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             }`}
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -112,17 +112,17 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onPreviewVid
               <span className="w-4" />
             )}
             {node.type === 'folder' ? (
-              <Folder className="h-4 w-4 text-gray-500 shrink-0" />
+              <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
             ) : node.type === 'image' && isPyWebView() ? (
               <AssetThumbnail path={node.path} />
             ) : node.type === 'video' ? (
-              <Film className="h-4 w-4 text-gray-500 shrink-0" />
+              <Film className="h-4 w-4 text-muted-foreground shrink-0" />
             ) : (
-              <Image className="h-4 w-4 text-gray-500 shrink-0" />
+              <Image className="h-4 w-4 text-muted-foreground shrink-0" />
             )}
             <span className="text-sm truncate flex-1">{node.name}</span>
             {node.size && (
-              <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100">
+              <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100">
                 {formatSize(node.size)}
               </span>
             )}
@@ -142,7 +142,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onPreviewVid
               <ContextMenuItem onClick={() => onRename(node.path)}>
                 Rename
               </ContextMenuItem>
-              <ContextMenuItem onClick={() => onDelete(node.path)} className="text-red-600">
+              <ContextMenuItem onClick={() => onDelete(node.path)} className="text-destructive">
                 Delete
               </ContextMenuItem>
             </>
@@ -261,12 +261,12 @@ export function AssetTree() {
   }, [uploadAsset])
 
   if (!activeBrand) {
-    return <div className="text-sm text-gray-500">Select a brand</div>
+    return <div className="text-sm text-muted-foreground">Select a brand</div>
   }
 
   if (error) {
     return (
-      <div className="text-sm text-red-500">
+      <div className="text-sm text-destructive">
         Error: {error}
         <Button variant="ghost" size="sm" onClick={refresh}>Retry</Button>
       </div>
@@ -275,12 +275,12 @@ export function AssetTree() {
 
   return (
     <div
-      className={`space-y-2 ${isDragging ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 rounded' : ''}`}
+      className={`space-y-2 ${isDragging ? 'bg-brand-a10 dark:bg-brand-a10 ring-2 ring-brand-500 rounded' : ''}`}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         Assets
       </h3>
 
@@ -301,7 +301,7 @@ export function AssetTree() {
       )}
 
       {tree.length === 0 ? (
-        <p className="text-sm text-gray-400 italic">
+        <p className="text-sm text-muted-foreground italic">
           {isLoading ? 'Loading...' : 'No assets yet. Drag images here to upload.'}
         </p>
       ) : (

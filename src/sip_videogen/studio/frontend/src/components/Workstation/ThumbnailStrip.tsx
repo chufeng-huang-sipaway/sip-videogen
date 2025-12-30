@@ -36,7 +36,7 @@ finally{if(mountedRef.current)setLoading(false)}
 }},{rootMargin:'100px'})
 observer.observe(container);return()=>observer.disconnect()
 },[path])
-return(<div ref={containerRef} className="w-full h-full flex items-center justify-center bg-muted/20 relative">{loading?(<Loader2 className="w-3 h-3 animate-spin text-muted-foreground/30"/>):src?(<img src={src} alt="" className="w-full h-full object-cover"/>):null}{isUnread&&<div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-background shadow-sm"/>}</div>)
+return(<div ref={containerRef} className="w-full h-full flex items-center justify-center bg-muted/20 relative">{loading?(<Loader2 className="w-3 h-3 animate-spin text-muted-foreground/30"/>):src?(<img src={src} alt="" className="w-full h-full object-cover"/>):null}{isUnread&&<div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-brand-500 rounded-full border-2 border-background shadow-sm"/>}</div>)
 }
 export function ThumbnailStrip(){
 const{currentBatch,selectedIndex,setSelectedIndex}=useWorkstation()
