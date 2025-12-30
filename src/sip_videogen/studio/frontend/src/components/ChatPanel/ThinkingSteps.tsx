@@ -8,11 +8,11 @@ interface Props {steps:ThinkingStep[];isGenerating:boolean;skills?:string[];imag
 export function ThinkingSteps({steps,isGenerating,skills,imageMetadata,onViewFullDetails}:Props){
 //Only show spinner if generating with no steps AND no metadata
 if(steps.length===0&&!imageMetadata){if(!isGenerating)return null
-return(<div className="flex items-center gap-2 text-sm text-muted-foreground py-2"><Loader2 className="h-4 w-4 animate-spin"/><span>Processing...</span></div>)}
+return(<div className="flex items-center gap-2 text-sm text-muted-foreground py-2 px-1"><Loader2 className="h-4 w-4 animate-spin"/><span>Processing...</span></div>)}
 return(<div className="space-y-1 py-2">
 {skills&&skills.length>0&&(<div className="flex flex-wrap gap-1.5 mb-2 overflow-x-auto">{skills.slice(0,5).map((sk)=>(<span key={sk} className="text-[9px] uppercase tracking-wider text-muted-foreground border border-border/40 px-1.5 py-0.5 rounded-sm whitespace-nowrap">{sk.length>25?sk.slice(0,22)+'...':sk}</span>))}{skills.length>5&&(<span className="text-[9px] text-muted-foreground">+{skills.length-5} more</span>)}</div>)}
 {steps.map((s)=>(<StepItem key={s.id} step={s}/>))}
-{isGenerating&&(<div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin"/><span>Working...</span></div>)}
+{isGenerating&&(<div className="flex items-center gap-2 text-sm text-muted-foreground px-1"><Loader2 className="h-3 w-3 animate-spin"/><span>Working...</span></div>)}
 {/* Metadata-based steps - only show when NOT generating and metadata exists */}
 {!isGenerating&&imageMetadata&&(<>
 <StepItem key="synthetic-prompt-diff" step={{id:'synthetic-prompt-diff',step:'Prompt enhancement',detail:'',timestamp:0}} expandedContent={<PromptDiff originalPrompt={imageMetadata.original_prompt||''} finalPrompt={imageMetadata.prompt||''}/>}/>

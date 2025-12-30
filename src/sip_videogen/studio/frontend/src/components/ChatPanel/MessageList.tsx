@@ -67,7 +67,6 @@ function ChatVideoGallery({ videos }: { videos: GeneratedVideo[] }) {
 
 interface MessageListProps {
   messages: Message[]
-  progress: string
   loadedSkills: string[]
   thinkingSteps: ThinkingStep[]
   isLoading: boolean
@@ -272,98 +271,13 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   )
 }
 
-/** Transform tool names to friendly messages */
-const TOOL_FRIENDLY_NAMES: Record<string, { label: string; description: string }> = {
-  generate_image: { label: 'Creating Image', description: 'Generating visual content' },
-  generate_video_clip: { label: 'Creating Video', description: 'Generating video clip' },
-  search_web: { label: 'Searching Web', description: 'Looking up information' },
-  read_file: { label: 'Reading File', description: 'Processing document' },
-  write_file: { label: 'Saving File', description: 'Writing content' },
-  analyze_image: { label: 'Analyzing Image', description: 'Understanding visuals' },
-  get_brand_identity: { label: 'Loading Brand', description: 'Fetching guidelines' },
-}
-
-function parseProgress(progress: string): { toolName: string; friendly: { label: string; description: string } } {
-  // Handle "Using tool_name" format
-  const usingMatch = progress.match(/^Using\s+(\w+)$/i)
-  if (usingMatch) {
-    const toolName = usingMatch[1]
-    const friendly = TOOL_FRIENDLY_NAMES[toolName] || {
-      label: toolName.replace(/_/g, ' '),
-      description: 'Processing',
-    }
-    return { toolName, friendly }
-  }
-
-  // Handle thinking
-  if (progress.toLowerCase().includes('thinking') || !progress) {
-    return {
-      toolName: 'thinking',
-      friendly: { label: 'Thinking', description: 'Analyzing request' },
-    }
-  }
-
-  // Default
-  return {
-    toolName: '',
-    friendly: { label: progress || 'Processing', description: 'Working...' },
-  }
-}
-
-interface ActivityCardProps {
-  progress: string
-  loadedSkills: string[]
-}
-
-function ActivityCard({ progress, loadedSkills }: ActivityCardProps) {
-  const { friendly } = parseProgress(progress)
-
-  return (
-    <div className="px-6 py-4 animate-in fade-in duration-300">
-      <div className="rounded-xl bg-background border border-border/30 shadow-soft p-5 max-w-md">
-
-        {/* Loading Header */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-5 h-5 relative flex items-center justify-center">
-            <div className="absolute inset-0 border-2 border-border rounded-full opacity-20"></div>
-            <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-          </div>
-          <div>
-            <div className="text-sm font-medium text-foreground">{friendly.label}</div>
-            <div className="text-xs text-muted-foreground">{friendly.description}</div>
-          </div>
-        </div>
-
-        {/* Minimal Skeleton Bars */}
-        <div className="space-y-2 opacity-60">
-          <div className="h-1.5 w-3/4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded-full animate-shimmer bg-[length:200%_100%]"></div>
-          <div className="h-1.5 w-1/2 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded-full animate-shimmer bg-[length:200%_100%] delay-150"></div>
-        </div>
-
-        {/* Skills (Minimal) */}
-        {loadedSkills && loadedSkills.length > 0 && (
-          <div className="flex gap-1.5 mt-4 overflow-hidden">
-            {loadedSkills.slice(0, 3).map((skill, i) => (
-              <span key={i} className="text-[9px] uppercase tracking-wider text-muted-foreground border border-border/40 px-1.5 py-0.5 rounded-sm">
-                {skill}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-export function MessageList({ messages, progress, loadedSkills, thinkingSteps, isLoading, products, templates, onInteractionSelect, onRegenerate }: MessageListProps) {
+export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, templates, onInteractionSelect, onRegenerate }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [detailsMeta,setDetailsMeta]=useState<ImageGenerationMetadata|null>(null)
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, progress, thinkingSteps])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinkingSteps])
   const { templates: contextTemplates } = useTemplates()
   const allTemplates = templates || contextTemplates
   if (messages.length === 0) return null
-  //Find if there is an active "thinking" process to show at the end
-  const showActivity = isLoading || progress
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
       {messages.map((message) => (
@@ -371,8 +285,6 @@ export function MessageList({ messages, progress, loadedSkills, thinkingSteps, i
       ))}
       {/* Thinking Steps (Real-time during loading) */}
       {isLoading && <div className="px-6"><ThinkingSteps steps={thinkingSteps} isGenerating={true} skills={loadedSkills} /></div>}
-      {/* Activity Indicator */}
-      {showActivity && <ActivityCard progress={progress} loadedSkills={loadedSkills} />}
       <div ref={bottomRef} className="h-px" />
       {/* Modal rendered ONCE at parent level */}
       {detailsMeta&&<PromptDetailsModal metadata={detailsMeta} onClose={()=>setDetailsMeta(null)}/>}

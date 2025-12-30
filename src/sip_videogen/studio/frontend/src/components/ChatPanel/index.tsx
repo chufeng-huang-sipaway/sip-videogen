@@ -93,7 +93,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const {
     messages,
     isLoading,
-    progress,
     loadedSkills,
     thinkingSteps,
     error,
@@ -389,7 +388,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
           <MessageList
             messages={messages}
-            progress={progress}
             loadedSkills={loadedSkills}
             thinkingSteps={thinkingSteps}
             isLoading={isLoading}
