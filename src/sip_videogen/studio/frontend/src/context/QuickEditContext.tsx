@@ -4,6 +4,7 @@ import type{ReactNode}from'react'
 import{bridge}from'../lib/bridge'
 import{useWorkstation}from'./WorkstationContext'
 import{useBrand}from'./BrandContext'
+import{invalidatePath,clearAllCaches}from'../lib/thumbnailCache'
 //Generate unique request ID with fallback for older runtimes
 const genId=()=>crypto.randomUUID?.()??`${Date.now()}-${Math.random().toString(36).slice(2)}`
 //Quick edit state interface
@@ -57,8 +58,14 @@ const keepAndOverride=useCallback(async():Promise<{success:boolean;newPath?:stri
 if(!state.originalPath||!state.resultPath)return{success:false,error:'No paths'}
 setState(s=>({...s,isActionLoading:true}))
 try{
-const newPath=await bridge.replaceAsset(state.originalPath,state.resultPath)
+const origPath=state.originalPath
+const newPath=await bridge.replaceAsset(origPath,state.resultPath)
 pendingResultRef.current=null
+//Invalidate cache for old path so ImageDisplay reloads fresh
+invalidatePath(origPath)
+if(newPath&&newPath!==origPath)invalidatePath(newPath)
+//Clear all caches to ensure fresh reload (path may have changed extension)
+clearAllCaches()
 setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
 bumpStatusVersion()
 return{success:true,newPath}
