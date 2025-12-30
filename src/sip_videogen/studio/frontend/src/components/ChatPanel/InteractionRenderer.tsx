@@ -35,7 +35,7 @@ export function InteractionRenderer({ interaction, onSelect, disabled }: Props) 
 
   if (interaction.type === 'choices') {
     return (
-      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-2">
+      <div className="mt-3 p-3 bg-muted rounded-lg space-y-2">
         <p className="text-sm font-medium">{interaction.question}</p>
         <div className="flex flex-wrap gap-2">
           {interaction.choices.map((choice) => (
@@ -79,7 +79,7 @@ export function InteractionRenderer({ interaction, onSelect, disabled }: Props) 
 
   if (interaction.type === 'image_select') {
     return (
-      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-2">
+      <div className="mt-3 p-3 bg-muted rounded-lg space-y-2">
         <p className="text-sm font-medium">{interaction.question}</p>
         <div className="grid grid-cols-2 gap-2">
           {interaction.image_paths.map((path, i) => (
@@ -87,7 +87,7 @@ export function InteractionRenderer({ interaction, onSelect, disabled }: Props) 
               key={path}
               onClick={() => onSelect(`Option ${i + 1}: ${interaction.labels[i]}`)}
               disabled={disabled}
-              className="relative group border rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 disabled:opacity-50 text-left"
+              className="relative group border rounded-lg overflow-hidden hover:ring-2 hover:ring-brand-500 disabled:opacity-50 text-left"
             >
               {imagePreviews[path] ? (
                 <img

@@ -43,7 +43,7 @@ export function RegenerateConfirmDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             Regenerate Brand Identity?
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-3">
@@ -56,7 +56,7 @@ export function RegenerateConfirmDialog({
               <li>Create a backup of the current identity (can be restored from History)</li>
               <li>Re-run the AI brand director on your source documents</li>
             </ul>
-            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+            <p className="text-sm text-destructive font-medium">
               Any manual changes you&apos;ve made will be lost unless you restore from backup.
             </p>
           </AlertDialogDescription>
@@ -65,7 +65,7 @@ export function RegenerateConfirmDialog({
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            className="bg-amber-600 hover:bg-amber-700 text-white"
+            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
           >
             Regenerate Identity
           </AlertDialogAction>

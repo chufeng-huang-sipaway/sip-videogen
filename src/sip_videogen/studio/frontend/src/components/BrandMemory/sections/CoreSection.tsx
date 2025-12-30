@@ -28,7 +28,7 @@ const updateValue=(index:number,newValue:string)=>{if(!editData)return;const new
 const addValue=()=>{if(!editData)return;setEditData({...editData,values:[...editData.values,'']})}
 const removeValue=(index:number)=>{if(!editData)return;const newValues=editData.values.filter((_,i)=>i!==index);setEditData({...editData,values:newValues})}
 const viewContent=(<div className="space-y-4 max-w-prose">
-{saveSuccess&&(<Alert className="bg-green-500/10 border-green-500/20"><CheckCircle2 className="h-4 w-4 text-green-500"/><AlertDescription className="text-green-700 dark:text-green-400">Changes saved. AI context refreshed automatically.</AlertDescription></Alert>)}
+{saveSuccess&&(<Alert className="bg-success-a10 border-success/20"><CheckCircle2 className="h-4 w-4 text-success"/><AlertDescription className="text-success">Changes saved. AI context refreshed automatically.</AlertDescription></Alert>)}
 <div className="grid gap-5">
 <div className="flex flex-wrap gap-x-8 gap-y-3">
 <div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Brand Name</label><p className="mt-1 text-sm font-medium">{data.name}</p></div>
@@ -37,7 +37,7 @@ const viewContent=(<div className="space-y-4 max-w-prose">
 <div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mission</label><p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap">{data.mission}</p></div>
 <div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Brand Story</label><p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{data.brand_story}</p></div>
 <div><label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Values</label>
-<div className="mt-2 flex flex-wrap gap-2">{data.values.map((value,index)=>(<span key={index} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">{value}</span>))}</div>
+<div className="mt-2 flex flex-wrap gap-2">{data.values.map((value,index)=>(<span key={index} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">{value}</span>))}</div>
 </div>
 </div>
 </div>)

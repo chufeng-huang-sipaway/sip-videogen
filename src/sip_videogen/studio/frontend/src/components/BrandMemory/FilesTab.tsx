@@ -38,11 +38,11 @@ export function FilesTab() {
                     'w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors',
                     'hover:bg-muted/50',
                     isActive
-                      ? 'bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-100'
+                      ? 'bg-brand-a10 text-brand-600 dark:text-brand-500'
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  <Icon className={cn('h-4 w-4', isActive && 'text-purple-600 dark:text-purple-400')} />
+                  <Icon className={cn('h-4 w-4', isActive && 'text-brand-600 dark:text-brand-500')} />
                   {section.label}
                 </button>
               </li>
