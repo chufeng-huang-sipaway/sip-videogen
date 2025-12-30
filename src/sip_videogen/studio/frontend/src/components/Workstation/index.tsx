@@ -1,5 +1,5 @@
 //Workstation component - image viewer workspace
-import{useCallback,useRef,useEffect,useMemo,useState}from'react'
+import{useCallback,useRef,useEffect,useState}from'react'
 import{useWorkstation}from'../../context/WorkstationContext'
 import{useBrand}from'../../context/BrandContext'
 import{QuickEditProvider,useQuickEdit}from'../../context/QuickEditContext'
@@ -29,7 +29,6 @@ const[toolbarVisible,setToolbarVisible]=useState(true)
 const hideTimeoutRef=useRef<ReturnType<typeof setTimeout>|null>(null)
 const handleMouseMove=useCallback(()=>{setToolbarVisible(true);if(hideTimeoutRef.current)clearTimeout(hideTimeoutRef.current);hideTimeoutRef.current=setTimeout(()=>setToolbarVisible(false),2500)},[])
 const handleMouseLeave=useCallback(()=>{if(hideTimeoutRef.current)clearTimeout(hideTimeoutRef.current);hideTimeoutRef.current=setTimeout(()=>setToolbarVisible(false),800)},[])
-const filename=useMemo(()=>{if(!currentImage)return'';const p=currentImage.originalPath||currentImage.path;if(!p||p.startsWith('data:'))return'';return p.split('/').pop()||''},[currentImage])
 const imageCounter=`${selectedIndex+1} / ${currentBatch.length}`
 //Hide toolbar when Quick Edit result is showing
 const showOriginalToolbar=!resultPath&&!isGenerating
@@ -43,10 +42,9 @@ const handleDelete=useCallback(async()=>{if(!currentImage)return;const path=curr
 useEffect(()=>{const handleKeyDown=(e:KeyboardEvent)=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return;if(!hasImages||isGenerating)return;if(e.key==='g'||e.key==='G'){e.preventDefault();toggleBrowseMode();return}if(isGrid)return;if(e.key==='t'||e.key==='T'||e.key==='Backspace'||e.key==='Delete'){e.preventDefault();handleDelete()}else if(e.key==='ArrowLeft'&&selectedIndex>0){e.preventDefault();setSelectedIndex(selectedIndex-1)}else if(e.key==='ArrowRight'&&selectedIndex<currentBatch.length-1){e.preventDefault();setSelectedIndex(selectedIndex+1)}};window.addEventListener('keydown',handleKeyDown);return()=>window.removeEventListener('keydown',handleKeyDown)},[hasImages,isGrid,handleDelete,selectedIndex,currentBatch.length,setSelectedIndex,toggleBrowseMode,isGenerating])
 return(<div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:to-black relative">
 {hasImages?(<>
-<div className="relative flex-1 overflow-hidden p-12 pb-32 flex flex-col items-center justify-center">
-<div className="absolute top-8 left-1/2 -translate-x-1/2 z-20 animate-fade-in-up"><h1 className="text-sm font-bold text-foreground/80 tracking-tight max-w-2xl truncate px-4" title={filename}>{filename||'Untitled'}</h1></div>
+<div className="relative flex-1 overflow-hidden pt-12 pb-32 flex flex-col items-center justify-center">
 <div className="w-full h-full flex items-center justify-center relative max-w-5xl mx-auto" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
-{isGrid?(<div className="w-full h-full overflow-y-auto pr-2"><ImageGrid/></div>):(<div className="absolute inset-4 flex items-center justify-center"><div className="relative transition-all duration-300 transform h-full w-full flex items-center justify-center">
+{isGrid?(<div className="w-full h-full overflow-y-auto pr-2"><ImageGrid/></div>):(<div className="absolute inset-0 flex items-center justify-center"><div className="relative transition-all duration-300 transform h-full w-full flex items-center justify-center">
 <ImageDisplay/>
 {/* Original toolbar - hidden when Quick Edit result/generating */}
 {showOriginalToolbar&&(<div className={cn("absolute bottom-4 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-300",toolbarVisible?"opacity-100":"opacity-0 pointer-events-none")}><div className="px-2 py-1.5 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-xl shadow-lg">

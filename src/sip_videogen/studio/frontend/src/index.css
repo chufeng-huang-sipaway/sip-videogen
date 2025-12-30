@@ -327,105 +327,77 @@ body.is-dragging img {
   }
 }
 
-/* Quick Edit Shimmer Overlay - Minimalist Magical Glow */
+/* Quick Edit Shimmer Overlay - Four Corner Atmospheric Glow */
 .shimmer-overlay {
   position: absolute;
   inset: 0;
-  overflow: visible;
+  overflow: hidden;
   z-index: 15;
   pointer-events: none;
-  border-radius: inherit;
-
-  /* Soft ethereal outer glow - breathes gently */
-  box-shadow:
-    0 0 30px rgba(139, 92, 246, 0.15),
-    0 0 60px rgba(139, 92, 246, 0.08),
-    inset 0 0 20px rgba(139, 92, 246, 0.03);
-
-  animation: magic-breathe 3s ease-in-out infinite;
+  /* Four corner foggy radial gradients - doubled size */
+  background:
+    radial-gradient(ellipse 70% 70% at 0% 0%, rgba(139, 92, 246, 0.6), rgba(139, 92, 246, 0.25) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 0%, rgba(167, 139, 250, 0.6), rgba(167, 139, 250, 0.25) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 0% 100%, rgba(167, 139, 250, 0.6), rgba(167, 139, 250, 0.25) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 100%, rgba(139, 92, 246, 0.6), rgba(139, 92, 246, 0.25) 50%, transparent 70%);
+  filter: blur(20px);
+  animation: corner-breathe 3.5s ease-in-out infinite;
 }
-
-/* Subtle corner sparkle accents */
+/* Sparkle orbs at opposite corners */
 .shimmer-overlay::before,
 .shimmer-overlay::after {
   content: '';
   position: absolute;
-  width: 6px;
-  height: 6px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(167, 139, 250, 0.6) 40%, transparent 70%);
-  box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
-  animation: sparkle-float 4s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(167, 139, 250, 0.4) 40%, transparent 70%);
+  filter: blur(15px);
+  animation: sparkle-pulse 2.5s ease-in-out infinite;
 }
-
 .shimmer-overlay::before {
-  top: 12px;
-  right: 12px;
+  top: -50px;
+  left: -50px;
   animation-delay: 0s;
 }
-
 .shimmer-overlay::after {
-  bottom: 12px;
-  left: 12px;
-  animation-delay: 2s;
+  bottom: -50px;
+  right: -50px;
+  animation-delay: 1.25s;
 }
-
 .dark .shimmer-overlay {
-  box-shadow:
-    0 0 40px rgba(139, 92, 246, 0.2),
-    0 0 80px rgba(139, 92, 246, 0.1),
-    inset 0 0 30px rgba(139, 92, 246, 0.05);
+  background:
+    radial-gradient(ellipse 70% 70% at 0% 0%, rgba(139, 92, 246, 0.7), rgba(139, 92, 246, 0.3) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 0%, rgba(167, 139, 250, 0.7), rgba(167, 139, 250, 0.3) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 0% 100%, rgba(167, 139, 250, 0.7), rgba(167, 139, 250, 0.3) 50%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 100% 100%, rgba(139, 92, 246, 0.7), rgba(139, 92, 246, 0.3) 50%, transparent 70%);
+  filter: blur(25px);
 }
-
 .dark .shimmer-overlay::before,
 .dark .shimmer-overlay::after {
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(167, 139, 250, 0.5) 40%, transparent 70%);
-  box-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(167, 139, 250, 0.5) 40%, transparent 70%);
+  filter: blur(18px);
 }
-
-/* Gentle breathing animation */
-@keyframes magic-breathe {
-
-  0%,
-  100% {
-    opacity: 0.7;
-    box-shadow:
-      0 0 30px rgba(139, 92, 246, 0.15),
-      0 0 60px rgba(139, 92, 246, 0.08),
-      inset 0 0 20px rgba(139, 92, 246, 0.03);
-  }
-
-  50% {
-    opacity: 1;
-    box-shadow:
-      0 0 40px rgba(139, 92, 246, 0.22),
-      0 0 80px rgba(139, 92, 246, 0.12),
-      inset 0 0 30px rgba(139, 92, 246, 0.05);
-  }
-}
-
-/* Subtle sparkle floating animation */
-@keyframes sparkle-float {
-
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(0.8) translateY(0);
-  }
-
-  25% {
-    opacity: 1;
-    transform: scale(1.1) translateY(-2px);
-  }
-
-  50% {
+/* Four corner breathing animation */
+@keyframes corner-breathe {
+  0%, 100% {
     opacity: 0.6;
-    transform: scale(0.9) translateY(1px);
+    transform: scale(1);
   }
-
-  75% {
-    opacity: 0.9;
-    transform: scale(1) translateY(-1px);
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+/* Sparkle pulse animation */
+@keyframes sparkle-pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
   }
 }
 
