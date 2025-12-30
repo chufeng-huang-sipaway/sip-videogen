@@ -450,6 +450,7 @@ interface PyWebViewAPI {
   rename_asset(path: string, newName: string): Promise<BridgeResponse<{ newPath: string }>>
   upload_asset(filename: string, data: string, category: string): Promise<BridgeResponse<{ path: string }>>
   get_video_path(path: string): Promise<BridgeResponse<{ path: string; filename: string; file_url: string }>>
+  replace_asset(original_path: string, new_path: string): Promise<BridgeResponse<{ path: string }>>
   get_video_data(path: string): Promise<BridgeResponse<{ dataUrl: string; path: string; filename: string }>>
   get_progress(): Promise<BridgeResponse<ProgressStatus>>
   chat(
@@ -629,6 +630,7 @@ export const bridge = {
   renameAsset: async (p: string, n: string) => (await callBridge(() => window.pywebview!.api.rename_asset(p, n))).newPath,
   uploadAsset: async (f: string, d: string, c: string) => (await callBridge(() => window.pywebview!.api.upload_asset(f, d, c))).path,
   getVideoPath: async (p: string) => (await callBridge(() => window.pywebview!.api.get_video_path(p))).file_url,
+  replaceAsset: async (orig: string, newPath: string) => (await callBridge(() => window.pywebview!.api.replace_asset(orig, newPath))).path,
   getVideoData: async (p: string) => (await callBridge(() => window.pywebview!.api.get_video_data(p))).dataUrl,
   getProgress: async () => await callBridge(() => window.pywebview!.api.get_progress()),
   chat: (m: string, attachments?: ChatAttachment[], context?: ChatContext) =>

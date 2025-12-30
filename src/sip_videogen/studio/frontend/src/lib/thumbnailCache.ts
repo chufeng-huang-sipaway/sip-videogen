@@ -13,6 +13,8 @@ export function hasThumbCached(path:string):boolean{return cache.has(path)}
 export function getFullCached(path:string):string|undefined{return fullCache.get(path)}
 export function setFullCached(path:string,dataUrl:string):void{fullCache.set(path,dataUrl)}
 export function hasFullCached(path:string):boolean{return fullCache.has(path)}
+//Invalidate specific path (both caches)
+export function invalidatePath(path:string):void{cache.delete(path);fullCache.delete(path)}
 //Clear all caches
 export function clearAllCaches():void{cache.clear();fullCache.clear()}
 //Concurrency-limited loader
