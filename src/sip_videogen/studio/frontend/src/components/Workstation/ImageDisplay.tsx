@@ -167,8 +167,8 @@ export function ImageDisplay() {
         {pendingSrc && pendingSrc !== displayedSrc && (<img draggable={false} src={pendingSrc} alt={currentImage.prompt || 'Generated image'} onLoad={handlePendingLoad} onError={handlePendingError} className={cn(imgClass, "absolute inset-0")} style={{ animation: 'fadeIn 200ms ease-out forwards' }} />)}
         {/* Quick Edit result preview */}
         {resultPath && !isGenerating && <QuickEditPreview />}
-        {/* Shimmer overlay - now contained to image area */}
-        {isGenerating && (<><div className="shimmer-overlay rounded-lg" /><button onClick={cancelEdit} className="magic-stop-btn" style={{ pointerEvents: 'auto' }}><span className="magic-stop-icon" /></button></>)}
+        {/* Shimmer overlay with sparkles - now contained to image area */}
+        {isGenerating && (<><div className="shimmer-overlay rounded-lg" /><div className="shimmer-sparkles rounded-lg">{Array.from({length:38},(_,i)=><span key={i} className={`sparkle${i%3===1?' brand':''}`}/>)}</div><button onClick={cancelEdit} className="magic-stop-btn" style={{ pointerEvents: 'auto' }}><span className="magic-stop-icon" /></button></>)}
         </div>
         </div>
         {/* Loading indicator */}
