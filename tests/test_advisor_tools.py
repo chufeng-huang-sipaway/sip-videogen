@@ -2397,3 +2397,54 @@ class TestSetProductPrimaryImage:
         assert "Error: Failed to set `image1.jpg` as primary image" in result
         assert "**Test Product**" in result
         assert "`test-product`" in result
+
+
+class TestReportThinking:
+    """Tests for report_thinking tool."""
+    def test_impl_report_thinking_returns_valid_json(self)->None:
+        """Test _impl_report_thinking returns valid JSON."""
+        import json
+        from sip_videogen.advisor.tools import _impl_report_thinking
+        result=_impl_report_thinking("Test step","Test detail")
+        data=json.loads(result)
+        assert data["_thinking_step"]==True
+        assert data["step"]=="Test step"
+        assert data["detail"]=="Test detail"
+        assert "id" in data
+        assert "timestamp" in data
+        assert isinstance(data["timestamp"],int)
+    def test_parse_thinking_step_result_extracts_data(self)->None:
+        """Test parse_thinking_step_result extracts data correctly."""
+        import json
+        from sip_videogen.advisor.tools import parse_thinking_step_result
+        result=json.dumps({"_thinking_step":True,"id":"test-uuid","step":"My step","detail":"My detail","timestamp":1234567890})
+        data=parse_thinking_step_result(result)
+        assert data is not None
+        assert data["id"]=="test-uuid"
+        assert data["step"]=="My step"
+        assert data["detail"]=="My detail"
+        assert data["timestamp"]==1234567890
+    def test_parse_thinking_step_result_returns_none_for_invalid(self)->None:
+        """Test parse_thinking_step_result returns None for invalid JSON."""
+        from sip_videogen.advisor.tools import parse_thinking_step_result
+        assert parse_thinking_step_result("not json")==None
+        assert parse_thinking_step_result('{"other":"data"}')==None
+        assert parse_thinking_step_result("")==None
+    def test_clamping_long_step_and_detail(self)->None:
+        """Test that long step and detail are clamped."""
+        import json
+        from sip_videogen.advisor.tools import _impl_report_thinking,_MAX_STEP_LEN,_MAX_DETAIL_LEN
+        long_step="A"*100
+        long_detail="B"*1000
+        result=_impl_report_thinking(long_step,long_detail)
+        data=json.loads(result)
+        assert len(data["step"])==_MAX_STEP_LEN
+        assert len(data["detail"])==_MAX_DETAIL_LEN
+    def test_empty_step_defaults_to_thinking(self)->None:
+        """Test empty step defaults to 'Thinking'."""
+        import json
+        from sip_videogen.advisor.tools import _impl_report_thinking
+        result=_impl_report_thinking("","")
+        data=json.loads(result)
+        assert data["step"]=="Thinking"
+        assert data["detail"]==""

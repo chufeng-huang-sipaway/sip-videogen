@@ -352,3 +352,8 @@ Only use other ratios when the user specifically mentions a platform or aspect r
 7. **Emotion**: Calm contentment, daily pleasure, premium but approachable
 
 **Resulting brief would specify all these choices clearly for image generation.**
+
+---
+
+**REMINDER**: Before calling `generate_image`, you MUST call `report_thinking` at least once
+to explain your approach. Users need to see your reasoning process.

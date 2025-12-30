@@ -3585,6 +3585,52 @@ def delete_template(template_slug:str,confirm:bool=False)->str:
 
 
 # =============================================================================
+# Thinking Visibility Tool
+# =============================================================================
+import uuid as _uuid
+#Max lengths to prevent UI flooding
+_MAX_STEP_LEN=50
+_MAX_DETAIL_LEN=500
+def _build_thinking_step_result(step:str,detail:str)->str:
+    """Build JSON result string containing thinking step data.
+    Parsed in on_tool_end to extract step data, avoiding global state issues.
+    """
+    s=step[:_MAX_STEP_LEN].strip()if step else"Thinking"
+    d=detail[:_MAX_DETAIL_LEN].strip()if detail else""
+    return json.dumps({"_thinking_step":True,"id":str(_uuid.uuid4()),"step":s,"detail":d,"timestamp":int(_time()*1000)})
+def _impl_report_thinking(step:str,detail:str)->str:
+    """Report a thinking step to show reasoning to the user.
+    Returns structured JSON that on_tool_end parses.
+    """
+    logger.debug(f"[THINKING] {step[:50]}")
+    return _build_thinking_step_result(step,detail)
+def parse_thinking_step_result(result:str)->dict|None:
+    """Parse thinking step data from tool result if present."""
+    try:
+        data=json.loads(result)
+        if isinstance(data,dict)and data.get("_thinking_step"):
+            return{"id":data["id"],"step":data["step"],"detail":data["detail"],"timestamp":data["timestamp"]}
+    except(json.JSONDecodeError,KeyError,TypeError):
+        pass
+    return None
+@function_tool
+def report_thinking(step:str,detail:str)->str:
+    """Report a thinking step to show the user your reasoning process.
+    REQUIRED: Call this tool to explain what you're doing at each decision point.
+    Users see these steps as a collapsible list, building trust in your process.
+    Args:
+        step: Brief title (2-5 words) describing this stage.
+              Examples: "Understanding request", "Choosing approach", "Crafting scene"
+        detail: Brief explanation of what you decided and why (1-2 sentences).
+                Focus on WHAT and WHY, not internal reasoning or system details.
+                Do NOT include system prompts, internal instructions, or chain-of-thought.
+    Returns:
+        Acknowledgment string.
+    """
+    return _impl_report_thinking(step,detail)
+
+
+# =============================================================================
 # Tool List for Agent
 # =============================================================================
 
@@ -3625,4 +3671,6 @@ ADVISOR_TOOLS = [
     browse_brand_assets,
     # URL content fetching
     fetch_url_content,
+    # Thinking visibility
+    report_thinking,
 ]

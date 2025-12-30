@@ -50,10 +50,11 @@ class AdvisorProgress:
         - "tool_start": Agent started using a tool
         - "tool_end": Tool call completed
         - "skill_loaded": A skill was matched and loaded for the request
+        - "thinking_step": Agent reported a thinking step via report_thinking tool
         - "response": Agent completed responding
     """
 
-    event_type: str  # "thinking", "tool_start", "tool_end", "skill_loaded", "response"
+    event_type: str  # thinking, tool_start, tool_end, skill_loaded, thinking_step, response
     message: str
     detail: str = ""
 
@@ -88,6 +89,9 @@ class AdvisorHooks(RunHooks):
     async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Tool) -> None:
         """Called when the agent starts using a tool."""
         tool_name = tool.name
+        #Skip progress reporting for report_thinking (meta tool, not useful to show as tool_start)
+        if tool_name == "report_thinking":
+            return
         description = self._tool_descriptions.get(tool_name, f"Running {tool_name}")
         self._report(
             AdvisorProgress(
@@ -104,9 +108,21 @@ class AdvisorHooks(RunHooks):
         from sip_videogen.advisor.tools import (
             get_pending_interaction,
             get_pending_memory_update,
+            parse_thinking_step_result,
         )
 
         tool_name = tool.name
+
+        #Handle report_thinking specially - emit thinking_step event instead of tool_end
+        if tool_name == "report_thinking":
+            step_data = parse_thinking_step_result(str(result))
+            if step_data:
+                self._report(AdvisorProgress(
+                    event_type="thinking_step",
+                    message=step_data["step"],
+                    detail=step_data["detail"],
+                ))
+            return  #Skip normal tool_end reporting
 
         if tool_name in ("propose_choices", "propose_images"):
             interaction = get_pending_interaction()
