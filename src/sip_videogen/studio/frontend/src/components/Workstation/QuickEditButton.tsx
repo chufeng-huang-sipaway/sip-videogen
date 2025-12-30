@@ -12,7 +12,7 @@ const MAX_LEN=500
 interface QuickEditButtonProps{variant?:'light'|'dark'}
 export function QuickEditButton({variant='dark'}:QuickEditButtonProps){
 const{currentBatch,selectedIndex}=useWorkstation()
-const{isGenerating,submitEdit,error:ctxError,clearError}=useQuickEdit()
+const{isGenerating,submitEdit,error:ctxError,clearError,prompt:ctxPrompt,resultPath}=useQuickEdit()
 const curr=currentBatch[selectedIndex]
 const imgPath=curr?.originalPath||curr?.path||''
 const hasImg=!!imgPath
@@ -22,10 +22,12 @@ const[err,setErr]=useState('')
 const inputRef=useRef<HTMLInputElement>(null)
 const isDark=variant==='dark'
 const btnCls=cn("h-9 w-9 rounded-full transition-all",isDark?"text-white/90 hover:bg-white/10":"hover:bg-black/5 dark:hover:bg-white/10")
+//Auto-open when rerun is triggered (resultPath cleared, ctxPrompt set)
+useEffect(()=>{if(!resultPath&&ctxPrompt&&!open){setPrompt(ctxPrompt);setOpen(true)}},[resultPath,ctxPrompt,open])
 //Focus input on open
 useEffect(()=>{if(open)setTimeout(()=>inputRef.current?.focus(),50)},[open])
-//Reset on close
-useEffect(()=>{if(!open){setPrompt('');setErr('');clearError()}},[open,clearError])
+//Reset on close (only if no rerun pending)
+useEffect(()=>{if(!open&&!ctxPrompt){setPrompt('');setErr('');clearError()}},[open,clearError,ctxPrompt])
 //Show context error
 useEffect(()=>{if(ctxError)setErr(ctxError)},[ctxError])
 //Validate & submit

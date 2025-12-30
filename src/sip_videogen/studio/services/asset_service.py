@@ -250,3 +250,39 @@ class AssetService:
             if suffix not in ALLOWED_VIDEO_EXTS:return bridge_error("Unsupported video type")
             return bridge_ok({"path":str(resolved),"filename":resolved.name,"file_url":resolved.resolve().as_uri()})
         except Exception as e:return bridge_error(str(e))
+    def replace_asset(self,original_path:str,new_path:str)->dict:
+        """Backup-first replace: rename original→backup, move new→dest, delete backup.
+        If new file has different extension, the destination keeps the new extension.
+        """
+        import shutil,time
+        try:
+            brand_dir,err=self._state.get_brand_dir()
+            if err:return bridge_error(err)
+            orig,err1=resolve_assets_path(brand_dir,original_path)
+            if err1:return bridge_error(err1)
+            new,err2=resolve_assets_path(brand_dir,new_path)
+            if err2:return bridge_error(err2)
+            if not orig.exists():return bridge_error("Original asset not found")
+            if not new.exists():return bridge_error("New asset not found")
+            #Backup name with timestamp to avoid collisions
+            backup=orig.parent/f"{orig.stem}.backup.{int(time.time())}{orig.suffix}"
+            #Destination keeps new file's extension (e.g. jpg→png keeps png)
+            dest=orig.parent/f"{orig.stem}{new.suffix}"
+            try:
+                orig.rename(backup)
+                shutil.move(str(new),str(dest))
+                backup.unlink()
+                #Return relative path from assets dir
+                rel=dest.relative_to(brand_dir/"assets")
+                return bridge_ok({"path":str(rel)})
+            except Exception as e:
+                #Cleanup partial dest if exists
+                if dest.exists()and dest!=backup:
+                    try:dest.unlink()
+                    except:pass
+                #Restore backup
+                if backup.exists():
+                    try:backup.rename(orig)
+                    except:pass
+                return bridge_error(str(e))
+        except Exception as e:return bridge_error(str(e))
