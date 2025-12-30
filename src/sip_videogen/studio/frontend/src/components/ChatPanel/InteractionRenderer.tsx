@@ -96,8 +96,8 @@ export function InteractionRenderer({ interaction, onSelect, disabled }: Props) 
                   className="w-full h-32 object-cover"
                 />
               ) : (
-                <div className="w-full h-32 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                  <span className="text-gray-400 text-xs">Loading...</span>
+                <div className="w-full h-32 bg-muted flex items-center justify-center">
+                  <span className="text-muted-foreground text-xs">Loading...</span>
                 </div>
               )}
               <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1">

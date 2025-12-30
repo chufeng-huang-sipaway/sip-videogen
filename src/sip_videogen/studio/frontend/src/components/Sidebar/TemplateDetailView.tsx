@@ -20,7 +20,7 @@ try{const url=size==='sm'?await bridge.getTemplateImageThumbnail(path):await bri
 if(!c)setSrc(url)}catch{}}
 load();return()=>{c=true}},[path,size])
 const sz=size==='lg'?'h-32 w-32':size==='md'?'h-24 w-24':'h-12 w-12'
-if(!src)return(<div className={`${sz} rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0`}><Loader2 className="h-4 w-4 text-gray-400 animate-spin"/></div>)
+if(!src)return(<div className={`${sz} rounded bg-muted flex items-center justify-center shrink-0`}><Loader2 className="h-4 w-4 text-muted-foreground animate-spin"/></div>)
 return<img src={src} alt="" className={`${sz} rounded object-cover shrink-0`}/>}
 //Collapsible section
 function DetailSection({title,defaultOpen=false,children}:{title:string;defaultOpen?:boolean;children:React.ReactNode}){

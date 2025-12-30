@@ -15,7 +15,7 @@ if(!isPyWebView()||!path)return
 try{const dataUrl=await bridge.getTemplateImageThumbnail(path);if(!cancelled)setSrc(dataUrl)}catch{}}
 load()
 return()=>{cancelled=true}},[path])
-if(!src){return(<div className="h-8 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0"><Layout className="h-4 w-4 text-gray-400"/></div>)}
+if(!src){return(<div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0"><Layout className="h-4 w-4 text-muted-foreground"/></div>)}
 return<img src={src}alt=""className="h-8 w-8 rounded object-cover shrink-0"/>}
 export function AttachedTemplates({templates,attachedTemplates,onDetach,onToggleStrict}:AttachedTemplatesProps){
 if(attachedTemplates.length===0)return null

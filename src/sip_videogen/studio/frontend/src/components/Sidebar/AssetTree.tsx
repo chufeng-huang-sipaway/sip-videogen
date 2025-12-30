@@ -93,7 +93,7 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onPreviewVid
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 group ${
+            className={`flex items-center gap-1 py-1 px-2 rounded hover:bg-muted/50 group ${
               node.type === 'image' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             }`}
             style={{ paddingLeft: `${depth * 12 + 8}px` }}

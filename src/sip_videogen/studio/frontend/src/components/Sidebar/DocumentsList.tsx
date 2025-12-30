@@ -135,7 +135,7 @@ export function DocumentsList() {
             <ContextMenu key={doc.path}>
               <ContextMenuTrigger asChild>
                 <div
-                  className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group"
+                  className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50 cursor-pointer group"
                   onClick={() => openPreview(doc.path)}
                 >
                   <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
