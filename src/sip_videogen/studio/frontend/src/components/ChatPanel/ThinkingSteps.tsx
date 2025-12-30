@@ -12,7 +12,7 @@ export function ThinkingSteps({ steps, isGenerating }: Props) {
   return (
     <div className="space-y-1 py-2">
       {steps.map((s) => (<StepItem key={s.id} step={s} />))}
-      {isGenerating && (<div className="flex items-center gap-2 text-sm text-muted-foreground pl-6"><Loader2 className="h-3 w-3 animate-spin" /><span>Working...</span></div>)}
+      {isGenerating && (<div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /><span>Working...</span></div>)}
     </div>
   )
 }
