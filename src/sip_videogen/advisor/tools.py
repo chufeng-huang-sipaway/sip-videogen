@@ -962,7 +962,6 @@ async def _impl_generate_image(
         # Use validation loop if enabled and reference provided
         if validate_identity and reference_image_bytes:
             from sip_videogen.advisor.validation import generate_with_validation
-            emit_tool_thinking("Generating image",f"Validating product identity (up to {max_retries} attempts)")
             logger.info(f"Generating with validation (max {max_retries} retries)...")
             result = await generate_with_validation(
                 client=client,
@@ -1043,9 +1042,9 @@ async def _impl_generate_image(
         else:
             contents = generation_prompt
             logger.info(f"Generating image: {generation_prompt[:100]}...")
-        #Emit thinking step for prompt before API call
-        if generation_prompt!=prompt:emit_tool_thinking("Prompt enhanced",generation_prompt[:200])
-        else:emit_tool_thinking("Generating image",generation_prompt[:200])
+        #Emit thinking steps: first show final prompt, then indicate API call
+        emit_tool_thinking("Final prompt",generation_prompt[:200])
+        emit_tool_thinking("Calling Gemini API","Generating image with Gemini 3.0 Pro")
         response = client.models.generate_content(
             model=model,
             contents=contents,

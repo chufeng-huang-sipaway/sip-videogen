@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
+from sip_videogen.advisor.tools import emit_tool_thinking
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
 
@@ -86,14 +87,16 @@ class GenerationMetrics:
         improvement_suggestions: str = "",
     ) -> None:
         """Record a single attempt's metrics."""
-        self.attempts.append({
-            "attempt_number": attempt_number,
-            "prompt_hash": hashlib.sha256(prompt_used.encode()).hexdigest()[:12],
-            "overall_score": overall_score,
-            "passed": passed,
-            "product_metrics": [asdict(pm) for pm in product_metrics],
-            "improvement_suggestions": improvement_suggestions,
-        })
+        self.attempts.append(
+            {
+                "attempt_number": attempt_number,
+                "prompt_hash": hashlib.sha256(prompt_used.encode()).hexdigest()[:12],
+                "overall_score": overall_score,
+                "passed": passed,
+                "product_metrics": [asdict(pm) for pm in product_metrics],
+                "improvement_suggestions": improvement_suggestions,
+            }
+        )
 
 
 def _generate_request_id() -> str:
@@ -190,12 +193,8 @@ class ProductValidationResult(BaseModel):
     """Result of validating a single product within a multi-product image."""
 
     product_name: str = Field(description="Name of the product being validated")
-    is_present: bool = Field(
-        description="Whether this product is visible in the generated image"
-    )
-    is_accurate: bool = Field(
-        description="Whether this product's appearance matches the reference"
-    )
+    is_present: bool = Field(description="Whether this product is visible in the generated image")
+    is_accurate: bool = Field(description="Whether this product's appearance matches the reference")
     similarity_score: float = Field(
         ge=0.0,
         le=1.0,
@@ -519,11 +518,13 @@ async def validate_multi_product_identity(
     for idx, (name, ref_bytes) in enumerate(product_references, 1):
         product_descriptions.append(f"- Product {idx}: {name}")
         ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
-        image_content.append({
-            "type": "input_image",
-            "image_url": f"data:image/png;base64,{ref_b64}",
-            "detail": "high",
-        })
+        image_content.append(
+            {
+                "type": "input_image",
+                "image_url": f"data:image/png;base64,{ref_b64}",
+                "detail": "high",
+            }
+        )
 
     products_list = "\n".join(product_descriptions)
 
@@ -554,11 +555,13 @@ mark is_accurate=False even if is_present=True.
     # Build input message with all images
     input_content = [{"type": "input_text", "text": validation_prompt}]
     input_content.extend(image_content)  # Reference images
-    input_content.append({  # Generated image last
-        "type": "input_image",
-        "image_url": f"data:image/png;base64,{gen_b64}",
-        "detail": "high",
-    })
+    input_content.append(
+        {  # Generated image last
+            "type": "input_image",
+            "image_url": f"data:image/png;base64,{gen_b64}",
+            "detail": "high",
+        }
+    )
 
     input_message = {"role": "user", "content": input_content}
 
@@ -618,7 +621,9 @@ async def generate_with_validation(
 
             ref_pils = [PILImage.open(io.BytesIO(img_bytes)) for img_bytes in image_bytes_list]
             contents = [current_prompt, *ref_pils]
-
+            # Emit thinking steps before API call
+            emit_tool_thinking("Final prompt", current_prompt[:200])
+            emit_tool_thinking("Calling Gemini API", f"Attempt {attempt_number}/{max_retries}")
             # Generate image
             response = client.models.generate_content(
                 model="gemini-3-pro-image-preview",
@@ -648,12 +653,14 @@ async def generate_with_validation(
 
             if not generated_bytes:
                 logger.warning(f"No image generated on attempt {attempt_number}")
-                attempts_metadata.append({
-                    "attempt_number": attempt_number,
-                    "prompt": current_prompt,
-                    "image_path": str(attempt_path),
-                    "error": "No image generated in response",
-                })
+                attempts_metadata.append(
+                    {
+                        "attempt_number": attempt_number,
+                        "prompt": current_prompt,
+                        "image_path": str(attempt_path),
+                        "error": "No image generated in response",
+                    }
+                )
                 continue
 
             # Validate against reference
@@ -685,18 +692,19 @@ async def generate_with_validation(
 
             # Phase 3: Check both identity AND proportions
             settings = get_settings()
-            validation_passed = (
-                validation.is_identical
-                and (validation.proportions_match or not settings.sip_proportion_validation)
+            validation_passed = validation.is_identical and (
+                validation.proportions_match or not settings.sip_proportion_validation
             )
 
-            attempts_metadata.append({
-                "attempt_number": attempt_number,
-                "prompt": current_prompt,
-                "image_path": str(attempt_path),
-                "validation": _validation_model_dump(validation),
-                "validation_passed": validation_passed,
-            })
+            attempts_metadata.append(
+                {
+                    "attempt_number": attempt_number,
+                    "prompt": current_prompt,
+                    "image_path": str(attempt_path),
+                    "validation": _validation_model_dump(validation),
+                    "validation_passed": validation_passed,
+                }
+            )
 
             if validation_passed:
                 # Success - rename to final filename
@@ -732,11 +740,13 @@ async def generate_with_validation(
 
         except Exception as e:
             logger.warning(f"Generation attempt {attempt_number} failed: {e}")
-            attempts_metadata.append({
-                "attempt_number": attempt_number,
-                "prompt": current_prompt,
-                "error": str(e),
-            })
+            attempts_metadata.append(
+                {
+                    "attempt_number": attempt_number,
+                    "prompt": current_prompt,
+                    "error": str(e),
+                }
+            )
             continue
 
     # All attempts exhausted - use best attempt as fallback
@@ -871,9 +881,7 @@ async def generate_with_multi_validation(
 
     # If grouped_generation_images not provided, extract from product_references
     if grouped_generation_images is None:
-        grouped_generation_images = [
-            (name, [img_bytes]) for name, img_bytes in product_references
-        ]
+        grouped_generation_images = [(name, [img_bytes]) for name, img_bytes in product_references]
 
     # Count total images for logging
     total_images = sum(len(imgs) for _, imgs in grouped_generation_images)
@@ -919,7 +927,11 @@ async def generate_with_multi_validation(
                 for ref_bytes in product_images:
                     ref_pil = PILImage.open(io.BytesIO(ref_bytes))
                     contents.append(ref_pil)
-
+            # Emit thinking steps before API call
+            emit_tool_thinking("Final prompt", current_prompt[:500])
+            emit_tool_thinking(
+                "Calling Gemini API", f"Multi-product attempt {attempt_number}/{max_retries}"
+            )
             # Generate image
             response = client.models.generate_content(
                 model="gemini-3-pro-image-preview",
@@ -947,18 +959,19 @@ async def generate_with_multi_validation(
 
             if not generated_bytes:
                 logger.warning(f"No image generated on attempt {attempt_number}")
-                attempts_metadata.append({
-                    "attempt_number": attempt_number,
-                    "prompt": current_prompt,
-                    "image_path": str(attempt_path),
-                    "error": "No image generated in response",
-                })
+                attempts_metadata.append(
+                    {
+                        "attempt_number": attempt_number,
+                        "prompt": current_prompt,
+                        "image_path": str(attempt_path),
+                        "error": "No image generated in response",
+                    }
+                )
                 continue
 
             # Validate all products
             logger.info(
-                f"Validating attempt {attempt_number} "
-                f"against {len(product_references)} products..."
+                f"Validating attempt {attempt_number} against {len(product_references)} products..."
             )
             validation = await validate_multi_product_identity(
                 product_references=product_references,
@@ -968,8 +981,7 @@ async def generate_with_multi_validation(
 
             # Build product scores dict
             product_scores = {
-                pr.product_name: pr.similarity_score
-                for pr in validation.product_results
+                pr.product_name: pr.similarity_score for pr in validation.product_results
             }
 
             attempt = MultiValidationAttempt(
@@ -993,25 +1005,30 @@ async def generate_with_multi_validation(
                     proportions_match=pr.proportions_match,
                     issues=pr.issues,
                     failure_reason=(
-                        "missing" if not pr.is_present else
-                        "proportion" if not pr.proportions_match else
-                        "identity" if not pr.is_accurate else ""
+                        "missing"
+                        if not pr.is_present
+                        else "proportion"
+                        if not pr.proportions_match
+                        else "identity"
+                        if not pr.is_accurate
+                        else ""
                     ),
                 )
                 for pr in validation.product_results
             ]
             # Determine if attempt passed (respecting proportion validation setting)
-            attempt_passed = (
-                validation.all_products_accurate
-                and (validation.all_proportions_match or not settings.sip_proportion_validation)
+            attempt_passed = validation.all_products_accurate and (
+                validation.all_proportions_match or not settings.sip_proportion_validation
             )
-            attempts_metadata.append({
-                "attempt_number": attempt_number,
-                "prompt": current_prompt,
-                "image_path": str(attempt_path),
-                "validation": _validation_model_dump(validation),
-                "validation_passed": attempt_passed,
-            })
+            attempts_metadata.append(
+                {
+                    "attempt_number": attempt_number,
+                    "prompt": current_prompt,
+                    "image_path": str(attempt_path),
+                    "validation": _validation_model_dump(validation),
+                    "validation_passed": attempt_passed,
+                }
+            )
             metrics.add_attempt(
                 attempt_number=attempt_number,
                 prompt_used=current_prompt,
@@ -1039,9 +1056,8 @@ async def generate_with_multi_validation(
                 )
 
             # Phase 3: Check both accuracy AND proportions
-            validation_passed = (
-                validation.all_products_accurate and
-                (validation.all_proportions_match or not settings.sip_proportion_validation)
+            validation_passed = validation.all_products_accurate and (
+                validation.all_proportions_match or not settings.sip_proportion_validation
             )
 
             if validation_passed:
@@ -1083,11 +1099,13 @@ async def generate_with_multi_validation(
 
         except Exception as e:
             logger.warning(f"Multi-product generation attempt {attempt_number} failed: {e}")
-            attempts_metadata.append({
-                "attempt_number": attempt_number,
-                "prompt": current_prompt,
-                "error": str(e),
-            })
+            attempts_metadata.append(
+                {
+                    "attempt_number": attempt_number,
+                    "prompt": current_prompt,
+                    "error": str(e),
+                }
+            )
             continue
 
     # All attempts exhausted - use best attempt as fallback
@@ -1102,8 +1120,7 @@ async def generate_with_multi_validation(
 
         # Build per-product score summary
         score_summary = ", ".join(
-            f"{name}: {score:.2f}"
-            for name, score in best_attempt.product_scores.items()
+            f"{name}: {score:.2f}" for name, score in best_attempt.product_scores.items()
         )
 
         # Phase 0: Determine failure category and record metrics
