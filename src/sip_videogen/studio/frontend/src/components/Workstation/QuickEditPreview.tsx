@@ -57,24 +57,22 @@ return(<>
 {/* Controls panel - ALWAYS visible when loaded (not hidden during compare) */}
 {loaded&&(<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
 {/* Comparing indicator - shows above controls */}
-{isComparing&&(<div className="text-xs text-white/90 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm select-none mb-1 animate-pulse">Viewing Original</div>)}
+{isComparing&&(<div className="text-[10px] text-white/80 bg-white/15 px-3 py-1 rounded-full backdrop-blur-2xl select-none mb-1 border border-white/20 font-medium tracking-wide">Viewing Original</div>)}
 {/* Compare button - always accessible */}
-<button ref={btnRef} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onPointerLeave={onPointerLeave} onKeyDown={onKeyDown} onKeyUp={onKeyUp} className={cn("p-2 rounded-full backdrop-blur-sm transition-all focus:outline-none focus:ring-2 focus:ring-white/50",isComparing?"bg-white/20 text-white scale-95":"bg-black/50 text-white/80 hover:bg-black/70 hover:scale-105")}><Eye className="w-4 h-4"/></button>
-<span className="text-[10px] text-white/60 select-none">{isComparing?'Release to see result':'Hold to compare'}</span>
-{/* Action toolbar - clean pill design with labels */}
-<div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-black/85 backdrop-blur-xl shadow-2xl border border-white/10">
-<button onClick={handleKeep} disabled={isActionLoading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white hover:bg-emerald-500/30 hover:text-emerald-300 transition-all disabled:opacity-50">{isActionLoading?<Loader2 className="w-4 h-4 animate-spin"/>:<Check className="w-4 h-4"/>}<span className="text-sm font-medium">Keep</span></button>
-<button onClick={handleSave} disabled={isActionLoading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white hover:bg-blue-500/30 hover:text-blue-300 transition-all disabled:opacity-50"><Copy className="w-4 h-4"/><span className="text-sm font-medium">Save Copy</span></button>
-<div className="w-px h-5 bg-white/20"/>
-<button onClick={()=>setShowEditInput(!showEditInput)} disabled={isActionLoading} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all disabled:opacity-50",showEditInput?"bg-violet-500/40 text-violet-300":"text-white hover:bg-violet-500/30 hover:text-violet-300")}><Sparkles className="w-4 h-4"/><span className="text-sm font-medium">Edit More</span></button>
-<div className="w-px h-5 bg-white/20"/>
-<button onClick={handleDiscard} disabled={isActionLoading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white/60 hover:bg-red-500/30 hover:text-red-300 transition-all disabled:opacity-50"><X className="w-4 h-4"/><span className="text-sm font-medium">Discard</span></button>
+<button ref={btnRef} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onPointerLeave={onPointerLeave} onKeyDown={onKeyDown} onKeyUp={onKeyUp} className={cn("p-2.5 rounded-full backdrop-blur-2xl transition-all focus:outline-none focus:ring-2 focus:ring-white/30",isComparing?"bg-white/25 text-white scale-95":"bg-white/10 text-white/70 hover:bg-white/20 hover:text-white hover:scale-105 border border-white/20")}><Eye className="w-4 h-4"/></button>
+<span className="text-[10px] text-white/50 select-none font-medium tracking-wide">{isComparing?'Release':'Hold to compare'}</span>
+{/* Action toolbar - minimalist glass design */}
+<div className="flex items-center gap-1 p-1.5 rounded-full bg-white/10 backdrop-blur-2xl shadow-lg border border-white/20">
+<button onClick={handleKeep} disabled={isActionLoading} className="group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-white/90 hover:bg-white/15 active:scale-95 transition-all disabled:opacity-40">{isActionLoading?<Loader2 className="w-3.5 h-3.5 animate-spin"/>:<Check className="w-3.5 h-3.5 group-hover:text-emerald-400 transition-colors"/>}<span className="text-xs font-medium tracking-wide">Keep</span></button>
+<button onClick={handleSave} disabled={isActionLoading} className="group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-white/90 hover:bg-white/15 active:scale-95 transition-all disabled:opacity-40"><Copy className="w-3.5 h-3.5 group-hover:text-blue-400 transition-colors"/><span className="text-xs font-medium tracking-wide">Save Copy</span></button>
+<button onClick={()=>setShowEditInput(!showEditInput)} disabled={isActionLoading} className={cn("group flex items-center gap-1.5 px-3.5 py-2 rounded-full active:scale-95 transition-all disabled:opacity-40",showEditInput?"bg-white/20 text-violet-300":"text-white/90 hover:bg-white/15")}><Sparkles className={cn("w-3.5 h-3.5 transition-colors",showEditInput?"text-violet-300":"group-hover:text-violet-400")}/><span className="text-xs font-medium tracking-wide">Edit</span></button>
+<button onClick={handleDiscard} disabled={isActionLoading} className="group flex items-center gap-1.5 px-3.5 py-2 rounded-full text-white/50 hover:bg-white/10 hover:text-white/70 active:scale-95 transition-all disabled:opacity-40"><X className="w-3.5 h-3.5 group-hover:text-rose-400 transition-colors"/><span className="text-xs font-medium tracking-wide">Discard</span></button>
 </div>
 {/* Continue editing input */}
-{showEditInput&&(<div className="flex items-center gap-2 px-3 py-2 rounded-full bg-black/80 backdrop-blur-xl shadow-2xl border border-violet-500/30 mt-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
-<Sparkles className="w-4 h-4 text-violet-400 shrink-0"/>
-<input ref={inputRef} type="text" value={editPrompt} onChange={e=>setEditPrompt(e.target.value)} onKeyDown={handleEditKeyDown} placeholder="Describe another edit..." className="bg-transparent text-white text-sm placeholder:text-white/40 outline-none w-56"/>
-<Button variant="ghost" size="icon" onClick={handleContinueEdit} disabled={!editPrompt.trim()} className="h-8 w-8 rounded-full text-violet-300 hover:bg-violet-500/30 disabled:opacity-30"><Send className="w-4 h-4"/></Button>
+{showEditInput&&(<div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-2xl shadow-lg border border-white/20 mt-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+<Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0"/>
+<input ref={inputRef} type="text" value={editPrompt} onChange={e=>setEditPrompt(e.target.value)} onKeyDown={handleEditKeyDown} placeholder="Describe another edit..." className="bg-transparent text-white text-xs placeholder:text-white/40 outline-none w-48 font-medium"/>
+<Button variant="ghost" size="icon" onClick={handleContinueEdit} disabled={!editPrompt.trim()} className="h-7 w-7 rounded-full text-violet-400 hover:bg-white/15 disabled:opacity-30"><Send className="w-3.5 h-3.5"/></Button>
 </div>)}
 </div>)}
 </>)

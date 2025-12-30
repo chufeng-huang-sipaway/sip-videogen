@@ -239,44 +239,54 @@ body.is-dragging img {
   pointer-events: none;
 }
 
-/* AI Quick Edit Button - Holographic Jewel */
+/* AI Quick Edit Button - Holographic Opal (Elegant) */
 .quick-edit-btn {
   position: relative;
-  /* Crystal/Holographic gradient */
-  background: linear-gradient(135deg, #e0f2fe, #ddd6fe, #fbcfe8, #cffafe);
+  /* Elegant Opal Gradient: Soft Blue -> Pale Purple -> Rose Quartz -> White Shine */
+  background: linear-gradient(135deg, #e0faff, #e0e7ff, #fae8ff, #ffffff, #e0faff);
   background-size: 300% 300%;
-  animation: jewel-shift 6s ease-in-out infinite;
+  animation: jewel-shift 4s ease-in-out infinite;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
-    /* Glass rim */
-    inset 0 2px 4px rgba(255, 255, 255, 0.8),
-    /* Top specular */
-    0 4px 14px rgba(167, 139, 250, 0.4),
-    /* Outer glow */
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    /* Bright crisp rim */
+    inset 0 2px 5px rgba(255, 255, 255, 1),
+    /* Strong highlights */
+    0 4px 15px rgba(165, 180, 252, 0.45),
+    /* Soft indigo aura */
     0 2px 4px rgba(0, 0, 0, 0.05);
-  /* Depth */
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  color: #4f46e5;
+  /* Deep Indigo Icon for contrast against light bg */
 }
 
 .dark .quick-edit-btn {
-  /* Deep Space Crystal */
-  background: linear-gradient(135deg, #312e81, #5b21b6, #831843, #1e3a8a);
+  /* Dark Pearl: Deep but soft */
+  background: linear-gradient(135deg, #1e1b4b, #312e81, #4c1d95, #1e1b4b);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.15),
-    inset 0 1px 3px rgba(255, 255, 255, 0.3),
-    0 4px 16px rgba(124, 58, 237, 0.5),
-    0 2px 5px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 1px 4px rgba(255, 255, 255, 0.4),
+    0 4px 16px rgba(139, 92, 246, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  color: white;
+  /* White icon in dark mode */
 }
 
 .quick-edit-btn:hover {
-  transform: translateY(-1px) scale(1.05);
+  transform: translateY(-2px) scale(1.08);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 8px 24px rgba(167, 139, 250, 0.6),
-    0 4px 8px rgba(0, 0, 0, 0.1);
+    inset 0 0 0 1px rgba(255, 255, 255, 1),
+    0 8px 25px rgba(192, 132, 252, 0.5),
+    /* Lavender glow */
+    0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dark .quick-edit-btn:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 8px 28px rgba(139, 92, 246, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .dark .quick-edit-btn:hover {
@@ -312,88 +322,176 @@ body.is-dragging img {
   }
 }
 
-/* Quick Edit Shimmer Overlay - Aurora + Stardust */
+/* Quick Edit Shimmer Overlay - Minimalist Magical Glow */
 .shimmer-overlay {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: visible;
   z-index: 15;
   pointer-events: none;
   border-radius: inherit;
-  /* Follow parent radius */
+
+  /* Soft ethereal outer glow - breathes gently */
+  box-shadow:
+    0 0 30px rgba(139, 92, 246, 0.15),
+    0 0 60px rgba(139, 92, 246, 0.08),
+    inset 0 0 20px rgba(139, 92, 246, 0.03);
+
+  animation: magic-breathe 3s ease-in-out infinite;
 }
 
-/* Layer 1: The Aurora Wave (Color Flow) */
-.shimmer-overlay::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(from 180deg at 50% 50%,
-      rgba(56, 189, 248, 0) 0deg,
-      rgba(56, 189, 248, 0.15) 45deg,
-      rgba(232, 121, 249, 0.2) 90deg,
-      rgba(255, 255, 255, 0) 135deg,
-      rgba(56, 189, 248, 0) 360deg);
-  filter: blur(40px);
-  animation: aurora-spin 8s linear infinite;
-  opacity: 0.8;
-  mix-blend-mode: screen;
-}
-
-/* Layer 2: The Stardust (Drifting Particles) */
+/* Subtle corner sparkle accents */
+.shimmer-overlay::before,
 .shimmer-overlay::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(1.5px 1.5px at 15% 15%, rgba(255, 255, 255, 0.9) 100%, transparent 0),
-    radial-gradient(1px 1px at 35% 45%, rgba(255, 255, 255, 0.7) 100%, transparent 0),
-    radial-gradient(2px 2px at 55% 25%, rgba(255, 255, 255, 0.8) 100%, transparent 0),
-    radial-gradient(1px 1px at 75% 65%, rgba(255, 255, 255, 0.6) 100%, transparent 0),
-    radial-gradient(1.5px 1.5px at 85% 85%, rgba(255, 255, 255, 0.9) 100%, transparent 0);
-  background-size: 150% 150%;
-  animation: stardust-float 20s linear infinite;
-  opacity: 0.7;
-  mix-blend-mode: overlay;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(167, 139, 250, 0.6) 40%, transparent 70%);
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
+  animation: sparkle-float 4s ease-in-out infinite;
 }
 
-.dark .shimmer-overlay::before {
-  opacity: 0.4;
-  mix-blend-mode: color-dodge;
-  /* More vivid in dark mode */
+.shimmer-overlay::before {
+  top: 12px;
+  right: 12px;
+  animation-delay: 0s;
 }
 
+.shimmer-overlay::after {
+  bottom: 12px;
+  left: 12px;
+  animation-delay: 2s;
+}
+
+.dark .shimmer-overlay {
+  box-shadow:
+    0 0 40px rgba(139, 92, 246, 0.2),
+    0 0 80px rgba(139, 92, 246, 0.1),
+    inset 0 0 30px rgba(139, 92, 246, 0.05);
+}
+
+.dark .shimmer-overlay::before,
 .dark .shimmer-overlay::after {
-  opacity: 0.5;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(167, 139, 250, 0.5) 40%, transparent 70%);
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
 }
 
-@keyframes aurora-spin {
-  from {
-    transform: rotate(0deg);
-  }
+/* Gentle breathing animation */
+@keyframes magic-breathe {
 
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes stardust-float {
-  0% {
-    transform: scale(1) translate(0, 0);
-  }
-
-  33% {
-    transform: scale(1.1) translate(-2%, 1%);
-  }
-
-  66% {
-    transform: scale(0.95) translate(1%, -2%);
-  }
-
+  0%,
   100% {
-    transform: scale(1) translate(0, 0);
+    opacity: 0.7;
+    box-shadow:
+      0 0 30px rgba(139, 92, 246, 0.15),
+      0 0 60px rgba(139, 92, 246, 0.08),
+      inset 0 0 20px rgba(139, 92, 246, 0.03);
+  }
+
+  50% {
+    opacity: 1;
+    box-shadow:
+      0 0 40px rgba(139, 92, 246, 0.22),
+      0 0 80px rgba(139, 92, 246, 0.12),
+      inset 0 0 30px rgba(139, 92, 246, 0.05);
+  }
+}
+
+/* Subtle sparkle floating animation */
+@keyframes sparkle-float {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8) translateY(0);
+  }
+
+  25% {
+    opacity: 1;
+    transform: scale(1.1) translateY(-2px);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(0.9) translateY(1px);
+  }
+
+  75% {
+    opacity: 0.9;
+    transform: scale(1) translateY(-1px);
+  }
+}
+
+/* Magic Stop Button - Centered circle with breathing glow */
+.magic-stop-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+
+  cursor: pointer;
+
+  /* Soft glow matching shimmer - breathing effect */
+  box-shadow:
+    0 0 0 0 rgba(139, 92, 246, 0.4),
+    0 0 30px rgba(139, 92, 246, 0.2),
+    0 0 60px rgba(139, 92, 246, 0.1);
+
+  animation: stop-btn-pulse 2s ease-in-out infinite;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.magic-stop-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.magic-stop-btn:active {
+  transform: translate(-50%, -50%) scale(0.95);
+}
+
+/* Stop icon - clean square inside circle */
+.magic-stop-icon {
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Pulsing breathing animation for stop button */
+@keyframes stop-btn-pulse {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(139, 92, 246, 0.4),
+      0 0 20px rgba(139, 92, 246, 0.15),
+      0 0 40px rgba(139, 92, 246, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 12px rgba(139, 92, 246, 0),
+      0 0 40px rgba(139, 92, 246, 0.3),
+      0 0 80px rgba(139, 92, 246, 0.15);
+    border-color: rgba(167, 139, 250, 0.4);
   }
 }

@@ -2,6 +2,7 @@
 import{useState,useEffect,useRef}from'react'
 import{useWorkstation}from'../../context/WorkstationContext'
 import{useDrag}from'../../context/DragContext'
+import{useQuickEdit}from'../../context/QuickEditContext'
 import{bridge,isPyWebView}from'../../lib/bridge'
 import{cn}from'../../lib/utils'
 import{Loader2}from'lucide-react'
@@ -40,6 +41,7 @@ return(<div ref={containerRef} className="w-full h-full flex items-center justif
 export function ThumbnailStrip(){
 const{currentBatch,selectedIndex,setSelectedIndex}=useWorkstation()
 const{setDragData,clearDrag}=useDrag()
+const{isGenerating}=useQuickEdit()
 const btnRefs=useRef<(HTMLButtonElement|null)[]>([])
 //Auto-center selected thumbnail (also triggers when batch changes to handle prepend)
 //Use requestAnimationFrame to ensure refs are populated after render
@@ -53,8 +55,8 @@ if(currentBatch.length<=1)return null
 return(
 <div className="flex-shrink-0 w-full">
 <div className="flex gap-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent justify-center px-1 py-0.5">
-{currentBatch.map((img,i)=>{const imgPath=img.originalPath||img.path||'';const canDrag=!!imgPath&&!imgPath.startsWith('data:');return(
-<button key={img.id} ref={el=>{btnRefs.current[i]=el}} draggable={canDrag} onDragStart={(e)=>handleDragStart(e,imgPath)} onDragEnd={handleDragEnd} onClick={()=>setSelectedIndex(i)} className={cn("flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 relative cursor-grab active:cursor-grabbing",i===selectedIndex?"border-primary shadow-md ring-2 ring-primary/20 scale-105 z-10":"border-transparent opacity-70 hover:opacity-100 hover:scale-105")}>
+{currentBatch.map((img,i)=>{const imgPath=img.originalPath||img.path||'';const canDrag=!!imgPath&&!imgPath.startsWith('data:')&&!isGenerating;return(
+<button key={img.id} ref={el=>{btnRefs.current[i]=el}} draggable={canDrag} onDragStart={(e)=>handleDragStart(e,imgPath)} onDragEnd={handleDragEnd} onClick={()=>!isGenerating&&setSelectedIndex(i)} disabled={isGenerating} className={cn("flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 relative",isGenerating?"cursor-not-allowed opacity-50":"cursor-grab active:cursor-grabbing",i===selectedIndex?"border-primary shadow-md ring-2 ring-primary/20 scale-105 z-10":"border-transparent opacity-70 hover:opacity-100 hover:scale-105")}>
 <Thumb path={imgPath} isUnread={img.viewedAt===null}/>
 </button>)})}
 </div>
