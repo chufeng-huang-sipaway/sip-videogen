@@ -86,12 +86,12 @@ export function DocumentsList() {
   }, [activeBrand, uploadDocument])
 
   if (!activeBrand) {
-    return <div className="text-sm text-gray-500">Select a brand</div>
+    return <div className="text-sm text-muted-foreground">Select a brand</div>
   }
 
   if (error) {
     return (
-      <div className="text-sm text-red-500">
+      <div className="text-sm text-destructive">
         Error: {error}
         <Button variant="ghost" size="sm" onClick={refresh}>Retry</Button>
       </div>
@@ -100,12 +100,12 @@ export function DocumentsList() {
 
   return (
     <div
-      className={`space-y-2 ${isDragging ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 rounded' : ''}`}
+      className={`space-y-2 ${isDragging ? 'bg-brand-a10 dark:bg-brand-a10 ring-2 ring-brand-500 rounded' : ''}`}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
     >
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         Documents
       </h3>
 
@@ -126,7 +126,7 @@ export function DocumentsList() {
       )}
 
       {documents.length === 0 ? (
-        <p className="text-sm text-gray-400 italic">
+        <p className="text-sm text-muted-foreground italic">
           {isLoading ? 'Loading…' : 'No documents yet. Drag text files here to upload.'}
         </p>
       ) : (
@@ -138,9 +138,9 @@ export function DocumentsList() {
                   className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 cursor-pointer group"
                   onClick={() => openPreview(doc.path)}
                 >
-                  <FileText className="h-4 w-4 text-gray-500 shrink-0" />
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-sm truncate flex-1">{doc.name}</span>
-                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100">
+                  <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100">
                     {formatSize(doc.size)}
                   </span>
                 </div>
@@ -161,7 +161,7 @@ export function DocumentsList() {
                   onClick={async () => {
                     if (confirm(`Delete ${doc.name}?`)) await deleteDocument(doc.path)
                   }}
-                  className="text-red-600"
+                  className="text-destructive"
                 >
                   Delete
                 </ContextMenuItem>
@@ -184,7 +184,7 @@ export function DocumentsList() {
                 <pre className="text-xs whitespace-pre-wrap">{previewContent}</pre>
               )
             ) : (
-              <p className="text-gray-500">Loading…</p>
+              <p className="text-muted-foreground">Loading…</p>
             )}
           </div>
         </DialogContent>

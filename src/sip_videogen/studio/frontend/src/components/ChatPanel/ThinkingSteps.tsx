@@ -24,7 +24,7 @@ const [exp,setExp]=useState(false)
 const hasCont=Boolean(step.detail||expandedContent)
 return(<div className="text-sm">
 <button type="button" onClick={()=>hasCont&&setExp(p=>!p)} className={`flex items-center gap-2 w-full text-left ${hasCont?'hover:bg-muted/50 cursor-pointer':''} rounded px-1 py-0.5 transition-colors`}>
-<CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0"/>
+<CheckCircle2 className="h-3 w-3 text-success flex-shrink-0"/>
 <span className="font-medium text-foreground">{step.step}</span>
 {hasCont&&(exp?<ChevronDown className="h-3 w-3 text-muted-foreground ml-auto"/>:<ChevronRight className="h-3 w-3 text-muted-foreground ml-auto"/>)}
 </button>

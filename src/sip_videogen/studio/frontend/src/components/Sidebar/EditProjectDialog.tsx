@@ -32,19 +32,19 @@ const hasChanges=originalProject&&(name.trim()!==originalProject.name||(instruct
 const isWorking=isLoading||isSaving
 const error=loadError||saveError
 const loadingMsg=isLoading?'Loading project...':'Saving changes...'
-return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Project" description="Update project name and campaign instructions." icon={<FolderKanban className="h-5 w-5"/>} iconColor="text-green-600" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={clearError} footer={<>
+return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Project" description="Update project name and campaign instructions." icon={<FolderKanban className="h-5 w-5"/>} iconColor="text-success" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={clearError} footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button>
-<Button onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges} className="bg-green-600 hover:bg-green-700">{isSaving?'Saving...':'Save Changes'}</Button>
+<Button onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges} className="bg-success hover:bg-success/90">{isSaving?'Saving...':'Save Changes'}</Button>
 </>}>
 {/* Name Input */}
 <div className="space-y-2">
-<label htmlFor="edit-project-name" className="text-sm font-medium">Name <span className="text-red-500">*</span></label>
+<label htmlFor="edit-project-name" className="text-sm font-medium">Name <span className="text-destructive">*</span></label>
 <Input id="edit-project-name" value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g., Christmas Campaign" autoFocus/>
 </div>
 {/* Instructions Input */}
 <div className="space-y-2">
 <label htmlFor="edit-project-instructions" className="text-sm font-medium">Campaign Instructions</label>
-<textarea id="edit-project-instructions" value={instructions} onChange={(e)=>setInstructions(e.target.value)} placeholder="Instructions for the AI when generating content for this campaign..." rows={5} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"/>
+<textarea id="edit-project-instructions" value={instructions} onChange={(e)=>setInstructions(e.target.value)} placeholder="Instructions for the AI when generating content for this campaign..." rows={5} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-success resize-none"/>
 <p className="text-xs text-muted-foreground">These instructions will guide the AI when creating images for this project.</p>
 </div>
 </FormDialog>)}

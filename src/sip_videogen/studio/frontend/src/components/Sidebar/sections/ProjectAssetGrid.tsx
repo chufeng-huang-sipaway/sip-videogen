@@ -144,18 +144,18 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
   return (
     <div
       ref={containerRef}
-      className="group relative aspect-square rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 border border-transparent hover:border-blue-500/50 hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="group relative aspect-square rounded-md overflow-hidden bg-neutral-100 dark:bg-neutral-800 border border-transparent hover:border-brand-500/50 hover:shadow-md transition-all duration-200 cursor-pointer"
       onClick={onClick}
       draggable={!!src}
       onDragStart={handleDragStart}
       title="Drag to chat or click to preview"
     >
       {loading ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 animate-pulse">
-          <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 animate-pulse">
+          <Loader2 className="h-4 w-4 text-neutral-400 animate-spin" />
         </div>
       ) : hasError ? (
-        <div className="absolute inset-0 flex items-center justify-center text-amber-500">
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
           <AlertTriangle className="h-4 w-4" />
         </div>
       ) : src ? (
@@ -168,7 +168,7 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
         </>
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-gray-400 group-hover:text-gray-500">
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground group-hover:text-muted-foreground">
           <Image className="h-5 w-5" />
         </div>
       )}
@@ -179,7 +179,7 @@ function AssetThumbnail({ path, onClick, onLoadError }: AssetThumbnailProps) {
 function VideoThumbnail({ path: _path, onClick }: { path: string; onClick?: () => void }) {
   return (
     <div
-      className="group relative aspect-square rounded-md overflow-hidden bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 dark:from-indigo-500/30 dark:via-purple-500/30 dark:to-pink-500/30 border-2 border-indigo-400/50 hover:border-indigo-500 hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="group relative aspect-square rounded-md overflow-hidden bg-gradient-to-br from-brand-500/20 via-brand-500/15 to-brand-500/10 dark:from-brand-500/30 dark:via-brand-500/20 dark:to-brand-500/15 border-2 border-brand-400/50 hover:border-brand-500 hover:shadow-md transition-all duration-200 cursor-pointer"
       onClick={onClick}
       title="Click to preview video"
     >
@@ -191,7 +191,7 @@ function VideoThumbnail({ path: _path, onClick }: { path: string; onClick?: () =
       {/* Play button center */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-          <Play className="w-5 h-5 text-indigo-600 ml-0.5" />
+          <Play className="w-5 h-5 text-brand-600 ml-0.5" />
         </div>
       </div>
     </div>
@@ -445,7 +445,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
           {Array.from({ length: Math.min(expectedAssetCount ?? 4, 8) }).map((_, i) => (
             <div
               key={i}
-              className="aspect-square rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse"
+              className="aspect-square rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse"
             />
           ))}
         </div>
@@ -455,7 +455,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
   if (error) {
     return (
-      <div className="py-2 px-2 text-xs text-red-500 flex items-center gap-2">
+      <div className="py-2 px-2 text-xs text-destructive flex items-center gap-2">
         <span>{error}</span>
         <Button
           variant="ghost"
@@ -471,7 +471,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
   if (sortedAssets.length === 0) {
     return (
-      <div className="py-4 px-2 text-xs text-center text-gray-400 italic bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
+      <div className="py-4 px-2 text-xs text-center text-muted-foreground italic bg-muted/50 rounded-lg border border-dashed border-border">
         <p>No assets yet</p>
         <p className="mt-1 text-[10px]">Generate images in the chat to see them here</p>
       </div>
@@ -482,7 +482,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     <>
       {/* Missing assets banner */}
       {missingAssetsBanner && (
-        <div className="mb-2 py-1.5 px-2 text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded flex items-center gap-1.5">
+        <div className="mb-2 py-1.5 px-2 text-[10px] text-muted-foreground bg-muted rounded flex items-center gap-1.5">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           <span>Some assets were removed. Refreshing...</span>
         </div>
@@ -490,12 +490,12 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
 
       {/* Header with refresh indicator */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] text-gray-400">
+        <span className="text-[10px] text-muted-foreground">
           {sortedAssets.length} asset{sortedAssets.length !== 1 ? 's' : ''}
         </span>
         <div className="flex items-center gap-1">
           {isRefreshing && (
-            <Loader2 className="h-3 w-3 text-gray-400 animate-spin" />
+            <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />
           )}
           <Button
             variant="ghost"

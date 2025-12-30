@@ -112,7 +112,7 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
           {/* Notifications */}
           <div className="min-h-[20px]">
             {error&&(<div className="flex items-center gap-2 text-destructive text-xs animate-in slide-in-from-left-2 fade-in"><ShieldAlert className="w-3.5 h-3.5"/><span>{error}</span></div>)}
-            {success&&(<div className="flex items-center gap-2 text-green-600 text-xs animate-in slide-in-from-left-2 fade-in"><ShieldCheck className="w-3.5 h-3.5"/><span>Credentials updated successfully</span></div>)}
+            {success&&(<div className="flex items-center gap-2 text-success text-xs animate-in slide-in-from-left-2 fade-in"><ShieldCheck className="w-3.5 h-3.5"/><span>Credentials updated successfully</span></div>)}
           </div>
 
           <Button onClick={onSave} disabled={saving||(!openaiKey&&!geminiKey&&!firecrawlKey)} className={cn("w-full h-11 rounded-full font-medium transition-all shadow-lg hover:shadow-xl active:scale-[0.98]",saving?"bg-muted text-muted-foreground":"bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200")}>
@@ -136,8 +136,8 @@ function ApiKeyRow({label,hint,icon,configured,value,onChange,placeholder,show}:
             {hint&&<span className="text-[10px] text-muted-foreground/60">{hint}</span>}
           </div>
         </div>
-        <div className={cn("flex items-center gap-1.5 text-[11px] font-medium",configured?"text-green-600 dark:text-green-400":"text-muted-foreground/50")}>
-          <div className={cn("w-1.5 h-1.5 rounded-full",configured?"bg-green-500":"bg-muted-foreground/30")}/>
+        <div className={cn("flex items-center gap-1.5 text-[11px] font-medium",configured?"text-success":"text-muted-foreground/50")}>
+          <div className={cn("w-1.5 h-1.5 rounded-full",configured?"bg-success":"bg-muted-foreground/30")}/>
           {configured?"Active":"Not Set"}
         </div>
       </div>

@@ -91,19 +91,19 @@ const analysisSummary=originalTemplate?.analysis?(
 <span>{(originalTemplate.analysis as any).product_slot?'has product slot':'no product slot'}</span>
 </>)}
 </div>):null
-return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Template" description="Update template details and images." icon={<Layout className="h-5 w-5"/>} iconColor="text-indigo-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
+return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Template" description="Update template details and images." icon={<Layout className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button>
-<Button onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges} className="bg-indigo-600 hover:bg-indigo-700">{isSaving?'Saving...':'Save Changes'}</Button>
+<Button onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges} className="bg-brand-500 hover:bg-brand-600">{isSaving?'Saving...':'Save Changes'}</Button>
 </>}>
 {/*Name Input*/}
 <div className="space-y-2">
-<label htmlFor="edit-template-name" className="text-sm font-medium">Name <span className="text-red-500">*</span></label>
+<label htmlFor="edit-template-name" className="text-sm font-medium">Name <span className="text-destructive">*</span></label>
 <Input id="edit-template-name" value={name} onChange={(e)=>setName(e.target.value)} placeholder="e.g., Hero Banner Layout" autoFocus/>
 </div>
 {/*Description Input*/}
 <div className="space-y-2">
 <label htmlFor="edit-template-description" className="text-sm font-medium">Description</label>
-<textarea id="edit-template-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the layout purpose" rows={2} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"/>
+<textarea id="edit-template-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the layout purpose" rows={2} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"/>
 </div>
 {/*Default Strict Toggle*/}
 <div className="flex items-center justify-between py-2">
@@ -112,7 +112,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Template" 
 <p className="text-xs text-muted-foreground">When ON, new generations preserve exact layout</p>
 </div>
 <button id="edit-default-strict" type="button" role="switch" aria-checked={defaultStrict} onClick={()=>setDefaultStrict(!defaultStrict)}
-className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${defaultStrict?'bg-indigo-600':'bg-gray-200 dark:bg-gray-700'}`}>
+className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${defaultStrict?'bg-brand-500':'bg-neutral-200 dark:bg-neutral-700'}`}>
 <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform ${defaultStrict?'translate-x-4':'translate-x-0'}`}/>
 </button>
 </div>
@@ -120,16 +120,16 @@ className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full bo
 {analysisSummary}
 {/*Template Images*/}
 <div className="space-y-2">
-<label className="text-sm font-medium">Template Images <span className="text-red-500">*</span> <span className="text-xs text-muted-foreground">(1-2 images)</span></label>
+<label className="text-sm font-medium">Template Images <span className="text-destructive">*</span> <span className="text-xs text-muted-foreground">(1-2 images)</span></label>
 {/*Existing Images*/}
 {visibleExistingImages.length>0&&(<div className="flex flex-wrap gap-2 mb-2">
-{visibleExistingImages.map((img)=>(<div key={img.path} className={`relative group ${img.isPrimary?'ring-2 ring-indigo-500 ring-offset-2':''}`}>
+{visibleExistingImages.map((img)=>(<div key={img.path} className={`relative group ${img.isPrimary?'ring-2 ring-brand-500 ring-offset-2':''}`}>
 {img.thumbnailUrl?(<img src={img.thumbnailUrl} alt={img.filename} className="h-20 w-20 rounded object-cover border"/>
-):(<div className="h-20 w-20 rounded border bg-gray-100 dark:bg-gray-800 flex items-center justify-center"><Loader2 className="h-4 w-4 text-gray-400 animate-spin"/></div>)}
-{img.isPrimary&&(<div className="absolute top-1 left-1 bg-indigo-500 text-white rounded-full p-0.5"><Star className="h-3 w-3 fill-current"/></div>)}
+):(<div className="h-20 w-20 rounded border bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center"><Loader2 className="h-4 w-4 text-neutral-400 animate-spin"/></div>)}
+{img.isPrimary&&(<div className="absolute top-1 left-1 bg-brand-500 text-white rounded-full p-0.5"><Star className="h-3 w-3 fill-current"/></div>)}
 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
-{!img.isPrimary&&(<button type="button" onClick={()=>handleSetPrimary(img.path)} className="h-6 w-6 bg-indigo-500 text-white rounded-full flex items-center justify-center hover:bg-indigo-600" title="Set as primary"><Star className="h-3 w-3"/></button>)}
-<button type="button" onClick={()=>handleDeleteExisting(img.path)} className="h-6 w-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600" title="Delete image"><X className="h-3 w-3"/></button>
+{!img.isPrimary&&(<button type="button" onClick={()=>handleSetPrimary(img.path)} className="h-6 w-6 bg-brand-500 text-white rounded-full flex items-center justify-center hover:bg-brand-600" title="Set as primary"><Star className="h-3 w-3"/></button>)}
+<button type="button" onClick={()=>handleDeleteExisting(img.path)} className="h-6 w-6 bg-destructive text-white rounded-full flex items-center justify-center hover:bg-destructive/90" title="Delete image"><X className="h-3 w-3"/></button>
 </div>
 <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 truncate rounded-b">{img.filename}</span>
 </div>))}
@@ -137,9 +137,9 @@ className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full bo
 {/*New Images*/}
 {newImages.length>0&&(<div className="flex flex-wrap gap-2 mb-2">
 {newImages.map((item,index)=>(<div key={index} className="relative group">
-<img src={item.dataUrl} alt={item.file.name} className="h-20 w-20 rounded object-cover border border-dashed border-green-500"/>
-<div className="absolute top-1 right-1 bg-green-500 text-white text-[10px] px-1 rounded">NEW</div>
-<button type="button" onClick={()=>handleDeleteNew(index)} className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
+<img src={item.dataUrl} alt={item.file.name} className="h-20 w-20 rounded object-cover border border-dashed border-success"/>
+<div className="absolute top-1 right-1 bg-success text-white text-[10px] px-1 rounded">NEW</div>
+<button type="button" onClick={()=>handleDeleteNew(index)} className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
 <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 truncate rounded-b">{item.file.name}</span>
 </div>))}
 </div>)}
