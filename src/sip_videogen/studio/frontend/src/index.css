@@ -232,3 +232,22 @@ body.is-dragging * {
 body.is-dragging img {
   pointer-events: none;
 }
+
+/* AI Quick Edit Button - gradient shift animation */
+.quick-edit-btn {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+.quick-edit-btn:hover {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+  background-size: 200% 200%;
+}
+.quick-edit-btn:disabled {
+  background: transparent;
+  animation: none;
+}
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
