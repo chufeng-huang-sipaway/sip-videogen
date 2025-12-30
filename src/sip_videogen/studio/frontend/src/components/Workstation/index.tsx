@@ -2,6 +2,7 @@
 import{useCallback,useRef,useEffect,useMemo,useState}from'react'
 import{useWorkstation}from'../../context/WorkstationContext'
 import{useBrand}from'../../context/BrandContext'
+import{QuickEditProvider}from'../../context/QuickEditContext'
 import{bridge,isPyWebView,waitForPyWebViewReady}from'../../lib/bridge'
 import{toast}from'../ui/toaster'
 import{ImageDisplay}from'./ImageDisplay'
@@ -97,6 +98,7 @@ export function Workstation() {
     }, [hasImages, isGrid, handleDelete, selectedIndex, currentBatch.length, setSelectedIndex, toggleBrowseMode])
 
     return (
+        <QuickEditProvider>
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:to-black relative">
             {hasImages ? (
                 <>
@@ -154,5 +156,6 @@ export function Workstation() {
                 <EmptyState />
             )}
         </div>
+        </QuickEditProvider>
     )
 }
