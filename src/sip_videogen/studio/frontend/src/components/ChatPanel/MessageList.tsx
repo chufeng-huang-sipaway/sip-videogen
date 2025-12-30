@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Package, Paperclip, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { type GeneratedVideo, type TemplateSummary, type ProductEntry, type ThinkingStep } from '@/lib/bridge'
+import { type GeneratedVideo, type TemplateSummary, type ProductEntry, type ThinkingStep, type GeneratedImage, type ImageGenerationMetadata } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
 import { ThinkingSteps } from './ThinkingSteps'
 import { InteractionRenderer } from './InteractionRenderer'
 import { ChatImageGallery } from './ChatImageGallery'
+import { PromptDetailsModal } from './PromptDetailsModal'
 import { cn } from '@/lib/utils'
 import { useTemplates } from '@/context/TemplateContext'
 import { Button } from '@/components/ui/button'
+//Helper to normalize images (string | GeneratedImage)
+function normalizeImages(imgs:(GeneratedImage|string)[]|undefined):GeneratedImage[]{if(!imgs)return[];return imgs.map(i=>typeof i==='string'?{url:i}:i)}
 
 
 //Video gallery component for rendering generated videos
@@ -74,13 +77,14 @@ interface MessageListProps {
   onRegenerate?: (messageId: string) => void
 }
 
-function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }: {
+function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails }: {
   message: Message;
   products: ProductEntry[];
   templates?: TemplateSummary[];
   onInteractionSelect: (id: string, sel: string) => void;
   isLoading: boolean;
   onRegenerate?: (id: string) => void;
+  onViewDetails?: (metadata: ImageGenerationMetadata) => void;
 }) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
@@ -208,9 +212,17 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate }
         )}
 
         {/* Thinking Steps (Persisted from completed messages) */}
-        {message.role === 'assistant' && message.thinkingSteps && message.thinkingSteps.length > 0 && (
-          <div className="mt-2 w-full"><ThinkingSteps steps={message.thinkingSteps} isGenerating={false} skills={message.loadedSkills} /></div>
-        )}
+        {message.role === 'assistant' && (() => {
+          const normImgs = normalizeImages(message.images)
+          const imgMeta = normImgs.find(i => i.metadata)?.metadata ?? null
+          const hasContent = (message.thinkingSteps && message.thinkingSteps.length > 0) || imgMeta
+          return hasContent ? (
+            <div className="mt-2 w-full">
+              <ThinkingSteps steps={message.thinkingSteps || []} isGenerating={false} skills={message.loadedSkills} imageMetadata={imgMeta} onViewFullDetails={imgMeta && onViewDetails ? () => onViewDetails(imgMeta) : undefined}/>
+              {normImgs.length > 1 && imgMeta && (<div className="text-xs text-muted-foreground mt-1">Showing metadata for image 1 of {normImgs.length}</div>)}
+            </div>
+          ) : null
+        })()}
         {/* Execution Trace (Fallback for non-report_thinking flows) */}
         {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (!message.thinkingSteps || message.thinkingSteps.length === 0) && (
           <div className="mt-2 w-full"><ExecutionTrace events={message.executionTrace} /></div>
@@ -345,6 +357,7 @@ function ActivityCard({ progress, loadedSkills }: ActivityCardProps) {
 
 export function MessageList({ messages, progress, loadedSkills, thinkingSteps, isLoading, products, templates, onInteractionSelect, onRegenerate }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [detailsMeta,setDetailsMeta]=useState<ImageGenerationMetadata|null>(null)
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, progress, thinkingSteps])
   const { templates: contextTemplates } = useTemplates()
   const allTemplates = templates || contextTemplates
@@ -354,13 +367,15 @@ export function MessageList({ messages, progress, loadedSkills, thinkingSteps, i
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} products={products} templates={allTemplates} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} />
+        <MessageBubble key={message.id} message={message} products={products} templates={allTemplates} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta}/>
       ))}
       {/* Thinking Steps (Real-time during loading) */}
       {isLoading && <div className="px-6"><ThinkingSteps steps={thinkingSteps} isGenerating={true} skills={loadedSkills} /></div>}
       {/* Activity Indicator */}
       {showActivity && <ActivityCard progress={progress} loadedSkills={loadedSkills} />}
       <div ref={bottomRef} className="h-px" />
+      {/* Modal rendered ONCE at parent level */}
+      {detailsMeta&&<PromptDetailsModal metadata={detailsMeta} onClose={()=>setDetailsMeta(null)}/>}
     </div>
   )
 }

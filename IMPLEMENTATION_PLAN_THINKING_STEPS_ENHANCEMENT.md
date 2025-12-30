@@ -652,7 +652,7 @@ For messages with multiple images, show first image metadata with indication:
 - [ ] **Fix #3**: Image type normalization prevents TypeScript errors
 - [ ] **Fix #6**: Modal state at parent level, correct message opens
 
-**Status**: Not Started
+**Status**: Complete
 
 ---
 
