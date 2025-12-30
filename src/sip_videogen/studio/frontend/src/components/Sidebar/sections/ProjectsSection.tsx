@@ -27,40 +27,7 @@ interface ProjectCardProps {
   onDelete: () => void
 }
 
-function ProjectCard({ project, isActive, onClick, onEdit, onArchive, onDelete }: ProjectCardProps) {
-  const isArchived = project.status === 'archived'
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          onClick={onClick}
-          className={`
-            flex items-center gap-2.5 py-1.5 px-2 rounded-md cursor-pointer group transition-all duration-200 overflow-hidden 
-            ${isActive
-              ? 'bg-sidebar-accent text-foreground shadow-sm font-medium'
-              : 'text-muted-foreground/80 hover:bg-sidebar-accent/50 hover:text-foreground'
-            } 
-            ${isArchived ? 'opacity-60' : ''}
-          `}
-          title="View project assets"
-        >
-          <FolderOpen
-            className={`h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-foreground' : 'text-muted-foreground/70 group-hover:text-foreground'}`}
-            strokeWidth={1.5}
-          />
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate flex-1">{project.name}</span>
-              {isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
-            </div>
-            {/* Asset count - only show if not archived or active to keep it clean, or always subtle */}
-            <span className={`text-[10px] truncate block mt-0.5 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
-              {project.asset_count} asset{project.asset_count !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </div>
-      </ContextMenuTrigger>
+function ProjectCard({project,isActive,onClick,onEdit,onArchive,onDelete}:ProjectCardProps){const isArchived=project.status==='archived';return(<ContextMenu><ContextMenuTrigger asChild><div onClick={onClick} className={`flex items-center gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer group transition-colors duration-150 overflow-hidden ${isActive?'bg-primary/10 text-foreground font-medium':'text-muted-foreground/80 hover:bg-muted/50 hover:text-foreground'} ${isArchived?'opacity-60':''}`} title="View project assets"><FolderOpen className={`h-4 w-4 shrink-0 transition-colors duration-150 ${isActive?'text-foreground':'text-muted-foreground/70 group-hover:text-foreground'}`} strokeWidth={1.5}/><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1.5"><span className="truncate flex-1 text-sm">{project.name}</span>{isArchived&&<Archive className="h-3 w-3 text-muted-foreground shrink-0"/>}</div><span className={`text-[10px] truncate block mt-0.5 ${isActive?'text-muted-foreground':'text-muted-foreground/60'}`}>{project.asset_count} asset{project.asset_count!==1?'s':''}</span></div></div></ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onClick={onEdit}>
           <Pencil className="h-4 w-4 mr-2" />
@@ -190,25 +157,9 @@ export function ProjectsSection() {
   })
 
   return (
-    <div className="space-y-2 pl-2 pr-1">
-      {actionError && (
-        <Alert variant="destructive" className="py-2 px-3">
-          <AlertDescription className="flex items-center justify-between text-xs">
-            <span>{actionError}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-4 w-4 shrink-0"
-              onClick={() => setActionError(null)}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
+    <div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}
       {/* Unsorted (non-project) assets section */}
-      <div className="mb-2"><div onClick={async()=>{await setActiveProject(null);loadGeneralAssets()}} className={`flex items-center gap-1.5 py-2 px-1.5 rounded-lg cursor-pointer group transition-all overflow-hidden ${activeProject===null?'bg-sidebar-accent text-foreground shadow-sm':'hover:bg-muted/50 text-muted-foreground hover:text-foreground'}`} title="Assets not associated with any project"><Inbox className={`h-3.5 w-3.5 shrink-0 ${activeProject===null?'text-foreground':'text-muted-foreground/70 group-hover:text-foreground'}`} /><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className={`text-sm truncate italic ${activeProject===null?'font-medium text-foreground':'font-medium text-foreground/90'}`}>Unsorted</span></div><span className={`text-[10px] truncate block ${activeProject===null?'text-muted-foreground':'text-muted-foreground/60'}`}>{generalCount} asset{generalCount !== 1 ? 's' : ''}</span></div></div></div>
+      <div className="mb-1"><div onClick={async()=>{await setActiveProject(null);loadGeneralAssets()}} className={`flex items-center gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer group transition-colors duration-150 overflow-hidden ${activeProject===null?'bg-primary/10 text-foreground font-medium':'hover:bg-muted/50 text-muted-foreground hover:text-foreground'}`} title="Assets not associated with any project"><Inbox className={`h-4 w-4 shrink-0 transition-colors duration-150 ${activeProject===null?'text-foreground':'text-muted-foreground/70 group-hover:text-foreground'}`}/><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1"><span className="text-sm truncate">Unsorted</span></div><span className={`text-[10px] truncate block mt-0.5 ${activeProject===null?'text-muted-foreground':'text-muted-foreground/60'}`}>{generalCount} asset{generalCount!==1?'s':''}</span></div></div></div>
 
       {sortedProjects.length === 0 ? (<p className="text-sm text-muted-foreground italic">{isLoading ? 'Loading...' : 'No projects yet. Click + to create a campaign.'}</p>) : (<div className="space-y-1">{sortedProjects.map((project) => (<ProjectCard key={project.slug} project={project} isActive={activeProject === project.slug} onClick={async()=>{await setActiveProject(project.slug);loadProjectAssets(project.slug)}} onEdit={() => setEditingProjectSlug(project.slug)} onArchive={() => handleArchive(project.slug)} onDelete={() => handleDelete(project.slug)} />))}</div>)}
 

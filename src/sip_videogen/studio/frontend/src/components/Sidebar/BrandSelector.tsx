@@ -68,44 +68,6 @@ export function BrandSelector({ compact }: BrandSelectorProps = {}) {
   )
 
   //Compact mode: icon button with initials
-  if (compact) {
-    return (
-      <DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 hover:from-primary/30 hover:to-primary/10 text-primary font-bold">
-                {currentBrand ? getInitials(currentBrand.name) : <Building2 className="w-5 h-5" />}
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="font-semibold">{currentBrand?.name || 'Select Brand'}</TooltipContent>
-        </Tooltip>
-        {dropdownContent}
-        {dialogs}
-      </DropdownMenu>
-    )
-  }
-
+  if(compact){return(<DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/15 text-primary font-bold transition-colors duration-150">{currentBrand?getInitials(currentBrand.name):<Building2 className="w-5 h-5"/>}</Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent side="right" className="font-semibold">{currentBrand?.name||'Select Brand'}</TooltipContent></Tooltip>{dropdownContent}{dialogs}</DropdownMenu>)}
   //Full mode: button with name
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-full justify-between h-auto py-3 px-3 hover:bg-sidebar-accent groupe rounded-xl">
-          <div className="flex items-center gap-3 text-left">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-              {currentBrand ? getInitials(currentBrand.name) : <Building2 className="w-4 h-4" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name || 'Select Brand'}</div>
-              <div className="text-[10px] text-muted-foreground font-medium">Brand Workspace</div>
-            </div>
-          </div>
-          <ChevronsUpDown className="h-4 w-4 text-muted-foreground/50" />
-        </Button>
-      </DropdownMenuTrigger>
-      {dropdownContent}
-      {dialogs}
-    </DropdownMenu>
-  )
-}
+  return(<DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="w-full justify-between h-auto py-3 px-3 hover:bg-muted/50 rounded-xl transition-colors duration-150"><div className="flex items-center gap-3 text-left"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">{currentBrand?getInitials(currentBrand.name):<Building2 className="w-4 h-4"/>}</div><div className="flex-1 min-w-0"><div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name||'Select Brand'}</div><div className="text-[10px] text-muted-foreground/70 font-medium">Brand Workspace</div></div></div><ChevronsUpDown className="h-4 w-4 text-muted-foreground/40"/></Button></DropdownMenuTrigger>{dropdownContent}{dialogs}</DropdownMenu>)}

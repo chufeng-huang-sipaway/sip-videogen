@@ -115,27 +115,7 @@ function TemplateCard({ template, isAttached, attachedStrict, isExpanded, onTogg
         onToggleExpand()
     }
     return (
-        <div>
-            <ContextMenu>
-                <ContextMenuTrigger asChild>
-                    <div className={`flex items-center gap-2.5 py-1.5 px-2 rounded-md border border-transparent hover:bg-sidebar-accent/50 cursor-pointer group overflow-hidden transition-all duration-200 ${isAttached ? 'bg-sidebar-accent/50 border-input shadow-sm' : 'text-muted-foreground/80 hover:text-foreground'}`}
-                        draggable onDragStart={handleDragStart} onClick={handleClick} title="Click to preview, drag to attach to chat">
-                        {/*Expand/collapse chevron*/}
-                        {isExpanded ? (<ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />) : (<ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 group-hover:text-foreground/80 transition-colors" />)}
-                        <TemplateThumbnail path={template.primary_image} />
-                        <div className="flex-1 min-w-0 overflow-hidden">
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-medium truncate text-foreground/90">{template.name}</span>
-                                {isAttached && (
-                                    <span className="flex items-center gap-0.5 shrink-0 animate-in zoom-in spin-in-90 duration-300">
-                                        {attachedStrict ? <Lock className="h-3 w-3 text-primary" /> : <Unlock className="h-3 w-3 text-muted-foreground" />}
-                                    </span>)}
-                            </div>
-                            <span className="text-xs text-muted-foreground truncate block">
-                                {template.description.length > 40 ? template.description.slice(0, 40) + '...' : template.description}</span>
-                        </div>
-                    </div>
-                </ContextMenuTrigger>
+        <div><ContextMenu><ContextMenuTrigger asChild><div className={`flex items-center gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer group overflow-hidden transition-colors duration-150 ${isAttached?'bg-primary/10 text-foreground':'text-muted-foreground/80 hover:bg-muted/50 hover:text-foreground'}`} draggable onDragStart={handleDragStart} onClick={handleClick} title="Click to preview, drag to attach to chat">{isExpanded?(<ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"/>):(<ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 group-hover:text-foreground/80 transition-colors duration-150"/>)}<TemplateThumbnail path={template.primary_image}/><div className="flex-1 min-w-0 overflow-hidden"><div className="flex items-center gap-1.5"><span className={`text-sm truncate ${isAttached?'font-medium text-foreground':'text-foreground/90'}`}>{template.name}</span>{isAttached&&(<span className="flex items-center gap-0.5 shrink-0">{attachedStrict?<Lock className="h-3 w-3 text-primary"/>:<Unlock className="h-3 w-3 text-muted-foreground"/>}</span>)}</div><span className="text-xs text-muted-foreground/70 truncate block">{template.description.length>50?template.description.slice(0,50)+'...':template.description}</span></div></div></ContextMenuTrigger>
                 <ContextMenuContent>
                     {isAttached ? (
                         <>
@@ -153,13 +133,7 @@ function TemplateCard({ template, isAttached, attachedStrict, isExpanded, onTogg
                 </ContextMenuContent>
             </ContextMenu>
             {/*Expanded preview*/}
-            {isExpanded && (
-                <div className="pl-6 pr-2 border-l-2 border-border/50 ml-[11px] mt-1 relative">
-                    <div className="absolute top-0 -left-[5px] w-2 h-2 rounded-full bg-border/50"></div>
-                    <TemplatePreview templateSlug={template.slug} />
-                </div>)}
-        </div>)
-}
+            {isExpanded&&(<div className="pl-6 pr-2 border-l border-border/30 ml-[11px] mt-1 relative"><div className="absolute top-0 -left-[3px] w-1.5 h-1.5 rounded-full bg-border/50"></div><TemplatePreview templateSlug={template.slug}/></div>)}</div>)}
 interface TemplatesSectionProps { createDialogOpen?: boolean; onCreateDialogChange?: (open: boolean) => void }
 //Main section component
 export function TemplatesSection({ createDialogOpen, onCreateDialogChange }: TemplatesSectionProps = {}) {
@@ -196,33 +170,7 @@ export function TemplatesSection({ createDialogOpen, onCreateDialogChange }: Tem
             </div>)
     }
     return (
-        <div className="space-y-2 pl-2 pr-1">
-            {actionError && (
-                <Alert variant="destructive" className="py-2 px-3">
-                    <AlertDescription className="flex items-center justify-between text-xs">
-                        <span>{actionError}</span>
-                        <Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={() => setActionError(null)}>
-                            <X className="h-3 w-3" /></Button>
-                    </AlertDescription>
-                </Alert>)}
-            {templates.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                    {isLoading ? 'Loading...' : 'No templates yet. Click + to add one.'}</p>) : (
-                <div className="space-y-1">
-                    {templates.map((template) => {
-                        const attached = attachedTemplates.find(t => t.template_slug === template.slug)
-                        return (
-                            <TemplateCard key={template.slug} template={template}
-                                isAttached={!!attached} attachedStrict={attached?.strict}
-                                isExpanded={expandedTemplate === template.slug}
-                                onToggleExpand={() => handleToggleExpand(template.slug)}
-                                onAttach={() => attachTemplate(template.slug)}
-                                onDetach={() => detachTemplate(template.slug)}
-                                onToggleStrict={() => handleToggleStrict(template.slug)}
-                                onViewDetail={() => handleOpenDetail(template.slug)}
-                                onEdit={() => setEditingTemplateSlug(template.slug)}
-                                onDelete={() => handleDelete(template.slug)} />)
-                    })}</div>)}
+        <div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{templates.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No templates yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{templates.map((template)=>{const attached=attachedTemplates.find(t=>t.template_slug===template.slug);return(<TemplateCard key={template.slug} template={template} isAttached={!!attached} attachedStrict={attached?.strict} isExpanded={expandedTemplate===template.slug} onToggleExpand={()=>handleToggleExpand(template.slug)} onAttach={()=>attachTemplate(template.slug)} onDetach={()=>detachTemplate(template.slug)} onToggleStrict={()=>handleToggleStrict(template.slug)} onViewDetail={()=>handleOpenDetail(template.slug)} onEdit={()=>setEditingTemplateSlug(template.slug)} onDelete={()=>handleDelete(template.slug)}/>)})}</div>)}
             {/*Detail View Modal*/}
             {detailViewSlug && (<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDetailViewSlug(null)}>
                 <div className="bg-background border rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
