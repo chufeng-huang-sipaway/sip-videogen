@@ -506,7 +506,11 @@ class BrandAdvisor:
         # Use augmented message (with turn context) for LLM
         prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
-
+        #Set up tool progress callback for emit_tool_thinking
+        from sip_videogen.advisor.tools import set_tool_progress_callback
+        def _tool_cb(step:str,detail:str)->None:
+            if self.progress_callback:self.progress_callback(AdvisorProgress(event_type="thinking_step",message=step,detail=detail))
+        set_tool_progress_callback(_tool_cb)
         try:
             result = await Runner.run(self._agent, full_prompt, hooks=hooks)
 
@@ -531,7 +535,8 @@ class BrandAdvisor:
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             raise
-
+        finally:
+            set_tool_progress_callback(None)
     async def chat(
         self,
         message: str,
@@ -664,7 +669,11 @@ class BrandAdvisor:
         # Use augmented message (with turn context) for LLM
         prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
-
+        #Set up tool progress callback for emit_tool_thinking
+        from sip_videogen.advisor.tools import set_tool_progress_callback
+        def _tool_cb(step:str,detail:str)->None:
+            if self.progress_callback:self.progress_callback(AdvisorProgress(event_type="thinking_step",message=step,detail=detail))
+        set_tool_progress_callback(_tool_cb)
         # Accumulate response for history
         response_chunks: list[str] = []
 
@@ -684,7 +693,8 @@ class BrandAdvisor:
         except Exception as e:
             logger.error(f"Stream chat failed: {e}")
             raise
-
+        finally:
+            set_tool_progress_callback(None)
     def _format_history(self, max_turns: int = 10) -> str:
         """Format conversation history for prompt.
 

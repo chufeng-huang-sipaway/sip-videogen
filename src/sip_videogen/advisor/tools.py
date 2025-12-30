@@ -473,6 +473,15 @@ def _validate_filename(filename: str) -> str | None:
 # Stored between tool calls and cleared when hooks read them
 _pending_interaction: dict | None = None
 _pending_memory_update: dict | None = None
+# Progress callback for emitting thinking steps from within tools
+_tool_progress_callback: "Callable[[str,str],None]|None" = None
+def set_tool_progress_callback(cb:"Callable[[str,str],None]|None")->None:
+    """Set callback for tools to emit thinking steps. Called by agent before running."""
+    global _tool_progress_callback
+    _tool_progress_callback=cb
+def emit_tool_thinking(step:str,detail:str="")->None:
+    """Emit a thinking step from within a tool. No-op if no callback set."""
+    if _tool_progress_callback:_tool_progress_callback(step,detail)
 
 
 def get_pending_interaction() -> dict | None:
@@ -953,7 +962,7 @@ async def _impl_generate_image(
         # Use validation loop if enabled and reference provided
         if validate_identity and reference_image_bytes:
             from sip_videogen.advisor.validation import generate_with_validation
-
+            emit_tool_thinking("Generating image",f"Validating product identity (up to {max_retries} attempts)")
             logger.info(f"Generating with validation (max {max_retries} retries)...")
             result = await generate_with_validation(
                 client=client,
@@ -1034,7 +1043,9 @@ async def _impl_generate_image(
         else:
             contents = generation_prompt
             logger.info(f"Generating image: {generation_prompt[:100]}...")
-
+        #Emit thinking step for prompt before API call
+        if generation_prompt!=prompt:emit_tool_thinking("Prompt enhanced",generation_prompt[:200])
+        else:emit_tool_thinking("Generating image",generation_prompt[:200])
         response = client.models.generate_content(
             model=model,
             contents=contents,
