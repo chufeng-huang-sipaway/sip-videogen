@@ -3,24 +3,19 @@ import{Tabs,TabsList,TabsTrigger}from'@/components/ui/tabs'
 import{ChatPanelContent}from'@/components/ChatPanel'
 import{InspirationsTab}from'./InspirationsTab'
 import{TabIndicator}from'./TabIndicator'
+import{InspirationProvider,useInspirationContext}from'@/context/InspirationContext'
 import{cn}from'@/lib/utils'
-
 const TAB_STORAGE_KEY='sip-studio-active-tab'
 type RightSidebarTab='inspirations'|'chat'
-
 interface RightSidebarProps{brandSlug:string|null}
-
-export function RightSidebar({brandSlug}:RightSidebarProps){
+//Inner component that uses InspirationContext
+function RightSidebarContent({brandSlug}:RightSidebarProps){
 const[activeTab,setActiveTab]=useState<RightSidebarTab>(()=>{
 const stored=localStorage.getItem(TAB_STORAGE_KEY)
 return(stored==='chat'||stored==='inspirations')?stored:'inspirations'
 })
-//Inspiration status - placeholder for now, will be connected in Stage 3
-const[isGenerating]=useState(false)
-const[newCount]=useState(0)
-
+const{isGenerating,newCount}=useInspirationContext()
 useEffect(()=>{localStorage.setItem(TAB_STORAGE_KEY,activeTab)},[activeTab])
-
 return(
 <div className="w-[320px] flex-shrink-0 flex flex-col h-screen glass-sidebar border-l border-white/10">
 {/* Tab header */}
@@ -47,5 +42,12 @@ Chat
 </div>
 </div>
 </div>
+)
+}
+export function RightSidebar({brandSlug}:RightSidebarProps){
+return(
+<InspirationProvider brandSlug={brandSlug}>
+<RightSidebarContent brandSlug={brandSlug}/>
+</InspirationProvider>
 )
 }

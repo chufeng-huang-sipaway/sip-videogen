@@ -377,6 +377,37 @@ export interface GeneratedVideo {
   metadata?: VideoGenerationMetadata | null
 }
 
+//Inspiration types
+export interface InspirationImage {
+  path: string | null
+  thumbnailPath: string | null
+  prompt: string
+  generatedAt: string
+  status: 'generating' | 'ready' | 'failed'
+  error?: string | null
+}
+export interface Inspiration {
+  id: string
+  title: string
+  rationale: string
+  targetChannel: string
+  images: InspirationImage[]
+  projectSlug: string | null
+  productSlugs: string[]
+  createdAt: string
+  status: 'generating' | 'ready' | 'saved' | 'dismissed'
+}
+export interface InspirationJob {
+  id: string
+  brandSlug: string
+  status: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled' | 'unknown'
+  progress: number
+  inspirationsCompleted: number
+  totalInspirations: number
+  error: string | null
+  createdAt?: string
+}
+
 interface ChatResponse {
   response: string
   images: GeneratedImage[]
@@ -549,6 +580,14 @@ interface PyWebViewAPI {
   backfill_images(brand_slug?: string): Promise<BridgeResponse<{ added: ImageStatusEntry[]; count: number }>>
   copy_image_to_clipboard(image_path: string): Promise<BridgeResponse<{ copied: boolean; path: string }>>
   share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
+  //Inspiration methods
+  get_inspirations(brand_slug?: string): Promise<BridgeResponse<{ inspirations: Inspiration[]; job?: InspirationJob | null }>>
+  trigger_inspiration_generation(brand_slug?: string): Promise<BridgeResponse<{ job_id: string }>>
+  get_inspiration_progress(job_id: string): Promise<BridgeResponse<InspirationJob>>
+  cancel_inspiration_job(job_id: string): Promise<BridgeResponse<{ success: boolean }>>
+  save_inspiration_image(inspiration_id: string, image_idx: number, project_slug?: string | null): Promise<BridgeResponse<{ success: boolean; saved_path?: string; error?: string }>>
+  dismiss_inspiration(inspiration_id: string): Promise<BridgeResponse<{ success: boolean }>>
+  request_more_like(inspiration_id: string): Promise<BridgeResponse<{ job_id: string }>>
 }
 
 declare global {
@@ -756,4 +795,12 @@ export const bridge = {
   backfillImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.backfill_images(brandSlug)),
   copyImageToClipboard: (imagePath: string) => callBridge(() => window.pywebview!.api.copy_image_to_clipboard(imagePath)),
   shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
+  //Inspirations
+  getInspirations: async (brandSlug?: string) => await callBridge(() => window.pywebview!.api.get_inspirations(brandSlug)),
+  triggerInspirationGeneration: async (brandSlug?: string) => (await callBridge(() => window.pywebview!.api.trigger_inspiration_generation(brandSlug))).job_id,
+  getInspirationProgress: async (jobId: string) => await callBridge(() => window.pywebview!.api.get_inspiration_progress(jobId)),
+  cancelInspirationJob: async (jobId: string) => await callBridge(() => window.pywebview!.api.cancel_inspiration_job(jobId)),
+  saveInspirationImage: async (inspirationId: string, imageIdx: number, projectSlug?: string | null) => await callBridge(() => window.pywebview!.api.save_inspiration_image(inspirationId, imageIdx, projectSlug)),
+  dismissInspiration: async (inspirationId: string) => await callBridge(() => window.pywebview!.api.dismiss_inspiration(inspirationId)),
+  requestMoreLike: async (inspirationId: string) => (await callBridge(() => window.pywebview!.api.request_more_like(inspirationId))).job_id,
 }
