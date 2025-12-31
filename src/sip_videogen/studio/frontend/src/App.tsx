@@ -1,24 +1,33 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Sidebar } from '@/components/Sidebar'
-import { Workstation } from '@/components/Workstation'
-import { RightSidebar } from '@/components/RightSidebar'
-import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
-import { UpdateModal } from '@/components/Update'
-import { BrandMemory } from '@/components/BrandMemory'
-import { Toaster } from '@/components/ui/toaster'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import { useBrand } from '@/context/BrandContext'
-import { DragProvider } from '@/context/DragContext'
-import { bridge, waitForPyWebViewReady, fetchAndInitConstants } from '@/lib/bridge'
-import type { UpdateCheckResult } from '@/lib/bridge'
-import { useTheme } from '@/hooks/useTheme'
+import{useCallback,useEffect,useState,type ReactNode}from'react'
+import{Sidebar}from'@/components/Sidebar'
+import{Workstation}from'@/components/Workstation'
+import{RightSidebar}from'@/components/RightSidebar'
+import{ApiKeySetup}from'@/components/Setup/ApiKeySetup'
+import{UpdateModal}from'@/components/Update'
+import{BrandMemory}from'@/components/BrandMemory'
+import{Toaster}from'@/components/ui/toaster'
+import{TooltipProvider}from'@/components/ui/tooltip'
+import{useBrand}from'@/context/BrandContext'
+import{DragProvider}from'@/context/DragContext'
+import{InspirationProvider}from'@/context/InspirationContext'
+import{GalleryModeProvider}from'@/context/GalleryModeContext'
+import{bridge,waitForPyWebViewReady,fetchAndInitConstants}from'@/lib/bridge'
+import type{UpdateCheckResult}from'@/lib/bridge'
+import{useTheme}from'@/hooks/useTheme'
 
-const SIDEBAR_COLLAPSED_KEY = 'brand-studio-sidebar-collapsed'
-
-function App() {
-  useTheme()
-  const { activeBrand } = useBrand()
-  const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
+const SIDEBAR_COLLAPSED_KEY='brand-studio-sidebar-collapsed'
+//AppProviders wraps children with InspirationProvider (brand-scoped) and GalleryModeProvider (global)
+function AppProviders({children}:{children:ReactNode}){
+const{activeBrand}=useBrand()
+return(
+<InspirationProvider brandSlug={activeBrand}>
+<GalleryModeProvider>{children}</GalleryModeProvider>
+</InspirationProvider>
+)
+}
+function App(){
+useTheme()
+const[needsSetup,setNeedsSetup]=useState<boolean|null>(null)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
   const [brandMemoryOpen, setBrandMemoryOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -94,19 +103,15 @@ function App() {
     return <ApiKeySetup onComplete={() => setNeedsSetup(false)} />
   }
 
-  return (<TooltipProvider><DragProvider>
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={toggleSidebar}
-        onOpenBrandMemory={() => setBrandMemoryOpen(true)}
-      />
-      <Workstation />
-      <RightSidebar brandSlug={activeBrand}/>
-      <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
-      {updateInfo && (<UpdateModal updateInfo={updateInfo} onClose={() => setUpdateInfo(null)} onSkipVersion={handleSkipVersion} />)}
-      <Toaster />
-    </div></DragProvider></TooltipProvider>)
+return(<TooltipProvider><DragProvider><AppProviders>
+<div className="flex h-screen bg-background text-foreground overflow-hidden">
+<Sidebar collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} onOpenBrandMemory={()=>setBrandMemoryOpen(true)}/>
+<Workstation/>
+<RightSidebar/>
+<BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen}/>
+{updateInfo&&(<UpdateModal updateInfo={updateInfo} onClose={()=>setUpdateInfo(null)} onSkipVersion={handleSkipVersion}/>)}
+<Toaster/>
+</div></AppProviders></DragProvider></TooltipProvider>)
 }
 
 export default App

@@ -3,13 +3,15 @@ import{Tabs,TabsList,TabsTrigger}from'@/components/ui/tabs'
 import{ChatPanelContent}from'@/components/ChatPanel'
 import{InspirationsTab}from'./InspirationsTab'
 import{TabIndicator}from'./TabIndicator'
-import{InspirationProvider,useInspirationContext}from'@/context/InspirationContext'
+import{useInspirationContext}from'@/context/InspirationContext'
+import{useBrand}from'@/context/BrandContext'
 import{cn}from'@/lib/utils'
 const TAB_STORAGE_KEY='sip-studio-active-tab'
 type RightSidebarTab='inspirations'|'chat'
-interface RightSidebarProps{brandSlug:string|null}
-//Inner component that uses InspirationContext
-function RightSidebarContent({brandSlug}:RightSidebarProps){
+//RightSidebar uses InspirationContext from App-level provider
+export function RightSidebar(){
+const{activeBrand}=useBrand()
+const brandSlug=activeBrand
 const[activeTab,setActiveTab]=useState<RightSidebarTab>(()=>{
 const stored=localStorage.getItem(TAB_STORAGE_KEY)
 return(stored==='chat'||stored==='inspirations')?stored:'inspirations'
@@ -42,12 +44,5 @@ Chat
 </div>
 </div>
 </div>
-)
-}
-export function RightSidebar({brandSlug}:RightSidebarProps){
-return(
-<InspirationProvider brandSlug={brandSlug}>
-<RightSidebarContent brandSlug={brandSlug}/>
-</InspirationProvider>
 )
 }
