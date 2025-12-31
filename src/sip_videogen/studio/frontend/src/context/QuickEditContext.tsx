@@ -35,7 +35,11 @@ requestIdRef.current=reqId
 setState(s=>({...s,isGenerating:true,prompt,error:null}))
 try{
 const att={name:'edit-source.png',path,source:'asset'as const}
-const res=await bridge.chat(`Edit this image: ${prompt}`,[att],{project_slug:null})
+//Load metadata to get original product references for re-attachment
+const meta=await bridge.getImageMetadata(path)
+const raw=meta?.product_slugs
+const prods:string[]=Array.isArray(raw)?[...new Set(raw.filter((s):s is string=>typeof s==='string'&&s.trim()!==''))]:[]
+const res=await bridge.chat(`Edit this image: ${prompt}`,[att],{project_slug:null,attached_products:prods.length>0?prods:undefined})
 if(!mountedRef.current||requestIdRef.current!==reqId)return
 const imgPath=res?.images?.[0]?.path
 if(!imgPath){setState(s=>({...s,isGenerating:false,error:'No image generated'}));return}
