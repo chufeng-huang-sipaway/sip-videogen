@@ -3,6 +3,8 @@ import{useCallback,useRef,useEffect,useState}from'react'
 import{useWorkstation}from'../../context/WorkstationContext'
 import{useBrand}from'../../context/BrandContext'
 import{QuickEditProvider,useQuickEdit}from'../../context/QuickEditContext'
+import{useGalleryMode}from'../../context/GalleryModeContext'
+import{useInspirationContext}from'../../context/InspirationContext'
 import{bridge,isPyWebView,waitForPyWebViewReady}from'../../lib/bridge'
 import{toast}from'../ui/toaster'
 import{ImageDisplay}from'./ImageDisplay'
@@ -11,18 +13,21 @@ import{EmptyState}from'./EmptyState'
 import{ContextPanel}from'./ContextPanel'
 import{ExportActions}from'./ExportActions'
 import{QuickEditButton}from'./QuickEditButton'
+import{GalleryModeToggle}from'./GalleryModeToggle'
+import{IdeasGalleryView}from'./IdeasGalleryView'
 import{Button}from'../ui/button'
 import{Trash2,LayoutGrid,Image as ImageIcon}from'lucide-react'
 import{Tooltip,TooltipContent,TooltipTrigger}from'../ui/tooltip'
 import{ImageGrid}from'./ImageGrid'
 import{cn}from'@/lib/utils'
 import{clearAllCaches}from'../../lib/thumbnailCache'
-
 //Inner content that can access QuickEditContext
 function WorkstationContent(){
 const{currentBatch,selectedIndex,setCurrentBatch,setSelectedIndex,bumpStatusVersion,browseMode,setBrowseMode,removeFromBatchByPath,markAsViewed}=useWorkstation()
 const{activeBrand}=useBrand()
 const{resultPath,isGenerating}=useQuickEdit()
+const{contentMode,toggleMode}=useGalleryMode()
+const{newCount}=useInspirationContext()
 const hasImages=currentBatch.length>0
 const currentImage=currentBatch[selectedIndex]
 const[toolbarVisible,setToolbarVisible]=useState(true)
@@ -39,8 +44,26 @@ useEffect(()=>{if(!currentImage||!activeBrand||!isPyWebView())return;if(currentI
 const isGrid=browseMode==='grid'
 const toggleBrowseMode=useCallback(()=>{setBrowseMode(isGrid?'preview':'grid')},[isGrid,setBrowseMode])
 const handleDelete=useCallback(async()=>{if(!currentImage)return;const path=currentImage.originalPath||currentImage.path;if(!path||path.startsWith('data:')){toast.error('Cannot delete this image');return}removeFromBatchByPath(path);try{await bridge.deleteAsset(path);toast.success('Moved to Trash')}catch(e){console.warn('Delete failed:',e)}bumpStatusVersion()},[currentImage,removeFromBatchByPath,bumpStatusVersion])
-useEffect(()=>{const handleKeyDown=(e:KeyboardEvent)=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return;if(!hasImages||isGenerating)return;if(e.key==='g'||e.key==='G'){e.preventDefault();toggleBrowseMode();return}if(isGrid)return;if(e.key==='t'||e.key==='T'||e.key==='Backspace'||e.key==='Delete'){e.preventDefault();handleDelete()}else if(e.key==='ArrowLeft'&&selectedIndex>0){e.preventDefault();setSelectedIndex(selectedIndex-1)}else if(e.key==='ArrowRight'&&selectedIndex<currentBatch.length-1){e.preventDefault();setSelectedIndex(selectedIndex+1)}};window.addEventListener('keydown',handleKeyDown);return()=>window.removeEventListener('keydown',handleKeyDown)},[hasImages,isGrid,handleDelete,selectedIndex,currentBatch.length,setSelectedIndex,toggleBrowseMode,isGenerating])
+//Keyboard handler for Assets mode + mode toggle
+useEffect(()=>{const handleKeyDown=(e:KeyboardEvent)=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return
+//Mode toggle - works in any mode
+if(e.key==='i'||e.key==='I'){e.preventDefault();toggleMode();return}
+//Assets-specific handlers - only active in Assets mode
+if(contentMode!=='assets')return
+if(!hasImages||isGenerating)return
+if(e.key==='g'||e.key==='G'){e.preventDefault();toggleBrowseMode();return}
+if(isGrid)return
+if(e.key==='t'||e.key==='T'||e.key==='Backspace'||e.key==='Delete'){e.preventDefault();handleDelete()}
+else if(e.key==='ArrowLeft'&&selectedIndex>0){e.preventDefault();setSelectedIndex(selectedIndex-1)}
+else if(e.key==='ArrowRight'&&selectedIndex<currentBatch.length-1){e.preventDefault();setSelectedIndex(selectedIndex+1)}
+};window.addEventListener('keydown',handleKeyDown);return()=>window.removeEventListener('keydown',handleKeyDown)},[contentMode,hasImages,isGrid,handleDelete,selectedIndex,currentBatch.length,setSelectedIndex,toggleBrowseMode,isGenerating,toggleMode])
 return(<div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:to-black relative">
+{/* Mode toggle - always visible */}
+<div className="absolute top-4 left-4 z-30">
+<GalleryModeToggle newCount={newCount}/>
+</div>
+{/* Assets gallery view */}
+<div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden",contentMode!=='assets'&&'hidden')}>
 {hasImages?(<>
 <div className="relative flex-1 overflow-hidden pt-12 pb-32 flex flex-col items-center justify-center">
 <div className="w-full h-full flex items-center justify-center relative max-w-5xl mx-auto" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
@@ -63,6 +86,11 @@ return(<div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-
 <div className="glass-pill p-1.5 shadow-float bg-white/40 dark:bg-black/40 backdrop-blur-xl border-white/20 dark:border-white/5 ring-1 ring-white/20 max-w-full"><ThumbnailStrip/></div>
 </div>)}
 </>):(<EmptyState/>)}
+</div>
+{/* Ideas gallery view */}
+<div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden",contentMode!=='ideas'&&'hidden')}>
+<IdeasGalleryView/>
+</div>
 </div>)
 }
 export function Workstation(){return(<QuickEditProvider><WorkstationContent/></QuickEditProvider>)}
