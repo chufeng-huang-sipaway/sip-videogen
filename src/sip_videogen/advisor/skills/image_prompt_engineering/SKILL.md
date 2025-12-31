@@ -45,12 +45,18 @@ triggers:
   - photo enhancement
   - edit image
   - edit photo
+  - edit this image
+  - quick edit
   - restore photo
   - restore image
   - cleanup image
   - clean up photo
   - relight photo
   - relight image
+  - change background
+  - replace background
+  - change the background
+  - replace the background
   #Dimensional conversion
   - 3D render
   - 3D mockup
@@ -126,13 +132,11 @@ When an image is 80% correct and user requests small changes, don't regenerate f
 
 **Path Conversion**: `generate_image` returns absolute paths (e.g., `/Users/.../output/image.png`). Before using as `reference_image`, convert to brand-relative path (e.g., `assets/generated/image.png`).
 
-**Scope Limitation (Single-Reference Only)**: Iterative refinement works for:
-- ✅ Single product image refinement (no `product_slug`)
-- ✅ Non-product image refinement (lifestyle shots, backgrounds)
-- ❌ Multi-product flows (`product_slugs` ignores `reference_image`)
-- ❌ Combined output + product_slug refs (not supported)
-
-For multi-product refinement, regenerate fresh with same `product_slugs` and adjusted prompt.
+**Scope Limitation**:
+- ✅ Single product image refinement - use `reference_image` alone OR with `product_slug`
+- ✅ Non-product image refinement (lifestyle shots, backgrounds) - use `reference_image` alone
+- ✅ **Editing with products attached** - use BOTH `product_slug` AND `reference_image` (see "Quick Edit with Attached Products" section)
+- ⚠️ Multi-product flows (`product_slugs` array) - `reference_image` is ignored, regenerate fresh
 
 **Decision Tree**:
 ```
@@ -233,6 +237,55 @@ generate_image(
 ```
 
 **Why this matters**: Nano-Banana Pro understands editing intent from natural language. By describing the outcome ("remove background", "add warmth") rather than pixel operations, you get better results with less effort.
+
+### Quick Edit with Attached Products (CRITICAL)
+
+**When products are attached in your context, you MUST use `product_slug` parameter.** This loads the original product reference images, ensuring the product appears identical in the edited result.
+
+**How to detect**: Look for product information in your context that includes:
+- Product name and slug
+- Primary image path like `products/{slug}/images/...`
+- Guidance to use `generate_image(product_slug="{slug}", ...)`
+
+**MANDATORY Pattern for Edits with Products**:
+```python
+# User wants to edit an image, and products are attached in context
+generate_image(
+    prompt="Keep the [product name] jar/bottle/package exactly as shown with all labels preserved. [User's requested change]. Maintain the product's exact appearance.",
+    product_slug="the-product-slug",  # REQUIRED - loads product reference images
+    reference_image="assets/generated/current_image.png",  # The image being edited
+    validate_identity=True  # Ensures product identity is preserved
+)
+```
+
+**Why this is critical**: Without `product_slug`:
+- ❌ Only the edited image is sent to Gemini
+- ❌ Gemini has no ground-truth product reference
+- ❌ Label text drifts, materials change, proportions distort
+
+With `product_slug`:
+- ✅ Original product reference images are loaded
+- ✅ Gemini sees both the product ground-truth AND the scene
+- ✅ Product identity is validated after generation
+- ✅ Label text and details are preserved
+
+**Example - User says "change the background fruit to watermelon"**:
+```python
+# WRONG - product_slug missing, product will drift
+generate_image(
+    prompt="Keep the jar exactly as shown. Replace fruit with watermelon.",
+    reference_image="assets/generated/current_image.png",
+    validate_identity=True
+)
+
+# CORRECT - product_slug included, product stays identical
+generate_image(
+    prompt="Keep the ActivatedYou Morning Complete jar exactly as shown with all label text preserved. Replace the fruit bowl with fresh watermelon slices. Maintain the same lighting and composition.",
+    product_slug="activatedyou-morning-complete",  # Loads product references
+    reference_image="assets/generated/current_image.png",
+    validate_identity=True
+)
+```
 
 ### Layout Control via Sketch/Wireframe
 When user provides a sketch, wireframe, or layout reference, Nano-Banana Pro can follow the spatial arrangement while filling in polished details.

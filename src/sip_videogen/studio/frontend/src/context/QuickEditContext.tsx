@@ -12,7 +12,7 @@ interface QuickEditState{isGenerating:boolean;originalPath:string|null;resultPat
 interface QuickEditContextType extends QuickEditState{startEdit:(path:string)=>void;submitEdit:(prompt:string)=>Promise<void>;cancelEdit:()=>void;keepAndOverride:()=>Promise<{success:boolean;newPath?:string;error?:string}>;saveAsCopy:()=>void;rerun:()=>void;discardResult:()=>Promise<void>;clearError:()=>void}
 const QuickEditContext=createContext<QuickEditContextType|null>(null)
 export function QuickEditProvider({children}:{children:ReactNode}){
-const{currentBatch,selectedIndex,bumpStatusVersion}=useWorkstation()
+const{currentBatch,selectedIndex,bumpStatusVersion,prependToBatch}=useWorkstation()
 const{activeBrand}=useBrand()
 const[state,setState]=useState<QuickEditState>({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
 const mountedRef=useRef(true)
@@ -35,7 +35,12 @@ requestIdRef.current=reqId
 setState(s=>({...s,isGenerating:true,prompt,error:null}))
 try{
 const att={name:'edit-source.png',path,source:'asset'as const}
-const res=await bridge.chat(`Edit this image: ${prompt}`,[att],{project_slug:null})
+//Load metadata to get original product references for re-attachment
+const meta=await bridge.getImageMetadata(path)
+const raw=meta?.product_slugs
+const prods:string[]=Array.isArray(raw)?[...new Set(raw.filter((s):s is string=>typeof s==='string'&&s.trim()!==''))]:[]
+console.log('[QuickEdit] path=',path,'meta=',meta,'raw=',raw,'prods=',prods)
+const res=await bridge.chat(`Edit this image: ${prompt}`,[att],{project_slug:null,attached_products:prods.length>0?prods:undefined})
 if(!mountedRef.current||requestIdRef.current!==reqId)return
 const imgPath=res?.images?.[0]?.path
 if(!imgPath){setState(s=>({...s,isGenerating:false,error:'No image generated'}));return}
@@ -75,12 +80,16 @@ setState(s=>({...s,isActionLoading:false,error:msg}))
 return{success:false,error:msg}
 }
 },[state.originalPath,state.resultPath,bumpStatusVersion])
-//Save as Copy: dismiss preview, result persists in generated folder
+//Save as Copy: dismiss preview, result persists in generated folder, add to batch
 const saveAsCopy=useCallback(()=>{
+if(state.resultPath){
+const newImg={id:genId(),path:state.resultPath,prompt:state.prompt,timestamp:new Date().toISOString()}
+prependToBatch([newImg])
+}
 pendingResultRef.current=null
 setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
 bumpStatusVersion()
-},[bumpStatusVersion])
+},[state.resultPath,state.prompt,prependToBatch,bumpStatusVersion])
 //Rerun: delete current result, reopen popover with same prompt
 const rerun=useCallback(()=>{
 const savedPrompt=state.prompt

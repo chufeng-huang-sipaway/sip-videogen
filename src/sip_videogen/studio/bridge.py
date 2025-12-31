@@ -82,6 +82,7 @@ class StudioBridge:
     def get_video_path(self,relative_path:str)->dict:return self._asset.get_video_path(relative_path)
     def replace_asset(self,original_path:str,new_path:str)->dict:return self._asset.replace_asset(original_path,new_path)
     def get_video_data(self,relative_path:str)->dict:return self._asset.get_video_data(relative_path)
+    def get_image_metadata(self,image_path:str)->dict:return self._asset.get_image_metadata(image_path)
     #===========================================================================
     #Product Management
     #===========================================================================

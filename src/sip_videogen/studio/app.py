@@ -54,8 +54,12 @@ def _patch_pywebview_cocoa_drag()->None:
 
 
 def is_dev_mode() -> bool:
-    """Check if running in development mode."""
+    """Check if running in development mode (uses Vite dev server)."""
     return os.environ.get("STUDIO_DEV", "0") == "1"
+
+def is_debug_mode() -> bool:
+    """Check if debug mode enabled (right-click dev tools)."""
+    return os.environ.get("STUDIO_DEBUG", "0") == "1" or is_dev_mode()
 
 
 def is_bundled_app() -> bool:
@@ -143,7 +147,7 @@ def main():
     )
 
     api.set_window(window)
-    webview.start(debug=is_dev_mode(), http_server=True)
+    webview.start(debug=is_debug_mode(), http_server=True)
 
 
 if __name__ == "__main__":

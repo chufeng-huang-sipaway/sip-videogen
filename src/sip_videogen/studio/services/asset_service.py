@@ -134,6 +134,20 @@ class AssetService:
             mime="image/svg+xml"if suffix==".svg"else MIME_TYPES.get(suffix,"image/png")
             return bridge_ok({"dataUrl":f"data:{mime};base64,{enc}"})
         except Exception as e:return bridge_error(str(e))
+    def get_image_metadata(self,image_path:str)->dict:
+        """Get generation metadata for an image.
+        Returns bridge_ok with metadata dict or None if no metadata exists.
+        Returns bridge_error only for actual failures (not missing metadata).
+        """
+        from sip_videogen.advisor.tools import load_image_metadata
+        try:
+            resolved,error=self._resolve_image_path(image_path)
+            if error:return bridge_error(error)
+            if not resolved or not resolved.exists():return bridge_error(f"Image not found: {image_path}")
+            #load_image_metadata returns None for missing/corrupt .meta.json
+            metadata=load_image_metadata(str(resolved))
+            return bridge_ok(metadata)
+        except Exception as e:return bridge_error(str(e))
     def get_image_thumbnail(self,image_path:str)->dict:
         """Get base64-encoded thumbnail for a file under the brand directory with disk caching."""
         try:

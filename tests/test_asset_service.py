@@ -291,3 +291,66 @@ class TestGetVideoData:
         result=service.get_video_data("video/missing.mp4")
         assert result["success"]==False
         assert "not found"in result["error"]
+#=============================================================================
+#get_image_metadata tests
+#=============================================================================
+import sys
+from types import ModuleType
+#Create mock for sip_videogen.advisor.tools to avoid import chain issues
+_mock_tools=ModuleType("sip_videogen.advisor.tools")
+_mock_tools.load_image_metadata=MagicMock()
+class TestGetImageMetadata:
+    """Tests for get_image_metadata method."""
+    @pytest.fixture(autouse=True)
+    def mock_tools_module(self):
+        """Mock the tools module to avoid PIL import chain."""
+        sys.modules["sip_videogen.advisor.tools"]=_mock_tools
+        yield
+        #Cleanup after test
+        if"sip_videogen.advisor.tools"in sys.modules:
+            if sys.modules["sip_videogen.advisor.tools"]is _mock_tools:
+                del sys.modules["sip_videogen.advisor.tools"]
+    def test_returns_metadata_when_exists(self,service,state,mock_brand_dir):
+        """Metadata file exists with product_slugs → returns dict."""
+        gen_dir=mock_brand_dir/"assets"/"generated"
+        img=gen_dir/"test.png"
+        img.write_bytes(b"fake png")
+        state.get_brand_dir=MagicMock(return_value=(mock_brand_dir,None))
+        mock_meta={"product_slugs":["product-a"],"prompt":"test"}
+        _mock_tools.load_image_metadata.return_value=mock_meta
+        result=service.get_image_metadata(str(img))
+        assert result["success"]==True
+        assert result["data"]["product_slugs"]==["product-a"]
+    def test_returns_none_when_no_metadata(self,service,state,mock_brand_dir):
+        """Image exists but no .meta.json → returns None (not error)."""
+        gen_dir=mock_brand_dir/"assets"/"generated"
+        img=gen_dir/"test.png"
+        img.write_bytes(b"fake png")
+        state.get_brand_dir=MagicMock(return_value=(mock_brand_dir,None))
+        _mock_tools.load_image_metadata.return_value=None
+        result=service.get_image_metadata(str(img))
+        assert result["success"]==True
+        assert result["data"]is None
+    def test_returns_none_for_corrupt_metadata(self,service,state,mock_brand_dir):
+        """Corrupt .meta.json → load_image_metadata returns None → returns None."""
+        gen_dir=mock_brand_dir/"assets"/"generated"
+        img=gen_dir/"test.png"
+        img.write_bytes(b"fake png")
+        state.get_brand_dir=MagicMock(return_value=(mock_brand_dir,None))
+        #load_image_metadata handles corrupt JSON by returning None
+        _mock_tools.load_image_metadata.return_value=None
+        result=service.get_image_metadata(str(img))
+        assert result["success"]==True
+        assert result["data"]is None
+    def test_returns_error_for_path_resolution_failure(self,service,state):
+        """Path resolution fails → returns error."""
+        state.get_brand_dir=MagicMock(return_value=(None,"No brand selected"))
+        result=service.get_image_metadata("/some/path.png")
+        assert result["success"]==False
+        assert "No brand selected"in result["error"]
+    def test_returns_error_for_nonexistent_image(self,service,state,mock_brand_dir):
+        """Path resolves but file doesn't exist → returns error."""
+        state.get_brand_dir=MagicMock(return_value=(mock_brand_dir,None))
+        result=service.get_image_metadata(str(mock_brand_dir/"assets"/"generated"/"nonexistent.png"))
+        assert result["success"]==False
+        assert "not found"in result["error"].lower()
