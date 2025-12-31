@@ -12,7 +12,7 @@ interface QuickEditState{isGenerating:boolean;originalPath:string|null;resultPat
 interface QuickEditContextType extends QuickEditState{startEdit:(path:string)=>void;submitEdit:(prompt:string)=>Promise<void>;cancelEdit:()=>void;keepAndOverride:()=>Promise<{success:boolean;newPath?:string;error?:string}>;saveAsCopy:()=>void;rerun:()=>void;discardResult:()=>Promise<void>;clearError:()=>void}
 const QuickEditContext=createContext<QuickEditContextType|null>(null)
 export function QuickEditProvider({children}:{children:ReactNode}){
-const{currentBatch,selectedIndex,bumpStatusVersion}=useWorkstation()
+const{currentBatch,selectedIndex,bumpStatusVersion,prependToBatch}=useWorkstation()
 const{activeBrand}=useBrand()
 const[state,setState]=useState<QuickEditState>({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
 const mountedRef=useRef(true)
@@ -80,12 +80,16 @@ setState(s=>({...s,isActionLoading:false,error:msg}))
 return{success:false,error:msg}
 }
 },[state.originalPath,state.resultPath,bumpStatusVersion])
-//Save as Copy: dismiss preview, result persists in generated folder
+//Save as Copy: dismiss preview, result persists in generated folder, add to batch
 const saveAsCopy=useCallback(()=>{
+if(state.resultPath){
+const newImg={id:genId(),path:state.resultPath,prompt:state.prompt,timestamp:new Date().toISOString()}
+prependToBatch([newImg])
+}
 pendingResultRef.current=null
 setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
 bumpStatusVersion()
-},[bumpStatusVersion])
+},[state.resultPath,state.prompt,prependToBatch,bumpStatusVersion])
 //Rerun: delete current result, reopen popover with same prompt
 const rerun=useCallback(()=>{
 const savedPrompt=state.prompt
