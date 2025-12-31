@@ -33,6 +33,9 @@ const[error,setError]=useState<string|null>(null)
 const[viewedIds,setViewedIds]=useState<Set<string>>(loadViewedIds)
 const pollTimeoutRef=useRef<number|null>(null)
 const pollDelayRef=useRef(1000)
+//Ref to track current isGenerating state for setTimeout closure
+const isGeneratingRef=useRef(false)
+isGeneratingRef.current=isGenerating
 //Computed: count of new (unviewed, ready) inspirations
 const newCount=inspirations.filter(i=>!viewedIds.has(i.id)&&i.status==='ready').length
 //Refresh inspirations from backend
@@ -138,7 +141,7 @@ if(!hasInitialized.current||isBrandSwitch){
 hasInitialized.current=true
 //Small delay to let UI settle before triggering background work
 setTimeout(async()=>{
-if(!isGenerating){
+if(!isGeneratingRef.current){
 try{await triggerGeneration()}catch(e){console.error('Auto-trigger error:',e)}
 }
 },500)

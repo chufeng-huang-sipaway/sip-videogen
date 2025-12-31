@@ -582,7 +582,7 @@ interface PyWebViewAPI {
   share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
   //Inspiration methods
   get_inspirations(brand_slug?: string): Promise<BridgeResponse<{ inspirations: Inspiration[]; job?: InspirationJob | null }>>
-  trigger_inspiration_generation(brand_slug?: string): Promise<BridgeResponse<{ job_id: string }>>
+  trigger_inspiration_generation(brand_slug?: string): Promise<BridgeResponse<{ job_id: string | null; message?: string }>>
   get_inspiration_progress(job_id: string): Promise<BridgeResponse<InspirationJob>>
   cancel_inspiration_job(job_id: string): Promise<BridgeResponse<{ success: boolean }>>
   cancel_inspiration_jobs_for_brand(brand_slug: string): Promise<BridgeResponse<{ cancelled: string[] }>>
@@ -798,7 +798,11 @@ export const bridge = {
   shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
   //Inspirations
   getInspirations: async (brandSlug?: string) => await callBridge(() => window.pywebview!.api.get_inspirations(brandSlug)),
-  triggerInspirationGeneration: async (brandSlug?: string) => (await callBridge(() => window.pywebview!.api.trigger_inspiration_generation(brandSlug))).job_id,
+  triggerInspirationGeneration: async (brandSlug?: string) => {
+  const r=await callBridge(() => window.pywebview!.api.trigger_inspiration_generation(brandSlug))
+  if(!r.job_id)throw new Error(r.message||'Generation not started')
+  return r.job_id
+},
   getInspirationProgress: async (jobId: string) => await callBridge(() => window.pywebview!.api.get_inspiration_progress(jobId)),
   cancelInspirationJob: async (jobId: string) => await callBridge(() => window.pywebview!.api.cancel_inspiration_job(jobId)),
   cancelInspirationJobsForBrand: async (brandSlug: string) => await callBridge(() => window.pywebview!.api.cancel_inspiration_jobs_for_brand(brandSlug)),

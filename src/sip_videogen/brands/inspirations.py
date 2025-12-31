@@ -9,7 +9,7 @@ This module defines the inspiration models for proactive creative ideas:
 - InspirationIndex: Registry of inspirations per brand
 Storage functions mirror the storage.py pattern."""
 from __future__ import annotations
-import json,logging,uuid
+import json,logging,threading,uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Literal,List
@@ -17,6 +17,14 @@ from pydantic import BaseModel,Field
 from .storage import get_brand_dir
 from ..utils.file_utils import write_atomically
 logger=logging.getLogger(__name__)
+#Per-brand locks for thread-safe index operations
+_brand_locks:dict[str,threading.Lock]={}
+_brand_locks_lock=threading.Lock()
+def _get_brand_lock(brand_slug:str)->threading.Lock:
+    """Get or create a lock for a brand's inspiration index operations."""
+    with _brand_locks_lock:
+        if brand_slug not in _brand_locks:_brand_locks[brand_slug]=threading.Lock()
+        return _brand_locks[brand_slug]
 #LLM Output Models (structured output from openai.beta.chat.completions.parse)
 class InspirationImagePrompt(BaseModel):
     """LLM output schema for a single image prompt."""
@@ -52,7 +60,7 @@ class Inspiration(BaseModel):
     project_slug:str|None=Field(default=None,description="Related project slug")
     product_slugs:List[str]=Field(default_factory=list,description="Related product slugs")
     created_at:str=Field(default_factory=lambda:datetime.utcnow().isoformat(),description="Creation timestamp")
-    status:Literal["generating","ready","saved","dismissed"]=Field(default="generating")
+    status:Literal["generating","ready","saved","dismissed","failed"]=Field(default="generating")
     def to_dict(self)->dict:
         """Convert to dict for JSON serialization with camelCase keys for frontend."""
         return {"id":self.id,"title":self.title,"rationale":self.rationale,"targetChannel":self.target_channel,
@@ -154,21 +162,25 @@ def load_inspiration(brand_slug:str,inspiration_id:str)->Inspiration|None:
         logger.error(f"Failed to load inspiration {inspiration_id}: {e}")
         return None
 def save_inspiration(brand_slug:str,inspiration:Inspiration)->None:
-    """Save an inspiration atomically and update index."""
+    """Save an inspiration atomically and update index (thread-safe)."""
     _ensure_inspirations_dir(brand_slug)
     p=get_inspiration_path(brand_slug,inspiration.id)
     write_atomically(p,inspiration.model_dump_json(indent=2))
-    #Update index
-    idx=load_inspiration_index(brand_slug)
-    idx.add_inspiration(inspiration)
-    save_inspiration_index(brand_slug,idx)
+    #Update index with lock to prevent concurrent read-modify-write corruption
+    lock=_get_brand_lock(brand_slug)
+    with lock:
+        idx=load_inspiration_index(brand_slug)
+        idx.add_inspiration(inspiration)
+        save_inspiration_index(brand_slug,idx)
 def delete_inspiration(brand_slug:str,inspiration_id:str)->bool:
-    """Delete an inspiration and update index."""
+    """Delete an inspiration and update index (thread-safe)."""
     p=get_inspiration_path(brand_slug,inspiration_id)
     if p.exists():p.unlink()
-    idx=load_inspiration_index(brand_slug)
-    removed=idx.remove_inspiration(inspiration_id)
-    if removed:save_inspiration_index(brand_slug,idx)
+    lock=_get_brand_lock(brand_slug)
+    with lock:
+        idx=load_inspiration_index(brand_slug)
+        removed=idx.remove_inspiration(inspiration_id)
+        if removed:save_inspiration_index(brand_slug,idx)
     return removed
 def list_inspirations(brand_slug:str,status_filter:str|None=None)->List[Inspiration]:
     """List all inspirations for a brand, optionally filtered by status."""
@@ -177,36 +189,42 @@ def list_inspirations(brand_slug:str,status_filter:str|None=None)->List[Inspirat
         return [i for i in idx.inspirations if i.status==status_filter]
     return idx.inspirations
 def cleanup_old_inspirations(brand_slug:str,max_ready:int=20,dismissed_hours:int=24)->int:
-    """Clean up old inspirations per retention limits.
+    """Clean up old inspirations per retention limits (thread-safe).
     - Max 20 ready/generating inspirations (saved don't count)
     - Dismissed inspirations older than 24 hours are deleted
     Returns number of inspirations deleted."""
-    idx=load_inspiration_index(brand_slug)
+    lock=_get_brand_lock(brand_slug)
     now=datetime.utcnow()
     deleted=0
-    #Clean up old dismissed inspirations
-    new_list=[]
-    for i in idx.inspirations:
-        if i.status=="dismissed":
-            try:
-                created=datetime.fromisoformat(i.created_at.replace("Z","+00:00"))
-                age_hours=(now-created.replace(tzinfo=None)).total_seconds()/3600
-                if age_hours>dismissed_hours:
-                    delete_inspiration(brand_slug,i.id)
-                    deleted+=1
-                    continue
-            except:pass
-        new_list.append(i)
-    idx.inspirations=new_list
-    #Enforce max ready/generating limit
-    active=[i for i in idx.inspirations if i.status in("ready","generating")]
-    if len(active)>max_ready:
-        #Sort by created_at, oldest first
-        active.sort(key=lambda x:x.created_at)
-        to_remove=active[:len(active)-max_ready]
-        for i in to_remove:
-            delete_inspiration(brand_slug,i.id)
-            idx.inspirations=[x for x in idx.inspirations if x.id!=i.id]
-            deleted+=1
-    if deleted>0:save_inspiration_index(brand_slug,idx)
+    to_delete_ids=[]
+    with lock:
+        idx=load_inspiration_index(brand_slug)
+        #Identify old dismissed inspirations to delete
+        new_list=[]
+        for i in idx.inspirations:
+            if i.status=="dismissed":
+                try:
+                    created=datetime.fromisoformat(i.created_at.replace("Z","+00:00"))
+                    age_hours=(now-created.replace(tzinfo=None)).total_seconds()/3600
+                    if age_hours>dismissed_hours:
+                        to_delete_ids.append(i.id)
+                        deleted+=1
+                        continue
+                except:pass
+            new_list.append(i)
+        idx.inspirations=new_list
+        #Enforce max ready/generating limit
+        active=[i for i in idx.inspirations if i.status in("ready","generating")]
+        if len(active)>max_ready:
+            active.sort(key=lambda x:x.created_at)
+            to_remove=active[:len(active)-max_ready]
+            for i in to_remove:
+                to_delete_ids.append(i.id)
+                idx.inspirations=[x for x in idx.inspirations if x.id!=i.id]
+                deleted+=1
+        if deleted>0:save_inspiration_index(brand_slug,idx)
+    #Delete files outside of lock (safe, just file deletions)
+    for iid in to_delete_ids:
+        p=get_inspiration_path(brand_slug,iid)
+        if p.exists():p.unlink()
     return deleted
