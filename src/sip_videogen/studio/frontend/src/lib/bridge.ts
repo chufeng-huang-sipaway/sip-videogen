@@ -452,6 +452,7 @@ interface PyWebViewAPI {
   get_video_path(path: string): Promise<BridgeResponse<{ path: string; filename: string; file_url: string }>>
   replace_asset(original_path: string, new_path: string): Promise<BridgeResponse<{ path: string }>>
   get_video_data(path: string): Promise<BridgeResponse<{ dataUrl: string; path: string; filename: string }>>
+  get_image_metadata(path: string): Promise<BridgeResponse<ImageGenerationMetadata | null>>
   get_progress(): Promise<BridgeResponse<ProgressStatus>>
   chat(
     message: string,
@@ -632,6 +633,10 @@ export const bridge = {
   getVideoPath: async (p: string) => (await callBridge(() => window.pywebview!.api.get_video_path(p))).file_url,
   replaceAsset: async (orig: string, newPath: string) => (await callBridge(() => window.pywebview!.api.replace_asset(orig, newPath))).path,
   getVideoData: async (p: string) => (await callBridge(() => window.pywebview!.api.get_video_data(p))).dataUrl,
+  getImageMetadata: async (p: string): Promise<ImageGenerationMetadata | null> => {
+    try { return await callBridge(() => window.pywebview!.api.get_image_metadata(p)) }
+    catch (e) { console.warn('[bridge.getImageMetadata] Error loading metadata:', p, e); return null }
+  },
   getProgress: async () => await callBridge(() => window.pywebview!.api.get_progress()),
   chat: (m: string, attachments?: ChatAttachment[], context?: ChatContext) =>
     callBridge(() =>
