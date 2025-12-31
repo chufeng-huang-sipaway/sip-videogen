@@ -22,6 +22,12 @@ import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
 interface ChatPanelProps {
   brandSlug: string | null
 }
+//Internal content component for use in RightSidebar tabs (without outer container)
+export function ChatPanelContent({brandSlug}:ChatPanelProps){return<ChatPanelInner brandSlug={brandSlug} withContainer={false}/>}
+//Full panel with container styling (for backwards compatibility)
+export function ChatPanel({brandSlug}:ChatPanelProps){return<ChatPanelInner brandSlug={brandSlug} withContainer={true}/>}
+
+interface ChatPanelInnerProps extends ChatPanelProps{withContainer:boolean}
 
 function getDataTransferTypes(dt: DataTransfer): string[] {
   // `DataTransfer.types` is a `DOMStringList` in some WebKit environments (no `.includes`).
@@ -36,7 +42,7 @@ function looksLikeAssetPath(value: string): boolean {
   return /\.(png|jpe?g|gif|webp|svg|bmp|tiff?)$/i.test(v)
 }
 
-export function ChatPanel({ brandSlug }: ChatPanelProps) {
+function ChatPanelInner({brandSlug,withContainer}:ChatPanelInnerProps){
   const {
     products,
     attachedProducts,
@@ -306,16 +312,13 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   // Show overlay when either react-dropzone detects drag, internal asset drag, or context drag
   const showDragOverlay = isDragActive || isInternalDragOver || dragData !== null
 
-  return (
-    <main
-      {...getRootProps({
-        onDragOver: handleNativeDragOver,
-        onDragLeave: handleNativeDragLeave,
-        onDrop: handleNativeDrop,
-      })}
-      ref={mainRef}
-      className="flex-1 flex flex-col h-screen glass-sidebar border-l border-white/10 relative"
-    >
+const containerClass=withContainer?"flex-1 flex flex-col h-screen glass-sidebar border-l border-white/10 relative":"flex-1 flex flex-col h-full relative"
+return(
+<main
+{...getRootProps({onDragOver:handleNativeDragOver,onDragLeave:handleNativeDragLeave,onDrop:handleNativeDrop})}
+ref={mainRef}
+className={containerClass}
+>
       <input {...getInputProps()} />
 
       {/* Prominent drag overlay - handles drop directly, click to dismiss if stuck */}

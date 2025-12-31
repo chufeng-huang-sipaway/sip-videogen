@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Workstation } from '@/components/Workstation'
-import { ChatPanel } from '@/components/ChatPanel'
+import { RightSidebar } from '@/components/RightSidebar'
 import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
 import { UpdateModal } from '@/components/Update'
 import { BrandMemory } from '@/components/BrandMemory'
@@ -102,7 +102,7 @@ function App() {
         onOpenBrandMemory={() => setBrandMemoryOpen(true)}
       />
       <Workstation />
-      <div className="w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
+      <RightSidebar brandSlug={activeBrand}/>
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
       {updateInfo && (<UpdateModal updateInfo={updateInfo} onClose={() => setUpdateInfo(null)} onSkipVersion={handleSkipVersion} />)}
       <Toaster />
