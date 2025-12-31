@@ -9,6 +9,7 @@ from .services.product_service import ProductService
 from .services.project_service import ProjectService
 from .services.template_service import TemplateService
 from .services.update_service import UpdateService
+from .services.inspiration_service import InspirationService
 from .utils.bridge_types import BridgeResponse,bridge_ok,bridge_error
 from .utils.config_store import check_api_keys as do_check_api_keys,load_api_keys_from_config,save_api_keys as do_save_api_keys
 from ..constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS,ALLOWED_TEXT_EXTS,MIME_TYPES,VIDEO_MIME_TYPES
@@ -28,6 +29,7 @@ class StudioBridge:
         self._chat=ChatService(self._state)
         self._update=UpdateService(self._state)
         self._image_status=ImageStatusService(self._state)
+        self._inspiration=InspirationService(self._state)
     def set_window(self,window):self._state.window=window
     #===========================================================================
     #Constants (Single Source of Truth)
@@ -217,3 +219,27 @@ class StudioBridge:
             reveal_in_file_manager(path)
             return bridge_ok({"shared":True,"path":str(path)})
         except Exception as e:return bridge_error(str(e))
+    #===========================================================================
+    #Inspirations
+    #===========================================================================
+    def get_inspirations(self,brand_slug:str|None=None)->dict:
+        """Get all inspirations for a brand."""
+        return self._inspiration.get_inspirations(brand_slug)
+    def trigger_inspiration_generation(self,brand_slug:str|None=None)->dict:
+        """Trigger inspiration generation. Returns job ID."""
+        return self._inspiration.trigger_generation(brand_slug)
+    def get_inspiration_progress(self,job_id:str)->dict:
+        """Get progress of an inspiration generation job."""
+        return self._inspiration.get_progress(job_id)
+    def cancel_inspiration_job(self,job_id:str)->dict:
+        """Cancel an inspiration generation job."""
+        return self._inspiration.cancel_job(job_id)
+    def save_inspiration_image(self,inspiration_id:str,image_idx:int,project_slug:str|None=None)->dict:
+        """Save an inspiration image to assets."""
+        return self._inspiration.save_image(inspiration_id,image_idx,project_slug)
+    def dismiss_inspiration(self,inspiration_id:str)->dict:
+        """Dismiss an inspiration."""
+        return self._inspiration.dismiss_inspiration(inspiration_id)
+    def request_more_like(self,inspiration_id:str)->dict:
+        """Request more inspirations like this one."""
+        return self._inspiration.request_more_like(inspiration_id)
