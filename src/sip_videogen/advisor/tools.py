@@ -845,8 +845,10 @@ async def _impl_generate_image(
     reference_images_detail: list[dict] = []
     reference_images_bytes: list[bytes] = []
     reference_image_bytes: bytes | None = None
+    # Save original reference_image before potential overwrite
+    original_reference_image = reference_image
 
-    if product_slug and not reference_image:
+    if product_slug:
         if not brand_slug:
             return "Error: No active brand - cannot load product"
         product = load_product(brand_slug, product_slug)
@@ -895,6 +897,16 @@ async def _impl_generate_image(
                     product_slugs=[product_slug],
                 )
                 logger.info(f"Injected product specs for '{product_slug}'")
+            # If original reference_image was provided (e.g., Quick Edit), add it as additional reference
+            if original_reference_image and original_reference_image not in selected_images:
+                reference_candidates.append({
+                    "path": original_reference_image,
+                    "product_slug": product_slug,
+                    "role": "edit-source",
+                    "used_for": "generation",
+                    "is_primary": False,
+                })
+                logger.info(f"Added edit source image: {original_reference_image}")
         else:
             logger.warning(f"Product '{product_slug}' has no primary image")
 

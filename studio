@@ -25,6 +25,12 @@ case "${1:-}" in
         echo "Starting Brand Studio..."
         STUDIO_DEV=0 .venv/bin/python -m sip_videogen.studio
         ;;
+    debug)
+        echo "Building frontend..."
+        (cd src/sip_videogen/studio/frontend && npm run build)
+        echo "Starting Brand Studio (debug mode - right-click for dev tools)..."
+        STUDIO_DEBUG=1 .venv/bin/python -m sip_videogen.studio
+        ;;
     *)
         STUDIO_DEV=0 .venv/bin/python -m sip_videogen.studio
         ;;

@@ -62,7 +62,7 @@ class ChatService:
             if err or advisor is None:return bridge_error(err or "No brand selected")
             slug=self._state.get_active_slug()
             if not slug:return bridge_error("No brand selected")
-            logger.debug("chat(): slug=%s, project_slug=%s",slug,project_slug)
+            logger.info("chat(): slug=%s, project_slug=%s, attached_products=%s",slug,project_slug,attached_products)
             if project_slug is not None:logger.debug("chat(): Setting active project to %s",project_slug);set_active_project(slug,project_slug)
             effective_project=project_slug if project_slug is not None else get_active_project(slug)
             if project_slug is None:logger.info("chat(): effective_project from storage: %s",effective_project)

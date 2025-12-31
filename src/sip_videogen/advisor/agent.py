@@ -448,6 +448,7 @@ class BrandAdvisor:
                 attached_templates=attached_templates,
             )
             turn_context = builder.build_turn_context()
+            logger.info("chat_with_metadata(): attached_products=%s, turn_context_len=%d",attached_products,len(turn_context))
         #Add aspect ratio to turn context if provided (chat_with_metadata only)
         if aspect_ratio:
             ar_ctx=f"**Aspect Ratio**: Use {aspect_ratio} for any image or video generation."
