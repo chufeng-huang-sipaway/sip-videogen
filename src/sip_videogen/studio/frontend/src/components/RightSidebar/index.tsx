@@ -1,47 +1,20 @@
-import{useState,useEffect}from'react'
-import{Tabs,TabsList,TabsTrigger}from'@/components/ui/tabs'
 import{ChatPanelContent}from'@/components/ChatPanel'
-import{InspirationsTab}from'./InspirationsTab'
-import{TabIndicator}from'./TabIndicator'
-import{useInspirationContext}from'@/context/InspirationContext'
 import{useBrand}from'@/context/BrandContext'
-import{cn}from'@/lib/utils'
-const TAB_STORAGE_KEY='sip-studio-active-tab'
-type RightSidebarTab='inspirations'|'chat'
-//RightSidebar uses InspirationContext from App-level provider
+//RightSidebar now shows only Chat (Inspirations moved to center gallery)
 export function RightSidebar(){
 const{activeBrand}=useBrand()
 const brandSlug=activeBrand
-const[activeTab,setActiveTab]=useState<RightSidebarTab>(()=>{
-const stored=localStorage.getItem(TAB_STORAGE_KEY)
-return(stored==='chat'||stored==='inspirations')?stored:'inspirations'
-})
-const{isGenerating,newCount}=useInspirationContext()
-useEffect(()=>{localStorage.setItem(TAB_STORAGE_KEY,activeTab)},[activeTab])
 return(
 <div className="w-[320px] flex-shrink-0 flex flex-col h-screen glass-sidebar border-l border-white/10">
-{/* Tab header */}
+{/* Chat header */}
 <div className="px-4 pt-4 pb-2">
-<Tabs value={activeTab} onValueChange={(v)=>setActiveTab(v as RightSidebarTab)} className="w-full">
-<TabsList className="w-full bg-white/50 dark:bg-white/10 p-0.5 h-9">
-<TabsTrigger value="inspirations" className="flex-1 gap-1.5 data-[state=active]:bg-white dark:data-[state=active]:bg-white/20 data-[state=active]:shadow-sm rounded-md text-xs font-medium h-8">
-Inspirations
-<TabIndicator isGenerating={isGenerating} newCount={newCount}/>
-</TabsTrigger>
-<TabsTrigger value="chat" className="flex-1 data-[state=active]:bg-white dark:data-[state=active]:bg-white/20 data-[state=active]:shadow-sm rounded-md text-xs font-medium h-8">
-Chat
-</TabsTrigger>
-</TabsList>
-</Tabs>
+<div className="flex items-center justify-center h-9 bg-white/50 dark:bg-white/10 rounded-lg">
+<span className="text-xs font-medium text-neutral-600 dark:text-neutral-300">Chat</span>
 </div>
-{/* Tab content - forceMount preserves state, hidden class hides visually */}
+</div>
+{/* Chat content */}
 <div className="flex-1 flex flex-col min-h-0">
-<div className={cn("flex-1 flex flex-col min-h-0",activeTab!=='inspirations'&&'hidden')}>
-<InspirationsTab brandSlug={brandSlug}/>
-</div>
-<div className={cn("flex-1 flex flex-col min-h-0",activeTab!=='chat'&&'hidden')}>
 <ChatPanelContent brandSlug={brandSlug}/>
-</div>
 </div>
 </div>
 )
