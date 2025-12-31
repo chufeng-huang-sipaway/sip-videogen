@@ -7,6 +7,7 @@ from pathlib import Path
 from PIL import Image
 from sip_videogen.brands.context import BrandContextBuilder
 from sip_videogen.brands.inspirations import(Inspiration,InspirationBatch,InspirationIdea,InspirationImage,InspirationJob,cleanup_old_inspirations,list_inspirations,load_inspiration,load_inspiration_meta,save_inspiration,save_inspiration_meta,delete_inspiration)
+from sip_videogen.brands.inspiration_memory import(record_feedback,get_preference_summary,should_analyze,run_analysis)
 from sip_videogen.brands.storage import get_active_brand,get_brand_dir
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
@@ -151,6 +152,9 @@ class InspirationService:
             #Mark inspiration as saved if all images saved
             insp.status="saved"
             save_inspiration(slug,insp)
+            #Record feedback for preference learning
+            try:record_feedback(slug,inspiration_id,"saved",insp.title,insp.rationale,insp.target_channel)
+            except Exception as fe:logger.warning(f"Failed to record feedback: {fe}")
             return bridge_ok({"success":True,"saved_path":str(dest),"relative_path":rel_path})
         except Exception as e:
             logger.error(f"save_image error: {e}")
@@ -164,6 +168,9 @@ class InspirationService:
             if not insp:return bridge_error("Inspiration not found")
             insp.status="dismissed"
             save_inspiration(slug,insp)
+            #Record feedback for preference learning
+            try:record_feedback(slug,inspiration_id,"dismissed",insp.title,insp.rationale,insp.target_channel)
+            except Exception as fe:logger.warning(f"Failed to record feedback: {fe}")
             return bridge_ok({"success":True})
         except Exception as e:
             logger.error(f"dismiss_inspiration error: {e}")
@@ -172,7 +179,11 @@ class InspirationService:
         """Request more inspirations similar to one. Returns new job ID."""
         slug=get_active_brand()
         if not slug:return bridge_error("No brand selected")
-        #For now, just trigger normal generation
+        #Record feedback for preference learning
+        try:
+            insp=load_inspiration(slug,inspiration_id)
+            if insp:record_feedback(slug,inspiration_id,"more_like_this",insp.title,insp.rationale,insp.target_channel)
+        except Exception as fe:logger.warning(f"Failed to record feedback: {fe}")
         #Future: pass the inspiration context to the LLM
         return self.trigger_generation(slug)
     def _run_generation(self,job_id:str,brand_slug:str,cancel_event:threading.Event)->None:
@@ -186,7 +197,10 @@ class InspirationService:
             brand_context=self._build_brand_context(brand_slug)
             system_prompt=self._load_system_prompt()
             system_prompt=system_prompt.replace("{brand_context}",brand_context)
-            system_prompt=system_prompt.replace("{user_preferences}","")
+            #Include user preferences if available
+            pref_summary=get_preference_summary(brand_slug)
+            pref_text=f"\n## User Preferences\nBased on past feedback, consider these preferences:\n{pref_summary}" if pref_summary else""
+            system_prompt=system_prompt.replace("{user_preferences}",pref_text)
             #Call LLM for inspiration ideas
             ideas=self._call_llm_for_inspirations(system_prompt,cancel_event)
             if cancel_event.is_set():
@@ -227,6 +241,12 @@ class InspirationService:
                 if job and job.status=="generating":
                     job.status="completed"
                     job.progress=1.0
+            #Check if preference analysis should run (non-blocking)
+            try:
+                if should_analyze(brand_slug):
+                    executor=self._get_executor()
+                    executor.submit(run_analysis,brand_slug)
+            except Exception as ae:logger.warning(f"Preference analysis check failed: {ae}")
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             with self._jobs_lock:
