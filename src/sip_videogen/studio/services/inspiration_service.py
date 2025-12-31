@@ -110,6 +110,18 @@ class InspirationService:
             event=self._cancel_events.get(job_id)
             if event:event.set()
         return bridge_ok({"cancelled":True})
+    def cancel_jobs_for_brand(self,brand_slug:str)->dict:
+        """Cancel all active jobs for a brand (used on brand switch)."""
+        cancelled=[]
+        with self._jobs_lock:
+            for job in self._jobs.values():
+                if job.brand_slug==brand_slug and job.status in("pending","generating"):
+                    job.cancel_requested=True
+                    job.status="cancelled"
+                    event=self._cancel_events.get(job.id)
+                    if event:event.set()
+                    cancelled.append(job.id)
+        return bridge_ok({"cancelled":cancelled})
     def save_image(self,inspiration_id:str,image_idx:int,project_slug:str|None=None)->dict:
         """Save an inspiration image to assets."""
         slug=get_active_brand()

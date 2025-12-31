@@ -14,6 +14,7 @@ dismiss:(inspirationId:string)=>Promise<void>
 moreLikeThis:(inspirationId:string)=>Promise<void>
 markViewed:(inspirationId:string)=>void
 refresh:()=>Promise<void>
+cancelCurrentJob:()=>Promise<void>
 }
 const VIEWED_STORAGE_KEY='sip-studio-viewed-inspirations'
 function loadViewedIds():Set<string>{
@@ -109,7 +110,42 @@ pollDelayRef.current=1000
 const markViewed=useCallback((inspirationId:string)=>{
 setViewedIds(prev=>{const next=new Set(prev);next.add(inspirationId);saveViewedIds(next);return next})
 },[])
-//Load on brand change
-useEffect(()=>{if(brandSlug)refresh()},[brandSlug,refresh])
-return{inspirations,isGenerating,jobId,progress,error,newCount,viewedIds,triggerGeneration,save,dismiss,moreLikeThis,markViewed,refresh}
+//Cancel current job
+const cancelCurrentJob=useCallback(async()=>{
+if(!jobId)return
+try{await bridge.cancelInspirationJob(jobId);setIsGenerating(false);setJobId(null);setProgress(0)}
+catch(e){console.error('Cancel error:',e)}
+},[jobId])
+//Track previous brand slug for brand switch detection
+const prevBrandRef=useRef<string|null>(null)
+const hasInitialized=useRef(false)
+//Handle brand switch: cancel pending job, load cached, auto-trigger generation
+useEffect(()=>{
+if(!brandSlug)return
+const prevBrand=prevBrandRef.current
+const isBrandSwitch=prevBrand&&prevBrand!==brandSlug
+prevBrandRef.current=brandSlug
+const handleBrandChange=async()=>{
+//If brand changed, cancel any jobs for the OLD brand
+if(isBrandSwitch){
+try{await bridge.cancelInspirationJobsForBrand(prevBrand)}catch{}
+setIsGenerating(false);setJobId(null);setProgress(0)
+}
+//Load cached inspirations first
+await refresh()
+//Auto-trigger generation on initial load OR brand switch (if not already generating)
+if(!hasInitialized.current||isBrandSwitch){
+hasInitialized.current=true
+//Small delay to let UI settle before triggering background work
+setTimeout(async()=>{
+if(!isGenerating){
+try{await triggerGeneration()}catch(e){console.error('Auto-trigger error:',e)}
+}
+},500)
+}
+}
+handleBrandChange()
+// eslint-disable-next-line react-hooks/exhaustive-deps
+},[brandSlug])
+return{inspirations,isGenerating,jobId,progress,error,newCount,viewedIds,triggerGeneration,save,dismiss,moreLikeThis,markViewed,refresh,cancelCurrentJob}
 }

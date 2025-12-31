@@ -234,6 +234,9 @@ class StudioBridge:
     def cancel_inspiration_job(self,job_id:str)->dict:
         """Cancel an inspiration generation job."""
         return self._inspiration.cancel_job(job_id)
+    def cancel_inspiration_jobs_for_brand(self,brand_slug:str)->dict:
+        """Cancel all active inspiration jobs for a brand (on brand switch)."""
+        return self._inspiration.cancel_jobs_for_brand(brand_slug)
     def save_inspiration_image(self,inspiration_id:str,image_idx:int,project_slug:str|None=None)->dict:
         """Save an inspiration image to assets."""
         return self._inspiration.save_image(inspiration_id,image_idx,project_slug)

@@ -15,6 +15,7 @@ dismiss:(inspirationId:string)=>Promise<void>
 moreLikeThis:(inspirationId:string)=>Promise<void>
 markViewed:(inspirationId:string)=>void
 refresh:()=>Promise<void>
+cancelCurrentJob:()=>Promise<void>
 }
 const InspirationContext=createContext<InspirationContextValue|null>(null)
 interface InspirationProviderProps{brandSlug:string|null;children:ReactNode}

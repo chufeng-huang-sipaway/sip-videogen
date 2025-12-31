@@ -585,6 +585,7 @@ interface PyWebViewAPI {
   trigger_inspiration_generation(brand_slug?: string): Promise<BridgeResponse<{ job_id: string }>>
   get_inspiration_progress(job_id: string): Promise<BridgeResponse<InspirationJob>>
   cancel_inspiration_job(job_id: string): Promise<BridgeResponse<{ success: boolean }>>
+  cancel_inspiration_jobs_for_brand(brand_slug: string): Promise<BridgeResponse<{ cancelled: string[] }>>
   save_inspiration_image(inspiration_id: string, image_idx: number, project_slug?: string | null): Promise<BridgeResponse<{ success: boolean; saved_path?: string; error?: string }>>
   dismiss_inspiration(inspiration_id: string): Promise<BridgeResponse<{ success: boolean }>>
   request_more_like(inspiration_id: string): Promise<BridgeResponse<{ job_id: string }>>
@@ -800,6 +801,7 @@ export const bridge = {
   triggerInspirationGeneration: async (brandSlug?: string) => (await callBridge(() => window.pywebview!.api.trigger_inspiration_generation(brandSlug))).job_id,
   getInspirationProgress: async (jobId: string) => await callBridge(() => window.pywebview!.api.get_inspiration_progress(jobId)),
   cancelInspirationJob: async (jobId: string) => await callBridge(() => window.pywebview!.api.cancel_inspiration_job(jobId)),
+  cancelInspirationJobsForBrand: async (brandSlug: string) => await callBridge(() => window.pywebview!.api.cancel_inspiration_jobs_for_brand(brandSlug)),
   saveInspirationImage: async (inspirationId: string, imageIdx: number, projectSlug?: string | null) => await callBridge(() => window.pywebview!.api.save_inspiration_image(inspirationId, imageIdx, projectSlug)),
   dismissInspiration: async (inspirationId: string) => await callBridge(() => window.pywebview!.api.dismiss_inspiration(inspirationId)),
   requestMoreLike: async (inspirationId: string) => (await callBridge(() => window.pywebview!.api.request_more_like(inspirationId))).job_id,
