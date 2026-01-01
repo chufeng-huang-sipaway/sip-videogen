@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Package, Paperclip, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { type GeneratedVideo, type TemplateSummary, type ProductEntry, type ThinkingStep, type GeneratedImage, type ImageGenerationMetadata } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
@@ -16,53 +16,34 @@ import { Button } from '@/components/ui/button'
 function normalizeImages(imgs:(GeneratedImage|string)[]|undefined):GeneratedImage[]{if(!imgs)return[];return imgs.map(i=>typeof i==='string'?{url:i}:i)}
 
 
-//Video gallery component for rendering generated videos
-function ChatVideoGallery({ videos }: { videos: GeneratedVideo[] }) {
-  if (!videos || videos.length === 0) return null
-  return (
-    <div className="grid gap-4 mt-4">
-      {videos.map((video, idx) => (
-        <Dialog key={idx}>
-          <DialogTrigger asChild>
-            <div className="cursor-pointer group relative overflow-hidden rounded-xl ring-1 ring-border/20 shadow-sm hover:ring-primary/40 transition-all bg-black/5">
-              <div className="relative aspect-video">
-                <video
-                  src={video.url}
-                  className="w-full h-full object-contain"
-                  muted
-                  playsInline
-                  preload="metadata"
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
-                  <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <Play className="w-6 h-6 text-black ml-1" />
-                  </div>
-                </div>
-              </div>
-              {video.filename && (
-                <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 text-[10px] text-white/90 bg-black/50 rounded-md px-2 py-1">
-                  <Film className="w-3 h-3" />
-                  <span className="truncate">{video.filename}</span>
-                </div>
-              )}
-            </div>
-          </DialogTrigger>
-          <DialogContent className="max-w-screen-lg p-0 overflow-hidden bg-black border-none">
-            <div className="relative flex items-center justify-center min-h-[50vh]">
-              <video
-                src={video.url}
-                className="max-w-full max-h-[90vh] object-contain shadow-2xl"
-                controls
-                autoPlay
-                playsInline
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      ))}
-    </div>
-  )
-}
+//Video gallery component for rendering generated videos - compact 48x48 thumbnails
+function ChatVideoGallery({videos}:{videos:GeneratedVideo[]}){
+const[viewerVideo,setViewerVideo]=useState<GeneratedVideo|null>(null)
+if(!videos||videos.length===0)return null
+const maxThumbs=4
+const shown=videos.slice(0,maxThumbs)
+const extra=videos.length-maxThumbs
+return(<>
+<div className="mt-2 flex items-center gap-1.5">
+<div className="flex items-center gap-1 text-xs text-muted-foreground"><Film className="h-3.5 w-3.5"/><span>Generated {videos.length} video{videos.length>1?'s':''}</span></div>
+</div>
+<div className="mt-1.5 flex flex-wrap gap-1">
+{shown.map((vid,i)=>(<button key={vid.path||vid.url||i} onClick={()=>setViewerVideo(vid)} className="relative w-12 h-12 rounded border border-border/60 overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all group">
+<div className="w-full h-full bg-gradient-to-br from-muted/80 to-muted/40"/>
+<div className="absolute inset-0 flex items-center justify-center">
+<div className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center group-hover:scale-110 transition-transform">
+<Play className="w-3 h-3 text-black ml-0.5"/>
+</div>
+</div>
+</button>))}
+{extra>0&&(<button onClick={()=>setViewerVideo(videos[maxThumbs])} className="w-12 h-12 rounded border border-border/60 bg-muted flex items-center justify-center text-xs text-muted-foreground hover:bg-muted/80 transition-colors">+{extra}</button>)}
+</div>
+{viewerVideo&&(<Dialog open={!!viewerVideo} onOpenChange={()=>setViewerVideo(null)}>
+<DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 border-none">
+<video src={viewerVideo.url} className="w-full h-auto max-h-[80vh] object-contain" controls autoPlay playsInline/>
+</DialogContent>
+</Dialog>)}
+</>)}
 
 
 interface MessageListProps {
