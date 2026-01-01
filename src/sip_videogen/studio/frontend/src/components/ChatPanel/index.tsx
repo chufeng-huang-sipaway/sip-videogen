@@ -19,6 +19,7 @@ import{AspectRatioSelector}from'./AspectRatioSelector'
 import{ModeToggle}from'./ModeToggle'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
+import{getVideoSupportedRatios,getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -447,8 +448,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Mode Toggle + Aspect Ratio Selector */}
       <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
-        <ModeToggle value={generationMode} onChange={setGenerationMode} disabled={isLoading||!brandSlug}/>
-        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug}/>
+        <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{
+setGenerationMode(m)
+//Auto-adjust aspect ratio if current is invalid for new mode
+const valid=getValidRatioForMode(aspectRatio,m)
+if(valid!==aspectRatio)setAspectRatio(valid)}} disabled={isLoading||!brandSlug}/>
+        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug} allowedRatios={generationMode==='video'?getVideoSupportedRatios():undefined}/>
       </div>
 
       {/* Input Area - Clean, no gradient background */}
