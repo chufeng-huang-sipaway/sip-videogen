@@ -5,6 +5,7 @@ import { useBrand } from '@/context/BrandContext'
 import { useWorkstation } from '@/context/WorkstationContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import { buildStatusByAssetPath, normalizeAssetPath } from '@/lib/imageStatus'
+import { isHiddenAssetPath } from '@/lib/mediaUtils'
 import { VideoViewer } from '@/components/ui/video-viewer'
 import { Button } from '@/components/ui/button'
 
@@ -251,8 +252,8 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
     try {
       const paths = await getProjectAssets(projectSlug)
 
-      // Filter out any paths that have previously failed (ghost items)
-      const validPaths = paths.filter((p) => !failedAssetsRef.current.has(p))
+      // Filter out any paths that have previously failed (ghost items) and hidden assets (concept images)
+      const validPaths = paths.filter((p) => !failedAssetsRef.current.has(p) && !isHiddenAssetPath(p))
       setAssets(validPaths)
 
       // If actual count differs from expected, refresh projects list

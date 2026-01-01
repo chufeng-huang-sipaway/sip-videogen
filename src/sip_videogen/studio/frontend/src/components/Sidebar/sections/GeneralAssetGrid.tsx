@@ -4,6 +4,7 @@ import{useBrand}from'@/context/BrandContext'
 import{useWorkstation}from'@/context/WorkstationContext'
 import{bridge,isPyWebView}from'@/lib/bridge'
 import{buildStatusByAssetPath,normalizeAssetPath}from'@/lib/imageStatus'
+import{isHiddenAssetPath}from'@/lib/mediaUtils'
 import{VideoViewer}from'@/components/ui/video-viewer'
 import{Button}from'@/components/ui/button'
 //Thumbnail cache for session
@@ -35,7 +36,7 @@ const[previewVideo,setPreviewVideo]=useState<{src:string;path:string}|null>(null
 const loadAssets=useCallback(async(isBackground=false)=>{if(!activeBrand||!isPyWebView())return
 if(!isBackground)setIsLoading(true);else setIsRefreshing(true)
 setError(null)
-try{const result=await bridge.getGeneralAssets(activeBrand);setAssets(result.assets||[])}catch(err){if(!isBackground)setError(err instanceof Error?err.message:'Failed to load')}finally{setIsLoading(false);setIsRefreshing(false)}},[activeBrand])
+try{const result=await bridge.getGeneralAssets(activeBrand);setAssets((result.assets||[]).filter((p:string)=>!isHiddenAssetPath(p)))}catch(err){if(!isBackground)setError(err instanceof Error?err.message:'Failed to load')}finally{setIsLoading(false);setIsRefreshing(false)}},[activeBrand])
 useEffect(()=>{loadAssets(false)},[loadAssets])
 const sortedAssets=[...assets].sort((a,b)=>{const nameA=a.split('/').pop()??a;const nameB=b.split('/').pop()??b;return nameB.localeCompare(nameA)})
 const handlePreview=useCallback(async(clickedPath:string)=>{if(!activeBrand||!isPyWebView())return
