@@ -1539,13 +1539,12 @@ async def _impl_generate_video_clip(
             #Delete concept image(s) after successful video generation (user preference: immediate cleanup)
             #This cleans up both the specified concept image AND any variants with matching prompt
             deleted_paths=set()
-            if concept_image_path:
+            if resolved_concept and resolved_concept.exists():
                 try:
-                    cimg=Path(concept_image_path)
-                    if cimg.exists():cimg.unlink();deleted_paths.add(str(cimg));logger.info(f"Deleted concept image: {concept_image_path}")
-                    meta_sidecar=cimg.with_suffix('.meta.json')
+                    resolved_concept.unlink();deleted_paths.add(str(resolved_concept));logger.info(f"Deleted concept image: {resolved_concept}")
+                    meta_sidecar=resolved_concept.with_suffix('.meta.json')
                     if meta_sidecar.exists():meta_sidecar.unlink()
-                except OSError as del_err:logger.warning(f"Failed to delete concept image {concept_image_path}: {del_err}")
+                except OSError as del_err:logger.warning(f"Failed to delete concept image {resolved_concept}: {del_err}")
             #Clean up other concept image variants with matching prompt
             if effective_prompt and output_dir.exists():
                 import json as json_mod

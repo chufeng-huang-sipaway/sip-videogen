@@ -3,112 +3,36 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { bridge } from '@/lib/bridge'
 import type { Interaction } from '@/lib/bridge'
-
-interface Props {
-  interaction: Interaction
-  onSelect: (selection: string) => void
-  disabled?: boolean
-}
-
-export function InteractionRenderer({ interaction, onSelect, disabled }: Props) {
-  const [customValue, setCustomValue] = useState('')
-  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({})
-  const requestedPreviews = useRef<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (interaction.type !== 'image_select') return
-    for (const path of interaction.image_paths) {
-      if (requestedPreviews.current.has(path)) continue
-      requestedPreviews.current.add(path)
-
-      bridge
-        .getAssetThumbnail(path)
-        .then((dataUrl) => {
-          setImagePreviews(prev => (prev[path] ? prev : { ...prev, [path]: dataUrl }))
-        })
-        .catch((err) => {
-          requestedPreviews.current.delete(path)
-          console.error('Failed to load preview:', err)
-        })
-    }
-  }, [interaction])
-
-  if (interaction.type === 'choices') {
-    return (
-      <div className="mt-3 p-3 bg-muted rounded-lg space-y-2">
-        <p className="text-sm font-medium">{interaction.question}</p>
-        <div className="flex flex-wrap gap-2">
-          {interaction.choices.map((choice) => (
-            <Button
-              key={choice}
-              variant="outline"
-              size="sm"
-              onClick={() => onSelect(choice)}
-              disabled={disabled}
-            >
-              {choice}
-            </Button>
-          ))}
-        </div>
-        {interaction.allow_custom && (
-          <div className="flex gap-2 mt-2">
-            <Input
-              placeholder="Or type something else..."
-              value={customValue}
-              onChange={(e) => setCustomValue(e.target.value)}
-              disabled={disabled}
-              className="text-sm"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && customValue.trim()) {
-                  onSelect(customValue)
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              onClick={() => onSelect(customValue)}
-              disabled={disabled || !customValue.trim()}
-            >
-              Send
-            </Button>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  if (interaction.type === 'image_select') {
-    return (
-      <div className="mt-3 p-3 bg-muted rounded-lg space-y-2">
-        <p className="text-sm font-medium">{interaction.question}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {interaction.image_paths.map((path, i) => (
-            <button
-              key={path}
-              onClick={() => onSelect(`Option ${i + 1}: ${interaction.labels[i]}`)}
-              disabled={disabled}
-              className="relative group border rounded-lg overflow-hidden hover:ring-2 hover:ring-brand-500 disabled:opacity-50 text-left"
-            >
-              {imagePreviews[path] ? (
-                <img
-                  src={imagePreviews[path]}
-                  alt={interaction.labels[i]}
-                  className="w-full h-32 object-cover"
-                />
-              ) : (
-                <div className="w-full h-32 bg-muted flex items-center justify-center">
-                  <span className="text-muted-foreground text-xs">Loading...</span>
-                </div>
-              )}
-              <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1">
-                {interaction.labels[i]}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  return null
-}
+import { cn } from '@/lib/utils'
+interface Props {interaction:Interaction;onSelect:(selection:string)=>void;disabled?:boolean}
+export function InteractionRenderer({interaction,onSelect,disabled}:Props){
+const[cv,setCv]=useState('')
+const[imgPrev,setImgPrev]=useState<Record<string,string>>({})
+const reqPrev=useRef<Set<string>>(new Set())
+useEffect(()=>{if(interaction.type!=='image_select')return;for(const p of interaction.image_paths){if(reqPrev.current.has(p))continue;reqPrev.current.add(p);bridge.getAssetThumbnail(p).then((d)=>{setImgPrev(pr=>(pr[p]?pr:{...pr,[p]:d}))}).catch((e)=>{reqPrev.current.delete(p);console.error('Failed to load preview:',e)})}},[interaction])
+if(interaction.type==='choices'){return(
+<div className="mt-4 w-full">
+<div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
+<p className="text-sm text-foreground leading-relaxed">{interaction.question}</p>
+<div className="flex flex-col gap-2">
+{interaction.choices.map((c,i)=>(<Button key={c} variant={i===0?"default":"outline"} size="sm" onClick={()=>onSelect(c)} disabled={disabled} className={cn("w-full justify-start text-left whitespace-normal h-auto py-2.5 px-4",i===0&&"font-medium")}>{c}</Button>))}
+</div>
+{interaction.allow_custom&&(<div className="flex gap-2 pt-1">
+<Input placeholder="Or type something else..." value={cv} onChange={(e)=>setCv(e.target.value)} disabled={disabled} className="text-sm" onKeyDown={(e)=>{if(e.key==='Enter'&&cv.trim())onSelect(cv)}}/>
+<Button size="sm" onClick={()=>onSelect(cv)} disabled={disabled||!cv.trim()}>Send</Button>
+</div>)}
+</div>
+</div>)}
+if(interaction.type==='image_select'){return(
+<div className="mt-4 w-full">
+<div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
+<p className="text-sm text-foreground leading-relaxed">{interaction.question}</p>
+<div className="grid grid-cols-2 gap-2">
+{interaction.image_paths.map((p,i)=>(<button key={p} onClick={()=>onSelect(`Option ${i+1}: ${interaction.labels[i]}`)} disabled={disabled} className="relative group border border-border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/50 hover:border-primary/50 disabled:opacity-50 text-left transition-all">
+{imgPrev[p]?(<img src={imgPrev[p]} alt={interaction.labels[i]} className="w-full h-32 object-cover"/>):(<div className="w-full h-32 bg-muted flex items-center justify-center"><span className="text-muted-foreground text-xs">Loading...</span></div>)}
+<div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs py-1.5 px-2">{interaction.labels[i]}</div>
+</button>))}
+</div>
+</div>
+</div>)}
+return null}

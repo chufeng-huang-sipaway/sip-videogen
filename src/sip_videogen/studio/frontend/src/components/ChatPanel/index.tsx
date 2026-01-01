@@ -402,7 +402,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             products={products}
             onInteractionSelect={async (messageId, selection) => {
               resolveInteraction(messageId)
-              await sendMessage(selection)
+              await sendMessage(selection,{aspect_ratio:aspectRatio,generation_mode:generationMode})
               await refreshProducts()
             }}
             onRegenerate={regenerateMessage}

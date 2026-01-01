@@ -247,18 +247,22 @@ class AssetService:
         except Exception as e:return bridge_error(str(e))
     def get_video_path(self,relative_path:str)->dict:
         """Get the absolute file path for a video (for local playback).
-
         Args:
-            relative_path: Path relative to brand assets (e.g., "video/scene_001.mp4")
-
+            relative_path: Path (relative to brand assets or absolute)
         Returns:
             dict with absolute path to the video file
         """
         try:
             brand_dir,err=self._state.get_brand_dir()
             if err:return bridge_error(err)
-            resolved,error=resolve_assets_path(brand_dir,relative_path)
-            if error:return bridge_error(error)
+            rp=Path(relative_path)
+            if rp.is_absolute():
+                resolved=rp.resolve()
+                try:resolved.relative_to((brand_dir/"assets").resolve())
+                except ValueError:return bridge_error("Invalid path: outside assets directory")
+            else:
+                resolved,error=resolve_assets_path(brand_dir,relative_path)
+                if error:return bridge_error(error)
             if not resolved.exists():return bridge_error("Video not found")
             suffix=resolved.suffix.lower()
             if suffix not in ALLOWED_VIDEO_EXTS:return bridge_error("Unsupported video type")

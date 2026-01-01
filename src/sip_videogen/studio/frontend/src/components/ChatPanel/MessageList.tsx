@@ -142,7 +142,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
         ):(
-          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-p:my-2 prose-li:my-0.5 text-foreground/90 px-1">
+          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-p:my-2 prose-li:my-0.5 text-foreground/90 px-1 overflow-hidden break-words">
             <MarkdownContent content={message.content} />
           </div>
         )}
@@ -210,13 +210,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
 
         {/* Interaction Request */}
         {message.role === 'assistant' && message.interaction && !message.interactionResolved && (
-          <div className="mt-4 p-4 rounded-xl border border-primary/10 bg-primary/5 w-full">
-            <InteractionRenderer
-              interaction={message.interaction}
-              onSelect={(selection) => onInteractionSelect(message.id, selection)}
-              disabled={isLoading}
-            />
-          </div>
+          <InteractionRenderer interaction={message.interaction} onSelect={(selection)=>onInteractionSelect(message.id,selection)} disabled={isLoading}/>
         )}
 
         {/* Quick Actions */}

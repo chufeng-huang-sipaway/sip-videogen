@@ -19,7 +19,7 @@ export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number}>=
 '3:4':{label:'Portrait Classic',w:3,h:4},
 '3:2':{label:'Photo',w:3,h:2},
 '2:3':{label:'Portrait Photo',w:2,h:3}}
-export const DEFAULT_ASPECT_RATIO:AspectRatio='1:1'
+export const DEFAULT_ASPECT_RATIO:AspectRatio='16:9'
 //Safe type guard using Object.hasOwn (avoids prototype chain)
 export function isValidAspectRatio(v:string):v is AspectRatio{
 return Object.prototype.hasOwnProperty.call(ASPECT_RATIOS,v)}

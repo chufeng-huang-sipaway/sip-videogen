@@ -648,7 +648,7 @@ export const bridge = {
         context?.project_slug,
         context?.attached_products,
         context?.attached_templates,
-        context?.aspect_ratio || '1:1',
+        context?.aspect_ratio || '16:9',
         context?.generation_mode || 'image'
       )
     ),
