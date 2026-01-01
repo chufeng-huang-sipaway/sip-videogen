@@ -79,9 +79,10 @@ export function ProjectsSection() {
           console.warn('Failed to load image status for project assets:', e)
         }
       }
-      const imageAssets = paths.filter(p => !isVideoAsset(p)).sort((a, b) => { const nameA = a.split('/').pop() ?? a; const nameB = b.split('/').pop() ?? b; return nameB.localeCompare(nameA) })
-      const batch = imageAssets.map(assetPath => {
+      const sortedAssets = [...paths].sort((a, b) => { const nameA = a.split('/').pop() ?? a; const nameB = b.split('/').pop() ?? b; return nameB.localeCompare(nameA) })
+      const batch = sortedAssets.map(assetPath => {
         const status = statusByAssetPath.get(normalizeAssetPath(assetPath))
+        const isVideo = isVideoAsset(assetPath)
         return {
           id: status?.id ?? assetPath,
           path: '',
@@ -90,6 +91,7 @@ export function ProjectsSection() {
           sourceTemplatePath: status?.sourceTemplatePath ?? undefined,
           timestamp: status?.timestamp ?? new Date().toISOString(),
           viewedAt: status ? (status.viewedAt ?? null) : undefined,
+          type: isVideo ? 'video' as const : 'image' as const,
         }
       })
       setCurrentBatch(batch); setSelectedIndex(0)
@@ -105,9 +107,10 @@ export function ProjectsSection() {
       try {
         statusByAssetPath = buildStatusByAssetPath(await bridge.getUnsortedImages(activeBrand))
       } catch (e) { console.warn('Failed to load image status for general assets:', e) }
-      const imageAssets = paths.filter(p => !isVideoAsset(p)).sort((a, b) => { const nameA = a.split('/').pop() ?? a; const nameB = b.split('/').pop() ?? b; return nameB.localeCompare(nameA) })
-      const batch = imageAssets.map(assetPath => {
+      const sortedAssets = [...paths].sort((a, b) => { const nameA = a.split('/').pop() ?? a; const nameB = b.split('/').pop() ?? b; return nameB.localeCompare(nameA) })
+      const batch = sortedAssets.map(assetPath => {
         const status = statusByAssetPath.get(normalizeAssetPath(assetPath))
+        const isVideo = isVideoAsset(assetPath)
         return {
           id: status?.id ?? assetPath,
           path: '',
@@ -116,6 +119,7 @@ export function ProjectsSection() {
           sourceTemplatePath: status?.sourceTemplatePath ?? undefined,
           timestamp: status?.timestamp ?? new Date().toISOString(),
           viewedAt: status ? (status.viewedAt ?? null) : undefined,
+          type: isVideo ? 'video' as const : 'image' as const,
         }
       })
       setCurrentBatch(batch); setSelectedIndex(0)

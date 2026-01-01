@@ -381,8 +381,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
   const handlePreview = useCallback(async (clickedPath: string) => {
     if (!isPyWebView()) return
     try {
-      //Filter to images only (exclude videos)
-      const imageAssets = sortedAssets.filter(p => !isVideoAsset(p))
+      //Include all assets (images and videos) in the batch
       let statusByAssetPath = new Map()
       if (activeBrand) {
         try {
@@ -391,9 +390,10 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
           console.warn('Failed to load image status for project asset grid:', e)
         }
       }
-      //Create batch - clicked image will be loaded lazily via originalPath
-      const allImages = imageAssets.map((assetPath) => {
+      //Create batch with type field for videos
+      const allMedia = sortedAssets.map((assetPath) => {
         const status = statusByAssetPath.get(normalizeAssetPath(assetPath))
+        const isVideo = isVideoAsset(assetPath)
         return {
           id: status?.id ?? assetPath,
           path: '',
@@ -402,29 +402,16 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
           sourceTemplatePath: status?.sourceTemplatePath ?? undefined,
           timestamp: status?.timestamp ?? new Date().toISOString(),
           viewedAt: status ? (status.viewedAt ?? null) : undefined,
+          type: isVideo ? 'video' as const : 'image' as const,
         }
       })
-      const clickedIndex = imageAssets.findIndex(p => p === clickedPath)
-      setCurrentBatch(allImages)
+      const clickedIndex = sortedAssets.findIndex(p => p === clickedPath)
+      setCurrentBatch(allMedia)
       setSelectedIndex(clickedIndex >= 0 ? clickedIndex : 0)
     } catch (err) {
-      console.error('Failed to load image:', err)
+      console.error('Failed to load media:', err)
     }
   }, [activeBrand, sortedAssets, setCurrentBatch, setSelectedIndex])
-
-  const handlePreviewVideo = useCallback(async (path: string) => {
-    if (!isPyWebView()) return
-    try {
-      const dataUrl = await bridge.getVideoData(path)
-      setPreviewVideo({ src: dataUrl, path })
-    } catch (err) {
-      console.error('Failed to load video preview:', err)
-      const message = getErrorMessage(err)
-      if (isNotFoundError(message)) {
-        handleThumbnailError(path)
-      }
-    }
-  }, [handleThumbnailError])
 
   const handleManualRefresh = useCallback(() => {
     // Clear failed assets to retry them
@@ -516,7 +503,7 @@ export function ProjectAssetGrid({ projectSlug, expectedAssetCount }: ProjectAss
             <VideoThumbnail
               key={`${path}:${thumbnailReloadNonce}`}
               path={path}
-              onClick={() => handlePreviewVideo(path)}
+              onClick={() => handlePreview(path)}
             />
           ) : (
             <AssetThumbnail

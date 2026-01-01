@@ -29,9 +29,10 @@ const path=curr.originalPath||curr.path
 if(!path){setLoading(false);setError('Missing video path');return}
 if(!isPyWebView()){setLoading(false);setError('Video playback requires app');return}
 try{
-const fileUrl=await bridge.getVideoPath(path)
+//Use getVideoData for base64 data URL (file:// URLs may not work in PyWebView)
+const dataUrl=await bridge.getVideoData(path)
 if(cancelled)return
-setVideoSrc(fileUrl)
+setVideoSrc(dataUrl)
 }catch(e){
 if(!cancelled)setError(e instanceof Error?e.message:'Video unavailable')
 }finally{if(!cancelled)setLoading(false)}}
