@@ -17,7 +17,7 @@ from agents.run_context import RunContextWrapper
 from sip_videogen.advisor.context_budget import ContextBudgetManager
 from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.skills.registry import get_skills_registry
-from sip_videogen.advisor.tools import ADVISOR_TOOLS
+from sip_videogen.advisor.tools import ADVISOR_TOOLS, set_active_aspect_ratio
 from sip_videogen.brands.context import HierarchicalContextBuilder
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import (
@@ -456,6 +456,7 @@ class BrandAdvisor:
         mode_ctx=f"**Generation Mode**: {mode.capitalize()} - {'Generate videos using generate_video tool.' if mode=='video' else 'Generate images using generate_image tool.'}"
         turn_context=f"{turn_context}\n\n{mode_ctx}" if turn_context else mode_ctx
         if aspect_ratio:
+            set_active_aspect_ratio(aspect_ratio)
             ar_ctx=f"**Aspect Ratio**: Use {aspect_ratio} for any image or video generation."
             turn_context=f"{turn_context}\n\n{ar_ctx}"
 

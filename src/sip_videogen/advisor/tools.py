@@ -83,8 +83,18 @@ from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
 
 logger = get_logger(__name__)
-
-
+# =============================================================================
+# Session Context for Generation Settings
+# =============================================================================
+_active_aspect_ratio: str = "16:9"
+def get_active_aspect_ratio() -> str:
+    """Get the currently active aspect ratio for generation."""
+    return _active_aspect_ratio
+def set_active_aspect_ratio(ratio: str) -> None:
+    """Set the active aspect ratio for generation."""
+    global _active_aspect_ratio
+    _active_aspect_ratio = ratio
+    logger.debug(f"Active aspect ratio set to: {ratio}")
 # =============================================================================
 # TypedDicts for Tool Input Parameters
 # =============================================================================
@@ -1526,19 +1536,29 @@ async def _impl_generate_video_clip(
             if image_metadata:
                 video_meta["source_image_metadata"] = image_metadata
             store_video_metadata(str(target_path), video_meta)
-            #Delete concept image after successful video generation (user preference: immediate cleanup)
+            #Delete concept image(s) after successful video generation (user preference: immediate cleanup)
+            #This cleans up both the specified concept image AND any variants with matching prompt
+            deleted_paths=set()
             if concept_image_path:
                 try:
                     cimg=Path(concept_image_path)
-                    if cimg.exists():
-                        cimg.unlink()
-                        logger.info(f"Deleted concept image: {concept_image_path}")
-                    #Also delete metadata sidecar if exists
+                    if cimg.exists():cimg.unlink();deleted_paths.add(str(cimg));logger.info(f"Deleted concept image: {concept_image_path}")
                     meta_sidecar=cimg.with_suffix('.meta.json')
-                    if meta_sidecar.exists():
-                        meta_sidecar.unlink()
-                except OSError as del_err:
-                    logger.warning(f"Failed to delete concept image {concept_image_path}: {del_err}")
+                    if meta_sidecar.exists():meta_sidecar.unlink()
+                except OSError as del_err:logger.warning(f"Failed to delete concept image {concept_image_path}: {del_err}")
+            #Clean up other concept image variants with matching prompt
+            if effective_prompt and output_dir.exists():
+                import json as json_mod
+                for meta_file in output_dir.glob("*.meta.json"):
+                    try:
+                        img_path=meta_file.with_suffix('.png')
+                        if not img_path.exists()or str(img_path)in deleted_paths:continue
+                        with open(meta_file)as f:meta_data=json_mod.load(f)
+                        #Match by prompt (concept images use same prompt as video)
+                        if meta_data.get('prompt')==effective_prompt:
+                            img_path.unlink();meta_file.unlink();deleted_paths.add(str(img_path))
+                            logger.info(f"Deleted concept variant: {img_path}")
+                    except Exception:pass
             logger.info(f"Video clip saved to: {target_path}")
             return str(target_path)
         return "Error: Video generation did not produce a file"
@@ -2590,7 +2610,7 @@ def propose_images(
 @function_tool
 async def generate_image(
     prompt: str,
-    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"] = "1:1",
+    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"] | None = None,
     filename: str | None = None,
     reference_image: str | None = None,
     product_slug: str | None = None,
@@ -2608,11 +2628,11 @@ async def generate_image(
     Args:
         prompt: Detailed description of the image to generate. Be specific about
             style, colors, composition, and what to avoid.
-        aspect_ratio: Image aspect ratio. Common choices:
-            - "1:1" for logos, mascots, social posts
-            - "4:5" for Instagram, lifestyle photos
+        aspect_ratio: Image aspect ratio. Uses session context if not specified. Common choices:
             - "16:9" for hero images, landing pages
             - "9:16" for stories, vertical content
+            - "1:1" for logos, mascots, social posts
+            - "4:5" for Instagram, lifestyle photos
         filename: Optional filename to save as (without extension).
             If not provided, uses a generated name.
         reference_image: Optional path to a reference image within the brand directory.
@@ -2648,9 +2668,10 @@ async def generate_image(
         If validation was enabled but didn't pass, includes a warning about
         potential differences from the reference.
     """
+    effective_ratio = aspect_ratio or get_active_aspect_ratio()
     return await _impl_generate_image(
         prompt,
-        aspect_ratio,
+        effective_ratio,
         filename,
         reference_image,
         product_slug,
@@ -2666,7 +2687,7 @@ async def generate_image(
 async def generate_video_clip(
     prompt: str | None = None,
     concept_image_path: str | None = None,
-    aspect_ratio: Literal["1:1", "16:9", "9:16", "5:3", "3:5", "4:3", "3:4", "3:2", "2:3"] = "1:1",
+    aspect_ratio: Literal["1:1", "16:9", "9:16", "5:3", "3:5", "4:3", "3:4", "3:2", "2:3"] | None = None,
     duration: int | None = None,
     provider: Literal["veo"] = "veo",
 ) -> str:
@@ -2685,10 +2706,10 @@ async def generate_video_clip(
             - Loads the stored prompt from that image's metadata
             - Uses the image as a visual reference for the video
             - Duration is forced to 8 seconds (VEO constraint)
-        aspect_ratio: Video aspect ratio.
-            - "1:1" for square (default)
+        aspect_ratio: Video aspect ratio. Uses session context if not specified.
             - "16:9" for landscape
             - "9:16" for portrait/vertical
+            - "1:1" for square
             - "4:3" for classic
             - "3:4" for portrait classic
         duration: Clip duration in seconds. Valid values: 4, 6, or 8.
@@ -2698,7 +2719,8 @@ async def generate_video_clip(
     Returns:
         Path to the saved video file (.mp4), or error message if generation fails.
     """
-    return await _impl_generate_video_clip(prompt,concept_image_path,aspect_ratio,duration,provider)
+    effective_ratio = aspect_ratio or get_active_aspect_ratio()
+    return await _impl_generate_video_clip(prompt,concept_image_path,effective_ratio,duration,provider)
 
 
 @function_tool
