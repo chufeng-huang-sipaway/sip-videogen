@@ -54,7 +54,7 @@ class ChatService:
     def get_progress(self)->dict:
         """Get current operation progress."""
         return bridge_ok({"status":self._state.current_progress,"type":self._state.current_progress_type,"skills":self._state.matched_skills,"thinking_steps":self._state.thinking_steps})
-    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None,aspect_ratio:str|None=None)->dict:
+    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None,aspect_ratio:str|None=None,generation_mode:str|None=None)->dict:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace=[];self._state.matched_skills=[];self._state.thinking_steps=[]
         try:
@@ -79,7 +79,8 @@ class ChatService:
             before_templates={t.slug for t in storage_list_templates(slug)}
             #Run advisor
             validated_ratio=validate_aspect_ratio(aspect_ratio)
-            result=asyncio.run(advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products,attached_templates=attached_templates,aspect_ratio=validated_ratio.value))
+            mode=generation_mode if generation_mode in('image','video')else'image'
+            result=asyncio.run(advisor.chat_with_metadata(prepared,project_slug=effective_project,attached_products=attached_products,attached_templates=attached_templates,aspect_ratio=validated_ratio.value,generation_mode=mode))
             response=result["response"];interaction=result.get("interaction");memory_update=result.get("memory_update")
             images=self._collect_new_images(slug,before_images)
             videos=self._collect_new_videos(slug,before_videos)

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
-import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/types/aspectRatio'
+import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
 
 export interface Message {
   id: string
@@ -65,6 +65,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
+  const [generationMode, setGenerationMode] = useState<GenerationMode>(DEFAULT_GENERATION_MODE)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
@@ -81,6 +82,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setAttachments([])
     setAttachmentError(null)
     setAspectRatio(DEFAULT_ASPECT_RATIO)
+    setGenerationMode(DEFAULT_GENERATION_MODE)
   }, [brandSlug])
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
@@ -333,6 +335,7 @@ const clearMessages = useCallback(() => {
     setAttachments([])
     setAttachmentError(null)
     setAspectRatio(DEFAULT_ASPECT_RATIO)
+    setGenerationMode(DEFAULT_GENERATION_MODE)
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
 
@@ -393,6 +396,7 @@ return {
     attachmentError,
     attachments,
     aspectRatio,
+    generationMode,
     sendMessage,
     clearMessages,
     cancelGeneration,
@@ -403,5 +407,6 @@ return {
     removeAttachment,
     setAttachmentError,
     setAspectRatio,
+    setGenerationMode,
   }
 }

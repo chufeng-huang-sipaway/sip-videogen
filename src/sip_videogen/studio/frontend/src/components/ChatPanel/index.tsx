@@ -16,6 +16,7 @@ import{AttachedProducts}from'./AttachedProducts'
 import{AttachedTemplates}from'./AttachedTemplates'
 import{ProjectSelector}from'./ProjectSelector'
 import{AspectRatioSelector}from'./AspectRatioSelector'
+import{ModeToggle}from'./ModeToggle'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
 
@@ -99,6 +100,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     attachmentError,
     attachments,
     aspectRatio,
+    generationMode,
     sendMessage,
     clearMessages,
     cancelGeneration,
@@ -109,6 +111,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     removeAttachment,
     setAttachmentError,
     setAspectRatio,
+    setGenerationMode,
   } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated })
 
 
@@ -442,8 +445,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         )}
       </div>
 
-      {/* Aspect Ratio Selector */}
-      <div className="px-4 max-w-3xl mx-auto w-full">
+      {/* Mode Toggle + Aspect Ratio Selector */}
+      <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
+        <ModeToggle value={generationMode} onChange={setGenerationMode} disabled={isLoading||!brandSlug}/>
         <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug}/>
       </div>
 
@@ -465,7 +469,7 @@ const tplMap=new Map<string,AttachedTemplate>()
 for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
 for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
 const allTemplates=Array.from(tplMap.values())
-await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined,aspect_ratio:aspectRatio})
+await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined,aspect_ratio:aspectRatio,generation_mode:generationMode})
 await refreshProducts()}}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}

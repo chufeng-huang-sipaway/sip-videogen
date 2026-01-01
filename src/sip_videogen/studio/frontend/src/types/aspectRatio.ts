@@ -1,5 +1,8 @@
 //Aspect ratio type definitions for video generation
 export type AspectRatio='1:1'|'16:9'|'9:16'|'5:3'|'3:5'|'4:3'|'3:4'|'3:2'|'2:3'
+//Generation mode for image vs video
+export type GenerationMode='image'|'video'
+export const DEFAULT_GENERATION_MODE:GenerationMode='image'
 export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number}>={
 '1:1':{label:'Square',w:1,h:1},
 '16:9':{label:'Widescreen',w:16,h:9},

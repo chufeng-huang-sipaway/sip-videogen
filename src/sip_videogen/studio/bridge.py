@@ -127,7 +127,7 @@ class StudioBridge:
     #===========================================================================
     #Chat
     #===========================================================================
-    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None,aspect_ratio:str|None=None)->dict:return self._chat.chat(message,attachments,project_slug,attached_products,attached_templates,aspect_ratio)
+    def chat(self,message:str,attachments:list[dict]|None=None,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None,aspect_ratio:str|None=None,generation_mode:str|None=None)->dict:return self._chat.chat(message,attachments,project_slug,attached_products,attached_templates,aspect_ratio,generation_mode)
     def clear_chat(self)->dict:return self._chat.clear_chat()
     def refresh_brand_memory(self)->dict:return self._chat.refresh_brand_memory()
     def get_progress(self)->dict:return self._chat.get_progress()
