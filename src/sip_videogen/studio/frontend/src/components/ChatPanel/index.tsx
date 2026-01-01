@@ -91,6 +91,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     }))
     prependToBatch(batch)
   }, [prependToBatch])
+  //Handle videos generated - add to Workstation batch
+  const handleVideosGenerated = useCallback((videos: Parameters<typeof prependToBatch>[0]) => {
+    prependToBatch(videos)
+  }, [prependToBatch])
 
   const {
     messages,
@@ -113,7 +117,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setAttachmentError,
     setAspectRatio,
     setGenerationMode,
-  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated })
+  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
 
 
 

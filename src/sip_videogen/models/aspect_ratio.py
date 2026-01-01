@@ -20,7 +20,7 @@ class AspectRatio(str,Enum):
     PORTRAIT_PHOTO_2_3="2:3"
 #Provider-specific supported ratios
 PROVIDER_SUPPORTED_RATIOS:dict[str,list[str]]={
-"veo":["1:1","16:9","9:16","5:3","3:5","4:3","3:4","3:2","2:3"],#VEO supports all
+"veo":["16:9","9:16"],#VEO: landscape/portrait only
 "kling":["1:1","16:9","9:16"],#Kling: standard ratios only
 "sora":["16:9","9:16"],#Sora: landscape/portrait only
 }

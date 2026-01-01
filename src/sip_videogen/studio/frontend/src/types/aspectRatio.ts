@@ -5,7 +5,7 @@ export type GenerationMode='image'|'video'
 export const DEFAULT_GENERATION_MODE:GenerationMode='image'
 //Video provider ratio support
 export const VIDEO_PROVIDER_RATIOS:Record<string,AspectRatio[]>={
-veo:['1:1','16:9','9:16','5:3','3:5','4:3','3:4','3:2','2:3'],
+veo:['16:9','9:16'],//VEO: landscape/portrait only
 kling:['1:1','16:9','9:16'],
 sora:['16:9','9:16']}
 export const DEFAULT_VIDEO_PROVIDER='veo'

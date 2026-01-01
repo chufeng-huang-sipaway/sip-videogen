@@ -1526,6 +1526,19 @@ async def _impl_generate_video_clip(
             if image_metadata:
                 video_meta["source_image_metadata"] = image_metadata
             store_video_metadata(str(target_path), video_meta)
+            #Delete concept image after successful video generation (user preference: immediate cleanup)
+            if concept_image_path:
+                try:
+                    cimg=Path(concept_image_path)
+                    if cimg.exists():
+                        cimg.unlink()
+                        logger.info(f"Deleted concept image: {concept_image_path}")
+                    #Also delete metadata sidecar if exists
+                    meta_sidecar=cimg.with_suffix('.meta.json')
+                    if meta_sidecar.exists():
+                        meta_sidecar.unlink()
+                except OSError as del_err:
+                    logger.warning(f"Failed to delete concept image {concept_image_path}: {del_err}")
             logger.info(f"Video clip saved to: {target_path}")
             return str(target_path)
         return "Error: Video generation did not produce a file"

@@ -48,9 +48,11 @@ function getExt(name: string): string {
   return idx >= 0 ? name.slice(idx).toLowerCase() : ''
 }
 
+import type{GeneratedImage as WorkstationMedia}from'@/context/WorkstationContext'
 interface UseChatOptions {
   onTemplatesCreated?: (slugs: string[]) => void
   onImagesGenerated?: (images: ImageStatusEntry[]) => void
+  onVideosGenerated?: (videos: WorkstationMedia[]) => void
 }
 
 export function useChat(brandSlug: string | null, options?: UseChatOptions) {
@@ -311,6 +313,20 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
             options.onImagesGenerated(registered)
           }
         } catch { /* ignore registration errors */ }
+      }
+      //Register generated videos to Workstation
+      if(result.videos?.length&&options?.onVideosGenerated){
+        const videoItems:WorkstationMedia[]=result.videos.map(vid=>({
+          id:vid.path||`vid_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+          path:'',
+          originalPath:vid.path,
+          prompt:vid.metadata?.prompt,
+          timestamp:vid.metadata?.generated_at||new Date().toISOString(),
+          viewedAt:null,
+          type:'video'as const,
+          conceptImagePath:vid.metadata?.concept_image_path||undefined,
+        }))
+        if(videoItems.length)options.onVideosGenerated(videoItems)
       }
     } catch (err) {
       if (cancelledRequestIdRef.current === requestId) {
