@@ -30,7 +30,7 @@ class ProductService:
             product=load_product(slug,product_slug)
             if not product:return bridge_error(f"Product '{product_slug}' not found")
             description=merge_attributes_into_description(product.description or"",product.attributes)
-            return bridge_ok({"slug":product.slug,"name":product.name,"description":description,"images":product.images,"primary_image":product.primary_image,"attributes":[{"key":a.key,"value":a.value,"category":a.category}for a in product.attributes],"created_at":product.created_at.isoformat(),"updated_at":product.updated_at.isoformat()})
+            return bridge_ok({"slug":product.slug,"name":product.name,"description":description,"images":product.images,"primary_image":product.primary_image,"attributes":[{"key":a.key,"value":a.value,"category":a.category}for a in product.attributes],"packaging_text":product.packaging_text.model_dump(mode='json')if product.packaging_text else None,"created_at":product.created_at.isoformat(),"updated_at":product.updated_at.isoformat()})
         except Exception as e:return bridge_error(str(e))
     def create_product(self,name:str,description:str,images:list[dict]|None=None,attributes:list[dict]|None=None)->dict:
         """Create a new product."""
@@ -179,5 +179,14 @@ class ProductService:
             if not slug:return bridge_error("No brand selected")
             from sip_videogen.advisor.tools import _impl_analyze_all_product_packaging
             result=await _impl_analyze_all_product_packaging(skip_existing=skip_existing,skip_human_edited=True,max_products=50)
+            return bridge_ok({"result":result})
+        except Exception as e:return bridge_error(str(e))
+    async def analyze_product_packaging(self,product_slug:str,force:bool=False)->dict:
+        """Analyze packaging text for single product."""
+        try:
+            slug=self._state.get_active_slug()
+            if not slug:return bridge_error("No brand selected")
+            from sip_videogen.advisor.tools import _impl_analyze_product_packaging
+            result=await _impl_analyze_product_packaging(product_slug,force)
             return bridge_ok({"result":result})
         except Exception as e:return bridge_error(str(e))

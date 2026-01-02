@@ -1,5 +1,5 @@
 import{useState,useEffect,useCallback}from'react'
-import{Package,X,Star,Loader2}from'lucide-react'
+import{Package,X,Star,Loader2,FileText,RefreshCw,ChevronDown,ChevronRight}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{FormDialog}from'@/components/ui/form-dialog'
 import{Input}from'@/components/ui/input'
@@ -11,7 +11,7 @@ import type{ProcessedFile}from'@/lib/file-utils'
 import{bridge,isPyWebView}from'@/lib/bridge'
 import{getAllowedImageExts}from'@/lib/constants'
 import{toast}from'@/components/ui/toaster'
-import type{ProductFull}from'@/lib/bridge'
+import type{ProductFull,PackagingTextDescription}from'@/lib/bridge'
 interface ExistingImage{path:string;filename:string;thumbnailUrl:string|null;isPrimary:boolean}
 interface EditProductDialogProps{open:boolean;onOpenChange:(open:boolean)=>void;productSlug:string}
 export function EditProductDialog({open,onOpenChange,productSlug}:EditProductDialogProps){
@@ -25,13 +25,16 @@ const[isLoading,setIsLoading]=useState(true)
 const[loadError,setLoadError]=useState<string|null>(null)
 const[originalProduct,setOriginalProduct]=useState<ProductFull|null>(null)
 const[uploadError,setUploadError]=useState<string|null>(null)
+const[packagingText,setPackagingText]=useState<PackagingTextDescription|null>(null)
+const[isAnalyzing,setIsAnalyzing]=useState(false)
+const[textExpanded,setTextExpanded]=useState(false)
 //Load product data when dialog opens
 useEffect(()=>{if(!open||!productSlug)return
 let cancelled=false
-async function load(){setIsLoading(true);setLoadError(null);setNewImages([]);setImagesToDelete([])
+async function load(){setIsLoading(true);setLoadError(null);setNewImages([]);setImagesToDelete([]);setPackagingText(null);setTextExpanded(false)
 try{const[product,imagePaths]=await Promise.all([getProduct(productSlug),getProductImages(productSlug)])
 if(cancelled)return
-setOriginalProduct(product);setName(product.name);setDescription(product.description)
+setOriginalProduct(product);setName(product.name);setDescription(product.description);setPackagingText(product.packaging_text)
 const images:ExistingImage[]=[]
 for(const path of imagePaths){const filename=path.split('/').pop()||path
 let thumbnailUrl:string|null=null
@@ -51,6 +54,15 @@ const handleDropError=useCallback((err:Error)=>{setUploadError(err.message||'Fai
 const handleDeleteExisting=(path:string)=>{setImagesToDelete(prev=>[...prev,path]);setExistingImages(prev=>prev.filter(img=>img.path!==path))}
 const handleDeleteNew=(index:number)=>setNewImages(prev=>prev.filter((_,i)=>i!==index))
 const handleSetPrimary=(path:string)=>{setExistingImages(prev=>prev.map(img=>({...img,isPrimary:img.path===path})).sort((a,b)=>(b.isPrimary?1:0)-(a.isPrimary?1:0)))}
+const handleAnalyzePackaging=useCallback(async(force:boolean=false)=>{
+if(!isPyWebView()||isAnalyzing)return
+setIsAnalyzing(true)
+try{await bridge.analyzeProductPackaging(productSlug,force)
+const product=await getProduct(productSlug)
+setPackagingText(product.packaging_text);setTextExpanded(true)
+toast.success('Packaging text analyzed successfully')
+}catch(e){toast.error(e instanceof Error?e.message:'Analysis failed')
+}finally{setIsAnalyzing(false)}},[productSlug,getProduct,isAnalyzing])
 const{execute:save,isLoading:isSaving,error:saveError,clearError}=useAsyncAction(async()=>{
 if(!name.trim())throw new Error('Please enter a product name.')
 const remainingExisting=existingImages.filter(img=>!imagesToDelete.includes(img.path))
@@ -81,6 +93,31 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" d
 <div className="space-y-2">
 <label htmlFor="edit-product-description" className="text-sm font-medium">Description</label>
 <textarea id="edit-product-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the product (size, texture, use cases, etc.)" rows={5} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y min-h-[100px]"/>
+</div>
+{/* Packaging Text */}
+<div className="space-y-2">
+<div className="flex items-center justify-between">
+<label className="text-sm font-medium flex items-center gap-1.5"><FileText className="h-4 w-4"/>Packaging Text{packagingText&&<span className="text-xs text-muted-foreground">(analyzed)</span>}</label>
+{packagingText?(<Button type="button" variant="ghost" size="sm" onClick={()=>handleAnalyzePackaging(true)} disabled={isAnalyzing} className="h-7 px-2 text-xs">{isAnalyzing?<><Loader2 className="h-3 w-3 animate-spin mr-1"/>Analyzing...</>:<><RefreshCw className="h-3 w-3 mr-1"/>Re-analyze</>}</Button>
+):(<Button type="button" variant="outline" size="sm" onClick={()=>handleAnalyzePackaging(false)} disabled={isAnalyzing||!existingImages.some(i=>i.isPrimary)} className="h-7 px-2 text-xs">{isAnalyzing?<><Loader2 className="h-3 w-3 animate-spin mr-1"/>Analyzing...</>:'Analyze'}</Button>)}
+</div>
+{packagingText?(
+<div className="border rounded-md p-2 bg-muted/30">
+<button type="button" onClick={()=>setTextExpanded(!textExpanded)} className="w-full flex items-center justify-between text-sm text-left">
+<span className="text-muted-foreground">{packagingText.elements.length} text element{packagingText.elements.length!==1?'s':''}</span>
+{textExpanded?<ChevronDown className="h-4 w-4"/>:<ChevronRight className="h-4 w-4"/>}
+</button>
+{textExpanded&&packagingText.elements.length>0&&(
+<ul className="mt-2 space-y-1.5 text-xs">
+{packagingText.elements.slice(0,5).map((el,i)=>(<li key={i} className="flex items-start gap-2 py-1 border-t border-border/50">
+<span className="font-medium text-foreground min-w-0 break-words">"{el.text}"</span>
+{el.role&&el.role!=='other'&&<span className="shrink-0 text-muted-foreground">({el.role})</span>}
+</li>))}
+{packagingText.elements.length>5&&<li className="text-muted-foreground pt-1">+{packagingText.elements.length-5} more...</li>}
+</ul>)}
+{packagingText.is_human_edited&&<p className="text-xs text-muted-foreground mt-1 italic">Manually edited</p>}
+</div>
+):(<p className="text-xs text-muted-foreground">Extract text from primary image for better generation accuracy.</p>)}
 </div>
 {/* Product Images */}
 <div className="space-y-2">
