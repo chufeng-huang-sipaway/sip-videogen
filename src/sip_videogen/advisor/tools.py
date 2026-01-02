@@ -1648,21 +1648,19 @@ def _impl_create_product(
         return f"Error creating product: {e}"
 
 
-def _impl_add_product_image(
+async def _impl_add_product_image(
     product_slug: str,
     image_path: str,
     set_as_primary: bool = False,
     allow_non_reference: bool = False,
 ) -> str:
     """Implementation of add_product_image tool.
-
     Args:
         product_slug: Product identifier.
         image_path: Path to image within brand directory (must be in uploads/).
         set_as_primary: If True, set this image as the product's primary image.
         allow_non_reference: If True, allow adding images classified as non-reference
             (e.g., screenshots/documents) when a cached analysis exists.
-
     Returns:
         Success message or error.
     """
@@ -1784,19 +1782,34 @@ def _impl_add_product_image(
         logger.error(f"Failed to add product image: {e}")
         return f"Error adding image: {e}"
 
-    # Set as primary if requested
+    #Set as primary if requested
     if set_as_primary:
-        success = storage_set_primary_product_image(brand_slug, product_slug, brand_relative_path)
-        if success:
-            return (
-                f"Added image `{filename}` to product **{product.name}** and set as primary image."
-            )
-        else:
-            return (
-                f"Added image `{filename}` to product **{product.name}**, "
-                "but failed to set as primary."
-            )
-
+        success=storage_set_primary_product_image(brand_slug,product_slug,brand_relative_path)
+        if not success:
+            return f"Added image `{filename}` to product **{product.name}**, but failed to set as primary."
+        #Auto-analyze packaging text for new/changed primary image
+        #Re-load product to get latest state after primary was set
+        product=load_product(brand_slug,product_slug)
+        if product is None:
+            return f"Added image `{filename}` to product **{product.name}** and set as primary image."
+        should_analyze=product.packaging_text is None or (product.packaging_text.source_image!=brand_relative_path and not product.packaging_text.is_human_edited)
+        if should_analyze:
+            try:
+                from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+                full_path=get_brand_dir(brand_slug)/brand_relative_path
+                result=await analyze_packaging_text(full_path)
+                if result:
+                    result.source_image=brand_relative_path
+                    product.packaging_text=result
+                    storage_save_product(brand_slug,product)
+                    elem_count=len(result.elements)
+                    if elem_count>0:
+                        logger.info(f"Auto-analyzed packaging text for {product_slug}: {elem_count} elements")
+                        return f"Added image `{filename}` to product **{product.name}** and set as primary image. Auto-extracted {elem_count} text elements from packaging."
+                    logger.info(f"Auto-analyzed packaging text for {product_slug}: no text found")
+            except Exception as e:
+                logger.warning(f"Auto packaging text analysis failed: {e}")
+        return f"Added image `{filename}` to product **{product.name}** and set as primary image."
     return f"Added image `{filename}` to product **{product.name}** (`{product_slug}`)."
 
 
@@ -3148,17 +3161,10 @@ def create_product(
 
 
 @function_tool
-def add_product_image(
-    product_slug: str,
-    image_path: str,
-    set_as_primary: bool = False,
-    allow_non_reference: bool = False,
-) -> str:
+async def add_product_image(product_slug:str,image_path:str,set_as_primary:bool=False,allow_non_reference:bool=False)->str:
     """Add an image to a product from the uploads folder.
-
     Use this after a user uploads an image (which goes to uploads/) to associate
     it with a product. The image will be copied to the product's images folder.
-
     Args:
         product_slug: The product's slug identifier (e.g., "night-cream").
             Use list_products() to see available products.
@@ -3168,13 +3174,12 @@ def add_product_image(
         set_as_primary: If True, set this image as the product's primary image.
             The primary image is used first for generate_image(product_slug=...),
             with additional product images included as supplemental references.
+            When setting as primary, packaging text is auto-analyzed from the image.
         allow_non_reference: If True, allow adding images that were classified as screenshots,
             documents, or otherwise not suitable as product reference images. Prefer leaving this
             False so product images remain clean reference photos.
-
     Returns:
         Success message with the added filename, or error message.
-
     Example:
         # After user uploads an image, add it to a product:
         add_product_image(
@@ -3183,9 +3188,9 @@ def add_product_image(
             set_as_primary=True
         )
         # Returns: "Added image `cream-photo.jpg` to product **Night Cream**
-        #          and set as primary image."
+        #          and set as primary image. Auto-extracted 4 text elements from packaging."
     """
-    return _impl_add_product_image(product_slug, image_path, set_as_primary, allow_non_reference)
+    return await _impl_add_product_image(product_slug,image_path,set_as_primary,allow_non_reference)
 
 
 @function_tool

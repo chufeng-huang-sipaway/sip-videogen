@@ -1869,300 +1869,337 @@ class TestUpdateProduct:
 
 class TestAddProductImage:
     """Tests for _impl_add_product_image function."""
-
-    def test_add_product_image_success(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_success(self,tmp_path:Path)->None:
         """Test adding a product image successfully."""
         import io
-
         from PIL import Image
-
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        uploads_dir = tmp_path / "uploads"
+        uploads_dir=tmp_path/"uploads"
         uploads_dir.mkdir()
-        image_file = uploads_dir / "photo.jpg"
-        buf = io.BytesIO()
-        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
+        image_file=uploads_dir/"photo.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
         image_file.write_bytes(buf.getvalue())
-
-        mock_product = MagicMock()
-        mock_product.name = "Test Product"
-        mock_product.images = []
-
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=[]
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
             patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch(
-                "sip_videogen.advisor.tools.storage_add_product_image",
-                return_value="products/test-product/images/photo.jpg",
-            ),
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
         ):
-            mock_resolve.return_value = image_file
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/photo.jpg",
-            )
-
+            mock_resolve.return_value=image_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
         assert "Added image `photo.jpg` to product **Test Product**" in result
         assert "`test-product`" in result
-
-    def test_add_product_image_no_active_brand(self) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_no_active_brand(self)->None:
         """Test add_product_image with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/photo.jpg",
-            )
+        with patch("sip_videogen.advisor.tools.get_active_brand",return_value=None):
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
 
         assert "Error: No active brand selected" in result
-
-    def test_add_product_image_invalid_slug(self) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_invalid_slug(self)->None:
         """Test add_product_image with invalid product_slug returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-        ):
-            result = _impl_add_product_image(
-                product_slug="../etc/passwd",
-                image_path="uploads/photo.jpg",
-            )
-
+        with patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"):
+            result=await _impl_add_product_image(product_slug="../etc/passwd",image_path="uploads/photo.jpg")
         assert "Error: Invalid slug" in result
-
-    def test_add_product_image_not_in_uploads(self) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_not_in_uploads(self)->None:
         """Test add_product_image with path not in uploads/ returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-        ):
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="assets/logo.png",  # Not in uploads/
-            )
-
+        with patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"):
+            result=await _impl_add_product_image(product_slug="test-product",image_path="assets/logo.png")
         assert "Error: image_path must be within the uploads/ folder" in result
-
-    def test_add_product_image_not_found(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_not_found(self,tmp_path:Path)->None:
         """Test add_product_image with non-existent file returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        missing_file = tmp_path / "uploads" / "photo.jpg"
-
+        missing_file=tmp_path/"uploads"/"photo.jpg"
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
             patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
         ):
-            mock_resolve.return_value = missing_file
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/photo.jpg",
-            )
-
+            mock_resolve.return_value=missing_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
         assert "Error: File not found" in result
-
-    def test_add_product_image_too_large(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_too_large(self,tmp_path:Path)->None:
         """Test add_product_image with file too large returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        uploads_dir = tmp_path / "uploads"
+        uploads_dir=tmp_path/"uploads"
         uploads_dir.mkdir()
-        image_file = uploads_dir / "photo.jpg"
-        image_file.write_bytes(b"x" * (2 * 1024 * 1024))  # 2MB
-
+        image_file=uploads_dir/"photo.jpg"
+        image_file.write_bytes(b"x"*(2*1024*1024))
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
             patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.MAX_PRODUCT_IMAGE_SIZE_BYTES", 1 * 1024 * 1024),
+            patch("sip_videogen.advisor.tools.MAX_PRODUCT_IMAGE_SIZE_BYTES",1*1024*1024),
         ):
-            mock_resolve.return_value = image_file
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/photo.jpg",
-            )
-
+            mock_resolve.return_value=image_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
         assert "Error: Image too large" in result
-
-    def test_add_product_image_invalid_format(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_invalid_format(self,tmp_path:Path)->None:
         """Test add_product_image with invalid file format returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        uploads_dir = tmp_path / "uploads"
+        uploads_dir=tmp_path/"uploads"
         uploads_dir.mkdir()
-        invalid_file = uploads_dir / "photo.txt"
+        invalid_file=uploads_dir/"photo.txt"
         invalid_file.write_bytes(b"not an image")
-
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
             patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
         ):
-            mock_resolve.return_value = invalid_file
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/photo.txt",
-            )
-
+            mock_resolve.return_value=invalid_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.txt")
         assert "Error: Invalid file extension" in result
-
-    def test_add_product_image_set_as_primary(self, tmp_path: Path) -> None:
-        """Test add_product_image with set_as_primary=True."""
+    @pytest.mark.asyncio
+    async def test_add_product_image_set_as_primary(self,tmp_path:Path)->None:
+        """Test add_product_image with set_as_primary=True triggers auto-analysis."""
         import io
-
         from PIL import Image
-
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        uploads_dir = tmp_path / "uploads"
+        uploads_dir=tmp_path/"uploads"
         uploads_dir.mkdir()
-        image_file = uploads_dir / "photo.jpg"
-        buf = io.BytesIO()
-        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
+        image_file=uploads_dir/"photo.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
         image_file.write_bytes(buf.getvalue())
-
-        mock_product = MagicMock()
-        mock_product.name = "Test Product"
-        mock_product.images = []
-
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=[]
+        mock_product.packaging_text=None
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
             patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch(
-                "sip_videogen.advisor.tools.storage_add_product_image",
-                return_value="products/test-product/images/photo.jpg",
-            ),
-            patch(
-                "sip_videogen.advisor.tools.storage_set_primary_product_image",
-                return_value=True,
-            ),
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
+            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.storage_save_product"),
         ):
-            mock_resolve.return_value = image_file
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/photo.jpg",
-                set_as_primary=True,
-            )
-
+            mock_resolve.return_value=image_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
         assert "set as primary image" in result
-
-    def test_add_product_image_filename_collision(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_filename_collision(self,tmp_path:Path)->None:
         """Test add_product_image handles filename collision with timestamp."""
         import io
         from datetime import datetime
-
         from PIL import Image
-
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        uploads_dir = tmp_path / "uploads"
+        uploads_dir=tmp_path/"uploads"
         uploads_dir.mkdir()
-        image_file = uploads_dir / "photo.jpg"
-        buf = io.BytesIO()
-        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
+        image_file=uploads_dir/"photo.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
         image_file.write_bytes(buf.getvalue())
-
-        mock_product = MagicMock()
-        mock_product.name = "Test Product"
-        mock_product.images = ["products/test-product/images/photo.jpg"]  # Existing image
-
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=["products/test-product/images/photo.jpg"]
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
             patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch(
-                "sip_videogen.advisor.tools.storage_add_product_image",
-                return_value="products/test-product/images/photo_20241215_120000.jpg",
-            ),
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo_20241215_120000.jpg"),
         ):
-            mock_resolve.return_value = image_file
-            # Mock datetime to control the timestamp suffix
+            mock_resolve.return_value=image_file
             with patch("sip_videogen.advisor.tools.datetime") as mock_datetime:
-                mock_now = datetime(2024, 12, 15, 12, 0, 0)
-                mock_datetime.now.return_value = mock_now
-                result = _impl_add_product_image(
-                    product_slug="test-product",
-                    image_path="uploads/photo.jpg",
-                )
-
+                mock_now=datetime(2024,12,15,12,0,0)
+                mock_datetime.now.return_value=mock_now
+                result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
         assert "photo_20241215_120000.jpg" in result
-
-    def test_add_product_image_rejects_non_reference_when_analyzed(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_rejects_non_reference_when_analyzed(self,tmp_path:Path)->None:
         """Test add_product_image refuses screenshots/documents when analysis cache exists."""
         import io
         import json
-
         from PIL import Image
-
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        uploads_dir = tmp_path / "uploads"
+        uploads_dir=tmp_path/"uploads"
         uploads_dir.mkdir()
-        image_file = uploads_dir / "screenshot.jpg"
-        buf = io.BytesIO()
-        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buf, format="JPEG")
+        image_file=uploads_dir/"screenshot.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,255,255)).save(buf,format="JPEG")
         image_file.write_bytes(buf.getvalue())
-
-        # Simulate cached Gemini Vision analysis written by the Studio bridge
-        (uploads_dir / "screenshot.jpg.analysis.json").write_text(
-            json.dumps({"image_type": "screenshot", "is_suitable_reference": False})
-        )
-
+        (uploads_dir/"screenshot.jpg.analysis.json").write_text(json.dumps({"image_type":"screenshot","is_suitable_reference":False}))
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path", return_value=image_file),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path",return_value=image_file),
         ):
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/screenshot.jpg",
-            )
-
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/screenshot.jpg")
         assert "not suitable as a product reference image" in result
         assert "allow_non_reference=True" in result
-
-    def test_add_product_image_allows_non_reference_with_override(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_add_product_image_allows_non_reference_with_override(self,tmp_path:Path)->None:
         """Test add_product_image can be forced to store a non-reference image."""
         import io
         import json
-
         from PIL import Image
-
         from sip_videogen.advisor.tools import _impl_add_product_image
-
-        uploads_dir = tmp_path / "uploads"
+        uploads_dir=tmp_path/"uploads"
         uploads_dir.mkdir()
-        image_file = uploads_dir / "screenshot.jpg"
-        buf = io.BytesIO()
-        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buf, format="JPEG")
+        image_file=uploads_dir/"screenshot.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,255,255)).save(buf,format="JPEG")
         image_file.write_bytes(buf.getvalue())
-
-        (uploads_dir / "screenshot.jpg.analysis.json").write_text(
-            json.dumps({"image_type": "screenshot", "is_suitable_reference": False})
-        )
-
-        mock_product = MagicMock()
-        mock_product.name = "Test Product"
-        mock_product.images = []
-
+        (uploads_dir/"screenshot.jpg.analysis.json").write_text(json.dumps({"image_type":"screenshot","is_suitable_reference":False}))
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=[]
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path", return_value=image_file),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch(
-                "sip_videogen.advisor.tools.storage_add_product_image",
-                return_value="products/test-product/images/screenshot.jpg",
-            ),
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path",return_value=image_file),
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/screenshot.jpg"),
         ):
-            result = _impl_add_product_image(
-                product_slug="test-product",
-                image_path="uploads/screenshot.jpg",
-                allow_non_reference=True,
-            )
-
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/screenshot.jpg",allow_non_reference=True)
         assert "Added image `screenshot.jpg` to product **Test Product**" in result
+    @pytest.mark.asyncio
+    async def test_add_product_image_auto_analysis_triggers(self,tmp_path:Path)->None:
+        """Test auto-analysis triggers on primary image add when packaging_text is None."""
+        import io
+        from unittest.mock import AsyncMock
+        from PIL import Image
+        from sip_videogen.advisor.tools import _impl_add_product_image
+        from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
+        uploads_dir=tmp_path/"uploads"
+        uploads_dir.mkdir()
+        products_dir=tmp_path/"products"/"test-product"/"images"
+        products_dir.mkdir(parents=True)
+        image_file=uploads_dir/"photo.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(100,100),color=(255,0,0)).save(buf,format="JPEG")
+        image_file.write_bytes(buf.getvalue())
+        #Copy to products dir for full_path resolution
+        (products_dir/"photo.jpg").write_bytes(buf.getvalue())
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=[]
+        mock_product.packaging_text=None
+        mock_analysis=PackagingTextDescription(summary="Test summary",elements=[PackagingTextElement(text="BRAND",role="brand_name")],source_image="",generated_at=None)
+        mock_analyze=AsyncMock(return_value=mock_analysis)
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
+            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
+            patch("sip_videogen.advisor.tools.storage_save_product") as mock_save,
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+        ):
+            mock_resolve.return_value=image_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+        assert "Auto-extracted 1 text elements from packaging" in result
+        mock_analyze.assert_called_once()
+        mock_save.assert_called()
+    @pytest.mark.asyncio
+    async def test_add_product_image_auto_analysis_skips_human_edited(self,tmp_path:Path)->None:
+        """Test auto-analysis skips if packaging_text is human-edited."""
+        import io
+        from unittest.mock import AsyncMock
+        from PIL import Image
+        from sip_videogen.advisor.tools import _impl_add_product_image
+        from sip_videogen.brands.models import PackagingTextDescription
+        uploads_dir=tmp_path/"uploads"
+        uploads_dir.mkdir()
+        image_file=uploads_dir/"photo.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file.write_bytes(buf.getvalue())
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=[]
+        #Existing human-edited packaging_text with different source_image
+        mock_product.packaging_text=PackagingTextDescription(summary="Human edited",elements=[],source_image="old-image.jpg",is_human_edited=True)
+        mock_analyze=AsyncMock()
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
+            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+        ):
+            mock_resolve.return_value=image_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+        assert "set as primary image" in result
+        assert "Auto-extracted" not in result
+        mock_analyze.assert_not_called()
+    @pytest.mark.asyncio
+    async def test_add_product_image_auto_analysis_skips_same_source(self,tmp_path:Path)->None:
+        """Test auto-analysis skips if source_image matches new primary."""
+        import io
+        from unittest.mock import AsyncMock
+        from PIL import Image
+        from sip_videogen.advisor.tools import _impl_add_product_image
+        from sip_videogen.brands.models import PackagingTextDescription
+        uploads_dir=tmp_path/"uploads"
+        uploads_dir.mkdir()
+        image_file=uploads_dir/"photo.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file.write_bytes(buf.getvalue())
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=[]
+        #Existing packaging_text with same source_image as new primary
+        mock_product.packaging_text=PackagingTextDescription(summary="Already analyzed",elements=[],source_image="products/test-product/images/photo.jpg",is_human_edited=False)
+        mock_analyze=AsyncMock()
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
+            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+        ):
+            mock_resolve.return_value=image_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+        assert "set as primary image" in result
+        assert "Auto-extracted" not in result
+        mock_analyze.assert_not_called()
+    @pytest.mark.asyncio
+    async def test_add_product_image_auto_analysis_failure_doesnt_break(self,tmp_path:Path)->None:
+        """Test auto-analysis failure doesn't break image add."""
+        import io
+        from unittest.mock import AsyncMock
+        from PIL import Image
+        from sip_videogen.advisor.tools import _impl_add_product_image
+        uploads_dir=tmp_path/"uploads"
+        uploads_dir.mkdir()
+        image_file=uploads_dir/"photo.jpg"
+        buf=io.BytesIO()
+        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file.write_bytes(buf.getvalue())
+        mock_product=MagicMock()
+        mock_product.name="Test Product"
+        mock_product.images=[]
+        mock_product.packaging_text=None
+        mock_analyze=AsyncMock(side_effect=Exception("API error"))
+        with (
+            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
+            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
+            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
+            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+        ):
+            mock_resolve.return_value=image_file
+            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+        #Should still succeed even though analysis failed
+        assert "set as primary image" in result
+        assert "Auto-extracted" not in result
 
 
 class TestDeleteProduct:
