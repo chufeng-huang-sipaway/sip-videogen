@@ -136,7 +136,7 @@ async def analyze_image(image_path: Path) -> ImageAnalysisResult | None:
         return None
 
 
-_PACKAGING_TEXT_PROMPT="""Analyze text on this product packaging like a graphic designer explaining to another designer.
+_PACKAGING_TEXT_PROMPT_BASE="""Analyze text on this product packaging like a graphic designer explaining to another designer.
 Return JSON with:
 - summary: Brief overview of text layout and visual hierarchy
 - elements: Array of text elements, each with:
@@ -157,11 +157,21 @@ Guidelines:
 - Skip very long text (ingredients, legal disclaimers)
 Return ONLY valid JSON, no markdown formatting."""
 
+def _build_packaging_prompt(brand_context:str|None=None,product_context:str|None=None)->str:
+ """Build packaging text prompt with optional brand/product context."""
+ prompt=_PACKAGING_TEXT_PROMPT_BASE
+ if brand_context or product_context:
+  prompt+="\n---\nBackground context (for disambiguation only, do not invent text):"
+  if brand_context:prompt+=f"\nBrand: {brand_context}"
+  if product_context:prompt+=f"\nProduct: {product_context}"
+ return prompt
 
-async def analyze_packaging_text(image_path:Path):
+async def analyze_packaging_text(image_path:Path,brand_context:str|None=None,product_context:str|None=None):
  """Analyze packaging text from a product image using Gemini Vision.
  Args:
   image_path: Path to the image file to analyze.
+  brand_context: Optional brand info for disambiguation (e.g. "Summit Coffee - Premium artisan coffee").
+  product_context: Optional product info for disambiguation (e.g. "Ethiopian Single Origin - Single-origin beans").
  Returns:
   PackagingTextDescription with extracted text elements, or None if analysis fails.
  """
@@ -170,10 +180,11 @@ async def analyze_packaging_text(image_path:Path):
   settings=get_settings()
   client=genai.Client(api_key=settings.gemini_api_key,vertexai=False)
   pil_image=PILImage.open(image_path)
+  prompt=_build_packaging_prompt(brand_context,product_context)
   logger.debug(f"Analyzing packaging text: {image_path.name} ({pil_image.size})")
   response=client.models.generate_content(
-   model="gemini-2.0-flash",
-   contents=[_PACKAGING_TEXT_PROMPT,pil_image],
+   model="gemini-3-pro-image-preview",
+   contents=[prompt,pil_image],
    config=types.GenerateContentConfig(temperature=0.1),
   )
   response_text=response.text.strip()

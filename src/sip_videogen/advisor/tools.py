@@ -1797,7 +1797,8 @@ async def _impl_add_product_image(
             try:
                 from sip_videogen.advisor.image_analyzer import analyze_packaging_text
                 full_path=get_brand_dir(brand_slug)/brand_relative_path
-                result=await analyze_packaging_text(full_path)
+                brand_ctx,product_ctx=_build_packaging_context(brand_slug,product)
+                result=await analyze_packaging_text(full_path,brand_ctx,product_ctx)
                 if result:
                     result.source_image=brand_relative_path
                     product.packaging_text=result
@@ -2010,6 +2011,22 @@ def _impl_set_product_primary_image(
         return f"Error setting primary image: {e}"
 
 
+def _build_packaging_context(brand_slug:str,product:"ProductFull")->tuple[str|None,str|None]:
+ """Build brand/product context strings for packaging text analysis.
+ Returns (brand_context, product_context) strings or None if unavailable."""
+ from sip_videogen.brands.storage import load_brand_summary
+ brand_ctx,product_ctx=None,None
+ summary=load_brand_summary(brand_slug)
+ if summary:
+  parts=[summary.name]
+  if summary.tagline:parts.append(summary.tagline)
+  if summary.category:parts.append(summary.category)
+  if summary.tone:parts.append(summary.tone)
+  brand_ctx=" - ".join(parts)
+ if product.name:
+  product_ctx=f"{product.name} - {product.description}" if product.description else product.name
+ return brand_ctx,product_ctx
+
 async def _impl_analyze_product_packaging(product_slug:str,force:bool=False)->str:
     """Implementation of analyze_product_packaging tool.
     Args:
@@ -2037,7 +2054,8 @@ async def _impl_analyze_product_packaging(product_slug:str,force:bool=False)->st
     #Analyze packaging text
     try:
         from sip_videogen.advisor.image_analyzer import analyze_packaging_text
-        result=await analyze_packaging_text(image_path)
+        brand_ctx,product_ctx=_build_packaging_context(brand_slug,product)
+        result=await analyze_packaging_text(image_path,brand_ctx,product_ctx)
         if result is None:return f"Packaging text analysis failed for '{product.name}'. Check logs for details."
         #Update source_image to brand-relative path
         result.source_image=product.primary_image
@@ -2093,7 +2111,8 @@ async def _impl_analyze_all_product_packaging(skip_existing:bool=True,skip_human
                 skipped+=1
                 continue
             from sip_videogen.advisor.image_analyzer import analyze_packaging_text
-            result=await analyze_packaging_text(image_path)
+            brand_ctx,product_ctx=_build_packaging_context(brand_slug,product)
+            result=await analyze_packaging_text(image_path,brand_ctx,product_ctx)
             if result is None:
                 failed+=1
                 failures.append(f"{product.name}: analysis returned None")
