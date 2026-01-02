@@ -79,12 +79,15 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
 
 //Clear messages when brand changes
   useEffect(() => {
+    //Invalidate any in-flight requests for the previous brand
+    requestIdRef.current += 1
     setMessages([])
     setError(null)
     setAttachments([])
     setAttachmentError(null)
     setAspectRatio(DEFAULT_ASPECT_RATIO)
     setGenerationMode(DEFAULT_GENERATION_MODE)
+    setIsLoading(false)
   }, [brandSlug])
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
