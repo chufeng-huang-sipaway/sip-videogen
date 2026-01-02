@@ -4,177 +4,20 @@ all brand-related tasks. It replaces the previous multi-agent orchestration
 pattern with a simpler, more maintainable architecture.
 """
 from __future__ import annotations
-from pathlib import Path
-from typing import TYPE_CHECKING,AsyncIterator
+from typing import AsyncIterator
 from agents import Agent,Runner
 from sip_videogen.advisor.context_budget import ContextBudgetManager
 from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.hooks import AdvisorHooks,AdvisorProgress,ProgressCallback
+from sip_videogen.advisor.prompt_builder import build_system_prompt as _build_system_prompt,format_brand_context as _format_brand_context,_group_assets
 from sip_videogen.advisor.skills.registry import get_skills_registry
 from sip_videogen.advisor.tools import ADVISOR_TOOLS,set_active_aspect_ratio
 from sip_videogen.brands.context import HierarchicalContextBuilder
-from sip_videogen.brands.memory import list_brand_assets
-from sip_videogen.brands.storage import get_active_brand,get_brand_dir,load_brand,set_active_brand
+from sip_videogen.brands.storage import get_active_brand,set_active_brand
 from sip_videogen.config.logging import get_logger
-if TYPE_CHECKING:
-    from sip_videogen.brands.models import BrandIdentityFull
 logger=get_logger(__name__)
 #Re-export for backward compatibility
 __all__=["BrandAdvisor","AdvisorProgress","ProgressCallback","AdvisorHooks"]
-
-
-# =============================================================================
-# System Prompt Builder
-# =============================================================================
-
-
-def _build_system_prompt(brand_slug: str | None = None) -> str:
-    """Build the system prompt for the Brand Marketing Advisor.
-
-    Args:
-        brand_slug: Optional brand slug to include context for.
-
-    Returns:
-        Complete system prompt with skills and brand context.
-    """
-    # Load base prompt
-    prompt_path = Path(__file__).parent / "prompts" / "advisor.md"
-    if prompt_path.exists():
-        base_prompt = prompt_path.read_text()
-    else:
-        base_prompt = _DEFAULT_PROMPT
-
-    # Add skills section
-    skills_registry = get_skills_registry()
-    skills_section = skills_registry.format_for_prompt()
-
-    # Add brand context if available
-    brand_section = ""
-    memory_section = ""
-    if brand_slug:
-        identity = load_brand(brand_slug)
-        if identity:
-            brand_section = _format_brand_context(brand_slug, identity)
-
-        memory_path = get_brand_dir(brand_slug) / "memory.json"
-        if memory_path.exists():
-            try:
-                import json
-
-                memory = json.loads(memory_path.read_text())
-                if memory:
-                    memory_lines = ["## Remembered Preferences", ""]
-                    for key, data in memory.items():
-                        memory_lines.append(f"- **{key}**: {data.get('value', '')}")
-                    memory_section = "\n".join(memory_lines)
-            except (json.JSONDecodeError, KeyError):
-                pass
-
-    return f"""{base_prompt}
-
-{skills_section}
-
-{brand_section}
-
-{memory_section}
-""".strip()
-
-
-def _format_brand_context(slug: str, identity: "BrandIdentityFull") -> str:
-    """Format brand identity as context for the system prompt.
-
-    Args:
-        slug: Brand slug.
-        identity: Full brand identity.
-
-    Returns:
-        Formatted brand context markdown.
-    """
-    parts = [
-        "## Current Brand Context",
-        "",
-        f"**Brand**: {identity.core.name}",
-        f"**Tagline**: {identity.core.tagline}",
-        f"**Category**: {identity.positioning.market_category}",
-        "",
-    ]
-
-    # Visual identity summary
-    if identity.visual.primary_colors:
-        colors = ", ".join(f"{c.name} ({c.hex})" for c in identity.visual.primary_colors[:3])
-        parts.append(f"**Colors**: {colors}")
-    if identity.visual.style_keywords:
-        parts.append(f"**Style**: {', '.join(identity.visual.style_keywords[:5])}")
-
-    # Voice summary
-    if identity.voice.tone_attributes:
-        parts.append(f"**Tone**: {', '.join(identity.voice.tone_attributes[:3])}")
-
-    # Audience summary
-    parts.append(f"**Audience**: {identity.audience.primary_summary}")
-
-    # Assets summary
-    try:
-        assets = list_brand_assets(slug)
-        if assets:
-            asset_summary = ", ".join(
-                f"{cat}: {len(files)}" for cat, files in _group_assets(assets).items()
-            )
-            parts.append(f"**Assets**: {asset_summary}")
-    except Exception:
-        pass
-
-    parts.append("")
-    parts.append(
-        "Use `load_brand()` for a quick summary, or `load_brand(detail_level='full')` "
-        "for complete context. Use `list_files()` to browse assets."
-    )
-
-    return "\n".join(parts)
-
-
-def _group_assets(assets: list[dict]) -> dict[str, list[dict]]:
-    """Group assets by category."""
-    grouped: dict[str, list[dict]] = {}
-    for asset in assets:
-        cat = asset.get("category", "other")
-        if cat not in grouped:
-            grouped[cat] = []
-        grouped[cat].append(asset)
-    return grouped
-
-
-# Default prompt if file not found
-_DEFAULT_PROMPT = """# Brand Marketing Advisor
-
-You are a Brand Marketing Advisor - an expert in brand strategy, visual identity,
-and marketing communications. You help users build, evolve, and maintain their
-brand identities.
-
-## Your Capabilities
-
-You have 5 core tools:
-1. **generate_image** - Create images via Gemini (logos, mascots, lifestyle photos)
-2. **read_file** - Read files from the brand directory
-3. **write_file** - Write/update files in the brand directory
-4. **list_files** - Browse the brand directory structure
-5. **load_brand** - Load brand identity (summary by default; use `detail_level='full'` for full)
-
-## Your Approach
-
-1. **Understand First**: Always load and understand the brand context before making decisions
-2. **Be Consultative**: Ask clarifying questions when requirements are ambiguous
-3. **Stay On-Brand**: Ensure all outputs align with established brand guidelines
-4. **Document Decisions**: Use write_file to persist important decisions and rationale
-5. **Reference Skills**: Use the available skills as guides for specific tasks
-
-## Output Quality
-
-- Generate high-quality, professional brand assets
-- Provide clear rationale for creative decisions
-- Maintain consistency with existing brand materials
-- Suggest improvements based on brand strategy principles
-"""
 
 
 # =============================================================================
