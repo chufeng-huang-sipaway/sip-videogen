@@ -13,7 +13,6 @@ import { useProducts } from '@/context/ProductContext'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView, type ProductEntry } from '@/lib/bridge'
 import { EditProductDialog } from '../EditProductDialog'
-import { ProductModal } from '../ProductModal'
 
 //Thumbnail component for product images (small size only)
 function Thumb({path}:{path:string}){
@@ -53,11 +52,8 @@ export function ProductsSection() {
   } = useProducts()
   const [actionError,setActionError]=useState<string|null>(null)
   const [editingProductSlug,setEditingProductSlug]=useState<string|null>(null)
-  const [modalSlug,setModalSlug]=useState<string|null>(null)
   useEffect(()=>{if(actionError){const t=setTimeout(()=>setActionError(null),5000);return()=>clearTimeout(t)}},[actionError])
-  const handleEditFromModal=(slug:string)=>{setModalSlug(null);requestAnimationFrame(()=>{setEditingProductSlug(slug)})}
-  const handleDeleteFromModal=async(slug:string)=>{setModalSlug(null);requestAnimationFrame(async()=>{if(confirm(`Delete product "${slug}"? This cannot be undone.`)){try{await deleteProduct(slug)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete product')}}})}
-  const handleDelete=async(slug:string)=>{if(confirm(`Delete product "${slug}"? This cannot be undone.`)){try{await deleteProduct(slug);if(modalSlug===slug)setModalSlug(null)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete product')}}}
+  const handleDelete=async(slug:string)=>{if(confirm(`Delete product "${slug}"? This cannot be undone.`)){try{await deleteProduct(slug)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete product')}}}
 
   if (!activeBrand) {
     return <div className="text-sm text-muted-foreground">Select a brand</div>
@@ -75,6 +71,5 @@ export function ProductsSection() {
   }
 
   return (
-    <div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{products.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No products yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{products.map((product)=>(<ProductCard key={product.slug} product={product} isAttached={attachedProducts.includes(product.slug)} onOpenModal={()=>setModalSlug(product.slug)} onAttach={()=>attachProduct(product.slug)} onDetach={()=>detachProduct(product.slug)} onEdit={()=>setEditingProductSlug(product.slug)} onDelete={()=>handleDelete(product.slug)}/>))}</div>)}
-<ProductModal slug={modalSlug} onClose={()=>setModalSlug(null)} onEdit={handleEditFromModal} onDelete={handleDeleteFromModal}/>
+    <div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{products.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No products yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{products.map((product)=>(<ProductCard key={product.slug} product={product} isAttached={attachedProducts.includes(product.slug)} onOpenModal={()=>setEditingProductSlug(product.slug)} onAttach={()=>attachProduct(product.slug)} onDetach={()=>detachProduct(product.slug)} onEdit={()=>setEditingProductSlug(product.slug)} onDelete={()=>handleDelete(product.slug)}/>))}</div>)}
 {editingProductSlug&&(<EditProductDialog open={!!editingProductSlug} onOpenChange={(o)=>{if(!o)setEditingProductSlug(null)}} productSlug={editingProductSlug}/>)}</div>)}

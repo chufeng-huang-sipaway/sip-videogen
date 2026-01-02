@@ -1,6 +1,6 @@
 //EditTemplateDialog for editing existing layout templates
 import{useState,useEffect,useCallback}from'react'
-import{Layout,X,Star,Loader2}from'lucide-react'
+import{Layout,X,Star,Loader2,RefreshCw}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{FormDialog}from'@/components/ui/form-dialog'
 import{Input}from'@/components/ui/input'
@@ -16,7 +16,7 @@ import type{TemplateFull}from'@/lib/bridge'
 interface ExistingImage{path:string;filename:string;thumbnailUrl:string|null;isPrimary:boolean}
 interface EditTemplateDialogProps{open:boolean;onOpenChange:(open:boolean)=>void;templateSlug:string}
 export function EditTemplateDialog({open,onOpenChange,templateSlug}:EditTemplateDialogProps){
-const{getTemplate,getTemplateImages,updateTemplate,uploadTemplateImage,deleteTemplateImage,setPrimaryTemplateImage,refresh}=useTemplates()
+const{getTemplate,getTemplateImages,updateTemplate,uploadTemplateImage,deleteTemplateImage,setPrimaryTemplateImage,reanalyzeTemplate,refresh}=useTemplates()
 const[name,setName]=useState('')
 const[description,setDescription]=useState('')
 const[defaultStrict,setDefaultStrict]=useState(true)
@@ -27,6 +27,7 @@ const[isLoading,setIsLoading]=useState(true)
 const[loadError,setLoadError]=useState<string|null>(null)
 const[originalTemplate,setOriginalTemplate]=useState<TemplateFull|null>(null)
 const[uploadError,setUploadError]=useState<string|null>(null)
+const[isReanalyzing,setIsReanalyzing]=useState(false)
 //Load template data when dialog opens
 useEffect(()=>{if(!open||!templateSlug)return
 let cancelled=false
@@ -71,27 +72,39 @@ for(const{file,base64}of newImages){await uploadTemplateImage(templateSlug,file.
 const newPrimary=existingImages.find(img=>img.isPrimary&&!imagesToDelete.includes(img.path))
 if(newPrimary&&originalTemplate&&newPrimary.path!==originalTemplate.primary_image){const filename=newPrimary.path.split('/').pop()||'';await setPrimaryTemplateImage(templateSlug,filename)}
 await refresh();toast.success(`Template "${name.trim()}" updated`);onOpenChange(false)})
-const handleClose=useCallback(()=>{if(!isSaving){onOpenChange(false);clearError();setUploadError(null)}},[isSaving,onOpenChange,clearError])
+const handleReanalyze=async()=>{if(!templateSlug||isReanalyzing)return;setIsReanalyzing(true)
+try{const analysis=await reanalyzeTemplate(templateSlug);setOriginalTemplate(prev=>prev?{...prev,analysis}:prev);toast.success('Template reanalyzed successfully')}catch(err){toast.error(err instanceof Error?err.message:'Failed to reanalyze template')}finally{setIsReanalyzing(false)}}
+const handleClose=useCallback(()=>{if(!isSaving&&!isReanalyzing){onOpenChange(false);clearError();setUploadError(null)}},[isSaving,isReanalyzing,onOpenChange,clearError])
 const hasChanges=originalTemplate&&(name.trim()!==originalTemplate.name||description.trim()!==originalTemplate.description||defaultStrict!==originalTemplate.default_strict||newImages.length>0||imagesToDelete.length>0||existingImages.some(img=>img.isPrimary&&img.path!==originalTemplate.primary_image))
 const visibleExistingImages=existingImages.filter(img=>!imagesToDelete.includes(img.path))
-const isWorking=isLoading||isSaving
+const isWorking=isLoading||isSaving||isReanalyzing
 const error=loadError||saveError||uploadError
-const loadingMsg=isLoading?'Loading template...':'Saving changes...'
-//Analysis summary - handles V1 and V2
+const loadingMsg=isLoading?'Loading template...':isReanalyzing?'Reanalyzing template...':'Saving changes...'
+//Analysis summary - handles V1 and V2 with reanalyze button
 const analysisSummary=originalTemplate?.analysis?(
-<div className="text-xs text-muted-foreground bg-muted/50 rounded p-2 space-y-1">
-<span className="font-medium">Analysis:</span>{' '}
+<div className="bg-muted/50 rounded-lg p-3 space-y-2">
+<div className="flex items-center justify-between">
+<span className="text-sm font-medium">Template Analysis</span>
+<Button variant="outline" size="sm" onClick={handleReanalyze} disabled={isWorking} className="h-7 text-xs gap-1.5">
+{isReanalyzing?<Loader2 className="h-3 w-3 animate-spin"/>:<RefreshCw className="h-3 w-3"/>}Reanalyze</Button>
+</div>
+<div className="text-xs text-muted-foreground space-y-1">
 {isV2Analysis(originalTemplate.analysis)?(<>
-<span>V2 semantic, </span>
-<span>{originalTemplate.analysis.copywriting.benefits.length} benefits, </span>
-<span>{originalTemplate.analysis.canvas.aspect_ratio} aspect</span>
+<div><span className="font-medium">Version:</span> V2 Semantic Analysis</div>
+<div><span className="font-medium">Aspect Ratio:</span> {originalTemplate.analysis.canvas.aspect_ratio}</div>
+<div><span className="font-medium">Benefits:</span> {originalTemplate.analysis.copywriting.benefits.length} identified</div>
+{originalTemplate.analysis.copywriting.benefits.length>0&&(
+<div className="pl-2 border-l-2 border-muted text-muted-foreground/80 mt-1">{originalTemplate.analysis.copywriting.benefits.slice(0,3).map((b,i)=><div key={i}>• {b}</div>)}{originalTemplate.analysis.copywriting.benefits.length>3&&<div className="text-muted-foreground/60">...and {originalTemplate.analysis.copywriting.benefits.length-3} more</div>}</div>)}
 </>):(<>
-<span>{(originalTemplate.analysis as any).elements?.length||0} elements, </span>
-<span>{originalTemplate.analysis.canvas.aspect_ratio} aspect, </span>
-<span>{(originalTemplate.analysis as any).product_slot?'has product slot':'no product slot'}</span>
+<div><span className="font-medium">Version:</span> V1 Analysis</div>
+<div><span className="font-medium">Aspect Ratio:</span> {originalTemplate.analysis.canvas.aspect_ratio}</div>
+<div><span className="font-medium">Elements:</span> {(originalTemplate.analysis as any).elements?.length||0}</div>
+<div><span className="font-medium">Product Slot:</span> {(originalTemplate.analysis as any).product_slot?'Yes':'No'}</div>
 </>)}
+</div>
+<p className="text-[10px] text-muted-foreground/60">Click Reanalyze to regenerate template analysis from images.</p>
 </div>):null
-return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Template" description="Update template details and images." icon={<Layout className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
+return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Template" description="Update template details and images." icon={<Layout className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-xl" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button>
 <Button onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges} className="bg-brand-500 hover:bg-brand-600">{isSaving?'Saving...':'Save Changes'}</Button>
 </>}>
@@ -103,7 +116,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Template" 
 {/*Description Input*/}
 <div className="space-y-2">
 <label htmlFor="edit-template-description" className="text-sm font-medium">Description</label>
-<textarea id="edit-template-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the layout purpose" rows={2} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"/>
+<textarea id="edit-template-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the layout purpose and key visual elements" rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y min-h-[80px]"/>
 </div>
 {/*Default Strict Toggle*/}
 <div className="flex items-center justify-between py-2">

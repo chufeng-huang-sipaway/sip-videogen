@@ -8,7 +8,6 @@ import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView, type TemplateSummary } from '@/lib/bridge'
 import { CreateTemplateDialog } from '../CreateTemplateDialog'
 import { EditTemplateDialog } from '../EditTemplateDialog'
-import { TemplateModal } from '../TemplateModal'
 //Thumbnail component for template images
 function TemplateThumbnail({ path, size = 'sm' }: { path: string; size?: 'sm' | 'lg' }) {
     const [src, setSrc] = useState<string | null>(null)
@@ -58,16 +57,12 @@ const [localCreateDialogOpen,setLocalCreateDialogOpen]=useState(false)
 const isCreateDialogOpen=createDialogOpen??localCreateDialogOpen
 const setIsCreateDialogOpen=onCreateDialogChange??setLocalCreateDialogOpen
 const [editingTemplateSlug,setEditingTemplateSlug]=useState<string|null>(null)
-const [modalSlug,setModalSlug]=useState<string|null>(null)
 useEffect(()=>{if(actionError){const t=setTimeout(()=>setActionError(null),5000);return()=>clearTimeout(t)}},[actionError])
 const handleToggleStrict=(slug:string)=>{const attached=attachedTemplates.find(t=>t.template_slug===slug);if(attached)setTemplateStrictness(slug,!attached.strict)}
-const handleEditFromModal=(slug:string)=>{setModalSlug(null);requestAnimationFrame(()=>{setEditingTemplateSlug(slug)})}
-const handleDeleteFromModal=async(slug:string)=>{setModalSlug(null);requestAnimationFrame(async()=>{if(confirm(`Delete template "${slug}"? This cannot be undone.`)){try{await deleteTemplate(slug)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete template')}}})}
-const handleDelete=async(slug:string)=>{if(confirm(`Delete template "${slug}"? This cannot be undone.`)){try{await deleteTemplate(slug);if(modalSlug===slug)setModalSlug(null)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete template')}}}
+const handleDelete=async(slug:string)=>{if(confirm(`Delete template "${slug}"? This cannot be undone.`)){try{await deleteTemplate(slug)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete template')}}}
 if(!activeBrand){return<div className="text-sm text-muted-foreground">Select a brand</div>}
 if(error){return(<div className="text-sm text-destructive">Error: {error}<Button variant="ghost" size="sm" onClick={refresh}>Retry</Button></div>)}
 return(
-<div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{templates.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No templates yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{templates.map((template)=>{const attached=attachedTemplates.find(t=>t.template_slug===template.slug);return(<TemplateCard key={template.slug} template={template} isAttached={!!attached} attachedStrict={attached?.strict} onOpenModal={()=>setModalSlug(template.slug)} onAttach={()=>attachTemplate(template.slug)} onDetach={()=>detachTemplate(template.slug)} onToggleStrict={()=>handleToggleStrict(template.slug)} onEdit={()=>setEditingTemplateSlug(template.slug)} onDelete={()=>handleDelete(template.slug)}/>)})}</div>)}
-<TemplateModal slug={modalSlug} onClose={()=>setModalSlug(null)} onEdit={handleEditFromModal} onDelete={handleDeleteFromModal}/>
+<div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{templates.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No templates yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{templates.map((template)=>{const attached=attachedTemplates.find(t=>t.template_slug===template.slug);return(<TemplateCard key={template.slug} template={template} isAttached={!!attached} attachedStrict={attached?.strict} onOpenModal={()=>setEditingTemplateSlug(template.slug)} onAttach={()=>attachTemplate(template.slug)} onDetach={()=>detachTemplate(template.slug)} onToggleStrict={()=>handleToggleStrict(template.slug)} onEdit={()=>setEditingTemplateSlug(template.slug)} onDelete={()=>handleDelete(template.slug)}/>)})}</div>)}
 <CreateTemplateDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}/>
 {editingTemplateSlug&&(<EditTemplateDialog open={!!editingTemplateSlug} onOpenChange={(o)=>{if(!o)setEditingTemplateSlug(null)}} templateSlug={editingTemplateSlug}/>)}</div>)}
