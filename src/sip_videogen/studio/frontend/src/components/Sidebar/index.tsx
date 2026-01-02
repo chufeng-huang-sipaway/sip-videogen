@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { PanelLeftClose, Brain, Plus, Settings, FolderOpen, Package, Palette, ChevronRight, Library, ChevronDown } from 'lucide-react'
+import { PanelLeftClose, Brain, Plus, Settings, Package, Palette, ChevronRight, ChevronDown } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { ProjectsSection } from './sections/ProjectsSection'
 import { ProductsSection } from './sections/ProductsSection'
@@ -47,29 +47,12 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
     <aside className="h-screen flex flex-col bg-sidebar/50 backdrop-blur-md border-r border-border/20 flex-shrink-0 transition-all duration-300 ease-in-out z-20" style={{width}}>
       <div className="flex-1 flex flex-col items-center py-6 gap-4">
         <BrandSelector compact />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={onOpenBrandMemory} disabled={!activeBrand}>
-              <Brain className="w-5 h-5" strokeWidth={1.5} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Brand Profile</TooltipContent>
-        </Tooltip>
-
-        <Separator className="w-8 opacity-50" />
-
-        <div className="flex flex-col gap-3">
-          <CollapsedNavIcon icon={<FolderOpen className="w-5 h-5" />} label="Projects" onClick={onToggleCollapse} />
-          <CollapsedNavIcon icon={<Library className="w-5 h-5" />} label="Library" onClick={onToggleCollapse} />
-        </div>
-
-        <div className="flex-1" />
-
-        <CollapsedNavIcon icon={<Settings className="w-5 h-5" />} label="Settings" onClick={() => setIsSettingsOpen(true)} />
-        <CollapsedNavIcon icon={<PanelLeftClose className="w-5 h-5 rotate-180" />} label="Expand" onClick={onToggleCollapse} />
+        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={onOpenBrandMemory} disabled={!activeBrand}><Brain className="w-5 h-5" strokeWidth={1.5}/></Button></TooltipTrigger><TooltipContent side="right">Brand Profile</TooltipContent></Tooltip>
+        <div className="flex-1"/>
+        <CollapsedNavIcon icon={<Settings className="w-5 h-5"/>} label="Settings" onClick={()=>setIsSettingsOpen(true)}/>
+        <CollapsedNavIcon icon={<PanelLeftClose className="w-5 h-5 rotate-180"/>} label="Expand" onClick={onToggleCollapse}/>
       </div>
-      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}/>
     </aside>
   ) : (
     <aside className="h-screen flex flex-col bg-sidebar/95 backdrop-blur-xl border-r border-border/20 flex-shrink-0 transition-all duration-300 ease-in-out z-20 relative" style={{width}}>
