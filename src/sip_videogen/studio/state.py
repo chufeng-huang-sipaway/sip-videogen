@@ -18,6 +18,7 @@ class BridgeState:
     thinking_steps:list[dict]=field(default_factory=list)
     update_progress:dict|None=None
     window:object=None
+    background_analysis_slug:str|None=None
     def get_active_slug(self)->str|None:
         """Get the active brand slug from storage."""
         from sip_videogen.brands.storage import get_active_brand

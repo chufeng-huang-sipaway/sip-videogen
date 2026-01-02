@@ -465,6 +465,12 @@ class PackagingTextElement(BaseModel):
     color: str = Field(default="", description="Text color")
     position: str = Field(default="", description="Position on package")
     emphasis: str = Field(default="", description="bold|italic|all-caps|embossed|engraved|foil|metallic|printed")
+    @field_validator("notes","typography","size","color","position","emphasis",mode="before")
+    @classmethod
+    def _norm_str(cls,v):return "" if v is None else v
+    @field_validator("role",mode="before")
+    @classmethod
+    def _norm_role(cls,v):return "other" if v is None else v
 
 
 class PackagingTextDescription(BaseModel):
