@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { PanelLeftClose, Brain, Plus, Settings, FolderOpen, Package, Palette, ChevronRight, Library, ChevronDown } from 'lucide-react'
+import { PanelLeftClose, Brain, Plus, Settings, Package, Palette, ChevronRight, ChevronDown } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { ProjectsSection } from './sections/ProjectsSection'
 import { ProductsSection } from './sections/ProductsSection'
@@ -47,29 +47,12 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
     <aside className="h-screen flex flex-col bg-sidebar/50 backdrop-blur-md border-r border-border/20 flex-shrink-0 transition-all duration-300 ease-in-out z-20" style={{width}}>
       <div className="flex-1 flex flex-col items-center py-6 gap-4">
         <BrandSelector compact />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={onOpenBrandMemory} disabled={!activeBrand}>
-              <Brain className="w-5 h-5" strokeWidth={1.5} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Brand Profile</TooltipContent>
-        </Tooltip>
-
-        <Separator className="w-8 opacity-50" />
-
-        <div className="flex flex-col gap-3">
-          <CollapsedNavIcon icon={<FolderOpen className="w-5 h-5" />} label="Projects" onClick={onToggleCollapse} />
-          <CollapsedNavIcon icon={<Library className="w-5 h-5" />} label="Library" onClick={onToggleCollapse} />
-        </div>
-
-        <div className="flex-1" />
-
-        <CollapsedNavIcon icon={<Settings className="w-5 h-5" />} label="Settings" onClick={() => setIsSettingsOpen(true)} />
-        <CollapsedNavIcon icon={<PanelLeftClose className="w-5 h-5 rotate-180" />} label="Expand" onClick={onToggleCollapse} />
+        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={onOpenBrandMemory} disabled={!activeBrand}><Brain className="w-5 h-5" strokeWidth={1.5}/></Button></TooltipTrigger><TooltipContent side="right">Brand Profile</TooltipContent></Tooltip>
+        <div className="flex-1"/>
+        <CollapsedNavIcon icon={<Settings className="w-5 h-5"/>} label="Settings" onClick={()=>setIsSettingsOpen(true)}/>
+        <CollapsedNavIcon icon={<PanelLeftClose className="w-5 h-5 rotate-180"/>} label="Expand" onClick={onToggleCollapse}/>
       </div>
-      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}/>
     </aside>
   ) : (
     <aside className="h-screen flex flex-col bg-sidebar/95 backdrop-blur-xl border-r border-border/20 flex-shrink-0 transition-all duration-300 ease-in-out z-20 relative" style={{width}}>
@@ -189,6 +172,6 @@ function CollapsedNavIcon({ icon, label, onClick, disabled }: any) {
   )
 }
 
-function SectionGroup({title,count,isOpen,onToggle,onAdd,activeBrand,children,noAdd}:any){return(<div className="group/section"><div className="flex items-center justify-between py-1.5 px-2 mb-1"><button onClick={onToggle} className="flex-1 flex items-center gap-2 text-[11px] font-bold text-muted-foreground/70 hover:text-foreground/90 transition-colors duration-150 uppercase tracking-wider text-left" disabled={!activeBrand}><ChevronRight className={cn("w-3 h-3 transition-transform duration-200",isOpen&&"rotate-90")}/>{title}{count!==undefined&&<span className="ml-1 text-[10px] font-normal opacity-60">({count})</span>}</button>{!noAdd&&(<Button variant="ghost" size="icon" className="h-5 w-5 rounded-md hover:bg-muted/50 hover:text-primary opacity-0 group-hover/section:opacity-100 transition-opacity focus:opacity-100" onClick={(e)=>{e.stopPropagation();onAdd?.();}} disabled={!activeBrand}><Plus className="w-3.5 h-3.5"/></Button>)}</div><div className={cn("grid transition-all duration-200 ease-in-out",isOpen?"grid-rows-[1fr] opacity-100":"grid-rows-[0fr] opacity-0")}><div className="overflow-hidden">{children}</div></div></div>)}
+function SectionGroup({title,count,isOpen,onToggle,onAdd,activeBrand,children,noAdd}:any){return(<div className="group/section"><div className="flex items-center justify-between py-1.5 px-2 mb-1"><button onClick={onToggle} className="flex-1 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground/60 hover:text-foreground/80 transition-colors duration-150 uppercase tracking-wider text-left" disabled={!activeBrand}><ChevronRight className={cn("w-4 h-4 transition-transform duration-200",isOpen&&"rotate-90")}/>{title}{count!==undefined&&<span className="ml-1 text-[10px] font-normal opacity-60">({count})</span>}</button>{!noAdd&&(<Button variant="ghost" size="icon" className="h-5 w-5 rounded-md hover:bg-muted/50 hover:text-primary opacity-0 group-hover/section:opacity-100 transition-opacity focus:opacity-100" onClick={(e)=>{e.stopPropagation();onAdd?.();}} disabled={!activeBrand}><Plus className="w-3.5 h-3.5"/></Button>)}</div><div className={cn("grid transition-all duration-200 ease-in-out",isOpen?"grid-rows-[1fr] opacity-100":"grid-rows-[0fr] opacity-0")}><div className="overflow-hidden">{children}</div></div></div>)}
 
 function SubSectionGroup({title,icon,count,isOpen,onToggle,onAdd,activeBrand,children}:any){return(<div className="group/subsection pl-2"><div className="flex items-center justify-between py-1 px-2 mb-0.5 rounded-lg hover:bg-muted/30 transition-colors duration-150"><button onClick={onToggle} className="flex-1 flex items-center gap-2.5 text-xs font-semibold text-muted-foreground/80 hover:text-foreground transition-colors duration-150 text-left" disabled={!activeBrand}><div className={cn("transition-transform duration-200",isOpen?"rotate-0":"-rotate-90 text-muted-foreground/50")}><ChevronDown className="w-3 h-3"/></div>{icon&&<span className="text-muted-foreground/60 group-hover/subsection:text-foreground/70 transition-colors">{icon}</span>}{title}{count!==undefined&&<span className="ml-0.5 text-[10px] font-normal opacity-60">({count})</span>}</button><Button variant="ghost" size="icon" className="h-5 w-5 rounded-md hover:bg-muted/50 hover:text-primary opacity-0 group-hover/subsection:opacity-100 transition-opacity focus:opacity-100" onClick={(e)=>{e.stopPropagation();onAdd?.();}} disabled={!activeBrand}><Plus className="w-3 h-3"/></Button></div><div className={cn("grid transition-all duration-150 ease-in-out border-l border-border/30 ml-[11px] pl-2",isOpen?"grid-rows-[1fr] opacity-100 py-1":"grid-rows-[0fr] opacity-0")}><div className="overflow-hidden">{children}</div></div></div>)}

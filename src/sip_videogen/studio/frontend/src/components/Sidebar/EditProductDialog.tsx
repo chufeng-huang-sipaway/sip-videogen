@@ -68,7 +68,7 @@ const visibleExistingImages=existingImages.filter(img=>!imagesToDelete.includes(
 const isWorking=isLoading||isSaving
 const error=loadError||saveError||uploadError
 const loadingMsg=isLoading?'Loading product...':'Saving changes...'
-return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" description="Update product details and images." icon={<Package className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
+return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" description="Update product details and images." icon={<Package className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-xl" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button>
 <Button onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges} className="bg-brand-500 hover:bg-brand-600">{isSaving?'Saving...':'Save Changes'}</Button>
 </>}>
@@ -80,7 +80,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" d
 {/* Description Input */}
 <div className="space-y-2">
 <label htmlFor="edit-product-description" className="text-sm font-medium">Description</label>
-<textarea id="edit-product-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the product (size, texture, use cases, etc.)" rows={3} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"/>
+<textarea id="edit-product-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the product (size, texture, use cases, etc.)" rows={5} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y min-h-[100px]"/>
 </div>
 {/* Product Images */}
 <div className="space-y-2">
