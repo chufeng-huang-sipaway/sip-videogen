@@ -252,12 +252,13 @@ export interface AttachedTemplate {
   strict: boolean
 }
 //Chat context types
-import type { AspectRatio } from '../types/aspectRatio'
+import type { AspectRatio,GenerationMode } from '../types/aspectRatio'
 export interface ChatContext {
   project_slug?: string | null
   attached_products?: string[]
   attached_templates?: AttachedTemplate[]
   aspect_ratio?: AspectRatio
+  generation_mode?: GenerationMode
 }
 
 interface ApiKeyStatus {
@@ -460,7 +461,8 @@ interface PyWebViewAPI {
     project_slug?: string | null,
     attached_products?: string[],
     attached_templates?: AttachedTemplate[],
-    aspect_ratio?: string
+    aspect_ratio?: string,
+    generation_mode?: string
   ): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
@@ -646,7 +648,8 @@ export const bridge = {
         context?.project_slug,
         context?.attached_products,
         context?.attached_templates,
-        context?.aspect_ratio || '1:1'
+        context?.aspect_ratio || '16:9',
+        context?.generation_mode || 'image'
       )
     ),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),

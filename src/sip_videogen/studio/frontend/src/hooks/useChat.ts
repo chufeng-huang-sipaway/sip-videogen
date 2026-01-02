@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
-import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/types/aspectRatio'
+import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
 
 export interface Message {
   id: string
@@ -48,9 +48,11 @@ function getExt(name: string): string {
   return idx >= 0 ? name.slice(idx).toLowerCase() : ''
 }
 
+import type{GeneratedImage as WorkstationMedia}from'@/context/WorkstationContext'
 interface UseChatOptions {
   onTemplatesCreated?: (slugs: string[]) => void
   onImagesGenerated?: (images: ImageStatusEntry[]) => void
+  onVideosGenerated?: (videos: WorkstationMedia[]) => void
 }
 
 export function useChat(brandSlug: string | null, options?: UseChatOptions) {
@@ -65,6 +67,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
+  const [generationMode, setGenerationMode] = useState<GenerationMode>(DEFAULT_GENERATION_MODE)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
@@ -81,6 +84,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setAttachments([])
     setAttachmentError(null)
     setAspectRatio(DEFAULT_ASPECT_RATIO)
+    setGenerationMode(DEFAULT_GENERATION_MODE)
   }, [brandSlug])
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
@@ -310,6 +314,20 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
           }
         } catch { /* ignore registration errors */ }
       }
+      //Register generated videos to Workstation
+      if(result.videos?.length&&options?.onVideosGenerated){
+        const videoItems:WorkstationMedia[]=result.videos.map(vid=>({
+          id:vid.path||`vid_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+          path:'',
+          originalPath:vid.path,
+          prompt:vid.metadata?.prompt,
+          timestamp:vid.metadata?.generated_at||new Date().toISOString(),
+          viewedAt:null,
+          type:'video'as const,
+          conceptImagePath:vid.metadata?.concept_image_path||undefined,
+        }))
+        if(videoItems.length)options.onVideosGenerated(videoItems)
+      }
     } catch (err) {
       if (cancelledRequestIdRef.current === requestId) {
         return
@@ -333,6 +351,7 @@ const clearMessages = useCallback(() => {
     setAttachments([])
     setAttachmentError(null)
     setAspectRatio(DEFAULT_ASPECT_RATIO)
+    setGenerationMode(DEFAULT_GENERATION_MODE)
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
 
@@ -393,6 +412,7 @@ return {
     attachmentError,
     attachments,
     aspectRatio,
+    generationMode,
     sendMessage,
     clearMessages,
     cancelGeneration,
@@ -403,5 +423,6 @@ return {
     removeAttachment,
     setAttachmentError,
     setAspectRatio,
+    setGenerationMode,
   }
 }

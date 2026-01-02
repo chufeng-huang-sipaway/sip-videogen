@@ -17,7 +17,7 @@ from agents.run_context import RunContextWrapper
 from sip_videogen.advisor.context_budget import ContextBudgetManager
 from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.skills.registry import get_skills_registry
-from sip_videogen.advisor.tools import ADVISOR_TOOLS
+from sip_videogen.advisor.tools import ADVISOR_TOOLS, set_active_aspect_ratio
 from sip_videogen.brands.context import HierarchicalContextBuilder
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import (
@@ -401,6 +401,7 @@ class BrandAdvisor:
         attached_products: list[str] | None = None,
         attached_templates: list[dict] | None = None,
         aspect_ratio: str | None = None,
+        generation_mode: str | None = None,
     ) -> dict:
         """Send a message and get a response plus UI metadata.
 
@@ -410,6 +411,7 @@ class BrandAdvisor:
             attached_products: List of product slugs to include in context.
             attached_templates: List of template dicts with template_slug and strict.
             aspect_ratio: Aspect ratio for video/image generation (e.g., "1:1", "16:9").
+            generation_mode: Generation mode ('image' or 'video').
 
         Returns:
             Dict with response, interaction, and memory_update.
@@ -449,10 +451,14 @@ class BrandAdvisor:
             )
             turn_context = builder.build_turn_context()
             logger.info("chat_with_metadata(): attached_products=%s, turn_context_len=%d",attached_products,len(turn_context))
-        #Add aspect ratio to turn context if provided (chat_with_metadata only)
+        #Add generation mode and aspect ratio to turn context if provided (chat_with_metadata only)
+        mode=generation_mode if generation_mode in('image','video')else'image'
+        mode_ctx=f"**Generation Mode**: {mode.capitalize()} - {'Generate videos using generate_video tool.' if mode=='video' else 'Generate images using generate_image tool.'}"
+        turn_context=f"{turn_context}\n\n{mode_ctx}" if turn_context else mode_ctx
         if aspect_ratio:
+            set_active_aspect_ratio(aspect_ratio)
             ar_ctx=f"**Aspect Ratio**: Use {aspect_ratio} for any image or video generation."
-            turn_context=f"{turn_context}\n\n{ar_ctx}" if turn_context else ar_ctx
+            turn_context=f"{turn_context}\n\n{ar_ctx}"
 
         # Build augmented message with turn context prepended
         if turn_context:

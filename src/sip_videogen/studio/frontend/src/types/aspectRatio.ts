@@ -1,16 +1,25 @@
 //Aspect ratio type definitions for video generation
 export type AspectRatio='1:1'|'16:9'|'9:16'|'5:3'|'3:5'|'4:3'|'3:4'|'3:2'|'2:3'
-export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number}>={
-'1:1':{label:'Square',w:1,h:1},
-'16:9':{label:'Widescreen',w:16,h:9},
-'9:16':{label:'Portrait Widescreen',w:9,h:16},
-'5:3':{label:'Cinematic',w:5,h:3},
-'3:5':{label:'Portrait Cinematic',w:3,h:5},
-'4:3':{label:'Classic',w:4,h:3},
-'3:4':{label:'Portrait Classic',w:3,h:4},
-'3:2':{label:'Photo',w:3,h:2},
-'2:3':{label:'Portrait Photo',w:2,h:3}}
-export const DEFAULT_ASPECT_RATIO:AspectRatio='1:1'
+//Generation mode for image vs video
+export type GenerationMode='image'|'video'
+export const DEFAULT_GENERATION_MODE:GenerationMode='image'
+//Video provider ratio support
+export const VIDEO_PROVIDER_RATIOS:Record<string,AspectRatio[]>={
+veo:['16:9','9:16'],//VEO: landscape/portrait only
+kling:['1:1','16:9','9:16'],
+sora:['16:9','9:16']}
+export const DEFAULT_VIDEO_PROVIDER='veo'
+export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number,hint:string}>={
+'1:1':{label:'Square',w:1,h:1,hint:'Instagram, Feed'},
+'16:9':{label:'Landscape',w:16,h:9,hint:'YouTube, Web'},
+'9:16':{label:'Portrait',w:9,h:16,hint:'TikTok, Reels'},
+'5:3':{label:'Cinematic',w:5,h:3,hint:'Film'},
+'3:5':{label:'Portrait Cinematic',w:3,h:5,hint:'Stories'},
+'4:3':{label:'Classic',w:4,h:3,hint:'Presentation'},
+'3:4':{label:'Portrait Classic',w:3,h:4,hint:'Social'},
+'3:2':{label:'Photo',w:3,h:2,hint:'Photography'},
+'2:3':{label:'Portrait Photo',w:2,h:3,hint:'Portrait'}}
+export const DEFAULT_ASPECT_RATIO:AspectRatio='16:9'
 //Safe type guard using Object.hasOwn (avoids prototype chain)
 export function isValidAspectRatio(v:string):v is AspectRatio{
 return Object.prototype.hasOwnProperty.call(ASPECT_RATIOS,v)}
@@ -30,3 +39,17 @@ const[w,h]=r.split(':').map(Number)
 const isL=w>h
 const base=(isL?r:`${h}:${w}`) as BaseRatio
 return{base,orientation:isL?'landscape':'portrait'}}
+//Get allowed ratios for generation mode
+export function getVideoSupportedRatios(provider:string=DEFAULT_VIDEO_PROVIDER):AspectRatio[]{
+return VIDEO_PROVIDER_RATIOS[provider]||VIDEO_PROVIDER_RATIOS.veo}
+//Get all ratios as array
+export const ALL_RATIOS:AspectRatio[]=['1:1','16:9','9:16','5:3','3:5','4:3','3:4','3:2','2:3']
+//Validate ratio for mode, return valid ratio (same or fallback)
+export function getValidRatioForMode(current:AspectRatio,mode:GenerationMode,provider:string=DEFAULT_VIDEO_PROVIDER):AspectRatio{
+const allowed=mode==='video'?getVideoSupportedRatios(provider):ALL_RATIOS
+if(!allowed||allowed.length===0)return'16:9'
+if(allowed.includes(current))return current
+//Fallback: prefer same orientation
+const isL=['16:9','5:3','4:3','3:2'].includes(current)
+const fallback=isL?'16:9':'9:16'
+return allowed.includes(fallback)?fallback:allowed[0]}

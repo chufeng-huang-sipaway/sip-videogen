@@ -1,21 +1,23 @@
 //QuickEditButton - AI-powered image edit with popover input
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { useWorkstation } from '../../context/WorkstationContext'
-import { useQuickEdit } from '../../context/QuickEditContext'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover'
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
-import { Wand2, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import{useState,useCallback,useRef,useEffect}from'react'
+import{useWorkstation}from'../../context/WorkstationContext'
+import{useQuickEdit}from'../../context/QuickEditContext'
+import{getMediaType}from'../../lib/mediaUtils'
+import{Button}from'../ui/button'
+import{Input}from'../ui/input'
+import{Popover,PopoverTrigger,PopoverContent}from'../ui/popover'
+import{Tooltip,TooltipContent,TooltipTrigger}from'../ui/tooltip'
+import{Wand2,Loader2}from'lucide-react'
+import{cn}from'@/lib/utils'
 const MAX_LEN = 500
 interface QuickEditButtonProps { variant?: 'light' | 'dark' }
 export function QuickEditButton({ }: QuickEditButtonProps) {
     const { currentBatch, selectedIndex } = useWorkstation()
     const { isGenerating, submitEdit, error: ctxError, clearError, prompt: ctxPrompt, resultPath } = useQuickEdit()
-    const curr = currentBatch[selectedIndex]
-    const imgPath = curr?.originalPath || curr?.path || ''
-    const hasImg = !!imgPath
+    const curr=currentBatch[selectedIndex]
+    const imgPath=curr?.originalPath||curr?.path||''
+    const isVideo=curr?getMediaType(curr)==='video':false
+    const hasImg=!!imgPath&&!isVideo
     const [open, setOpen] = useState(false)
     const [prompt, setPrompt] = useState('')
     const [err, setErr] = useState('')

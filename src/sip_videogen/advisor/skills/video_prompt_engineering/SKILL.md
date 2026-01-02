@@ -34,6 +34,7 @@ Video generation is expensive and slow. Use a preview-first approach:
 
 1. **Generate a concept image first** using `generate_image`
    - Use the same prompt you'd use for the video
+   - **CRITICAL: Use the same aspect_ratio as the video** (from context - typically 16:9 or 9:16)
    - Include brand identity and product references if applicable
 2. **Show the image and ask for confirmation** using `propose_choices`
    - Options: "Looks good, generate video", "Let me revise", "Skip preview next time"

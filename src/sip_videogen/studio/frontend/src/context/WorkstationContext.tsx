@@ -1,8 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import{createContext,useContext,useState,useCallback}from'react'
 import type{ReactNode}from'react'
-//Image data interface
-export interface GeneratedImage{id:string;path:string;originalPath?:string;prompt?:string;sourceTemplatePath?:string;timestamp:string;viewedAt?:string|null}
+//Image/video data interface (GeneratedMedia with GeneratedImage alias for backward compat)
+export interface GeneratedImage{id:string;path:string;originalPath?:string;prompt?:string;sourceTemplatePath?:string;timestamp:string;viewedAt?:string|null;type?:'image'|'video';conceptImagePath?:string}
 //Browse mode type for grid/preview toggle
 export type BrowseMode='preview'|'grid'
 //Workstation state interface

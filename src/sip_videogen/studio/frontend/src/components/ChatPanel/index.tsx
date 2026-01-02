@@ -16,8 +16,10 @@ import{AttachedProducts}from'./AttachedProducts'
 import{AttachedTemplates}from'./AttachedTemplates'
 import{ProjectSelector}from'./ProjectSelector'
 import{AspectRatioSelector}from'./AspectRatioSelector'
+import{ModeToggle}from'./ModeToggle'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
+import{getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -89,6 +91,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     }))
     prependToBatch(batch)
   }, [prependToBatch])
+  //Handle videos generated - add to Workstation batch
+  const handleVideosGenerated = useCallback((videos: Parameters<typeof prependToBatch>[0]) => {
+    prependToBatch(videos)
+  }, [prependToBatch])
 
   const {
     messages,
@@ -99,6 +105,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     attachmentError,
     attachments,
     aspectRatio,
+    generationMode,
     sendMessage,
     clearMessages,
     cancelGeneration,
@@ -109,7 +116,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     removeAttachment,
     setAttachmentError,
     setAspectRatio,
-  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated })
+    setGenerationMode,
+  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
 
 
 
@@ -394,7 +402,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             products={products}
             onInteractionSelect={async (messageId, selection) => {
               resolveInteraction(messageId)
-              await sendMessage(selection)
+              await sendMessage(selection,{aspect_ratio:aspectRatio,generation_mode:generationMode})
               await refreshProducts()
             }}
             onRegenerate={regenerateMessage}
@@ -442,9 +450,14 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         )}
       </div>
 
-      {/* Aspect Ratio Selector */}
-      <div className="px-4 max-w-3xl mx-auto w-full">
-        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug}/>
+      {/* Mode Toggle + Aspect Ratio Selector */}
+      <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
+        <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{
+setGenerationMode(m)
+//Auto-adjust aspect ratio if current is invalid for new mode
+const valid=getValidRatioForMode(aspectRatio,m)
+if(valid!==aspectRatio)setAspectRatio(valid)}} disabled={isLoading||!brandSlug}/>
+        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug} generationMode={generationMode}/>
       </div>
 
       {/* Input Area - Clean, no gradient background */}
@@ -465,7 +478,7 @@ const tplMap=new Map<string,AttachedTemplate>()
 for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
 for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
 const allTemplates=Array.from(tplMap.values())
-await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined,aspect_ratio:aspectRatio})
+await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined,aspect_ratio:aspectRatio,generation_mode:generationMode})
 await refreshProducts()}}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}

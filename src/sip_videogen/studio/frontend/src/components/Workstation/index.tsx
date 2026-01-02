@@ -5,7 +5,7 @@ import{useBrand}from'../../context/BrandContext'
 import{QuickEditProvider,useQuickEdit}from'../../context/QuickEditContext'
 import{bridge,isPyWebView,waitForPyWebViewReady}from'../../lib/bridge'
 import{toast}from'../ui/toaster'
-import{ImageDisplay}from'./ImageDisplay'
+import{MediaDisplay}from'./MediaDisplay'
 import{ThumbnailStrip}from'./ThumbnailStrip'
 import{EmptyState}from'./EmptyState'
 import{ContextPanel}from'./ContextPanel'
@@ -45,7 +45,7 @@ return(<div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-
 <div className="relative flex-1 overflow-hidden pt-12 pb-32 flex flex-col items-center justify-center">
 <div className="w-full h-full flex items-center justify-center relative max-w-5xl mx-auto" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
 {isGrid?(<div className="w-full h-full overflow-y-auto pr-2"><ImageGrid/></div>):(<div className="absolute inset-0 flex items-center justify-center"><div className="relative transition-all duration-300 transform h-full w-full flex items-center justify-center">
-<ImageDisplay/>
+<MediaDisplay/>
 {/* Original toolbar - hidden when Quick Edit result/generating */}
 {showOriginalToolbar&&(<div className={cn("absolute bottom-4 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-300",toolbarVisible?"opacity-100":"opacity-0 pointer-events-none")}><div className="px-1.5 py-1 flex items-center gap-0.5 rounded-full bg-neutral-900/70 dark:bg-neutral-800/80 backdrop-blur-xl shadow-float border border-neutral-700/30 dark:border-neutral-600/30">
 <Tooltip><TooltipTrigger asChild><Button variant={isGrid?'secondary':'ghost'} size="icon" onClick={toggleBrowseMode} className={cn("h-9 w-9 rounded-full text-white/90 transition-all hover:scale-105 hover:bg-white/10",isGrid&&"bg-white/20")}>{isGrid?<ImageIcon className="w-4 h-4"/>:<LayoutGrid className="w-4 h-4"/>}</Button></TooltipTrigger><TooltipContent side="top">{isGrid?'Preview':'Grid (G)'}</TooltipContent></Tooltip>
