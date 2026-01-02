@@ -9,16 +9,16 @@ veo:['16:9','9:16'],//VEO: landscape/portrait only
 kling:['1:1','16:9','9:16'],
 sora:['16:9','9:16']}
 export const DEFAULT_VIDEO_PROVIDER='veo'
-export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number}>={
-'1:1':{label:'Square',w:1,h:1},
-'16:9':{label:'Widescreen',w:16,h:9},
-'9:16':{label:'Portrait Widescreen',w:9,h:16},
-'5:3':{label:'Cinematic',w:5,h:3},
-'3:5':{label:'Portrait Cinematic',w:3,h:5},
-'4:3':{label:'Classic',w:4,h:3},
-'3:4':{label:'Portrait Classic',w:3,h:4},
-'3:2':{label:'Photo',w:3,h:2},
-'2:3':{label:'Portrait Photo',w:2,h:3}}
+export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number,hint:string}>={
+'1:1':{label:'Square',w:1,h:1,hint:'Instagram, Feed'},
+'16:9':{label:'Landscape',w:16,h:9,hint:'YouTube, Web'},
+'9:16':{label:'Portrait',w:9,h:16,hint:'TikTok, Reels'},
+'5:3':{label:'Cinematic',w:5,h:3,hint:'Film'},
+'3:5':{label:'Portrait Cinematic',w:3,h:5,hint:'Stories'},
+'4:3':{label:'Classic',w:4,h:3,hint:'Presentation'},
+'3:4':{label:'Portrait Classic',w:3,h:4,hint:'Social'},
+'3:2':{label:'Photo',w:3,h:2,hint:'Photography'},
+'2:3':{label:'Portrait Photo',w:2,h:3,hint:'Portrait'}}
 export const DEFAULT_ASPECT_RATIO:AspectRatio='16:9'
 //Safe type guard using Object.hasOwn (avoids prototype chain)
 export function isValidAspectRatio(v:string):v is AspectRatio{
