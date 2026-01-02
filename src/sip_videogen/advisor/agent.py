@@ -4,6 +4,7 @@ all brand-related tasks. It replaces the previous multi-agent orchestration
 pattern with a simpler, more maintainable architecture.
 """
 from __future__ import annotations
+import asyncio
 from dataclasses import dataclass,field
 from typing import AsyncIterator
 from agents import Agent,Runner
@@ -260,6 +261,9 @@ class BrandAdvisor:
             full_response="".join(response_chunks)
             self._history_manager.add("user",ctx.raw_user_message)
             self._history_manager.add("assistant",full_response)
+        except asyncio.CancelledError:
+            logger.warning("Stream cancelled")
+            raise
         except Exception as e:
             logger.error(f"Stream chat failed: {e}")
             raise
