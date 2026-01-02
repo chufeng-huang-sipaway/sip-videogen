@@ -2448,3 +2448,105 @@ class TestReportThinking:
         data=json.loads(result)
         assert data["step"]=="Thinking"
         assert data["detail"]==""
+
+
+class TestTextUtils:
+    """Tests for text_utils module."""
+    def test_escape_text_for_prompt_basic(self)->None:
+        """Test basic text passes through unchanged."""
+        from sip_videogen.brands.text_utils import escape_text_for_prompt
+        assert escape_text_for_prompt("SUMMIT COFFEE")=="SUMMIT COFFEE"
+    def test_escape_text_for_prompt_quotes(self)->None:
+        """Test quotes are escaped."""
+        from sip_videogen.brands.text_utils import escape_text_for_prompt
+        assert escape_text_for_prompt('Say "Hello"')=='Say \\"Hello\\"'
+    def test_escape_text_for_prompt_newlines(self)->None:
+        """Test newlines are escaped."""
+        from sip_videogen.brands.text_utils import escape_text_for_prompt
+        assert escape_text_for_prompt("Line1\nLine2")=="Line1\\nLine2"
+    def test_escape_text_for_prompt_unicode(self)->None:
+        """Test unicode characters are escaped for JSON safety."""
+        from sip_videogen.brands.text_utils import escape_text_for_prompt
+        #json.dumps escapes non-ASCII by default
+        result=escape_text_for_prompt("Café Müller")
+        assert "Caf" in result and ("\\u00e9" in result or "é" in result)
+    def test_escape_text_for_prompt_backslash(self)->None:
+        """Test backslashes are escaped."""
+        from sip_videogen.brands.text_utils import escape_text_for_prompt
+        assert escape_text_for_prompt("path\\to\\file")=="path\\\\to\\\\file"
+
+
+class TestAnalyzePackagingText:
+    """Tests for analyze_packaging_text function."""
+    @pytest.mark.asyncio
+    async def test_analyze_packaging_text_success(self,tmp_path:Path)->None:
+        """Test successful packaging text analysis."""
+        from datetime import datetime
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+        from sip_videogen.brands.models import PackagingTextDescription
+        #Create a minimal test image
+        from PIL import Image
+        img=Image.new("RGB",(100,100),"white")
+        img_path=tmp_path/"test.png"
+        img.save(img_path)
+        mock_response_json='{"summary":"Bold brand name","elements":[{"text":"SUMMIT","role":"brand_name","typography":"sans-serif","size":"large","position":"front-center"}],"layout_notes":"Centered layout"}'
+        mock_response=MagicMock()
+        mock_response.text=mock_response_json
+        mock_client=MagicMock()
+        mock_client.models.generate_content.return_value=mock_response
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
+            result=await analyze_packaging_text(img_path)
+        assert result is not None
+        assert isinstance(result,PackagingTextDescription)
+        assert result.summary=="Bold brand name"
+        assert len(result.elements)==1
+        assert result.elements[0].text=="SUMMIT"
+        assert result.elements[0].role=="brand_name"
+        assert result.layout_notes=="Centered layout"
+        assert result.generated_at is not None
+    @pytest.mark.asyncio
+    async def test_analyze_packaging_text_with_code_fence(self,tmp_path:Path)->None:
+        """Test handling of markdown code fence in response."""
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+        from PIL import Image
+        img=Image.new("RGB",(100,100),"white")
+        img_path=tmp_path/"test.png"
+        img.save(img_path)
+        mock_response_json='```json\n{"summary":"Test","elements":[],"layout_notes":""}\n```'
+        mock_response=MagicMock()
+        mock_response.text=mock_response_json
+        mock_client=MagicMock()
+        mock_client.models.generate_content.return_value=mock_response
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
+            result=await analyze_packaging_text(img_path)
+        assert result is not None
+        assert result.summary=="Test"
+        assert result.elements==[]
+    @pytest.mark.asyncio
+    async def test_analyze_packaging_text_invalid_json(self,tmp_path:Path)->None:
+        """Test handling of invalid JSON response."""
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+        from PIL import Image
+        img=Image.new("RGB",(100,100),"white")
+        img_path=tmp_path/"test.png"
+        img.save(img_path)
+        mock_response=MagicMock()
+        mock_response.text="not valid json"
+        mock_client=MagicMock()
+        mock_client.models.generate_content.return_value=mock_response
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
+            result=await analyze_packaging_text(img_path)
+        assert result is None
+    @pytest.mark.asyncio
+    async def test_analyze_packaging_text_api_error(self,tmp_path:Path)->None:
+        """Test handling of API error."""
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+        from PIL import Image
+        img=Image.new("RGB",(100,100),"white")
+        img_path=tmp_path/"test.png"
+        img.save(img_path)
+        mock_client=MagicMock()
+        mock_client.models.generate_content.side_effect=Exception("API Error")
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
+            result=await analyze_packaging_text(img_path)
+        assert result is None
