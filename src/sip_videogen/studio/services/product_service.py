@@ -172,3 +172,12 @@ class ProductService:
             mime=mime_types.get(suffix,"image/png")
             return bridge_ok({"dataUrl":f"data:{mime};base64,{encoded}"})
         except Exception as e:return bridge_error(str(e))
+    async def analyze_all_packaging_text(self,skip_existing:bool=True)->dict:
+        """Bulk analyze packaging text for all products in active brand."""
+        try:
+            slug=self._state.get_active_slug()
+            if not slug:return bridge_error("No brand selected")
+            from sip_videogen.advisor.tools import _impl_analyze_all_product_packaging
+            result=await _impl_analyze_all_product_packaging(skip_existing=skip_existing,skip_human_edited=True,max_products=50)
+            return bridge_ok({"result":result})
+        except Exception as e:return bridge_error(str(e))
