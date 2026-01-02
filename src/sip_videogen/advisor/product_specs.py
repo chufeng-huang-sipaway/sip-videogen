@@ -267,6 +267,8 @@ class ProductSpecs:
     distinguishers: list[str] = field(default_factory=list)
     forbidden: list[str] = field(default_factory=list)
     required: list[str] = field(default_factory=list)
+    #Packaging text (formatted for prompt injection)
+    packaging_text: str = ""
 
     def compute_ratios(self) -> None:
         """Compute derived ratios from dimensions."""
@@ -277,16 +279,8 @@ class ProductSpecs:
 
     def has_structured_data(self) -> bool:
         """Check whether the specs include structured visual data."""
-        return any([
-            self.height_mm,
-            self.width_mm,
-            self.depth_mm,
-            self.diameter_mm,
-            self.materials,
-            self.finishes,
-            self.colors,
-            self.distinguishers,
-        ])
+        return any([self.height_mm,self.width_mm,self.depth_mm,self.diameter_mm,
+            self.materials,self.finishes,self.colors,self.distinguishers,self.packaging_text])
 
     def has_details(self) -> bool:
         """Check whether any meaningful data exists to include."""
@@ -339,7 +333,9 @@ class ProductSpecs:
         # Distinguishers
         if self.distinguishers:
             lines.append(f"  Key features: {', '.join(self.distinguishers)}")
-
+        #Packaging text (critical for text reproduction)
+        if self.packaging_text:
+            lines.append(f"  Packaging text: {self.packaging_text} [REPRODUCE EXACTLY]")
         # Required (explicit positives)
         if self.required:
             lines.append(f"  Required: {', '.join(self.required)}")
@@ -470,7 +466,29 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
     specs.compute_ratios()
     specs.forbidden = _dedupe_forbidden_items(forbidden_items)
     specs.required = _derive_required_from_forbidden(specs.forbidden)
-
+    #Extract packaging text: filter first, then cap at 5
+    if product.packaging_text is not None and product.packaging_text.elements:
+        from sip_videogen.brands.text_utils import escape_text_for_prompt
+        valid_elems=[e for e in product.packaging_text.elements if len(e.text)<=80]
+        parts=[]
+        for elem in valid_elems[:5]:
+            text=escape_text_for_prompt(elem.text)
+            part=f'"{text}"'
+            #Add disambiguation if present
+            if elem.notes:
+                part+=f" [{elem.notes}]"
+            #Build style info (typography AND/OR emphasis)
+            style_parts=[]
+            if elem.typography:
+                style_parts.append(elem.typography)
+            if elem.emphasis and elem.emphasis not in ("printed",""):
+                style_parts.append(elem.emphasis)
+            if style_parts:
+                part+=f" ({', '.join(style_parts)})"
+            if elem.position:
+                part+=f" at {elem.position}"
+            parts.append(part)
+        specs.packaging_text="; ".join(parts)
     return specs
 
 
