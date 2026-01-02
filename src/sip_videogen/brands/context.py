@@ -16,6 +16,7 @@ from .storage import (
     load_template,
 )
 from sip_videogen.brands.product_description import extract_attributes_from_description
+from sip_videogen.brands.text_utils import escape_text_for_prompt
 from sip_videogen.config.settings import get_settings
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -228,6 +229,23 @@ class ProductContextBuilder:
 
         attributes_str = "\n".join(attr_sections)
 
+        #Packaging text section (preserves text label fidelity during edits)
+        packaging_text_str=""
+        if p.packaging_text and p.packaging_text.elements:
+            valid_elems=[e for e in p.packaging_text.elements if len(e.text)<=80]
+            parts=[]
+            for elem in valid_elems[:5]:
+                text=escape_text_for_prompt(elem.text)
+                part=f'"{text}"'
+                if elem.notes:part+=f" [{elem.notes}]"
+                style_parts=[]
+                if elem.typography:style_parts.append(elem.typography)
+                if elem.emphasis and elem.emphasis not in("printed",""):style_parts.append(elem.emphasis)
+                if style_parts:part+=f" ({', '.join(style_parts)})"
+                if elem.position:part+=f" at {elem.position}"
+                parts.append(part)
+            if parts:packaging_text_str="**Packaging Text** [REPRODUCE EXACTLY]:\n  "+"; ".join(parts)
+
         # Format images
         images_str = ""
         if p.images:
@@ -248,6 +266,8 @@ class ProductContextBuilder:
                 "- Omit numeric dimensions and do not restate constraint blocks\n"
             )
 
+        #Add packaging text with newline separator if present
+        pkg_section=f"\n{packaging_text_str}\n" if packaging_text_str else ""
         context = f"""### Product: {p.name}
 **CRITICAL - EXACT REPRODUCTION REQUIRED**
 This product must appear IDENTICAL to its reference image.
@@ -257,7 +277,7 @@ Preserve: exact shape, materials, colors, textures, and proportions.
 **Description**: {description_text}
 
 {attributes_str}
-
+{pkg_section}
 **Reference Images**:
 {images_str}
 Primary image anchors identity; additional images provide texture/angle context.

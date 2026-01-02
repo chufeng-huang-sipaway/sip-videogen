@@ -53,6 +53,20 @@ class BrandService:
             if progress.event_type=="tool_end":self._state.current_progress="";self._state.current_progress_type=""
             else:self._state.current_progress=progress.message;self._state.current_progress_type=progress.event_type
         return cb
+    def _trigger_background_packaging_analysis(self,slug:str)->None:
+        """Trigger background packaging text analysis for all products."""
+        import threading
+        def run():
+            import asyncio
+            from sip_videogen.advisor.tools import _impl_analyze_all_product_packaging
+            try:
+                if self._state.background_analysis_slug!=slug:return
+                asyncio.run(_impl_analyze_all_product_packaging(skip_existing=True,skip_human_edited=True,max_products=9999))
+            except Exception as e:logger.debug("Background packaging analysis: %s",e)
+            finally:
+                if self._state.background_analysis_slug==slug:self._state.background_analysis_slug=None
+        self._state.background_analysis_slug=slug
+        threading.Thread(target=run,daemon=True).start()
     def get_brands(self)->dict:
         """Get list of all available brands."""
         try:
@@ -74,6 +88,7 @@ class BrandService:
             set_active_brand(slug)
             if self._state.advisor is None:self._state.advisor=BrandAdvisor(brand_slug=slug,progress_callback=self._get_progress_callback())
             else:self._state.advisor.set_brand(slug,preserve_history=False)
+            self._trigger_background_packaging_analysis(slug)
             return bridge_ok({"slug":slug})
         except Exception as e:return bridge_error(str(e))
     def get_brand_info(self,slug:str|None=None)->dict:

@@ -89,6 +89,28 @@ class TestProductService:
             result=service.delete_product("missing")
         assert result["success"]==False
         assert "not found"in result["error"]
+    @pytest.mark.asyncio
+    async def test_analyze_all_packaging_text_success(self,service):
+        """Should analyze all products packaging text."""
+        with patch("sip_videogen.advisor.tools._impl_analyze_all_product_packaging",return_value="Analyzed 3 products, 0 skipped, 0 failed")as mock_impl:
+            result=await service.analyze_all_packaging_text()
+        assert result["success"]==True
+        assert "Analyzed 3 products"in result["data"]["result"]
+        mock_impl.assert_called_once_with(skip_existing=True,skip_human_edited=True,max_products=50)
+    @pytest.mark.asyncio
+    async def test_analyze_all_packaging_text_no_brand(self,service,state):
+        """Should error when no brand selected."""
+        state.get_active_slug=MagicMock(return_value=None)
+        result=await service.analyze_all_packaging_text()
+        assert result["success"]==False
+        assert "No brand selected"in result["error"]
+    @pytest.mark.asyncio
+    async def test_analyze_all_packaging_text_skip_existing_false(self,service):
+        """Should pass skip_existing parameter."""
+        with patch("sip_videogen.advisor.tools._impl_analyze_all_product_packaging",return_value="Analyzed 5 products")as mock_impl:
+            result=await service.analyze_all_packaging_text(skip_existing=False)
+        assert result["success"]==True
+        mock_impl.assert_called_once_with(skip_existing=False,skip_human_edited=True,max_products=50)
 #=============================================================================
 #ProjectService Tests
 #=============================================================================

@@ -97,6 +97,9 @@ class StudioBridge:
     def set_primary_product_image(self,product_slug:str,filename:str)->dict:return self._product.set_primary_product_image(product_slug,filename)
     def get_product_image_thumbnail(self,path:str)->dict:return self._product.get_product_image_thumbnail(path)
     def get_product_image_full(self,path:str)->dict:return self._product.get_product_image_full(path)
+    def analyze_product_packaging(self,product_slug:str,force:bool=False)->dict:
+        import asyncio
+        return asyncio.run(self._product.analyze_product_packaging(product_slug,force))
     #===========================================================================
     #Template Management
     #===========================================================================

@@ -55,13 +55,10 @@ export interface DocumentEntry {
   size: number
 }
 
-// Product types
-export interface ProductAttribute {
-  key: string
-  value: string
-  category: string
-}
-
+//Product types
+export interface ProductAttribute {key:string;value:string;category:string}
+export interface PackagingTextElement {text:string;notes:string;role:string;typography:string;size:string;color:string;position:string;emphasis:string}
+export interface PackagingTextDescription {summary:string;elements:PackagingTextElement[];layout_notes:string;source_image:string;generated_at:string|null;is_human_edited:boolean}
 export interface ProductEntry {
   slug: string
   name: string
@@ -73,14 +70,15 @@ export interface ProductEntry {
 }
 
 export interface ProductFull {
-  slug: string
-  name: string
-  description: string
-  images: string[]
-  primary_image: string
-  attributes: ProductAttribute[]
-  created_at: string
-  updated_at: string
+  slug:string
+  name:string
+  description:string
+  images:string[]
+  primary_image:string
+  attributes:ProductAttribute[]
+  packaging_text:PackagingTextDescription|null
+  created_at:string
+  updated_at:string
 }
 
 // Project types
@@ -493,7 +491,7 @@ interface PyWebViewAPI {
   set_primary_product_image(product_slug: string, filename: string): Promise<BridgeResponse<void>>
   get_product_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   get_product_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
-
+  analyze_product_packaging(product_slug:string,force:boolean):Promise<BridgeResponse<{result:string}>>
   //Template methods
   get_templates(brand_slug?: string): Promise<BridgeResponse<{ templates: TemplateSummary[] }>>
   get_template(template_slug: string): Promise<BridgeResponse<TemplateFull>>
@@ -684,7 +682,8 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.get_product_image_thumbnail(path))).dataUrl,
   getProductImageFull: async (path: string) =>
     (await callBridge(() => window.pywebview!.api.get_product_image_full(path))).dataUrl,
-
+  analyzeProductPackaging: async (productSlug:string,force:boolean=false) =>
+    (await callBridge(()=>window.pywebview!.api.analyze_product_packaging(productSlug,force))).result,
   //Templates
   getTemplates: async (brandSlug?: string) =>
     (await callBridge(() => window.pywebview!.api.get_templates(brandSlug))).templates,

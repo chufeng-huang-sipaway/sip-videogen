@@ -108,6 +108,18 @@ class AttributeInput(TypedDict):
     category: NotRequired[str]
 
 
+class PackagingTextElementInput(TypedDict):
+    """Input type for packaging text elements in update_product_packaging_text tool."""
+    text: str
+    notes: NotRequired[str]
+    role: NotRequired[str]
+    typography: NotRequired[str]
+    size: NotRequired[str]
+    color: NotRequired[str]
+    position: NotRequired[str]
+    emphasis: NotRequired[str]
+
+
 # =============================================================================
 # Image Generation Metadata
 # =============================================================================
@@ -1636,21 +1648,19 @@ def _impl_create_product(
         return f"Error creating product: {e}"
 
 
-def _impl_add_product_image(
+async def _impl_add_product_image(
     product_slug: str,
     image_path: str,
     set_as_primary: bool = False,
     allow_non_reference: bool = False,
 ) -> str:
     """Implementation of add_product_image tool.
-
     Args:
         product_slug: Product identifier.
         image_path: Path to image within brand directory (must be in uploads/).
         set_as_primary: If True, set this image as the product's primary image.
         allow_non_reference: If True, allow adding images classified as non-reference
             (e.g., screenshots/documents) when a cached analysis exists.
-
     Returns:
         Success message or error.
     """
@@ -1772,19 +1782,35 @@ def _impl_add_product_image(
         logger.error(f"Failed to add product image: {e}")
         return f"Error adding image: {e}"
 
-    # Set as primary if requested
+    #Set as primary if requested
     if set_as_primary:
-        success = storage_set_primary_product_image(brand_slug, product_slug, brand_relative_path)
-        if success:
-            return (
-                f"Added image `{filename}` to product **{product.name}** and set as primary image."
-            )
-        else:
-            return (
-                f"Added image `{filename}` to product **{product.name}**, "
-                "but failed to set as primary."
-            )
-
+        success=storage_set_primary_product_image(brand_slug,product_slug,brand_relative_path)
+        if not success:
+            return f"Added image `{filename}` to product **{product.name}**, but failed to set as primary."
+        #Auto-analyze packaging text for new/changed primary image
+        #Re-load product to get latest state after primary was set
+        product=load_product(brand_slug,product_slug)
+        if product is None:
+            return f"Added image `{filename}` to product **{product.name}** and set as primary image."
+        should_analyze=product.packaging_text is None or (product.packaging_text.source_image!=brand_relative_path and not product.packaging_text.is_human_edited)
+        if should_analyze:
+            try:
+                from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+                full_path=get_brand_dir(brand_slug)/brand_relative_path
+                brand_ctx,product_ctx=_build_packaging_context(brand_slug,product)
+                result=await analyze_packaging_text(full_path,brand_ctx,product_ctx)
+                if result:
+                    result.source_image=brand_relative_path
+                    product.packaging_text=result
+                    storage_save_product(brand_slug,product)
+                    elem_count=len(result.elements)
+                    if elem_count>0:
+                        logger.info(f"Auto-analyzed packaging text for {product_slug}: {elem_count} elements")
+                        return f"Added image `{filename}` to product **{product.name}** and set as primary image. Auto-extracted {elem_count} text elements from packaging."
+                    logger.info(f"Auto-analyzed packaging text for {product_slug}: no text found")
+            except Exception as e:
+                logger.warning(f"Auto packaging text analysis failed: {e}")
+        return f"Added image `{filename}` to product **{product.name}** and set as primary image."
     return f"Added image `{filename}` to product **{product.name}** (`{product_slug}`)."
 
 
@@ -1983,6 +2009,167 @@ def _impl_set_product_primary_image(
     except Exception as e:
         logger.error(f"Failed to set primary product image: {e}")
         return f"Error setting primary image: {e}"
+
+
+def _build_packaging_context(brand_slug:str,product:"ProductFull")->tuple[str|None,str|None]:
+ """Build brand/product context strings for packaging text analysis.
+ Returns (brand_context, product_context) strings or None if unavailable."""
+ from sip_videogen.brands.storage import load_brand_summary
+ brand_ctx,product_ctx=None,None
+ summary=load_brand_summary(brand_slug)
+ if summary:
+  parts=[summary.name]
+  if summary.tagline:parts.append(summary.tagline)
+  if summary.category:parts.append(summary.category)
+  if summary.tone:parts.append(summary.tone)
+  brand_ctx=" - ".join(parts)
+ if product.name:
+  product_ctx=f"{product.name} - {product.description}" if product.description else product.name
+ return brand_ctx,product_ctx
+
+async def _impl_analyze_product_packaging(product_slug:str,force:bool=False)->str:
+    """Implementation of analyze_product_packaging tool.
+    Args:
+        product_slug: Product to analyze.
+        force: Re-analyze even if packaging_text exists.
+    Returns:
+        Summary of extracted text or error message.
+    """
+    import asyncio
+    brand_slug=get_active_brand()
+    if not brand_slug:return "Error: No active brand selected. Use load_brand() first."
+    slug_error=_validate_slug(product_slug)
+    if slug_error:return f"Error: {slug_error}"
+    product=load_product(brand_slug,product_slug)
+    if product is None:return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+    if not product.primary_image:return f"Error: Product '{product_slug}' has no primary image. Add an image first."
+    #Skip if already analyzed and not forcing
+    if product.packaging_text is not None and not force:
+        elem_count=len(product.packaging_text.elements)
+        return f"Product '{product.name}' already has packaging text ({elem_count} elements). Use force=True to re-analyze."
+    #Resolve image path
+    brand_dir=get_brand_dir(brand_slug)
+    image_path=brand_dir/product.primary_image
+    if not image_path.exists():return f"Error: Primary image not found: {product.primary_image}"
+    #Analyze packaging text
+    try:
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+        brand_ctx,product_ctx=_build_packaging_context(brand_slug,product)
+        result=await analyze_packaging_text(image_path,brand_ctx,product_ctx)
+        if result is None:return f"Packaging text analysis failed for '{product.name}'. Check logs for details."
+        #Update source_image to brand-relative path
+        result.source_image=product.primary_image
+        product.packaging_text=result
+        storage_save_product(brand_slug,product)
+        elem_count=len(result.elements)
+        if elem_count==0:return f"Analyzed **{product.name}** - no text found on packaging."
+        texts=[e.text for e in result.elements[:3]]
+        preview=", ".join(f'"{t}"' for t in texts)
+        more=f" (+{elem_count-3} more)" if elem_count>3 else ""
+        return f"Analyzed **{product.name}** - found {elem_count} text elements: {preview}{more}"
+    except Exception as e:
+        logger.error(f"Packaging text analysis failed: {e}")
+        return f"Error analyzing packaging text: {e}"
+
+
+async def _impl_analyze_all_product_packaging(skip_existing:bool=True,skip_human_edited:bool=True,max_products:int=50)->str:
+    """Implementation of analyze_all_product_packaging tool.
+    Args:
+        skip_existing: Skip products that already have packaging_text.
+        skip_human_edited: Skip products with is_human_edited=True.
+        max_products: Max products to process (rate limiting).
+    Returns:
+        Summary of results.
+    """
+    import asyncio
+    brand_slug=get_active_brand()
+    if not brand_slug:return "Error: No active brand selected. Use load_brand() first."
+    products=storage_list_products(brand_slug)
+    if not products:return "No products found for active brand."
+    analyzed,skipped,failed=0,0,0
+    failures:list[str]=[]
+    for i,summary in enumerate(products[:max_products]):
+        product=load_product(brand_slug,summary.slug)
+        if product is None:
+            skipped+=1
+            continue
+        #Skip conditions
+        if not product.primary_image:
+            skipped+=1
+            continue
+        if skip_existing and product.packaging_text is not None:
+            skipped+=1
+            continue
+        if skip_human_edited and product.packaging_text and product.packaging_text.is_human_edited:
+            skipped+=1
+            continue
+        #Analyze with per-item try/catch
+        try:
+            brand_dir=get_brand_dir(brand_slug)
+            image_path=brand_dir/product.primary_image
+            if not image_path.exists():
+                skipped+=1
+                continue
+            from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+            brand_ctx,product_ctx=_build_packaging_context(brand_slug,product)
+            result=await analyze_packaging_text(image_path,brand_ctx,product_ctx)
+            if result is None:
+                failed+=1
+                failures.append(f"{product.name}: analysis returned None")
+                continue
+            result.source_image=product.primary_image
+            product.packaging_text=result
+            storage_save_product(brand_slug,product)
+            analyzed+=1
+            logger.info(f"Analyzed packaging text for {product.slug}")
+        except Exception as e:
+            failed+=1
+            failures.append(f"{product.name}: {e}")
+            logger.warning(f"Failed to analyze {product.slug}: {e}")
+        #Rate limiting: 1 second delay between API calls
+        if i<len(products[:max_products])-1:
+            await asyncio.sleep(1)
+    total=len(products[:max_products])
+    result_lines=[f"Bulk packaging text analysis complete: {analyzed}/{total} analyzed, {skipped} skipped, {failed} failed."]
+    if failures:
+        result_lines.append("Failures:")
+        for f in failures[:5]:result_lines.append(f"  - {f}")
+        if len(failures)>5:result_lines.append(f"  ... and {len(failures)-5} more")
+    return "\n".join(result_lines)
+
+
+def _impl_update_product_packaging_text(product_slug:str,summary:str|None=None,elements:list[PackagingTextElementInput]|None=None,layout_notes:str|None=None)->str:
+    """Implementation of update_product_packaging_text tool.
+    Args:
+        product_slug: Product to update.
+        summary: Optional new summary.
+        elements: Optional list of element dicts.
+        layout_notes: Optional new layout_notes.
+    Returns:
+        Success message or error.
+    """
+    from datetime import datetime,timezone
+    from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
+    brand_slug=get_active_brand()
+    if not brand_slug:return "Error: No active brand selected. Use load_brand() first."
+    slug_error=_validate_slug(product_slug)
+    if slug_error:return f"Error: {slug_error}"
+    product=load_product(brand_slug,product_slug)
+    if product is None:return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
+    #Create or update packaging_text
+    if product.packaging_text is None:
+        product.packaging_text=PackagingTextDescription()
+    #Update fields (None=keep existing)
+    if summary is not None:product.packaging_text.summary=summary
+    if layout_notes is not None:product.packaging_text.layout_notes=layout_notes
+    if elements is not None:
+        product.packaging_text.elements=[PackagingTextElement(**e) for e in elements]
+    #Mark as human-edited
+    product.packaging_text.is_human_edited=True
+    product.packaging_text.edited_at=datetime.now(timezone.utc)
+    storage_save_product(brand_slug,product)
+    elem_count=len(product.packaging_text.elements)
+    return f"Updated packaging text for **{product.name}** ({elem_count} elements). Marked as human-edited."
 
 
 def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
@@ -2993,17 +3180,10 @@ def create_product(
 
 
 @function_tool
-def add_product_image(
-    product_slug: str,
-    image_path: str,
-    set_as_primary: bool = False,
-    allow_non_reference: bool = False,
-) -> str:
+async def add_product_image(product_slug:str,image_path:str,set_as_primary:bool=False,allow_non_reference:bool=False)->str:
     """Add an image to a product from the uploads folder.
-
     Use this after a user uploads an image (which goes to uploads/) to associate
     it with a product. The image will be copied to the product's images folder.
-
     Args:
         product_slug: The product's slug identifier (e.g., "night-cream").
             Use list_products() to see available products.
@@ -3013,13 +3193,12 @@ def add_product_image(
         set_as_primary: If True, set this image as the product's primary image.
             The primary image is used first for generate_image(product_slug=...),
             with additional product images included as supplemental references.
+            When setting as primary, packaging text is auto-analyzed from the image.
         allow_non_reference: If True, allow adding images that were classified as screenshots,
             documents, or otherwise not suitable as product reference images. Prefer leaving this
             False so product images remain clean reference photos.
-
     Returns:
         Success message with the added filename, or error message.
-
     Example:
         # After user uploads an image, add it to a product:
         add_product_image(
@@ -3028,9 +3207,9 @@ def add_product_image(
             set_as_primary=True
         )
         # Returns: "Added image `cream-photo.jpg` to product **Night Cream**
-        #          and set as primary image."
+        #          and set as primary image. Auto-extracted 4 text elements from packaging."
     """
-    return _impl_add_product_image(product_slug, image_path, set_as_primary, allow_non_reference)
+    return await _impl_add_product_image(product_slug,image_path,set_as_primary,allow_non_reference)
 
 
 @function_tool
@@ -3155,6 +3334,69 @@ def set_product_primary_image(
         #          (`night-cream`)."
     """
     return _impl_set_product_primary_image(product_slug, image_path)
+
+
+# =============================================================================
+# Packaging Text Analysis Tools
+# =============================================================================
+
+
+@function_tool
+async def analyze_product_packaging(product_slug:str,force:bool=False)->str:
+    """Analyze packaging text from product's primary image using AI vision.
+    Extracts text elements (brand name, product name, taglines, etc.) with typography
+    info for accurate reproduction in generated images.
+    Args:
+        product_slug: Product to analyze (must have a primary image).
+        force: Re-analyze even if packaging_text already exists.
+    Returns:
+        Summary of extracted text elements or error message.
+    Example:
+        analyze_product_packaging("night-cream")
+        # Returns: 'Analyzed **Night Cream** - found 4 text elements: "LUMINA", "Night Cream", "Restorative" (+1 more)'
+    """
+    return await _impl_analyze_product_packaging(product_slug,force)
+
+
+@function_tool
+async def analyze_all_product_packaging(skip_existing:bool=True,skip_human_edited:bool=True,max_products:int=50)->str:
+    """Bulk analyze packaging text for all products in the active brand.
+    Useful for backfilling existing products with packaging text analysis.
+    Args:
+        skip_existing: Skip products that already have packaging_text (default True).
+        skip_human_edited: Skip products where packaging_text was manually edited (default True).
+        max_products: Max products to process in one batch (default 50, for rate limiting).
+    Returns:
+        Summary with counts of analyzed, skipped, and failed products.
+    Example:
+        analyze_all_product_packaging()
+        # Returns: 'Bulk packaging text analysis complete: 8/10 analyzed, 2 skipped, 0 failed.'
+    """
+    return await _impl_analyze_all_product_packaging(skip_existing,skip_human_edited,max_products)
+
+
+@function_tool
+def update_product_packaging_text(product_slug:str,summary:str|None=None,elements:list[PackagingTextElementInput]|None=None,layout_notes:str|None=None)->str:
+    """Update packaging text with human corrections.
+    Sets is_human_edited=True to prevent auto-overwrite on re-analysis.
+    Pass None for fields to keep existing values.
+    Args:
+        product_slug: Product to update.
+        summary: New summary text (or None to keep existing).
+        elements: New list of element objects with: text (required), notes, role, typography, size, color, position, emphasis.
+        layout_notes: New layout notes (or None to keep existing).
+    Returns:
+        Success message or error.
+    Example:
+        update_product_packaging_text(
+            "night-cream",
+            elements=[
+                {"text": "LUMINA", "role": "brand_name", "typography": "sans-serif", "size": "large"},
+                {"text": "Night Cream", "role": "product_name", "typography": "serif", "size": "medium"},
+            ]
+        )
+    """
+    return _impl_update_product_packaging_text(product_slug,summary,elements,layout_notes)
 
 
 # =============================================================================

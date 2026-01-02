@@ -929,6 +929,134 @@ class TestProductImages:
         assert result is False
 
 
+#=============================================================================
+#Packaging Text Model Tests
+#=============================================================================
+
+
+class TestPackagingTextModels:
+    """Tests for PackagingTextElement and PackagingTextDescription models."""
+
+    def test_packaging_text_element_minimal(self)->None:
+        """Test PackagingTextElement with only required field."""
+        from sip_videogen.brands.models import PackagingTextElement
+        elem=PackagingTextElement(text="SUMMIT")
+        assert elem.text=="SUMMIT"
+        assert elem.notes==""
+        assert elem.role=="other"
+        assert elem.typography==""
+        assert elem.size==""
+        assert elem.color==""
+        assert elem.position==""
+        assert elem.emphasis==""
+
+    def test_packaging_text_element_full(self)->None:
+        """Test PackagingTextElement with all fields populated."""
+        from sip_videogen.brands.models import PackagingTextElement
+        elem=PackagingTextElement(
+            text="SUMMIT COFFEE",
+            notes="letter O not zero",
+            role="brand_name",
+            typography="sans-serif",
+            size="large",
+            color="white",
+            position="front-center",
+            emphasis="all-caps"
+        )
+        assert elem.text=="SUMMIT COFFEE"
+        assert elem.notes=="letter O not zero"
+        assert elem.role=="brand_name"
+        assert elem.typography=="sans-serif"
+        assert elem.size=="large"
+        assert elem.color=="white"
+        assert elem.position=="front-center"
+        assert elem.emphasis=="all-caps"
+
+    def test_packaging_text_description_empty(self)->None:
+        """Test PackagingTextDescription with no elements (analyzed, no text found)."""
+        from sip_videogen.brands.models import PackagingTextDescription
+        desc=PackagingTextDescription()
+        assert desc.summary==""
+        assert desc.elements==[]
+        assert desc.layout_notes==""
+        assert desc.source_image==""
+        assert desc.generated_at is None
+        assert desc.edited_at is None
+        assert desc.is_human_edited is False
+
+    def test_packaging_text_description_populated(self)->None:
+        """Test PackagingTextDescription with elements."""
+        from datetime import datetime
+        from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
+        now=datetime.utcnow()
+        desc=PackagingTextDescription(
+            summary="Brand name centered, tagline below",
+            elements=[
+                PackagingTextElement(text="SUMMIT",role="brand_name"),
+                PackagingTextElement(text="PREMIUM ROAST",role="tagline"),
+            ],
+            layout_notes="Vertical hierarchy",
+            source_image="products/coffee/images/bag.png",
+            generated_at=now,
+            is_human_edited=False
+        )
+        assert len(desc.elements)==2
+        assert desc.elements[0].text=="SUMMIT"
+        assert desc.elements[1].role=="tagline"
+        assert desc.source_image=="products/coffee/images/bag.png"
+        assert desc.generated_at==now
+
+    def test_product_full_backward_compatibility(
+        self,temp_brands_dir:Path,sample_brand_identity:BrandIdentityFull
+    )->None:
+        """Test ProductFull loads without packaging_text field (backward compat)."""
+        import json
+        create_brand(sample_brand_identity)
+        #Create product dir
+        prod_dir=temp_brands_dir/"test-brand"/"products"/"legacy-product"
+        prod_dir.mkdir(parents=True)
+        #Write product_full.json WITHOUT packaging_text field
+        legacy_data={
+            "slug":"legacy-product",
+            "name":"Legacy Product",
+            "description":"A product from before packaging_text existed",
+            "images":[],
+            "primary_image":"",
+            "attributes":[]
+        }
+        (prod_dir/"product_full.json").write_text(json.dumps(legacy_data))
+        #Load and verify
+        product=load_product("test-brand","legacy-product")
+        assert product is not None
+        assert product.slug=="legacy-product"
+        assert product.packaging_text is None
+
+    def test_to_summary_sets_has_packaging_text_true(self)->None:
+        """Test to_summary() sets has_packaging_text=True when packaging_text exists."""
+        from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
+        product=ProductFull(
+            slug="test-product",
+            name="Test Product",
+            description="Test",
+            packaging_text=PackagingTextDescription(
+                elements=[PackagingTextElement(text="TEST")]
+            )
+        )
+        summary=product.to_summary()
+        assert summary.has_packaging_text is True
+
+    def test_to_summary_sets_has_packaging_text_false(self)->None:
+        """Test to_summary() sets has_packaging_text=False when packaging_text is None."""
+        product=ProductFull(
+            slug="test-product",
+            name="Test Product",
+            description="Test",
+            packaging_text=None
+        )
+        summary=product.to_summary()
+        assert summary.has_packaging_text is False
+
+
 # =============================================================================
 # Project Storage Tests
 # =============================================================================

@@ -1,22 +1,18 @@
 """Image analyzer for extracting product information using Gemini Vision.
-
 This module provides functionality to analyze product images and extract
 structured information (name, measurements, colors, materials) before
 sending to the Brand Advisor agent.
 """
-
 import json
+from datetime import datetime,timezone
 from pathlib import Path
 from typing import TypedDict
-
 from google import genai
 from google.genai import types
 from PIL import Image as PILImage
-
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
-
-logger = get_logger(__name__)
+logger=get_logger(__name__)
 
 
 class ExtractedAttribute(TypedDict):
@@ -138,6 +134,83 @@ async def analyze_image(image_path: Path) -> ImageAnalysisResult | None:
     except Exception as e:
         logger.warning(f"Image analysis failed for {image_path}: {e}")
         return None
+
+
+_PACKAGING_TEXT_PROMPT_BASE="""Analyze text on this product packaging like a graphic designer explaining to another designer.
+Return JSON with:
+- summary: Brief overview of text layout and visual hierarchy
+- elements: Array of text elements, each with:
+  - text: Exact literal characters only (no explanations here)
+  - notes: Disambiguation if needed, e.g. "letter O not zero", "lowercase L not one"
+  - role: brand_name|product_name|tagline|instructions|legal|decorative|other
+  - typography: serif|sans-serif|script|decorative|handwritten|geometric|monospace
+  - size: large|medium|small|tiny (relative to package)
+  - color: Specific color description
+  - position: Where on package (front-center, top-left, cap, etc.)
+  - emphasis: bold|italic|all-caps|embossed|engraved|foil|metallic|printed
+- layout_notes: How text elements relate spatially
+Guidelines:
+- Keep "text" field literal - put clarifications in "notes"
+- List elements in visual hierarchy order (most prominent first)
+- Include special finishes: embossing, foil stamping, metallic ink
+- If text is partially visible, describe what's readable
+- Skip very long text (ingredients, legal disclaimers)
+Return ONLY valid JSON, no markdown formatting."""
+
+def _build_packaging_prompt(brand_context:str|None=None,product_context:str|None=None)->str:
+ """Build packaging text prompt with optional brand/product context."""
+ prompt=_PACKAGING_TEXT_PROMPT_BASE
+ if brand_context or product_context:
+  prompt+="\n---\nBackground context (for disambiguation only, do not invent text):"
+  if brand_context:prompt+=f"\nBrand: {brand_context}"
+  if product_context:prompt+=f"\nProduct: {product_context}"
+ return prompt
+
+async def analyze_packaging_text(image_path:Path,brand_context:str|None=None,product_context:str|None=None):
+ """Analyze packaging text from a product image using Gemini Vision.
+ Args:
+  image_path: Path to the image file to analyze.
+  brand_context: Optional brand info for disambiguation (e.g. "Summit Coffee - Premium artisan coffee").
+  product_context: Optional product info for disambiguation (e.g. "Ethiopian Single Origin - Single-origin beans").
+ Returns:
+  PackagingTextDescription with extracted text elements, or None if analysis fails.
+ """
+ from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
+ try:
+  settings=get_settings()
+  client=genai.Client(api_key=settings.gemini_api_key,vertexai=False)
+  pil_image=PILImage.open(image_path)
+  prompt=_build_packaging_prompt(brand_context,product_context)
+  logger.debug(f"Analyzing packaging text: {image_path.name} ({pil_image.size})")
+  response=client.models.generate_content(
+   model="gemini-3-pro-image-preview",
+   contents=[prompt,pil_image],
+   config=types.GenerateContentConfig(temperature=0.1),
+  )
+  response_text=response.text.strip()
+  #Handle potential markdown code blocks (reuse existing pattern)
+  if response_text.startswith("```"):
+   lines=response_text.split("\n")
+   if lines[0].startswith("```"):lines=lines[1:]
+   if lines and lines[-1].strip()=="```":lines=lines[:-1]
+   response_text="\n".join(lines)
+  data=json.loads(response_text)
+  elements=[PackagingTextElement(**e) for e in data.get("elements",[])]
+  result=PackagingTextDescription(
+   summary=data.get("summary",""),
+   elements=elements,
+   layout_notes=data.get("layout_notes",""),
+   source_image=str(image_path),
+   generated_at=datetime.now(timezone.utc),
+  )
+  logger.info(f"Packaging text analysis complete: {image_path.name} -> {len(elements)} elements")
+  return result
+ except json.JSONDecodeError as e:
+  logger.warning(f"Failed to parse packaging text response as JSON: {e}")
+  return None
+ except Exception as e:
+  logger.warning(f"Packaging text analysis failed for {image_path}: {e}")
+  return None
 
 
 def format_analysis_for_message(
