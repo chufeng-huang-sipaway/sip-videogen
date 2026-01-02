@@ -4,6 +4,7 @@ all brand-related tasks. It replaces the previous multi-agent orchestration
 pattern with a simpler, more maintainable architecture.
 """
 from __future__ import annotations
+from dataclasses import dataclass,field
 from typing import AsyncIterator
 from agents import Agent,Runner
 from sip_videogen.advisor.context_budget import ContextBudgetManager
@@ -11,11 +12,22 @@ from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.hooks import AdvisorHooks,AdvisorProgress,ProgressCallback
 from sip_videogen.advisor.prompt_builder import build_system_prompt as _build_system_prompt,format_brand_context as _format_brand_context,_group_assets
 from sip_videogen.advisor.skills.registry import get_skills_registry
-from sip_videogen.advisor.tools import ADVISOR_TOOLS,set_active_aspect_ratio
+from sip_videogen.advisor.tools import ADVISOR_TOOLS,set_active_aspect_ratio,set_tool_progress_callback
 from sip_videogen.brands.context import HierarchicalContextBuilder
 from sip_videogen.brands.storage import get_active_brand,set_active_brand
 from sip_videogen.config.logging import get_logger
 logger=get_logger(__name__)
+@dataclass
+class ChatContext:
+    """Prepared context for a chat turn."""
+    full_prompt:str
+    hooks:AdvisorHooks
+    matched_skills:list[tuple[str,str]]=field(default_factory=list)
+    raw_user_message:str=""
+    budget_trimmed:bool=False
+    budget_warning:str|None=None
+    is_over_budget:bool=False
+    system_prompt_trimmed:bool=False
 #Re-export for backward compatibility
 __all__=["BrandAdvisor","AdvisorProgress","ProgressCallback","AdvisorHooks"]
 
@@ -107,17 +119,72 @@ class BrandAdvisor:
 
         logger.info(f"Switched to brand: {slug}")
 
-    async def chat_with_metadata(
-        self,
-        message: str,
-        project_slug: str | None = None,
-        attached_products: list[str] | None = None,
-        attached_templates: list[dict] | None = None,
-        aspect_ratio: str | None = None,
-        generation_mode: str | None = None,
-    ) -> dict:
-        """Send a message and get a response plus UI metadata.
+    def _prepare_chat_context(self,message:str,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None,aspect_ratio:str|None=None,generation_mode:str|None=None,inject_generation_mode:bool=False)->ChatContext:
+        """Prepare all context needed for a chat turn.
+        Args:
+            message: User message to process.
+            project_slug: Active project slug for context injection.
+            attached_products: List of product slugs to include in context.
+            attached_templates: List of template dicts with template_slug and strict.
+            aspect_ratio: Aspect ratio for video/image generation.
+            generation_mode: Generation mode ('image' or 'video').
+            inject_generation_mode: If True, always inject generation_mode context (defaults to 'image').
+        Returns:
+            ChatContext with prepared prompt and metadata.
+        """
+        raw_user_message=message
+        skills_context,matched_skills=self._get_relevant_skills_context(raw_user_message)
+        history_text=""
+        if self._history_manager.message_count>0:history_text=self._history_manager.get_formatted(max_tokens=4000)
+        #Build per-turn context (project + attached products + templates)
+        turn_context=""
+        if self.brand_slug and(project_slug or attached_products or attached_templates):
+            builder=HierarchicalContextBuilder(brand_slug=self.brand_slug,product_slugs=attached_products,project_slug=project_slug,attached_templates=attached_templates)
+            turn_context=builder.build_turn_context()
+            logger.info("_prepare_chat_context(): attached_products=%s, turn_context_len=%d",attached_products,len(turn_context))
+        #Generation mode injection - ALWAYS for chat_with_metadata (defaults to "image")
+        if inject_generation_mode:
+            mode=generation_mode if generation_mode in('image','video')else'image'
+            mode_ctx=f"**Generation Mode**: {mode.capitalize()} - {'Generate videos using generate_video tool.' if mode=='video' else 'Generate images using generate_image tool.'}"
+            turn_context=f"{turn_context}\n\n{mode_ctx}" if turn_context else mode_ctx
+            if aspect_ratio:
+                set_active_aspect_ratio(aspect_ratio)
+                ar_ctx=f"**Aspect Ratio**: Use {aspect_ratio} for any image or video generation."
+                turn_context=f"{turn_context}\n\n{ar_ctx}"
+        #Build augmented message with turn context prepended
+        if turn_context:augmented_message=f"## Current Context\n\n{turn_context}\n\n---\n\n## User Request\n\n{raw_user_message}"
+        else:augmented_message=raw_user_message
+        #Check budget and trim if needed
+        budget_result,_,trimmed_skills,trimmed_history,_=self._budget_manager.check_and_trim(system_prompt=self._agent.instructions or"",skills_context=skills_context,history=history_text,user_message=augmented_message)
+        system_prompt_trimmed="trimmed system prompt" in(budget_result.warning_message or"")
+        #Build prompt with trimmed parts
+        prompt_parts=[]
+        if trimmed_skills:prompt_parts.append(trimmed_skills)
+        if trimmed_history:prompt_parts.append(trimmed_history)
+        prompt_parts.append(f"User: {augmented_message}")
+        full_prompt="\n\n".join(prompt_parts)
+        hooks=AdvisorHooks(callback=self.progress_callback)
+        return ChatContext(full_prompt=full_prompt,hooks=hooks,matched_skills=matched_skills,raw_user_message=raw_user_message,budget_trimmed=budget_result.trimmed,budget_warning=budget_result.warning_message,is_over_budget=budget_result.is_over_budget,system_prompt_trimmed=system_prompt_trimmed)
 
+    def _emit_skill_events(self,matched_skills:list[tuple[str,str]])->None:
+        """Emit progress events for matched skills."""
+        for skill_name,skill_description in matched_skills:
+            if self.progress_callback:self.progress_callback(AdvisorProgress(event_type="skill_loaded",message=f"Loading {skill_name} skill",detail=skill_description))
+
+    def _log_budget_warnings(self,ctx:ChatContext)->None:
+        """Log budget warnings from chat context."""
+        if ctx.budget_trimmed:logger.warning(f"Context trimmed: {ctx.budget_warning}")
+        if ctx.is_over_budget:logger.error(f"CRITICAL: Still over budget after trimming. Consider reducing system prompt size.")
+        if ctx.system_prompt_trimmed:logger.error("System prompt was trimmed! This indicates the base prompt is too large. Consider reducing prompt size or brand context.")
+
+    def _setup_tool_callback(self)->None:
+        """Set up tool progress callback for emit_tool_thinking."""
+        def _tool_cb(step:str,detail:str)->None:
+            if self.progress_callback:self.progress_callback(AdvisorProgress(event_type="thinking_step",message=step,detail=detail))
+        set_tool_progress_callback(_tool_cb)
+
+    async def chat_with_metadata(self,message:str,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None,aspect_ratio:str|None=None,generation_mode:str|None=None)->dict:
+        """Send a message and get a response plus UI metadata.
         Args:
             message: User message to process.
             project_slug: Active project slug for context injection.
@@ -125,133 +192,20 @@ class BrandAdvisor:
             attached_templates: List of template dicts with template_slug and strict.
             aspect_ratio: Aspect ratio for video/image generation (e.g., "1:1", "16:9").
             generation_mode: Generation mode ('image' or 'video').
-
         Returns:
             Dict with response, interaction, and memory_update.
         """
-        hooks = AdvisorHooks(callback=self.progress_callback)
-
-        # Keep raw message for skill matching and history
-        raw_user_message = message
-
-        # Find relevant skills using RAW message (not augmented)
-        skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
-
-        # Emit progress events for matched skills
-        for skill_name, skill_description in matched_skills:
-            if self.progress_callback:
-                self.progress_callback(
-                    AdvisorProgress(
-                        event_type="skill_loaded",
-                        message=f"Loading {skill_name} skill",
-                        detail=skill_description,
-                    )
-                )
-
-        # Get conversation history
-        history_text = ""
-        if self._history_manager.message_count > 0:
-            history_text = self._history_manager.get_formatted(max_tokens=4000)
-
-        # Build per-turn context (project + attached products + templates)
-        turn_context = ""
-        if self.brand_slug and (project_slug or attached_products or attached_templates):
-            builder = HierarchicalContextBuilder(
-                brand_slug=self.brand_slug,
-                product_slugs=attached_products,
-                project_slug=project_slug,
-                attached_templates=attached_templates,
-            )
-            turn_context = builder.build_turn_context()
-            logger.info("chat_with_metadata(): attached_products=%s, turn_context_len=%d",attached_products,len(turn_context))
-        #Add generation mode and aspect ratio to turn context if provided (chat_with_metadata only)
-        mode=generation_mode if generation_mode in('image','video')else'image'
-        mode_ctx=f"**Generation Mode**: {mode.capitalize()} - {'Generate videos using generate_video tool.' if mode=='video' else 'Generate images using generate_image tool.'}"
-        turn_context=f"{turn_context}\n\n{mode_ctx}" if turn_context else mode_ctx
-        if aspect_ratio:
-            set_active_aspect_ratio(aspect_ratio)
-            ar_ctx=f"**Aspect Ratio**: Use {aspect_ratio} for any image or video generation."
-            turn_context=f"{turn_context}\n\n{ar_ctx}"
-
-        # Build augmented message with turn context prepended
-        if turn_context:
-            augmented_message = f"""## Current Context
-
-{turn_context}
-
----
-
-## User Request
-
-{raw_user_message}"""
-        else:
-            augmented_message = raw_user_message
-
-        # Check budget and trim if needed (use augmented_message for accurate size)
-        budget_result, trimmed_system, trimmed_skills, trimmed_history, _ = (
-            self._budget_manager.check_and_trim(
-                system_prompt=self._agent.instructions or "",
-                skills_context=skills_context,
-                history=history_text,
-                user_message=augmented_message,
-            )
-        )
-
-        if budget_result.trimmed:
-            logger.warning(f"Context trimmed: {budget_result.warning_message}")
-
-        if budget_result.is_over_budget:
-            logger.error(
-                f"CRITICAL: Still over budget after trimming: "
-                f"{budget_result.total_tokens}/{budget_result.budget_limit} tokens. "
-                f"Consider reducing system prompt size."
-            )
-
-        # Log severe warning if system prompt was trimmed (would need agent rebuild)
-        if "trimmed system prompt" in (budget_result.warning_message or ""):
-            logger.error(
-                "System prompt was trimmed! This indicates the base prompt is too large. "
-                "Consider reducing prompt size or brand context."
-            )
-
-        # Build prompt with trimmed parts (but NOT trimmed_system - would require Agent rebuild)
-        prompt_parts = []
-
-        if trimmed_skills:
-            prompt_parts.append(trimmed_skills)
-
-        if trimmed_history:
-            prompt_parts.append(trimmed_history)
-
-        # Use augmented message (with turn context) for LLM
-        prompt_parts.append(f"User: {augmented_message}")
-        full_prompt = "\n\n".join(prompt_parts)
-        #Set up tool progress callback for emit_tool_thinking
-        from sip_videogen.advisor.tools import set_tool_progress_callback
-        def _tool_cb(step:str,detail:str)->None:
-            if self.progress_callback:self.progress_callback(AdvisorProgress(event_type="thinking_step",message=step,detail=detail))
-        set_tool_progress_callback(_tool_cb)
+        ctx=self._prepare_chat_context(message,project_slug,attached_products,attached_templates,aspect_ratio,generation_mode,inject_generation_mode=True)
+        self._emit_skill_events(ctx.matched_skills)
+        self._log_budget_warnings(ctx)
+        self._setup_tool_callback()
         try:
-            result = await Runner.run(self._agent, full_prompt, hooks=hooks)
-
-            # Extract response text
-            response = result.final_output
-            if hasattr(response, "text"):
-                response_text = response.text
-            else:
-                response_text = str(response)
-
-            # Update conversation history with RAW message (not augmented)
-            # This prevents history from ballooning with repeated context
-            self._history_manager.add("user", raw_user_message)
-            self._history_manager.add("assistant", response_text)
-
-            return {
-                "response": response_text,
-                "interaction": hooks.captured_interaction,
-                "memory_update": hooks.captured_memory_update,
-            }
-
+            result=await Runner.run(self._agent,ctx.full_prompt,hooks=ctx.hooks)
+            response=result.final_output
+            response_text=response.text if hasattr(response,"text")else str(response)
+            self._history_manager.add("user",ctx.raw_user_message)
+            self._history_manager.add("assistant",response_text)
+            return{"response":response_text,"interaction":ctx.hooks.captured_interaction,"memory_update":ctx.hooks.captured_memory_update}
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             raise
@@ -283,133 +237,29 @@ class BrandAdvisor:
         )
         return result["response"]
 
-    async def chat_stream(
-        self,
-        message: str,
-        project_slug: str | None = None,
-        attached_products: list[str] | None = None,
-        attached_templates: list[dict] | None = None,
-    ) -> AsyncIterator[str]:
+    async def chat_stream(self,message:str,project_slug:str|None=None,attached_products:list[str]|None=None,attached_templates:list[dict]|None=None)->AsyncIterator[str]:
         """Send a message and stream the response.
-
         Args:
             message: User message to process.
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
             attached_templates: List of template dicts with template_slug and strict.
-
         Yields:
             Response text chunks as they're generated.
         """
-        hooks = AdvisorHooks(callback=self.progress_callback)
-
-        # Keep raw message for skill matching and history
-        raw_user_message = message
-
-        # Find relevant skills using RAW message (not augmented)
-        skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
-
-        # Emit progress events for matched skills
-        for skill_name, skill_description in matched_skills:
-            if self.progress_callback:
-                self.progress_callback(
-                    AdvisorProgress(
-                        event_type="skill_loaded",
-                        message=f"Loading {skill_name} skill",
-                        detail=skill_description,
-                    )
-                )
-
-        # Get conversation history
-        history_text = ""
-        if self._history_manager.message_count > 0:
-            history_text = self._history_manager.get_formatted(max_tokens=4000)
-
-        # Build per-turn context (project + attached products + templates)
-        turn_context = ""
-        if self.brand_slug and (project_slug or attached_products or attached_templates):
-            builder = HierarchicalContextBuilder(
-                brand_slug=self.brand_slug,
-                product_slugs=attached_products,
-                project_slug=project_slug,
-                attached_templates=attached_templates,
-            )
-            turn_context = builder.build_turn_context()
-
-        # Build augmented message with turn context prepended
-        if turn_context:
-            augmented_message = f"""## Current Context
-
-{turn_context}
-
----
-
-## User Request
-
-{raw_user_message}"""
-        else:
-            augmented_message = raw_user_message
-
-        # Check budget and trim if needed (use augmented_message for accurate size)
-        budget_result, trimmed_system, trimmed_skills, trimmed_history, _ = (
-            self._budget_manager.check_and_trim(
-                system_prompt=self._agent.instructions or "",
-                skills_context=skills_context,
-                history=history_text,
-                user_message=augmented_message,
-            )
-        )
-
-        if budget_result.trimmed:
-            logger.warning(f"Context trimmed: {budget_result.warning_message}")
-
-        if budget_result.is_over_budget:
-            logger.error(
-                f"CRITICAL: Still over budget after trimming: "
-                f"{budget_result.total_tokens}/{budget_result.budget_limit} tokens. "
-                f"Consider reducing system prompt size."
-            )
-
-        # Log severe warning if system prompt was trimmed (would need agent rebuild)
-        if "trimmed system prompt" in (budget_result.warning_message or ""):
-            logger.error(
-                "System prompt was trimmed! This indicates the base prompt is too large. "
-                "Consider reducing prompt size or brand context."
-            )
-
-        # Build prompt with trimmed parts (but NOT trimmed_system - would require Agent rebuild)
-        prompt_parts = []
-
-        if trimmed_skills:
-            prompt_parts.append(trimmed_skills)
-
-        if trimmed_history:
-            prompt_parts.append(trimmed_history)
-
-        # Use augmented message (with turn context) for LLM
-        prompt_parts.append(f"User: {augmented_message}")
-        full_prompt = "\n\n".join(prompt_parts)
-        #Set up tool progress callback for emit_tool_thinking
-        from sip_videogen.advisor.tools import set_tool_progress_callback
-        def _tool_cb(step:str,detail:str)->None:
-            if self.progress_callback:self.progress_callback(AdvisorProgress(event_type="thinking_step",message=step,detail=detail))
-        set_tool_progress_callback(_tool_cb)
-        # Accumulate response for history
-        response_chunks: list[str] = []
-
+        ctx=self._prepare_chat_context(message,project_slug,attached_products,attached_templates,aspect_ratio=None,generation_mode=None,inject_generation_mode=False)
+        self._emit_skill_events(ctx.matched_skills)
+        self._log_budget_warnings(ctx)
+        self._setup_tool_callback()
+        response_chunks:list[str]=[]
         try:
-            # Use streaming runner
-            async for chunk in Runner.run_streamed(self._agent, full_prompt, hooks=hooks):
-                if hasattr(chunk, "text") and chunk.text:
+            async for chunk in Runner.run_streamed(self._agent,ctx.full_prompt,hooks=ctx.hooks):
+                if hasattr(chunk,"text")and chunk.text:
                     response_chunks.append(chunk.text)
                     yield chunk.text
-
-            # Update history with RAW message (not augmented)
-            # This prevents history from ballooning with repeated context
-            full_response = "".join(response_chunks)
-            self._history_manager.add("user", raw_user_message)
-            self._history_manager.add("assistant", full_response)
-
+            full_response="".join(response_chunks)
+            self._history_manager.add("user",ctx.raw_user_message)
+            self._history_manager.add("assistant",full_response)
         except Exception as e:
             logger.error(f"Stream chat failed: {e}")
             raise
