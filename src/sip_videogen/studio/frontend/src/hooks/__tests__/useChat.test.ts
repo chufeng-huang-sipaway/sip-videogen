@@ -39,4 +39,19 @@ describe('useChat brand isolation',()=>{
     expect(result.current.aspectRatio).toBe(DEFAULT_ASPECT_RATIO)
     expect(result.current.generationMode).toBe(DEFAULT_GENERATION_MODE)
   })
+  it('ignores error from in-flight request after brand change',async()=>{
+    let rejectChat:(e:Error)=>void=()=>{}
+    mockChat.mockImplementation(()=>new Promise((_,rej)=>{rejectChat=rej}))
+    mockIsPyWebView=true
+    const{result,rerender}=renderHook(({brand})=>useChat(brand),{initialProps:{brand:'brand-a'}})
+    //Start request on brand-a
+    await act(async()=>{result.current.sendMessage('test',{})})
+    expect(result.current.isLoading).toBe(true)
+    //Switch to brand-b before error
+    rerender({brand:'brand-b'})
+    expect(result.current.error).toBeNull()
+    //Late error arrives - should be ignored
+    await act(async()=>{rejectChat(new Error('late error'))})
+    await waitFor(()=>{expect(result.current.error).toBeNull()})
+  })
 })

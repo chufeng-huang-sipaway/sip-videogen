@@ -79,8 +79,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
 
 //Clear messages when brand changes
   useEffect(() => {
-    //Invalidate any in-flight requests for the previous brand
-    requestIdRef.current += 1
+    //Mark current request as cancelled so late responses are ignored
+    if(requestIdRef.current>0)cancelledRequestIdRef.current=requestIdRef.current
     setMessages([])
     setError(null)
     setAttachments([])
