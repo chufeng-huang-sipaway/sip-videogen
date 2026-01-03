@@ -565,7 +565,8 @@ async def _impl_generate_image(
     from google import genai
     from google.genai import types
     from PIL import Image as PILImage
-
+    # DEBUG: Log all parameters to trace what the agent is passing
+    logger.info("[generate_image] PARAMS: product_slug=%s, product_slugs=%s, reference_image=%s, validate_identity=%s",product_slug,product_slugs,reference_image,validate_identity)
     settings = get_settings()
     brand_slug = get_active_brand()
     model = "gemini-3-pro-image-preview"
@@ -869,9 +870,8 @@ async def _impl_generate_image(
     reference_image_bytes: bytes | None = None
     # Save original reference_image before potential overwrite
     original_reference_image = reference_image
-
-    # Explicit reference_image takes precedence over product_slug
-    if product_slug and not reference_image:
+    # Load product for specs injection and reference images (Quick Edit or new generation)
+    if product_slug:
         if not brand_slug:
             return "Error: No active brand - cannot load product"
         product = load_product(brand_slug, product_slug)
@@ -886,50 +886,30 @@ async def _impl_generate_image(
             max_refs = min(settings.sip_product_ref_images_per_product, len(product_images))
             selected_images = product_images[:max_refs]
             if len(selected_images) < len(product_images):
-                logger.info(
-                    f"Limiting '{product_slug}' reference images to {max_refs} "
-                    f"of {len(product_images)} available"
-                )
-
-            reference_image = selected_images[0]
-            validate_identity = True
-            logger.info(
-                f"Using product '{product_slug}' reference images: {', '.join(selected_images)}"
-            )
-
-            for img_path in selected_images:
-                role = "primary" if img_path == product.primary_image else "additional"
-                used_for = "generation+validation" if role == "primary" else "generation"
-                reference_candidates.append(
-                    {
-                        "path": img_path,
-                        "product_slug": product_slug,
-                        "role": role,
-                        "used_for": used_for,
-                        "is_primary": role == "primary",
-                    }
-                )
-
-            # Phase 1: Inject product specs into prompt if enabled
+                logger.info(f"Limiting '{product_slug}' reference images to {max_refs} of {len(product_images)} available")
+            # Quick Edit mode: explicit reference_image is the edit source (primary)
+            # Product images become additional references for identity preservation
+            if original_reference_image:
+                reference_candidates.append({"path": original_reference_image,"product_slug": product_slug,"role": "edit-source","used_for": "generation+validation","is_primary": True})
+                for img_path in selected_images:
+                    if img_path != original_reference_image:
+                        reference_candidates.append({"path": img_path,"product_slug": product_slug,"role": "product-reference","used_for": "generation","is_primary": False})
+                validate_identity = True
+                logger.info(f"Quick Edit mode: edit-source={original_reference_image}, product refs={selected_images}")
+            else:
+                # New generation mode: product's primary image is the primary reference
+                reference_image = selected_images[0]
+                validate_identity = True
+                logger.info(f"Using product '{product_slug}' reference images: {', '.join(selected_images)}")
+                for img_path in selected_images:
+                    role = "primary" if img_path == product.primary_image else "additional"
+                    used_for = "generation+validation" if role == "primary" else "generation"
+                    reference_candidates.append({"path": img_path,"product_slug": product_slug,"role": role,"used_for": used_for,"is_primary": role == "primary"})
+            # Inject product specs (including packaging text) into prompt
             if settings.sip_product_specs_injection:
                 from sip_videogen.advisor.product_specs import inject_specs_into_prompt
-
-                generation_prompt = inject_specs_into_prompt(
-                    prompt=prompt,
-                    brand_slug=brand_slug,
-                    product_slugs=[product_slug],
-                )
-                logger.info(f"Injected product specs for '{product_slug}'")
-            # If original reference_image was provided (e.g., Quick Edit), add it as additional reference
-            if original_reference_image and original_reference_image not in selected_images:
-                reference_candidates.append({
-                    "path": original_reference_image,
-                    "product_slug": product_slug,
-                    "role": "edit-source",
-                    "used_for": "generation",
-                    "is_primary": False,
-                })
-                logger.info(f"Added edit source image: {original_reference_image}")
+                generation_prompt = inject_specs_into_prompt(prompt=prompt,brand_slug=brand_slug,product_slugs=[product_slug])
+                logger.info(f"[generate_image] SPECS INJECTED for '{product_slug}', prompt_len={len(generation_prompt)}")
         else:
             logger.warning(f"Product '{product_slug}' has no primary image")
 

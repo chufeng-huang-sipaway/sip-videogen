@@ -2,9 +2,11 @@
 from __future__ import annotations
 import base64
 import hashlib
+import logging
 import subprocess
 import sys
 from pathlib import Path
+logger=logging.getLogger(__name__)
 def _get_thumb_cache_dir()->Path:
     """Get or create thumbnail cache directory."""
     d=Path.home()/".sip-videogen"/"cache"/"thumbnails"
@@ -142,10 +144,19 @@ class AssetService:
         from sip_videogen.advisor.tools import load_image_metadata
         try:
             resolved,error=self._resolve_image_path(image_path)
+            # Fallback: try with assets/ prefix if path not found (frontend may omit it)
+            if error or not resolved or not resolved.exists():
+                if not image_path.startswith("assets/"):
+                    resolved2,error2=self._resolve_image_path(f"assets/{image_path}")
+                    if not error2 and resolved2 and resolved2.exists():
+                        resolved,error=resolved2,None
+                        logger.debug(f"[get_image_metadata] Resolved with assets/ prefix: {image_path}")
             if error:return bridge_error(error)
             if not resolved or not resolved.exists():return bridge_error(f"Image not found: {image_path}")
             #load_image_metadata returns None for missing/corrupt .meta.json
             metadata=load_image_metadata(str(resolved))
+            slugs=metadata.get("product_slugs") if metadata else None
+            logger.info(f"[get_image_metadata] path={image_path}, resolved={resolved}, product_slugs={slugs}")
             return bridge_ok(metadata)
         except Exception as e:return bridge_error(str(e))
     def get_image_thumbnail(self,image_path:str)->dict:

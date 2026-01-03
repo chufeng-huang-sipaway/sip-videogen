@@ -466,12 +466,12 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
     specs.compute_ratios()
     specs.forbidden = _dedupe_forbidden_items(forbidden_items)
     specs.required = _derive_required_from_forbidden(specs.forbidden)
-    #Extract packaging text: filter first, then cap at 5
+    #Extract packaging text: include ALL elements (text fidelity is critical for brand owners)
     if product.packaging_text is not None and product.packaging_text.elements:
         from sip_videogen.brands.text_utils import escape_text_for_prompt
         valid_elems=[e for e in product.packaging_text.elements if len(e.text)<=80]
         parts=[]
-        for elem in valid_elems[:5]:
+        for elem in valid_elems:
             text=escape_text_for_prompt(elem.text)
             part=f'"{text}"'
             #Add disambiguation if present
