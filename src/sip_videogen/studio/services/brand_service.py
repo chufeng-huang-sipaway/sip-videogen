@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from sip_videogen.brands.models import AudienceProfile,BrandCoreIdentity,BrandIdentityFull,BrandIndexEntry,CompetitivePositioning,VisualIdentity,VoiceGuidelines
-from sip_videogen.brands.storage import backup_brand_identity,get_active_brand,get_brand_dir,list_brand_backups,list_brands,load_brand,load_brand_summary,restore_brand_backup,save_asset,save_brand,save_document,set_active_brand
+from sip_videogen.brands.storage import backup_brand_identity,get_brand_dir,list_brand_backups,list_brands,load_brand,load_brand_summary,restore_brand_backup,save_asset,save_brand,save_document
 from sip_videogen.brands.storage import create_brand as storage_create_brand
 from sip_videogen.brands.storage import delete_brand as storage_delete_brand
 from ..state import BridgeState
@@ -72,7 +72,7 @@ class BrandService:
         try:
             self._sync_brand_index()
             entries=list_brands();brands=[{"slug":e.slug,"name":e.name,"category":e.category}for e in entries]
-            active=get_active_brand()
+            active=self._state.get_active_slug()
             logger.info("Found %d brands: %s",len(brands),[b['slug']for b in brands])
             logger.info("Active brand: %s",active)
             return bridge_ok({"brands":brands,"active":active})
@@ -85,7 +85,7 @@ class BrandService:
         try:
             entries=list_brands()
             if slug not in[e.slug for e in entries]:return bridge_error(f"Brand '{slug}' not found")
-            set_active_brand(slug)
+            self._state.set_active_slug(slug)
             if self._state.advisor is None:self._state.advisor=BrandAdvisor(brand_slug=slug,progress_callback=self._get_progress_callback())
             else:self._state.advisor.set_brand(slug,preserve_history=False)
             self._trigger_background_packaging_analysis(slug)
@@ -94,7 +94,7 @@ class BrandService:
     def get_brand_info(self,slug:str|None=None)->dict:
         """Get detailed brand information."""
         try:
-            target=slug or get_active_brand()
+            target=slug or self._state.get_active_slug()
             if not target:return bridge_error("No brand selected")
             summary=load_brand_summary(target)
             if not summary:return bridge_error(f"Brand '{target}' not found")
@@ -103,7 +103,7 @@ class BrandService:
     def get_brand_identity(self)->dict:
         """Get full brand identity (L1 data) for the active brand."""
         try:
-            slug=get_active_brand()
+            slug=self._state.get_active_slug()
             if not slug:return bridge_error("No brand selected")
             identity=load_brand(slug)
             if not identity:return bridge_error(f"Brand '{slug}' not found")
@@ -112,7 +112,7 @@ class BrandService:
     def update_brand_identity_section(self,section:str,data:dict)->dict:
         """Update a specific section of the brand identity."""
         try:
-            slug=get_active_brand()
+            slug=self._state.get_active_slug()
             if not slug:return bridge_error("No brand selected")
             identity=load_brand(slug)
             if not identity:return bridge_error(f"Brand '{slug}' not found")
@@ -139,7 +139,7 @@ class BrandService:
         from sip_videogen.agents.brand_director import develop_brand_with_output
         try:
             if not confirm:return bridge_error("Regeneration requires confirm=True. This will overwrite the current identity.")
-            slug=get_active_brand()
+            slug=self._state.get_active_slug()
             if not slug:return bridge_error("No brand selected")
             identity=load_brand(slug)
             if not identity:return bridge_error(f"Brand '{slug}' not found")
@@ -171,7 +171,7 @@ class BrandService:
     def list_identity_backups(self)->dict:
         """List all identity backups for the active brand."""
         try:
-            slug=get_active_brand()
+            slug=self._state.get_active_slug()
             if not slug:return bridge_error("No brand selected")
             backups=list_brand_backups(slug)
             return bridge_ok({"backups":backups})
@@ -179,7 +179,7 @@ class BrandService:
     def restore_identity_backup(self,filename:str)->dict:
         """Restore brand identity from a backup file."""
         try:
-            slug=get_active_brand()
+            slug=self._state.get_active_slug()
             if not slug:return bridge_error("No brand selected")
             if "/"in filename or"\\"in filename:return bridge_error("Invalid filename: path separators not allowed")
             if not filename.endswith(".json"):return bridge_error("Invalid filename: must end with .json")
@@ -197,8 +197,9 @@ class BrandService:
         try:
             entries=list_brands()
             if slug not in[e.slug for e in entries]:return bridge_error(f"Brand '{slug}' not found")
-            if self._state.get_active_slug()==slug:self._state.advisor=None
-            if get_active_brand()==slug:set_active_brand(None)
+            if self._state.get_active_slug()==slug:
+                self._state.advisor=None
+                self._state.set_active_slug(None)
             deleted=storage_delete_brand(slug)
             if not deleted:return bridge_error(f"Failed to delete brand '{slug}'")
             return bridge_ok()

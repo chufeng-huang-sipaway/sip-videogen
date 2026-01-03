@@ -19,10 +19,24 @@ class BridgeState:
     update_progress:dict|None=None
     window:object=None
     background_analysis_slug:str|None=None
+    _cached_slug:str|None=field(default=None,repr=False)
+    _cache_valid:bool=field(default=False,repr=False)
     def get_active_slug(self)->str|None:
-        """Get the active brand slug from storage."""
-        from sip_videogen.brands.storage import get_active_brand
-        return get_active_brand()
+        """Get the active brand slug, using cache when available."""
+        if not self._cache_valid:
+            from sip_videogen.brands.storage import get_active_brand
+            self._cached_slug=get_active_brand()
+            self._cache_valid=True
+        return self._cached_slug
+    def set_active_slug(self,slug:str|None)->None:
+        """Set the active brand slug, updating both disk and cache."""
+        from sip_videogen.brands.storage import set_active_brand
+        set_active_brand(slug)
+        self._cached_slug=slug
+        self._cache_valid=True
+    def invalidate_cache(self)->None:
+        """Invalidate the cached slug, forcing next get to read from disk."""
+        self._cache_valid=False
     def get_brand_dir(self)->"tuple[Path|None,str|None]":
         """Get the active brand directory."""
         from sip_videogen.brands.storage import get_brand_dir
