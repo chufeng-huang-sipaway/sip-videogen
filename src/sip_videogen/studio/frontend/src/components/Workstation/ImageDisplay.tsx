@@ -8,6 +8,7 @@ import{bridge,isPyWebView}from'../../lib/bridge'
 import{Loader2,ChevronLeft,ChevronRight}from'lucide-react'
 import{QuickEditPreview}from'./QuickEditPreview'
 import{FullscreenControls}from'./FullscreenControls'
+import{InfoOverlay}from'./InfoOverlay'
 import{getFullCached,setFullCached,hasFullCached}from'../../lib/thumbnailCache'
 import{cn}from'@/lib/utils'
 const PRELOAD_RADIUS = 2
@@ -206,6 +207,8 @@ return(<div ref={containerRef} className={cn("w-full h-full flex items-center ju
 {/* Navigation buttons - hidden in fullscreen since FullscreenControls handles it */}
 {!isFullscreen&&<><button onClick={goPrev} disabled={!canPrev||isGenerating} className={cn(navBtnClass,"left-2 transition-opacity duration-200",hovered&&!isGenerating?"opacity-100":"opacity-0")}><ChevronLeft className="w-6 h-6"/></button>
 <button onClick={goNext} disabled={!canNext||isGenerating} className={cn(navBtnClass,"right-2 transition-opacity duration-200",hovered&&!isGenerating?"opacity-100":"opacity-0")}><ChevronRight className="w-6 h-6"/></button></>}
+{/* Info overlay */}
+<InfoOverlay/>
 {/* Fullscreen controls overlay */}
 {isFullscreen&&<FullscreenControls/>}
 </div>)
