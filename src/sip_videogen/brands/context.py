@@ -229,12 +229,12 @@ class ProductContextBuilder:
 
         attributes_str = "\n".join(attr_sections)
 
-        #Packaging text section (preserves text label fidelity during edits)
+        #Packaging text section (preserves text label fidelity during edits - include ALL elements)
         packaging_text_str=""
         if p.packaging_text and p.packaging_text.elements:
             valid_elems=[e for e in p.packaging_text.elements if len(e.text)<=80]
             parts=[]
-            for elem in valid_elems[:5]:
+            for elem in valid_elems:
                 text=escape_text_for_prompt(elem.text)
                 part=f'"{text}"'
                 if elem.notes:part+=f" [{elem.notes}]"
