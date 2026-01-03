@@ -9,17 +9,17 @@ from sip_videogen.advisor.template_analyzer import analyze_template_v2
 from sip_videogen.config.logging import get_logger
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,bridge_ok,bridge_error
+from ..utils.decorators import require_brand
 from ..utils.path_utils import resolve_in_dir
 logger=get_logger(__name__)
 class TemplateService:
     """Template CRUD and image operations."""
     def __init__(self,state:BridgeState):self._state=state
+    @require_brand()
     def get_templates(self,brand_slug:str|None=None)->dict:
         """Get list of templates for a brand."""
         try:
-            target_slug=brand_slug or self._state.get_active_slug()
-            if not target_slug:return bridge_error("No brand selected")
-            templates=list_templates(target_slug)
+            templates=list_templates(brand_slug)
             return bridge_ok({"templates":[{"slug":t.slug,"name":t.name,"description":t.description,"primary_image":t.primary_image,"default_strict":t.default_strict,"created_at":t.created_at.isoformat(),"updated_at":t.updated_at.isoformat()}for t in templates]})
         except Exception as e:return bridge_error(str(e))
     def get_template(self,template_slug:str)->dict:

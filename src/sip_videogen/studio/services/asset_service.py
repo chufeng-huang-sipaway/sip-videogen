@@ -21,6 +21,7 @@ from sip_videogen.brands.storage import get_active_brand,save_asset as storage_s
 
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS,ASSET_CATEGORIES,MIME_TYPES,VIDEO_MIME_TYPES,bridge_ok,bridge_error
+from ..utils.decorators import require_brand
 from ..utils.os_utils import reveal_in_file_manager
 from ..utils.path_utils import resolve_assets_path,resolve_in_dir
 
@@ -53,14 +54,13 @@ class AssetService:
         try:resolved.relative_to(brand_dir.resolve())
         except ValueError:return None,"Invalid path: outside brand directory"
         return resolved,None
+    @require_brand(param_name="slug")
     def get_assets(self,slug:str|None=None)->dict:
         """Get asset tree for a brand."""
         try:
-            target_slug=slug or get_active_brand()
-            if not target_slug:return bridge_error("No brand selected")
             tree=[]
             for category in ASSET_CATEGORIES:
-                assets=list_brand_assets(target_slug,category=category);children=[]
+                assets=list_brand_assets(slug,category=category);children=[]
                 for asset in assets:
                     filename=asset["filename"];fp=Path(asset["path"])
                     size=fp.stat().st_size if fp.exists()else 0

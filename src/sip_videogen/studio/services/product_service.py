@@ -9,17 +9,17 @@ from sip_videogen.brands.storage import(add_product_image,create_product,delete_
 from sip_videogen.config.logging import get_logger
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,bridge_ok,bridge_error
+from ..utils.decorators import require_brand
 from ..utils.path_utils import resolve_in_dir
 logger=get_logger(__name__)
 class ProductService:
     """Product CRUD and image operations."""
     def __init__(self,state:BridgeState):self._state=state
+    @require_brand()
     def get_products(self,brand_slug:str|None=None)->dict:
         """Get list of products for a brand."""
         try:
-            target_slug=brand_slug or self._state.get_active_slug()
-            if not target_slug:return bridge_error("No brand selected")
-            products=list_products(target_slug)
+            products=list_products(brand_slug)
             return bridge_ok({"products":[{"slug":p.slug,"name":p.name,"description":p.description,"primary_image":p.primary_image,"attribute_count":p.attribute_count,"created_at":p.created_at.isoformat(),"updated_at":p.updated_at.isoformat()}for p in products]})
         except Exception as e:return bridge_error(str(e))
     def get_product(self,product_slug:str)->dict:
