@@ -5,17 +5,17 @@ from pathlib import Path
 from sip_videogen.brands import storage
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_TEXT_EXTS,bridge_ok,bridge_error
+from ..utils.decorators import require_brand
 from ..utils.os_utils import reveal_in_file_manager
 from ..utils.path_utils import resolve_docs_path
 class DocumentService:
     """Document (text file) operations."""
     def __init__(self,state:BridgeState):self._state=state
+    @require_brand(param_name="slug")
     def get_documents(self,slug:str|None=None)->dict:
         """List brand documents (text files) under docs/."""
         try:
-            target_slug=slug or storage.get_active_brand()
-            if not target_slug:return bridge_error("No brand selected")
-            documents=storage.list_documents(target_slug)
+            documents=storage.list_documents(slug)
             return bridge_ok({"documents":documents})
         except Exception as e:return bridge_error(str(e))
     def read_document(self,relative_path:str)->dict:

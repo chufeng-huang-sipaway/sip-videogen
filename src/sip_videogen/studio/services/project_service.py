@@ -6,16 +6,16 @@ from sip_videogen.brands.models import ProjectFull,ProjectStatus
 from sip_videogen.brands.storage import(count_project_assets,create_project,delete_project,get_active_project,list_project_assets,list_projects,load_project,save_project,set_active_project)
 from ..state import BridgeState
 from ..utils.bridge_types import bridge_ok,bridge_error
+from ..utils.decorators import require_brand
 class ProjectService:
     """Project CRUD and asset listing."""
     def __init__(self,state:BridgeState):self._state=state
+    @require_brand()
     def get_projects(self,brand_slug:str|None=None)->dict:
         """Get list of projects for a brand."""
         try:
-            target_slug=brand_slug or self._state.get_active_slug()
-            if not target_slug:return bridge_error("No brand selected")
-            projects=list_projects(target_slug);active=get_active_project(target_slug)
-            return bridge_ok({"projects":[{"slug":p.slug,"name":p.name,"status":p.status.value,"asset_count":count_project_assets(target_slug,p.slug),"created_at":p.created_at.isoformat(),"updated_at":p.updated_at.isoformat()}for p in projects],"active_project":active})
+            projects=list_projects(brand_slug);active=get_active_project(brand_slug)
+            return bridge_ok({"projects":[{"slug":p.slug,"name":p.name,"status":p.status.value,"asset_count":count_project_assets(brand_slug,p.slug),"created_at":p.created_at.isoformat(),"updated_at":p.updated_at.isoformat()}for p in projects],"active_project":active})
         except Exception as e:return bridge_error(str(e))
     def get_project(self,project_slug:str)->dict:
         """Get detailed project information."""

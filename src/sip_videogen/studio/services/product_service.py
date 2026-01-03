@@ -1,6 +1,6 @@
 """Product management service."""
 from __future__ import annotations
-import base64,io,re
+import base64,re
 from datetime import datetime
 from pathlib import Path
 from sip_videogen.brands.models import ProductAttribute,ProductFull
@@ -9,17 +9,17 @@ from sip_videogen.brands.storage import(add_product_image,create_product,delete_
 from sip_videogen.config.logging import get_logger
 from ..state import BridgeState
 from ..utils.bridge_types import ALLOWED_IMAGE_EXTS,bridge_ok,bridge_error
-from ..utils.path_utils import resolve_in_dir
+from ..utils.decorators import require_brand
+from ..utils.image_utils import get_image_thumbnail,get_image_full
 logger=get_logger(__name__)
 class ProductService:
     """Product CRUD and image operations."""
     def __init__(self,state:BridgeState):self._state=state
+    @require_brand()
     def get_products(self,brand_slug:str|None=None)->dict:
         """Get list of products for a brand."""
         try:
-            target_slug=brand_slug or self._state.get_active_slug()
-            if not target_slug:return bridge_error("No brand selected")
-            products=list_products(target_slug)
+            products=list_products(brand_slug)
             return bridge_ok({"products":[{"slug":p.slug,"name":p.name,"description":p.description,"primary_image":p.primary_image,"attribute_count":p.attribute_count,"created_at":p.created_at.isoformat(),"updated_at":p.updated_at.isoformat()}for p in products]})
         except Exception as e:return bridge_error(str(e))
     def get_product(self,product_slug:str)->dict:
@@ -137,41 +137,14 @@ class ProductService:
         except Exception as e:return bridge_error(str(e))
     def get_product_image_thumbnail(self,path:str)->dict:
         """Get base64-encoded thumbnail for a product image."""
-        try:
-            if not path.startswith("products/"):return bridge_error("Path must start with 'products/'")
-            brand_dir,err=self._state.get_brand_dir()
-            if err:return bridge_error(err)
-            resolved,error=resolve_in_dir(brand_dir,path)
-            if error:return bridge_error(error)
-            if not resolved.exists():return bridge_error("Image not found")
-            suffix=resolved.suffix.lower()
-            if suffix not in ALLOWED_IMAGE_EXTS:return bridge_error("Unsupported file type")
-            if suffix==".svg":
-                content=resolved.read_bytes();encoded=base64.b64encode(content).decode("utf-8")
-                return bridge_ok({"dataUrl":f"data:image/svg+xml;base64,{encoded}"})
-            from PIL import Image
-            with Image.open(resolved)as img:
-                img=img.convert("RGBA");img.thumbnail((256,256))
-                buf=io.BytesIO();img.save(buf,format="PNG")
-                encoded=base64.b64encode(buf.getvalue()).decode("utf-8")
-            return bridge_ok({"dataUrl":f"data:image/png;base64,{encoded}"})
-        except Exception as e:return bridge_error(str(e))
+        brand_dir,err=self._state.get_brand_dir()
+        if err:return bridge_error(err)
+        return get_image_thumbnail(brand_dir,path,"products")
     def get_product_image_full(self,path:str)->dict:
         """Get base64-encoded full-resolution product image."""
-        try:
-            if not path.startswith("products/"):return bridge_error("Path must start with 'products/'")
-            brand_dir,err=self._state.get_brand_dir()
-            if err:return bridge_error(err)
-            resolved,error=resolve_in_dir(brand_dir,path)
-            if error:return bridge_error(error)
-            if not resolved.exists():return bridge_error("Image not found")
-            suffix=resolved.suffix.lower()
-            if suffix not in ALLOWED_IMAGE_EXTS:return bridge_error("Unsupported file type")
-            content=resolved.read_bytes();encoded=base64.b64encode(content).decode("utf-8")
-            mime_types={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".gif":"image/gif",".webp":"image/webp",".svg":"image/svg+xml"}
-            mime=mime_types.get(suffix,"image/png")
-            return bridge_ok({"dataUrl":f"data:{mime};base64,{encoded}"})
-        except Exception as e:return bridge_error(str(e))
+        brand_dir,err=self._state.get_brand_dir()
+        if err:return bridge_error(err)
+        return get_image_full(brand_dir,path,"products")
     async def analyze_all_packaging_text(self,skip_existing:bool=True)->dict:
         """Bulk analyze packaging text for all products in active brand."""
         try:
