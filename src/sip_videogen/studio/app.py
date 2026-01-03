@@ -121,6 +121,11 @@ def get_frontend_url() -> str:
 
 def main():
     """Launch the Brand Studio application."""
+    # Set up logging with file output for debugging
+    from sip_videogen.config.logging import setup_logging
+    log_file = Path.home() / ".sip-videogen" / "studio.log"
+    setup_logging(level="INFO", log_file=log_file)
+    logging.getLogger("sip_videogen").info(f"=== Brand Studio started, logging to {log_file} ===")
     try:
         import webview
     except ImportError:
