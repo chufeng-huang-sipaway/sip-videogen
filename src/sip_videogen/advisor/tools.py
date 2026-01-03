@@ -870,7 +870,8 @@ async def _impl_generate_image(
     # Save original reference_image before potential overwrite
     original_reference_image = reference_image
 
-    if product_slug:
+    # Explicit reference_image takes precedence over product_slug
+    if product_slug and not reference_image:
         if not brand_slug:
             return "Error: No active brand - cannot load product"
         product = load_product(brand_slug, product_slug)
