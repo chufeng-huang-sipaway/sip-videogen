@@ -18,6 +18,7 @@ import{Tooltip,TooltipContent,TooltipTrigger}from'../ui/tooltip'
 import{ImageGrid}from'./ImageGrid'
 import{cn}from'@/lib/utils'
 import{clearAllCaches}from'../../lib/thumbnailCache'
+import{getMediaType}from'../../lib/mediaUtils'
 
 //Inner content that can access QuickEditContext
 function WorkstationContent(){
@@ -61,7 +62,7 @@ return(<div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-
 {showOriginalToolbar&&(<div className={cn("absolute bottom-4 left-1/2 -translate-x-1/2 z-30 transition-opacity duration-300",toolbarVisible?"opacity-100":"opacity-0 pointer-events-none")}><div className="px-1.5 py-1 flex items-center gap-0.5 rounded-full bg-neutral-900/70 dark:bg-neutral-800/80 backdrop-blur-xl shadow-float border border-neutral-700/30 dark:border-neutral-600/30">
 <Tooltip><TooltipTrigger asChild><Button variant={isGrid?'secondary':'ghost'} size="icon" onClick={toggleBrowseMode} className={cn("h-9 w-9 rounded-full text-white/90 transition-all hover:scale-105 hover:bg-white/10",isGrid&&"bg-white/20")}>{isGrid?<ImageIcon className="w-4 h-4"/>:<LayoutGrid className="w-4 h-4"/>}</Button></TooltipTrigger><TooltipContent side="top">{isGrid?'Preview':'Grid (G)'}</TooltipContent></Tooltip>
 <ExportActions variant="dark"/>
-<QuickEditButton variant="dark"/>
+{currentImage&&getMediaType(currentImage)==='image'&&<QuickEditButton variant="dark"/>}
 <div className="w-px h-5 bg-white/20 mx-0.5"/>
 <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleDelete} disabled={!currentImage} className="h-9 w-9 rounded-full text-white/90 hover:bg-brand-500/20 hover:text-brand-400 transition-all hover:scale-105"><Trash2 className="w-4 h-4"/></Button></TooltipTrigger><TooltipContent side="top">Delete (T)</TooltipContent></Tooltip>
 </div></div>)}
