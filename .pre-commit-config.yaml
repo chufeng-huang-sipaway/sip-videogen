@@ -1,0 +1,47 @@
+# Pre-commit hooks for sip-videogen
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+repos:
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  # Basic file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^src/sip_videogen/studio/frontend/
+      - id: end-of-file-fixer
+        exclude: ^src/sip_videogen/studio/frontend/
+      - id: check-yaml
+      - id: check-json
+        exclude: ^src/sip_videogen/studio/frontend/
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: detect-private-key
+      - id: check-merge-conflict
+      - id: check-toml
+  # MyPy - Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        args: [--strict]
+        additional_dependencies:
+          - pydantic>=2.0.0
+          - pydantic-settings>=2.0.0
+          - types-Pillow
+        exclude: ^(tests/|src/sip_videogen/studio/frontend/)
+  # Frontend hooks (TypeScript/React)
+  - repo: local
+    hooks:
+      - id: frontend-typecheck
+        name: TypeScript type check
+        entry: bash -c 'cd src/sip_videogen/studio/frontend && npm run build 2>/dev/null || npx tsc --noEmit'
+        language: system
+        files: ^src/sip_videogen/studio/frontend/.*\.(ts|tsx)$
+        pass_filenames: false

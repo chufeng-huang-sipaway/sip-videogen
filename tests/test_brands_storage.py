@@ -70,8 +70,8 @@ def temp_brands_dir(tmp_path: Path):
     """Create a temporary brands directory for testing."""
     brands_dir = tmp_path / ".sip-videogen" / "brands"
     brands_dir.mkdir(parents=True)
-
-    with patch("sip_videogen.brands.storage.get_brands_dir", return_value=brands_dir):
+    #Patch the base module where get_brands_dir is defined
+    with patch("sip_videogen.brands.storage.base.get_brands_dir", return_value=brands_dir):
         yield brands_dir
 
 

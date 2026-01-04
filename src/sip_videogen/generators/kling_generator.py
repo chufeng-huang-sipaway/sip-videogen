@@ -16,6 +16,7 @@ import httpx
 from pydantic import BaseModel, Field
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 
+from sip_videogen.config.constants import Timeouts
 from sip_videogen.generators.base import (
     BaseVideoGenerator,
     PromptSafetyError,
@@ -113,7 +114,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create the HTTP client."""
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(timeout=60.0)
+            self._client = httpx.AsyncClient(timeout=Timeouts.KLING_API)
         return self._client
 
     async def close(self) -> None:
