@@ -7,13 +7,13 @@ import { PanelLeftClose, Brain, Plus, Settings, Package, Palette, ChevronRight, 
 import { BrandSelector } from './BrandSelector'
 import { ProjectsSection } from './sections/ProjectsSection'
 import { ProductsSection } from './sections/ProductsSection'
-import { TemplatesSection } from './sections/TemplatesSection'
+import { StyleReferencesSection } from './sections/StyleReferencesSection'
 import { CreateProductDialog } from './CreateProductDialog'
 import { CreateProjectDialog } from './CreateProjectDialog'
 import { SettingsDialog } from '@/components/Settings/SettingsDialog'
 import { useBrand } from '@/context/BrandContext'
 import { useProducts } from '@/context/ProductContext'
-import { useTemplates } from '@/context/TemplateContext'
+import { useStyleReferences } from '@/context/StyleReferenceContext'
 import { useProjects } from '@/context/ProjectContext'
 import { cn } from '@/lib/utils'
 
@@ -25,7 +25,7 @@ interface SidebarProps { collapsed: boolean; onToggleCollapse: () => void; onOpe
 export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: SidebarProps) {
   const { activeBrand } = useBrand()
   const { products } = useProducts()
-  const { templates } = useTemplates()
+  const { styleReferences } = useStyleReferences()
   const { projects } = useProjects()
 
   // Independent states for sections
@@ -34,10 +34,10 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
 
   // Subsection states
   const [productsOpen, setProductsOpen] = useState(true)
-  const [templatesOpen, setTemplatesOpen] = useState(true)
+  const [styleRefsOpen, setStyleRefsOpen] = useState(true)
 
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
-  const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false)
+  const [isCreateStyleRefOpen, setIsCreateStyleRefOpen] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
@@ -97,7 +97,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
           {/* Library Section Group */}
           <SectionGroup
             title="LIBRARY"
-            count={products.length + templates.length}
+            count={products.length + styleReferences.length}
             isOpen={libraryOpen}
             onToggle={() => setLibraryOpen(!libraryOpen)}
             activeBrand={!!activeBrand}
@@ -117,17 +117,17 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
                 <ProductsSection />
               </SubSectionGroup>
 
-              {/* Templates Subsection */}
+              {/* Style References Subsection */}
               <SubSectionGroup
-                title="Templates"
+                title="Style References"
                 icon={<Palette className="w-3.5 h-3.5" />}
-                count={templates.length}
-                isOpen={templatesOpen}
-                onToggle={() => setTemplatesOpen(!templatesOpen)}
-                onAdd={() => setIsCreateTemplateOpen(true)}
+                count={styleReferences.length}
+                isOpen={styleRefsOpen}
+                onToggle={() => setStyleRefsOpen(!styleRefsOpen)}
+                onAdd={() => setIsCreateStyleRefOpen(true)}
                 activeBrand={!!activeBrand}
               >
-                <TemplatesSection createDialogOpen={isCreateTemplateOpen} onCreateDialogChange={setIsCreateTemplateOpen} />
+                <StyleReferencesSection createDialogOpen={isCreateStyleRefOpen} onCreateDialogChange={setIsCreateStyleRefOpen} />
               </SubSectionGroup>
             </div>
           </SectionGroup>

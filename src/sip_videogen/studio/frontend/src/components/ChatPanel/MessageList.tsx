@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Package, Paperclip, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { type GeneratedVideo, type TemplateSummary, type ProductEntry, type ThinkingStep, type GeneratedImage, type ImageGenerationMetadata } from '@/lib/bridge'
+import { type GeneratedVideo, type StyleReferenceSummary, type ProductEntry, type ThinkingStep, type GeneratedImage, type ImageGenerationMetadata } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
@@ -10,7 +10,7 @@ import { InteractionRenderer } from './InteractionRenderer'
 import { ChatImageGallery } from './ChatImageGallery'
 import { PromptDetailsModal } from './PromptDetailsModal'
 import { cn } from '@/lib/utils'
-import { useTemplates } from '@/context/TemplateContext'
+import { useStyleReferences } from '@/context/StyleReferenceContext'
 import { Button } from '@/components/ui/button'
 //Helper to normalize images (string | GeneratedImage)
 function normalizeImages(imgs:(GeneratedImage|string)[]|undefined):GeneratedImage[]{if(!imgs)return[];return imgs.map(i=>typeof i==='string'?{url:i}:i)}
@@ -52,7 +52,7 @@ interface MessageListProps {
   thinkingSteps: ThinkingStep[]
   isLoading: boolean
   products: ProductEntry[]
-  templates?: TemplateSummary[]
+  styleReferences?: StyleReferenceSummary[]
   onInteractionSelect: (messageId: string, selection: string) => void
   onRegenerate?: (messageId: string) => void
 }
@@ -60,7 +60,7 @@ interface MessageListProps {
 function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails }: {
   message: Message;
   products: ProductEntry[];
-  templates?: TemplateSummary[];
+  styleReferences?: StyleReferenceSummary[];
   onInteractionSelect: (id: string, sel: string) => void;
   isLoading: boolean;
   onRegenerate?: (id: string) => void;
@@ -165,8 +165,8 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
           </div>
         )}
 
-        {/* User Context Chips (Products/Templates) */}
-        {isUser && ((message.attachedProductSlugs && message.attachedProductSlugs.length > 0) || (message.attachedTemplates && message.attachedTemplates.length > 0)) && (
+        {/* User Context Chips (Products/Style References) */}
+        {isUser && ((message.attachedProductSlugs && message.attachedProductSlugs.length > 0) || (message.attachedStyleReferences && message.attachedStyleReferences.length > 0)) && (
           <div className="flex flex-wrap gap-1.5 mt-2 justify-end">
             {message.attachedProductSlugs?.map(slug => (
               <div key={slug} className="flex items-center gap-1.5 rounded-full border border-border/30 bg-background/50 px-2 py-0.5 text-[10px] text-muted-foreground">
@@ -174,10 +174,10 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
                 <span>{slug}</span>
               </div>
             ))}
-            {message.attachedTemplates?.map(t => (
-              <div key={t.template_slug} className="flex items-center gap-1.5 rounded-full border border-border/30 bg-background/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+            {message.attachedStyleReferences?.map(sr => (
+              <div key={sr.style_reference_slug} className="flex items-center gap-1.5 rounded-full border border-border/30 bg-background/50 px-2 py-0.5 text-[10px] text-muted-foreground">
                 <Layout className="h-3 w-3 opacity-50" />
-                <span>{t.template_slug}</span>
+                <span>{sr.style_reference_slug}</span>
               </div>
             ))}
           </div>
@@ -246,17 +246,17 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   )
 }
 
-export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, templates, onInteractionSelect, onRegenerate }: MessageListProps) {
+export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, onInteractionSelect, onRegenerate }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [detailsMeta,setDetailsMeta]=useState<ImageGenerationMetadata|null>(null)
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinkingSteps])
-  const { templates: contextTemplates } = useTemplates()
-  const allTemplates = templates || contextTemplates
+  const { styleReferences: contextStyleRefs } = useStyleReferences()
+  const allStyleRefs = styleReferences || contextStyleRefs
   if (messages.length === 0) return null
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} products={products} templates={allTemplates} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta}/>
+        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta}/>
       ))}
       {/* Thinking Steps (Real-time during loading) */}
       {isLoading && <div className="px-6"><ThinkingSteps steps={thinkingSteps} isGenerating={true} skills={loadedSkills} /></div>}

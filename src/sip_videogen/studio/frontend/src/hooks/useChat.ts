@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedTemplate, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
 import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
 
@@ -25,8 +25,8 @@ export interface Message {
   }>
   /** Product slugs that were attached when this message was sent */
   attachedProductSlugs?: string[]
-  /** Templates that were attached when this message was sent */
-  attachedTemplates?: AttachedTemplate[]
+  /** Style references that were attached when this message was sent */
+  attachedStyleReferences?: AttachedStyleReference[]
   /** Thinking steps parsed from executionTrace for completed messages */
   thinkingSteps?: ThinkingStep[]
   /** Skills that were loaded during generation of this message */
@@ -50,7 +50,7 @@ function getExt(name: string): string {
 
 import type{GeneratedImage as WorkstationMedia}from'@/context/WorkstationContext'
 interface UseChatOptions {
-  onTemplatesCreated?: (slugs: string[]) => void
+  onStyleReferencesCreated?: (slugs: string[]) => void
   onImagesGenerated?: (images: ImageStatusEntry[]) => void
   onVideosGenerated?: (videos: WorkstationMedia[]) => void
 }
@@ -207,8 +207,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       attachedProductSlugs: context?.attached_products?.length
         ? [...context.attached_products]
         : undefined,
-      attachedTemplates: context?.attached_templates?.length
-        ? [...context.attached_templates]
+      attachedStyleReferences: context?.attached_style_references?.length
+        ? [...context.attached_style_references]
         : undefined,
     }
 
@@ -284,9 +284,9 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       ))
       setAttachments([])
       setAttachmentError(null)
-      //Notify if templates were created
-      if (result.templates?.length && options?.onTemplatesCreated) {
-        options.onTemplatesCreated(result.templates)
+      //Notify if style references were created
+      if (result.style_references?.length && options?.onStyleReferencesCreated) {
+        options.onStyleReferencesCreated(result.style_references)
       }
       //Register generated images and notify workstation
       if (result.images?.length && options?.onImagesGenerated) {
@@ -295,8 +295,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
           const rawPath = img.path
           const path = rawPath?.startsWith('file://') ? rawPath.slice('file://'.length) : rawPath
           if (!path || path.startsWith('data:')) continue
-          const sourceTemplatePath = img.metadata?.reference_image ?? img.metadata?.reference_images?.[0]
-          inputs.push({ path, prompt: img.metadata?.prompt, sourceTemplatePath })
+          const sourceStyleReferencePath = img.metadata?.reference_image ?? img.metadata?.reference_images?.[0]
+          inputs.push({ path, prompt: img.metadata?.prompt, sourceStyleReferencePath })
         }
         try {
           const registered = inputs.length ? await bridge.registerGeneratedImages(inputs) : []
@@ -307,7 +307,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
               const images = (result.images || []).map(img => {
                 if (typeof img === 'string') return img
                 const entry = img.path ? registeredByPath.get(img.path) : undefined
-                return { ...img, id: entry?.id, path: entry?.currentPath ?? img.path, sourceTemplatePath: entry?.sourceTemplatePath ?? img.metadata?.reference_image ?? img.metadata?.reference_images?.[0] }
+                return { ...img, id: entry?.id, path: entry?.currentPath ?? img.path, sourceStyleReferencePath: entry?.sourceStyleReferencePath ?? img.metadata?.reference_image ?? img.metadata?.reference_images?.[0] }
               })
               return { ...m, images }
             }))
@@ -400,7 +400,7 @@ const clearMessages = useCallback(() => {
     // Re-send the user message to get a new response
     await sendMessage(userMessage.content, {
       attached_products: userMessage.attachedProductSlugs,
-      attached_templates: userMessage.attachedTemplates,
+      attached_style_references: userMessage.attachedStyleReferences,
     })
   }, [messages, isLoading, brandSlug, sendMessage])
 

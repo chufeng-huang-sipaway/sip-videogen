@@ -1,6 +1,6 @@
 //Drag context for cross-component drag state (uses mouse events to bypass PyWebView/WebKit drag limitations)
 import{createContext,useContext,useState,useCallback,useEffect,useRef,type ReactNode}from'react'
-export type DragDataType='asset'|'template'|'product'
+export type DragDataType='asset'|'style-reference'|'product'
 export interface DragData{type:DragDataType;path:string;thumbnailUrl?:string}
 type DropHandler=(data:DragData)=>void
 interface DragContextValue{dragData:DragData|null;setDragData:(d:DragData|null)=>void;clearDrag:()=>void;getDragData:()=>DragData|null;registerDropZone:(id:string,el:HTMLElement,handler:DropHandler)=>void;unregisterDropZone:(id:string)=>void}

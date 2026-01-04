@@ -13,11 +13,11 @@ onSend:(text:string)=>void
 canSendWithoutText?:boolean
 onSelectImages?:(files:File[])=>void
 hasProducts?:boolean
-hasTemplates?:boolean
+hasStyleReferences?:boolean
 isGenerating?:boolean
 onCancel?:()=>void
 onMessageChange?:(text:string)=>void}
-export function MessageInput({disabled,placeholder,onSend,canSendWithoutText=false,onSelectImages,hasProducts=false,hasTemplates=false,isGenerating=false,onCancel,onMessageChange}:MessageInputProps){
+export function MessageInput({disabled,placeholder,onSend,canSendWithoutText=false,onSelectImages,hasProducts=false,hasStyleReferences=false,isGenerating=false,onCancel,onMessageChange}:MessageInputProps){
 const[message,setMessage]=useState('')
 const[popoverOpen,setPopoverOpen]=useState(false)
 const[showMention,setShowMention]=useState(false)
@@ -57,7 +57,7 @@ const handleSelect=useCallback(()=>{
 const el=textareaRef.current
 if(el)setCaretPos(el.selectionStart||0)},[])
 //Handle mention selection - insert @type:slug at position
-const handleMentionSelect=useCallback((type:'product'|'template',slug:string,start:number)=>{
+const handleMentionSelect=useCallback((type:'product'|'style',slug:string,start:number)=>{
 const before=message.slice(0,start)
 const after=message.slice(caretPos)
 const mention=`@${type}:${slug} `
@@ -88,7 +88,7 @@ if(e.nativeEvent.isComposing)return
 if(showMention&&mentionRef.current?.handleKeyDown(e))return
 //Normal submit on Enter (not during popover)
 if(e.key==='Enter'&&!e.shiftKey&&!popoverOpen){e.preventDefault();submit()}}
-const showQuickInsert=hasProducts||hasTemplates
+const showQuickInsert=hasProducts||hasStyleReferences
 return(
 <div className="relative w-full">
 {/* Mention autocomplete dropdown */}
@@ -96,7 +96,7 @@ return(
 <div className={cn("relative flex items-center gap-2 p-2 rounded-[26px] bg-background shadow-float border border-black/8 dark:border-white/10 transition-shadow duration-300","focus-within:shadow-xl focus-within:border-black/15 dark:focus-within:border-white/20")}>
 {/* Hidden file input for image selection */}
 <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect}/>
-{/* Attachment Menu - Show QuickInsert when products/templates exist */}
+{/* Attachment Menu - Show QuickInsert when products/style references exist */}
 {showQuickInsert?(
 <QuickInsertPopover open={popoverOpen} onOpenChange={setPopoverOpen} onUploadImage={onSelectImages?()=>fileInputRef.current?.click():undefined} trigger={
 <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:bg-muted/50 transition-colors" disabled={disabled}>
@@ -115,7 +115,7 @@ return(
 </DropdownMenuItem>
 </DropdownMenuContent>
 </DropdownMenu>)}
-<textarea ref={textareaRef} value={message} onChange={handleChange} onSelect={handleSelect} onKeyDown={handleKeyDown} placeholder={placeholder||'Type @ to mention products or templates'} disabled={disabled} rows={1} className="flex-1 max-h-[160px] resize-none bg-transparent py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-50 min-h-[40px] leading-relaxed"/>
+<textarea ref={textareaRef} value={message} onChange={handleChange} onSelect={handleSelect} onKeyDown={handleKeyDown} placeholder={placeholder||'Type @ to mention products or styles'} disabled={disabled} rows={1} className="flex-1 max-h-[160px] resize-none bg-transparent py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-50 min-h-[40px] leading-relaxed"/>
 <div className="flex items-center shrink-0">
 {isGenerating?(
 <Button type="button" size="icon" onClick={onCancel} className="h-10 w-10 rounded-full shrink-0 transition-all duration-200 bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 shadow-sm" title="Cancel generation">

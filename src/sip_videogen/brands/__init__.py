@@ -129,6 +129,9 @@ __all__ = [
     # Context Builder - Hierarchical (Phase 3)
     "HierarchicalContextBuilder",
     "build_turn_context",
+    # Context Builder - Style Reference
+    "StyleReferenceContextBuilder",
+    "build_style_reference_context",
 ]
 
 

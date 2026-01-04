@@ -427,7 +427,7 @@ class StyleReferenceContextBuilder:
         """Build context from V2 semantic analysis."""
         mode_label = "Strict" if self.strict else "Loose"
         canvas = analysis.canvas
-        style = analysis.style
+        _ = analysis.style  # Available but not used in context header
         layout = analysis.layout
         copy = analysis.copywriting
         scene = analysis.visual_scene

@@ -7,18 +7,18 @@ import{AlertCircle,Paperclip,X,Upload,Plus}from'lucide-react'
 import{useChat}from'@/hooks/useChat'
 import{useProducts}from'@/context/ProductContext'
 import{useProjects}from'@/context/ProjectContext'
-import{useTemplates}from'@/context/TemplateContext'
+import{useStyleReferences}from'@/context/StyleReferenceContext'
 import{useWorkstation}from'@/context/WorkstationContext'
 import{useDrag}from'@/context/DragContext'
 import{MessageInput}from'./MessageInput'
 import{MessageList}from'./MessageList'
 import{AttachedProducts}from'./AttachedProducts'
-import{AttachedTemplates}from'./AttachedTemplates'
+import{AttachedStyleReferences}from'./AttachedStyleReferences'
 import{ProjectSelector}from'./ProjectSelector'
 import{AspectRatioSelector}from'./AspectRatioSelector'
 import{ModeToggle}from'./ModeToggle'
 import{resolveMentions}from'@/lib/mentionParser'
-import type{ImageStatusEntry,AttachedTemplate}from'@/lib/bridge'
+import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
 import{getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
 
 interface ChatPanelProps {
@@ -55,14 +55,14 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   } = useProjects()
 
   const {
-    templates,
-    attachedTemplates,
-    attachTemplate,
-    detachTemplate,
-    setTemplateStrictness,
-    clearTemplateAttachments,
-    refresh: refreshTemplates,
-  } = useTemplates()
+    styleReferences,
+    attachedStyleReferences,
+    attachStyleReference,
+    detachStyleReference,
+    setStyleReferenceStrictness,
+    clearStyleReferenceAttachments,
+    refresh: refreshStyleRefs,
+  } = useStyleReferences()
 
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
@@ -71,13 +71,13 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const [inputText, setInputText] = useState('')
   //Compute combined attachments (Quick Insert + mentions) for display
   const combinedAttachments=useMemo(()=>{
-    const mentionAtts=resolveMentions(inputText,products,templates)
+    const mentionAtts=resolveMentions(inputText,products,styleReferences)
     const allProductSlugs=[...new Set([...attachedProducts,...mentionAtts.products])]
-    const tplMap=new Map<string,AttachedTemplate>()
-    for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
-    for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
-    return{products:allProductSlugs,templates:Array.from(tplMap.values())}
-  },[inputText,products,templates,attachedProducts,attachedTemplates])
+    const srMap=new Map<string,AttachedStyleReference>()
+    for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t)
+    for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t)
+    return{products:allProductSlugs,styleReferences:Array.from(srMap.values())}
+  },[inputText,products,styleReferences,attachedProducts,attachedStyleReferences])
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
@@ -85,7 +85,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       path: img.currentPath,
       originalPath: img.originalPath,
       prompt: img.prompt || undefined,
-      sourceTemplatePath: img.sourceTemplatePath || undefined,
+      sourceStyleReferencePath: img.sourceStyleReferencePath || undefined,
       timestamp: img.timestamp,
       viewedAt: img.viewedAt ?? null,
     }))
@@ -117,7 +117,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setAttachmentError,
     setAspectRatio,
     setGenerationMode,
-  } = useChat(brandSlug, { onTemplatesCreated: () => refreshTemplates(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
+  } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
 
 
 
@@ -134,12 +134,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         return
       }
       if (data.type === 'asset') addAttachmentReference(data.path)
-      else if (data.type === 'template') attachTemplate(data.path)
+      else if (data.type === 'style-reference') attachStyleReference(data.path)
       else if (data.type === 'product') attachProduct(data.path)
     }
     registerDropZone('chat-panel', mainEl, handleDrop)
     return () => unregisterDropZone('chat-panel')
-  }, [mainEl, brandSlug, addAttachmentReference, attachTemplate, attachProduct, registerDropZone, unregisterDropZone, setAttachmentError])
+  }, [mainEl, brandSlug, addAttachmentReference, attachStyleReference, attachProduct, registerDropZone, unregisterDropZone, setAttachmentError])
 
   // Handle image selection from file input
   const handleSelectImages = useCallback((files: File[]) => {
@@ -225,7 +225,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         return
       }
       if (currentDrag.type === 'asset') addAttachmentReference(currentDrag.path)
-      else if (currentDrag.type === 'template') attachTemplate(currentDrag.path)
+      else if (currentDrag.type === 'style-reference') attachStyleReference(currentDrag.path)
       else if (currentDrag.type === 'product') attachProduct(currentDrag.path)
       clearDrag()
       return
@@ -233,22 +233,22 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
     const textPlain = e.dataTransfer.getData('text/plain').trim()
 
-    // Check for template drag first
-    const templateSlug = e.dataTransfer.getData('application/x-brand-template')
-    const fallbackTemplateSlug =
-      !templateSlug && textPlain && templates.some(t => t.slug === textPlain) ? textPlain : ''
-    const finalTemplateSlug = (templateSlug || fallbackTemplateSlug).trim()
+    // Check for style reference drag first
+    const styleRefSlug = e.dataTransfer.getData('application/x-brand-style-reference')
+    const fallbackStyleRefSlug =
+      !styleRefSlug && textPlain && styleReferences.some(t => t.slug === textPlain) ? textPlain : ''
+    const finalStyleRefSlug = (styleRefSlug || fallbackStyleRefSlug).trim()
 
-    if (finalTemplateSlug) {
+    if (finalStyleRefSlug) {
       e.preventDefault()
       e.stopPropagation()
 
       if (!brandSlug) {
-        setAttachmentError('Select a brand before attaching templates.')
+        setAttachmentError('Select a brand before attaching style references.')
         return
       }
 
-      attachTemplate(finalTemplateSlug)
+      attachStyleReference(finalStyleRefSlug)
       return
     }
 
@@ -290,13 +290,13 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   }, [
     addAttachmentReference,
     attachProduct,
-    attachTemplate,
+    attachStyleReference,
     brandSlug,
     clearDrag,
     getDragData,
     products,
     setAttachmentError,
-    templates,
+    styleReferences,
   ])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -359,7 +359,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           onClick={() => {
             clearMessages()
             clearAttachments()
-            clearTemplateAttachments()
+            clearStyleReferenceAttachments()
             setInputText('')
           }}
           disabled={isLoading || messages.length === 0}
@@ -417,11 +417,11 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           attachedSlugs={combinedAttachments.products}
           onDetach={detachProduct}
         />
-        <AttachedTemplates
-          templates={templates}
-          attachedTemplates={combinedAttachments.templates}
-          onDetach={detachTemplate}
-          onToggleStrict={setTemplateStrictness}
+        <AttachedStyleReferences
+          styleReferences={styleReferences}
+          attachedStyleReferences={combinedAttachments.styleReferences}
+          onDetach={detachStyleReference}
+          onToggleStrict={setStyleReferenceStrictness}
         />
 
         {attachments.length > 0 && (
@@ -470,20 +470,20 @@ if(valid!==aspectRatio)setAspectRatio(valid)}} disabled={isLoading||!brandSlug}/
           onMessageChange={setInputText}
           onSend={async(text)=>{
 //Parse mentions from text and merge with Quick Insert attachments
-const mentionAtts=resolveMentions(text,products,templates)
+const mentionAtts=resolveMentions(text,products,styleReferences)
 //Merge products (dedupe)
 const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])]
-//Merge templates (Quick Insert wins for strictness)
-const tplMap=new Map<string,AttachedTemplate>()
-for(const t of mentionAtts.templates)tplMap.set(t.template_slug,t)
-for(const t of attachedTemplates)tplMap.set(t.template_slug,t)
-const allTemplates=Array.from(tplMap.values())
-await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_templates:allTemplates.length>0?allTemplates:undefined,aspect_ratio:aspectRatio,generation_mode:generationMode})
+//Merge style references (Quick Insert wins for strictness)
+const srMap=new Map<string,AttachedStyleReference>()
+for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t)
+for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t)
+const allStyleRefs=Array.from(srMap.values())
+await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,aspect_ratio:aspectRatio,generation_mode:generationMode})
 await refreshProducts()}}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
           hasProducts={products.length > 0}
-          hasTemplates={templates.length > 0}
+          hasStyleReferences={styleReferences.length > 0}
         />
       </div>
 
