@@ -3,6 +3,7 @@ import{useCallback,useRef,useEffect,useState}from'react'
 import{useWorkstation}from'../../context/WorkstationContext'
 import{useBrand}from'../../context/BrandContext'
 import{QuickEditProvider,useQuickEdit}from'../../context/QuickEditContext'
+import{useViewer}from'../../context/ViewerContext'
 import{bridge,isPyWebView,waitForPyWebViewReady}from'../../lib/bridge'
 import{toast}from'../ui/toaster'
 import{MediaDisplay}from'./MediaDisplay'
@@ -23,6 +24,7 @@ function WorkstationContent(){
 const{currentBatch,selectedIndex,setCurrentBatch,setSelectedIndex,bumpStatusVersion,browseMode,setBrowseMode,removeFromBatchByPath,markAsViewed}=useWorkstation()
 const{activeBrand}=useBrand()
 const{resultPath,isGenerating}=useQuickEdit()
+const{zoomIn,zoomOut,zoomToFit,zoomToActual,toggleFullscreen,toggleInfo,isFullscreen}=useViewer()
 const hasImages=currentBatch.length>0
 const currentImage=currentBatch[selectedIndex]
 const[toolbarVisible,setToolbarVisible]=useState(true)
@@ -39,7 +41,16 @@ useEffect(()=>{if(!currentImage||!activeBrand||!isPyWebView())return;if(currentI
 const isGrid=browseMode==='grid'
 const toggleBrowseMode=useCallback(()=>{setBrowseMode(isGrid?'preview':'grid')},[isGrid,setBrowseMode])
 const handleDelete=useCallback(async()=>{if(!currentImage)return;const path=currentImage.originalPath||currentImage.path;if(!path||path.startsWith('data:')){toast.error('Cannot delete this image');return}removeFromBatchByPath(path);try{await bridge.deleteAsset(path);toast.success('Moved to Trash')}catch(e){console.warn('Delete failed:',e)}bumpStatusVersion()},[currentImage,removeFromBatchByPath,bumpStatusVersion])
-useEffect(()=>{const handleKeyDown=(e:KeyboardEvent)=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return;if(!hasImages||isGenerating)return;if(e.key==='g'||e.key==='G'){e.preventDefault();toggleBrowseMode();return}if(isGrid)return;if(e.key==='t'||e.key==='T'||e.key==='Backspace'||e.key==='Delete'){e.preventDefault();handleDelete()}else if(e.key==='ArrowLeft'&&selectedIndex>0){e.preventDefault();setSelectedIndex(selectedIndex-1)}else if(e.key==='ArrowRight'&&selectedIndex<currentBatch.length-1){e.preventDefault();setSelectedIndex(selectedIndex+1)}};window.addEventListener('keydown',handleKeyDown);return()=>window.removeEventListener('keydown',handleKeyDown)},[hasImages,isGrid,handleDelete,selectedIndex,currentBatch.length,setSelectedIndex,toggleBrowseMode,isGenerating])
+useEffect(()=>{const handleKeyDown=(e:KeyboardEvent)=>{const t=e.target as HTMLElement;if(t instanceof HTMLInputElement||t instanceof HTMLTextAreaElement||t?.isContentEditable)return;if(!hasImages||isGenerating)return;
+//Fullscreen: F or Escape
+if(e.key==='f'||e.key==='F'){e.preventDefault();toggleFullscreen();return}
+if(e.key==='Escape'&&isFullscreen){e.preventDefault();toggleFullscreen();return}
+//Info: I
+if(e.key==='i'||e.key==='I'){e.preventDefault();toggleInfo();return}
+//Zoom: Cmd/Ctrl + key
+if(e.metaKey||e.ctrlKey){if(e.key==='='||e.key==='+'){e.preventDefault();zoomIn();return}if(e.key==='-'){e.preventDefault();zoomOut();return}if(e.key==='0'){e.preventDefault();zoomToFit();return}if(e.key==='1'){e.preventDefault();zoomToActual();return}}
+//Grid toggle: G
+if(e.key==='g'||e.key==='G'){e.preventDefault();toggleBrowseMode();return}if(isGrid)return;if(e.key==='t'||e.key==='T'||e.key==='Backspace'||e.key==='Delete'){e.preventDefault();handleDelete()}else if(e.key==='ArrowLeft'&&selectedIndex>0){e.preventDefault();setSelectedIndex(selectedIndex-1)}else if(e.key==='ArrowRight'&&selectedIndex<currentBatch.length-1){e.preventDefault();setSelectedIndex(selectedIndex+1)}};window.addEventListener('keydown',handleKeyDown);return()=>window.removeEventListener('keydown',handleKeyDown)},[hasImages,isGrid,handleDelete,selectedIndex,currentBatch.length,setSelectedIndex,toggleBrowseMode,isGenerating,isFullscreen,zoomIn,zoomOut,zoomToFit,zoomToActual,toggleFullscreen,toggleInfo])
 return(<div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:to-black relative">
 {hasImages?(<>
 <div className="relative flex-1 overflow-hidden pt-12 pb-32 flex flex-col items-center justify-center">
