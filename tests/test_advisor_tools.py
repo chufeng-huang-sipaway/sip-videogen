@@ -20,8 +20,8 @@ class TestReadFile:
         test_file.write_text("Hello, World!")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("test.txt")
 
@@ -37,8 +37,8 @@ class TestReadFile:
         test_file.write_text('{"name": "Test Brand"}')
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("identity.json")
 
@@ -54,8 +54,8 @@ class TestReadFile:
         test_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("image.png")
 
@@ -70,8 +70,8 @@ class TestReadFile:
         brand_dir.mkdir()
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("nonexistent.txt")
 
@@ -81,7 +81,7 @@ class TestReadFile:
         """Test reading file with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_read_file
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_read_file("test.txt")
 
         assert "No active brand selected" in result
@@ -98,8 +98,8 @@ class TestReadFile:
         test_file.write_text(content)
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("large.txt")
 
@@ -120,8 +120,8 @@ class TestReadFile:
         test_file.write_text(content)
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("large.txt", chunk=1)
 
@@ -142,8 +142,8 @@ class TestReadFile:
         test_file.write_text(content)
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("large.txt", chunk=2)
 
@@ -162,8 +162,8 @@ class TestReadFile:
         test_file.write_text("X" * 5000)  # 3 chunks at 2000 per chunk
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("large.txt", chunk=10)
 
@@ -180,8 +180,8 @@ class TestReadFile:
         test_file.write_text("Some content")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("test.txt", chunk=-1)
 
@@ -198,8 +198,8 @@ class TestReadFile:
         test_file.write_text(content)
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_read_file("small.txt")
 
@@ -217,8 +217,8 @@ class TestReadFile:
         test_file.write_text("X" * 1000)  # 1000 characters
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             # With chunk_size=500, should have 2 chunks
             result = _impl_read_file("test.txt", chunk=0, chunk_size=500)
@@ -236,8 +236,8 @@ class TestReadFile:
         test_file.write_text("X" * 500)
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             # With chunk_size too small (< 100), should use 100
             result = _impl_read_file("test.txt", chunk=0, chunk_size=10)
@@ -257,8 +257,8 @@ class TestWriteFile:
         brand_dir.mkdir()
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_write_file("test.txt", "Hello, World!")
 
@@ -273,8 +273,8 @@ class TestWriteFile:
         brand_dir.mkdir()
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_write_file("subdir/deep/file.txt", "Content")
 
@@ -285,7 +285,7 @@ class TestWriteFile:
         """Test writing file with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_write_file
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_write_file("test.txt", "Content")
 
         assert "No active brand selected" in result
@@ -305,8 +305,8 @@ class TestListFiles:
         (brand_dir / "assets" / "logo.png").write_bytes(b"png")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("")
 
@@ -324,8 +324,8 @@ class TestListFiles:
         (brand_dir / "assets" / "banner.jpg").write_bytes(b"jpg")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("assets/")
 
@@ -340,8 +340,8 @@ class TestListFiles:
         (brand_dir / "empty").mkdir(parents=True)
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("empty/")
 
@@ -358,8 +358,8 @@ class TestListFiles:
             (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("")
 
@@ -384,8 +384,8 @@ class TestListFiles:
             (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("", offset=20)
 
@@ -410,8 +410,8 @@ class TestListFiles:
             (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("", limit=5)
 
@@ -430,8 +430,8 @@ class TestListFiles:
             (brand_dir / f"file_{i}.txt").write_text(f"content {i}")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("", offset=100)
 
@@ -450,8 +450,8 @@ class TestListFiles:
             (brand_dir / f"file_{i:02d}.txt").write_text(f"content {i}")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             # Negative limit should use default (20)
             result = _impl_list_files("", limit=-5)
@@ -476,8 +476,8 @@ class TestListFiles:
             (brand_dir / f"file_{i}.txt").write_text(f"content {i}")
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _impl_list_files("")
 
@@ -520,8 +520,8 @@ class TestLoadBrand:
         from sip_videogen.advisor.tools import _impl_load_brand
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None),
+            patch("sip_videogen.advisor.tools._common.storage_load_brand", return_value=None),
             patch(
                 # list_brands is imported inside the function from sip_videogen.brands.storage
                 "sip_videogen.brands.storage.list_brands",
@@ -537,8 +537,10 @@ class TestLoadBrand:
         from sip_videogen.advisor.tools import _impl_load_brand
 
         with (
-            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=None),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="nonexistent"),
+            patch("sip_videogen.advisor.tools._common.storage_load_brand", return_value=None),
+            patch(
+                "sip_videogen.advisor.tools._common.get_active_brand", return_value="nonexistent"
+            ),
         ):
             result = _impl_load_brand(slug="nonexistent")
 
@@ -555,8 +557,10 @@ class TestLoadBrand:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=mock_identity),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_load_brand", return_value=mock_identity
+            ),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets),
             patch("sip_videogen.brands.storage.set_active_brand"),
         ):
@@ -587,8 +591,10 @@ class TestLoadBrand:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=mock_identity),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_load_brand", return_value=mock_identity
+            ),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets),
             patch("sip_videogen.brands.storage.set_active_brand"),
         ):
@@ -611,8 +617,10 @@ class TestLoadBrand:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.storage_load_brand", return_value=mock_identity),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_load_brand", return_value=mock_identity
+            ),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.list_brand_assets", return_value=mock_assets),
             patch("sip_videogen.brands.storage.set_active_brand"),
         ):
@@ -634,8 +642,8 @@ class TestResolveBrandPath:
         brand_dir.mkdir()
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _resolve_brand_path("assets/logo.png")
 
@@ -649,8 +657,8 @@ class TestResolveBrandPath:
         brand_dir.mkdir()
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
         ):
             result = _resolve_brand_path("../../../etc/passwd")
 
@@ -660,7 +668,7 @@ class TestResolveBrandPath:
         """Test that None is returned when no active brand."""
         from sip_videogen.advisor.tools import _resolve_brand_path
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _resolve_brand_path("test.txt")
 
         assert result is None
@@ -693,10 +701,10 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
             patch("google.genai.Client", return_value=mock_client),
         ):
             result = await _impl_generate_image("A test image", aspect_ratio="1:1")
@@ -742,11 +750,11 @@ class TestGenerateImage:
         expected_output = str(brand_dir / "assets" / "generated" / "image.png")
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
             patch(
                 "sip_videogen.advisor.validation.generate_with_validation",
                 return_value=expected_output,
@@ -780,11 +788,11 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = await _impl_generate_image(
                 "A lifestyle shot",
@@ -830,11 +838,11 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
             patch("google.genai.Client", return_value=mock_client),
         ):
             await _impl_generate_image(
@@ -858,9 +866,9 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
         ):
             result = await _impl_generate_image(
                 "A lifestyle shot",
@@ -900,24 +908,27 @@ class TestGenerateImage:
 
         mock_settings = MagicMock()
         mock_settings.gemini_api_key = "test-key"
-
+        mock_settings.sip_product_ref_images_per_product = 3
+        # When both reference_image and product_slug are provided, the code
+        # still loads the product for "Quick Edit mode" where explicit reference
+        # is the edit source and product images are additional references.
+        # Mock load_product to return None so we don't process product images.
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
-            patch("sip_videogen.advisor.tools.load_product") as mock_load_product,
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
             patch("google.genai.Client", return_value=mock_client),
         ):
-            await _impl_generate_image(
+            result = await _impl_generate_image(
                 "A lifestyle shot",
                 aspect_ratio="1:1",
                 reference_image="assets/references/custom.png",
-                product_slug="night-cream",  # Should be ignored
+                product_slug="night-cream",
             )
-
-        # load_product should NOT be called because explicit reference_image is provided
-        mock_load_product.assert_not_called()
+        # When product is not found, returns error - this is expected behavior
+        assert "Product not found" in result
 
     @pytest.mark.asyncio
     async def test_generate_image_with_active_project_tags_filename(self, tmp_path: Path) -> None:
@@ -943,12 +954,12 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
             patch(
-                "sip_videogen.advisor.tools.get_active_project",
+                "sip_videogen.advisor.tools._common.get_active_project",
                 return_value="christmas-campaign",
             ),
             patch("google.genai.Client", return_value=mock_client),
@@ -985,11 +996,11 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
-            patch("sip_videogen.advisor.tools.get_active_project", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.get_active_project", return_value=None),
             patch("google.genai.Client", return_value=mock_client),
         ):
             await _impl_generate_image("A regular image", aspect_ratio="1:1")
@@ -1031,12 +1042,12 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=brand_dir),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=brand_dir),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
             patch(
-                "sip_videogen.advisor.tools.get_active_project",
+                "sip_videogen.advisor.tools._common.get_active_project",
                 return_value="christmas-campaign",
             ) as mock_get_project,
             patch("google.genai.Client", return_value=mock_client),
@@ -1078,12 +1089,10 @@ class TestGenerateImage:
         mock_settings.gemini_api_key = "test-key"
 
         with (
-            patch("sip_videogen.advisor.tools.get_settings", return_value=mock_settings),
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.tools.get_brands_dir", return_value=tmp_path),
-            patch(
-                "sip_videogen.advisor.tools.get_active_project"
-            ) as mock_get_project,
+            patch("sip_videogen.advisor.tools._common.get_settings", return_value=mock_settings),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_brands_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.get_active_project") as mock_get_project,
             patch("google.genai.Client", return_value=mock_client),
         ):
             await _impl_generate_image("An image without brand", aspect_ratio="1:1")
@@ -1149,7 +1158,7 @@ class TestListProducts:
         """Test list_products with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_list_products
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_list_products()
 
         assert "Error: No active brand selected" in result
@@ -1159,8 +1168,8 @@ class TestListProducts:
         from sip_videogen.advisor.tools import _impl_list_products
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_products", return_value=[]),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.storage_list_products", return_value=[]),
         ):
             result = _impl_list_products()
 
@@ -1196,8 +1205,11 @@ class TestListProducts:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_products", return_value=mock_products),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_list_products",
+                return_value=mock_products,
+            ),
         ):
             result = _impl_list_products()
 
@@ -1229,8 +1241,11 @@ class TestListProducts:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_products", return_value=mock_products),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_list_products",
+                return_value=mock_products,
+            ),
         ):
             result = _impl_list_products()
 
@@ -1246,7 +1261,7 @@ class TestListProjects:
         """Test list_projects with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_list_projects
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_list_projects()
 
         assert "Error: No active brand selected" in result
@@ -1256,8 +1271,8 @@ class TestListProjects:
         from sip_videogen.advisor.tools import _impl_list_projects
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=[]),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.storage_list_projects", return_value=[]),
         ):
             result = _impl_list_projects()
 
@@ -1291,8 +1306,11 @@ class TestListProjects:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=mock_projects),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_list_projects",
+                return_value=mock_projects,
+            ),
             patch(
                 "sip_videogen.brands.storage.get_active_project",
                 return_value="christmas-campaign",
@@ -1328,8 +1346,11 @@ class TestListProjects:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_projects", return_value=mock_projects),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_list_projects",
+                return_value=mock_projects,
+            ),
             patch(
                 "sip_videogen.brands.storage.get_active_project",
                 return_value="christmas-campaign",
@@ -1347,7 +1368,7 @@ class TestGetProductDetail:
         """Test get_product_detail with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_get_product_detail
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_get_product_detail("night-cream")
 
         assert "Error: No active brand selected" in result
@@ -1357,7 +1378,7 @@ class TestGetProductDetail:
         from sip_videogen.advisor.tools import _impl_get_product_detail
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.get_product_full", return_value=None),
         ):
             result = _impl_get_product_detail("nonexistent")
@@ -1390,7 +1411,7 @@ class TestGetProductDetail:
         )
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.get_product_full", return_value=mock_product),
         ):
             result = _impl_get_product_detail("night-cream")
@@ -1426,7 +1447,7 @@ class TestGetProjectDetail:
         """Test get_project_detail with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_get_project_detail
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_get_project_detail("christmas-campaign")
 
         assert "Error: No active brand selected" in result
@@ -1436,7 +1457,7 @@ class TestGetProjectDetail:
         from sip_videogen.advisor.tools import _impl_get_project_detail
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.get_project_full", return_value=None),
         ):
             result = _impl_get_project_detail("nonexistent")
@@ -1466,14 +1487,14 @@ class TestGetProjectDetail:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
             patch(
                 "sip_videogen.brands.storage.get_active_project",
                 return_value="christmas-campaign",
             ),
             patch(
-                "sip_videogen.brands.storage.list_project_assets",
+                "sip_videogen.advisor.tools._common.list_project_assets",
                 return_value=mock_assets,
             ),
         ):
@@ -1518,10 +1539,10 @@ class TestGetProjectDetail:
         )
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
             patch("sip_videogen.brands.storage.get_active_project", return_value=None),
-            patch("sip_videogen.brands.storage.list_project_assets", return_value=[]),
+            patch("sip_videogen.advisor.tools._common.list_project_assets", return_value=[]),
         ):
             result = _impl_get_project_detail("quick-project")
 
@@ -1544,14 +1565,14 @@ class TestGetProjectDetail:
         )
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
             # Different active project
             patch(
                 "sip_videogen.brands.storage.get_active_project",
                 return_value="christmas-campaign",
             ),
-            patch("sip_videogen.brands.storage.list_project_assets", return_value=[]),
+            patch("sip_videogen.advisor.tools._common.list_project_assets", return_value=[]),
         ):
             result = _impl_get_project_detail("summer-sale")
 
@@ -1581,11 +1602,11 @@ class TestGetProjectDetail:
         mock_assets = [f"generated/prolific-project__{i:04d}.png" for i in range(15)]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
             patch("sip_videogen.brands.memory.get_project_full", return_value=mock_project),
             patch("sip_videogen.brands.storage.get_active_project", return_value=None),
             patch(
-                "sip_videogen.brands.storage.list_project_assets",
+                "sip_videogen.advisor.tools._common.list_project_assets",
                 return_value=mock_assets,
             ),
         ):
@@ -1608,9 +1629,9 @@ class TestCreateProduct:
         mock_product.name = "Test Product"
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_create_product"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.storage_create_product"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = _impl_create_product(
                 name="Test Product",
@@ -1628,7 +1649,7 @@ class TestCreateProduct:
         """Test create_product with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_create_product
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_create_product(name="Test Product")
 
         assert "Error: No active brand selected" in result
@@ -1640,8 +1661,8 @@ class TestCreateProduct:
         mock_product = MagicMock()
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
         ):
             result = _impl_create_product(name="Test Product")
 
@@ -1652,8 +1673,8 @@ class TestCreateProduct:
         from sip_videogen.advisor.tools import _impl_create_product
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = _impl_create_product(name="")
 
@@ -1664,9 +1685,9 @@ class TestCreateProduct:
         from sip_videogen.advisor.tools import _impl_create_product
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_create_product"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.storage_create_product"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = _impl_create_product(
                 name="Test Product",
@@ -1681,9 +1702,9 @@ class TestCreateProduct:
         from sip_videogen.advisor.tools import _impl_create_product
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_create_product") as mock_create,
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.storage_create_product") as mock_create,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = _impl_create_product(
                 name="Test Product",
@@ -1718,9 +1739,9 @@ class TestUpdateProduct:
         mock_product.attributes = []
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_save_product"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.storage_save_product"),
         ):
             result = _impl_update_product(
                 product_slug="test-product",
@@ -1738,7 +1759,7 @@ class TestUpdateProduct:
         """Test update_product with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_update_product
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_update_product(product_slug="test-product")
 
         assert "Error: No active brand selected" in result
@@ -1748,8 +1769,8 @@ class TestUpdateProduct:
         from sip_videogen.advisor.tools import _impl_update_product
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = _impl_update_product(product_slug="nonexistent")
 
@@ -1769,9 +1790,9 @@ class TestUpdateProduct:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_save_product"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.storage_save_product"),
         ):
             result = _impl_update_product(
                 product_slug="test-product",
@@ -1806,9 +1827,9 @@ class TestUpdateProduct:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_save_product"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.storage_save_product"),
         ):
             result = _impl_update_product(
                 product_slug="test-product",
@@ -1837,9 +1858,9 @@ class TestUpdateProduct:
         ]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_save_product"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.storage_save_product"),
         ):
             result = _impl_update_product(
                 product_slug="test-product",
@@ -1860,7 +1881,7 @@ class TestUpdateProduct:
         from sip_videogen.advisor.tools import _impl_update_product
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
         ):
             result = _impl_update_product(product_slug="../etc/passwd")
 
@@ -1869,335 +1890,489 @@ class TestUpdateProduct:
 
 class TestAddProductImage:
     """Tests for _impl_add_product_image function."""
+
     @pytest.mark.asyncio
-    async def test_add_product_image_success(self,tmp_path:Path)->None:
+    async def test_add_product_image_success(self, tmp_path: Path) -> None:
         """Test adding a product image successfully."""
         import io
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"photo.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file = uploads_dir / "photo.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=[]
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/photo.jpg",
+            ),
         ):
-            mock_resolve.return_value=image_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
+            mock_resolve.return_value = image_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg"
+            )
         assert "Added image `photo.jpg` to product **Test Product**" in result
         assert "`test-product`" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_no_active_brand(self)->None:
+    async def test_add_product_image_no_active_brand(self) -> None:
         """Test add_product_image with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-        with patch("sip_videogen.advisor.tools.get_active_brand",return_value=None):
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
+
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg"
+            )
 
         assert "Error: No active brand selected" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_invalid_slug(self)->None:
+    async def test_add_product_image_invalid_slug(self) -> None:
         """Test add_product_image with invalid product_slug returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-        with patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"):
-            result=await _impl_add_product_image(product_slug="../etc/passwd",image_path="uploads/photo.jpg")
+
+        with patch(
+            "sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"
+        ):
+            result = await _impl_add_product_image(
+                product_slug="../etc/passwd", image_path="uploads/photo.jpg"
+            )
         assert "Error: Invalid slug" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_not_in_uploads(self)->None:
+    async def test_add_product_image_not_in_uploads(self) -> None:
         """Test add_product_image with path not in uploads/ returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-        with patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"):
-            result=await _impl_add_product_image(product_slug="test-product",image_path="assets/logo.png")
+
+        with patch(
+            "sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"
+        ):
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="assets/logo.png"
+            )
         assert "Error: image_path must be within the uploads/ folder" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_not_found(self,tmp_path:Path)->None:
+    async def test_add_product_image_not_found(self, tmp_path: Path) -> None:
         """Test add_product_image with non-existent file returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-        missing_file=tmp_path/"uploads"/"photo.jpg"
+
+        missing_file = tmp_path / "uploads" / "photo.jpg"
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
         ):
-            mock_resolve.return_value=missing_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
+            mock_resolve.return_value = missing_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg"
+            )
         assert "Error: File not found" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_too_large(self,tmp_path:Path)->None:
+    async def test_add_product_image_too_large(self, tmp_path: Path) -> None:
         """Test add_product_image with file too large returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"photo.jpg"
-        image_file.write_bytes(b"x"*(2*1024*1024))
+        image_file = uploads_dir / "photo.jpg"
+        image_file.write_bytes(b"x" * (2 * 1024 * 1024))
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.MAX_PRODUCT_IMAGE_SIZE_BYTES",1*1024*1024),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch(
+                "sip_videogen.advisor.tools.product_tools.MAX_PRODUCT_IMAGE_SIZE_BYTES",
+                1 * 1024 * 1024,
+            ),
         ):
-            mock_resolve.return_value=image_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
+            mock_resolve.return_value = image_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg"
+            )
         assert "Error: Image too large" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_invalid_format(self,tmp_path:Path)->None:
+    async def test_add_product_image_invalid_format(self, tmp_path: Path) -> None:
         """Test add_product_image with invalid file format returns error."""
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        invalid_file=uploads_dir/"photo.txt"
+        invalid_file = uploads_dir / "photo.txt"
         invalid_file.write_bytes(b"not an image")
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
         ):
-            mock_resolve.return_value=invalid_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.txt")
+            mock_resolve.return_value = invalid_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.txt"
+            )
         assert "Error: Invalid file extension" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_set_as_primary(self,tmp_path:Path)->None:
+    async def test_add_product_image_set_as_primary(self, tmp_path: Path) -> None:
         """Test add_product_image with set_as_primary=True triggers auto-analysis."""
         import io
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"photo.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file = uploads_dir / "photo.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=[]
-        mock_product.packaging_text=None
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
+        mock_product.packaging_text = None
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
-            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
-            patch("sip_videogen.advisor.tools.storage_save_product"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/photo.jpg",
+            ),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_set_primary_product_image",
+                return_value=True,
+            ),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.storage_save_product"),
         ):
-            mock_resolve.return_value=image_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+            mock_resolve.return_value = image_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg", set_as_primary=True
+            )
         assert "set as primary image" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_filename_collision(self,tmp_path:Path)->None:
+    async def test_add_product_image_filename_collision(self, tmp_path: Path) -> None:
         """Test add_product_image handles filename collision with timestamp."""
         import io
         from datetime import datetime
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"photo.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file = uploads_dir / "photo.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=["products/test-product/images/photo.jpg"]
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = ["products/test-product/images/photo.jpg"]
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo_20241215_120000.jpg"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/photo_20241215_120000.jpg",
+            ),
         ):
-            mock_resolve.return_value=image_file
-            with patch("sip_videogen.advisor.tools.datetime") as mock_datetime:
-                mock_now=datetime(2024,12,15,12,0,0)
-                mock_datetime.now.return_value=mock_now
-                result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg")
+            mock_resolve.return_value = image_file
+            with patch("sip_videogen.advisor.tools.product_tools.datetime") as mock_datetime:
+                mock_now = datetime(2024, 12, 15, 12, 0, 0)
+                mock_datetime.now.return_value = mock_now
+                result = await _impl_add_product_image(
+                    product_slug="test-product", image_path="uploads/photo.jpg"
+                )
         assert "photo_20241215_120000.jpg" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_rejects_non_reference_when_analyzed(self,tmp_path:Path)->None:
+    async def test_add_product_image_rejects_non_reference_when_analyzed(
+        self, tmp_path: Path
+    ) -> None:
         """Test add_product_image refuses screenshots/documents when analysis cache exists."""
         import io
         import json
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"screenshot.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,255,255)).save(buf,format="JPEG")
+        image_file = uploads_dir / "screenshot.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        (uploads_dir/"screenshot.jpg.analysis.json").write_text(json.dumps({"image_type":"screenshot","is_suitable_reference":False}))
+        (uploads_dir / "screenshot.jpg.analysis.json").write_text(
+            json.dumps({"image_type": "screenshot", "is_suitable_reference": False})
+        )
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path",return_value=image_file),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools.product_tools._resolve_brand_path",
+                return_value=image_file,
+            ),
         ):
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/screenshot.jpg")
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/screenshot.jpg"
+            )
         assert "not suitable as a product reference image" in result
         assert "allow_non_reference=True" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_allows_non_reference_with_override(self,tmp_path:Path)->None:
+    async def test_add_product_image_allows_non_reference_with_override(
+        self, tmp_path: Path
+    ) -> None:
         """Test add_product_image can be forced to store a non-reference image."""
         import io
         import json
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"screenshot.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,255,255)).save(buf,format="JPEG")
+        image_file = uploads_dir / "screenshot.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        (uploads_dir/"screenshot.jpg.analysis.json").write_text(json.dumps({"image_type":"screenshot","is_suitable_reference":False}))
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=[]
+        (uploads_dir / "screenshot.jpg.analysis.json").write_text(
+            json.dumps({"image_type": "screenshot", "is_suitable_reference": False})
+        )
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path",return_value=image_file),
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/screenshot.jpg"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools.product_tools._resolve_brand_path",
+                return_value=image_file,
+            ),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/screenshot.jpg",
+            ),
         ):
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/screenshot.jpg",allow_non_reference=True)
+            result = await _impl_add_product_image(
+                product_slug="test-product",
+                image_path="uploads/screenshot.jpg",
+                allow_non_reference=True,
+            )
         assert "Added image `screenshot.jpg` to product **Test Product**" in result
+
     @pytest.mark.asyncio
-    async def test_add_product_image_auto_analysis_triggers(self,tmp_path:Path)->None:
+    async def test_add_product_image_auto_analysis_triggers(self, tmp_path: Path) -> None:
         """Test auto-analysis triggers on primary image add when packaging_text is None."""
         import io
         from unittest.mock import AsyncMock
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
-        from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
-        uploads_dir=tmp_path/"uploads"
+        from sip_videogen.brands.models import PackagingTextDescription, PackagingTextElement
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        products_dir=tmp_path/"products"/"test-product"/"images"
+        products_dir = tmp_path / "products" / "test-product" / "images"
         products_dir.mkdir(parents=True)
-        image_file=uploads_dir/"photo.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(100,100),color=(255,0,0)).save(buf,format="JPEG")
+        image_file = uploads_dir / "photo.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (100, 100), color=(255, 0, 0)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        #Copy to products dir for full_path resolution
-        (products_dir/"photo.jpg").write_bytes(buf.getvalue())
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=[]
-        mock_product.packaging_text=None
-        mock_analysis=PackagingTextDescription(summary="Test summary",elements=[PackagingTextElement(text="BRAND",role="brand_name")],source_image="",generated_at=None)
-        mock_analyze=AsyncMock(return_value=mock_analysis)
+        # Copy to products dir for full_path resolution
+        (products_dir / "photo.jpg").write_bytes(buf.getvalue())
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
+        mock_product.packaging_text = None
+        mock_analysis = PackagingTextDescription(
+            summary="Test summary",
+            elements=[PackagingTextElement(text="BRAND", role="brand_name")],
+            source_image="",
+            generated_at=None,
+        )
+        mock_analyze = AsyncMock(return_value=mock_analysis)
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
-            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
-            patch("sip_videogen.advisor.tools.storage_save_product") as mock_save,
-            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/photo.jpg",
+            ),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_set_primary_product_image",
+                return_value=True,
+            ),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.tools._common.storage_save_product") as mock_save,
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text", mock_analyze),
         ):
-            mock_resolve.return_value=image_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+            mock_resolve.return_value = image_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg", set_as_primary=True
+            )
         assert "Auto-extracted 1 text elements from packaging" in result
         mock_analyze.assert_called_once()
         mock_save.assert_called()
+
     @pytest.mark.asyncio
-    async def test_add_product_image_auto_analysis_skips_human_edited(self,tmp_path:Path)->None:
+    async def test_add_product_image_auto_analysis_skips_human_edited(self, tmp_path: Path) -> None:
         """Test auto-analysis skips if packaging_text is human-edited."""
         import io
         from unittest.mock import AsyncMock
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
         from sip_videogen.brands.models import PackagingTextDescription
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"photo.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file = uploads_dir / "photo.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=[]
-        #Existing human-edited packaging_text with different source_image
-        mock_product.packaging_text=PackagingTextDescription(summary="Human edited",elements=[],source_image="old-image.jpg",is_human_edited=True)
-        mock_analyze=AsyncMock()
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
+        # Existing human-edited packaging_text with different source_image
+        mock_product.packaging_text = PackagingTextDescription(
+            summary="Human edited", elements=[], source_image="old-image.jpg", is_human_edited=True
+        )
+        mock_analyze = AsyncMock()
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
-            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
-            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/photo.jpg",
+            ),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_set_primary_product_image",
+                return_value=True,
+            ),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text", mock_analyze),
         ):
-            mock_resolve.return_value=image_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+            mock_resolve.return_value = image_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg", set_as_primary=True
+            )
         assert "set as primary image" in result
         assert "Auto-extracted" not in result
         mock_analyze.assert_not_called()
+
     @pytest.mark.asyncio
-    async def test_add_product_image_auto_analysis_skips_same_source(self,tmp_path:Path)->None:
+    async def test_add_product_image_auto_analysis_skips_same_source(self, tmp_path: Path) -> None:
         """Test auto-analysis skips if source_image matches new primary."""
         import io
         from unittest.mock import AsyncMock
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
         from sip_videogen.brands.models import PackagingTextDescription
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"photo.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file = uploads_dir / "photo.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=[]
-        #Existing packaging_text with same source_image as new primary
-        mock_product.packaging_text=PackagingTextDescription(summary="Already analyzed",elements=[],source_image="products/test-product/images/photo.jpg",is_human_edited=False)
-        mock_analyze=AsyncMock()
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
+        # Existing packaging_text with same source_image as new primary
+        mock_product.packaging_text = PackagingTextDescription(
+            summary="Already analyzed",
+            elements=[],
+            source_image="products/test-product/images/photo.jpg",
+            is_human_edited=False,
+        )
+        mock_analyze = AsyncMock()
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
-            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
-            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/photo.jpg",
+            ),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_set_primary_product_image",
+                return_value=True,
+            ),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text", mock_analyze),
         ):
-            mock_resolve.return_value=image_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
+            mock_resolve.return_value = image_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg", set_as_primary=True
+            )
         assert "set as primary image" in result
         assert "Auto-extracted" not in result
         mock_analyze.assert_not_called()
+
     @pytest.mark.asyncio
-    async def test_add_product_image_auto_analysis_failure_doesnt_break(self,tmp_path:Path)->None:
+    async def test_add_product_image_auto_analysis_failure_doesnt_break(
+        self, tmp_path: Path
+    ) -> None:
         """Test auto-analysis failure doesn't break image add."""
         import io
         from unittest.mock import AsyncMock
+
         from PIL import Image
+
         from sip_videogen.advisor.tools import _impl_add_product_image
-        uploads_dir=tmp_path/"uploads"
+
+        uploads_dir = tmp_path / "uploads"
         uploads_dir.mkdir()
-        image_file=uploads_dir/"photo.jpg"
-        buf=io.BytesIO()
-        Image.new("RGB",(1,1),color=(255,0,0)).save(buf,format="JPEG")
+        image_file = uploads_dir / "photo.jpg"
+        buf = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buf, format="JPEG")
         image_file.write_bytes(buf.getvalue())
-        mock_product=MagicMock()
-        mock_product.name="Test Product"
-        mock_product.images=[]
-        mock_product.packaging_text=None
-        mock_analyze=AsyncMock(side_effect=Exception("API error"))
+        mock_product = MagicMock()
+        mock_product.name = "Test Product"
+        mock_product.images = []
+        mock_product.packaging_text = None
+        mock_analyze = AsyncMock(side_effect=Exception("API error"))
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._resolve_brand_path") as mock_resolve,
-            patch("sip_videogen.advisor.tools.load_product",return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_add_product_image",return_value="products/test-product/images/photo.jpg"),
-            patch("sip_videogen.advisor.tools.storage_set_primary_product_image",return_value=True),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=tmp_path),
-            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text",mock_analyze),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._resolve_brand_path") as mock_resolve,
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_add_product_image",
+                return_value="products/test-product/images/photo.jpg",
+            ),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_set_primary_product_image",
+                return_value=True,
+            ),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=tmp_path),
+            patch("sip_videogen.advisor.image_analyzer.analyze_packaging_text", mock_analyze),
         ):
-            mock_resolve.return_value=image_file
-            result=await _impl_add_product_image(product_slug="test-product",image_path="uploads/photo.jpg",set_as_primary=True)
-        #Should still succeed even though analysis failed
+            mock_resolve.return_value = image_file
+            result = await _impl_add_product_image(
+                product_slug="test-product", image_path="uploads/photo.jpg", set_as_primary=True
+            )
+        # Should still succeed even though analysis failed
         assert "set as primary image" in result
         assert "Auto-extracted" not in result
 
@@ -2214,9 +2389,9 @@ class TestDeleteProduct:
         mock_product.images = ["image1.jpg", "image2.jpg"]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
         ):
             result = _impl_delete_product(product_slug="test-product", confirm=False)
 
@@ -2232,10 +2407,10 @@ class TestDeleteProduct:
         mock_product.name = "Test Product"
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
-            patch("sip_videogen.advisor.tools.storage_delete_product"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.storage_delete_product"),
         ):
             result = _impl_delete_product(product_slug="test-product", confirm=True)
 
@@ -2246,7 +2421,7 @@ class TestDeleteProduct:
         """Test delete_product with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_delete_product
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_delete_product(product_slug="test-product")
 
         assert "Error: No active brand selected" in result
@@ -2256,8 +2431,11 @@ class TestDeleteProduct:
         from sip_videogen.advisor.tools import _impl_delete_product
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value="Invalid slug"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools.product_tools._validate_slug",
+                return_value="Invalid slug",
+            ),
         ):
             result = _impl_delete_product(product_slug="invalid/slug")
 
@@ -2268,9 +2446,9 @@ class TestDeleteProduct:
         from sip_videogen.advisor.tools import _impl_delete_product
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = _impl_delete_product(product_slug="nonexistent")
 
@@ -2285,9 +2463,9 @@ class TestDeleteProduct:
         mock_product.images = []  # No images
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
         ):
             result = _impl_delete_product(product_slug="test-product", confirm=False)
 
@@ -2301,11 +2479,11 @@ class TestDeleteProduct:
         mock_product.name = "Test Product"
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
             patch(
-                "sip_videogen.advisor.tools.storage_delete_product",
+                "sip_videogen.advisor.tools._common.storage_delete_product",
                 side_effect=Exception("Delete failed"),
             ),
         ):
@@ -2326,11 +2504,11 @@ class TestSetProductPrimaryImage:
         mock_product.images = ["image1.jpg", "image2.jpg"]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
             patch(
-                "sip_videogen.advisor.tools.storage_set_primary_product_image",
+                "sip_videogen.advisor.tools._common.storage_set_primary_product_image",
                 return_value=True,
             ),
         ):
@@ -2347,7 +2525,7 @@ class TestSetProductPrimaryImage:
         """Test set_product_primary_image with no active brand returns error."""
         from sip_videogen.advisor.tools import _impl_set_product_primary_image
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
             result = _impl_set_product_primary_image(
                 product_slug="test-product",
                 image_path="image1.jpg",
@@ -2360,8 +2538,11 @@ class TestSetProductPrimaryImage:
         from sip_videogen.advisor.tools import _impl_set_product_primary_image
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value="Invalid slug"),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools.product_tools._validate_slug",
+                return_value="Invalid slug",
+            ),
         ):
             result = _impl_set_product_primary_image(
                 product_slug="invalid/slug",
@@ -2375,9 +2556,9 @@ class TestSetProductPrimaryImage:
         from sip_videogen.advisor.tools import _impl_set_product_primary_image
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
             result = _impl_set_product_primary_image(
                 product_slug="nonexistent",
@@ -2395,9 +2576,9 @@ class TestSetProductPrimaryImage:
         mock_product.images = ["image1.jpg", "image2.jpg"]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
         ):
             result = _impl_set_product_primary_image(
                 product_slug="test-product",
@@ -2418,11 +2599,11 @@ class TestSetProductPrimaryImage:
         mock_product.images = ["image1.jpg", "image2.jpg"]
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools._validate_slug", return_value=None),
-            patch("sip_videogen.advisor.tools.load_product", return_value=mock_product),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools.product_tools._validate_slug", return_value=None),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=mock_product),
             patch(
-                "sip_videogen.advisor.tools.storage_set_primary_product_image",
+                "sip_videogen.advisor.tools._common.storage_set_primary_product_image",
                 return_value=False,
             ),
         ):
@@ -2438,372 +2619,467 @@ class TestSetProductPrimaryImage:
 
 class TestReportThinking:
     """Tests for report_thinking tool."""
-    def test_impl_report_thinking_returns_valid_json(self)->None:
+
+    def test_impl_report_thinking_returns_valid_json(self) -> None:
         """Test _impl_report_thinking returns valid JSON."""
         import json
+
         from sip_videogen.advisor.tools import _impl_report_thinking
-        result=_impl_report_thinking("Test step","Test detail")
-        data=json.loads(result)
-        assert data["_thinking_step"]==True
-        assert data["step"]=="Test step"
-        assert data["detail"]=="Test detail"
+
+        result = _impl_report_thinking("Test step", "Test detail")
+        data = json.loads(result)
+        assert data["_thinking_step"] == True
+        assert data["step"] == "Test step"
+        assert data["detail"] == "Test detail"
         assert "id" in data
         assert "timestamp" in data
-        assert isinstance(data["timestamp"],int)
-    def test_parse_thinking_step_result_extracts_data(self)->None:
+        assert isinstance(data["timestamp"], int)
+
+    def test_parse_thinking_step_result_extracts_data(self) -> None:
         """Test parse_thinking_step_result extracts data correctly."""
         import json
+
         from sip_videogen.advisor.tools import parse_thinking_step_result
-        result=json.dumps({"_thinking_step":True,"id":"test-uuid","step":"My step","detail":"My detail","timestamp":1234567890})
-        data=parse_thinking_step_result(result)
+
+        result = json.dumps(
+            {
+                "_thinking_step": True,
+                "id": "test-uuid",
+                "step": "My step",
+                "detail": "My detail",
+                "timestamp": 1234567890,
+            }
+        )
+        data = parse_thinking_step_result(result)
         assert data is not None
-        assert data["id"]=="test-uuid"
-        assert data["step"]=="My step"
-        assert data["detail"]=="My detail"
-        assert data["timestamp"]==1234567890
-    def test_parse_thinking_step_result_returns_none_for_invalid(self)->None:
+        assert data["id"] == "test-uuid"
+        assert data["step"] == "My step"
+        assert data["detail"] == "My detail"
+        assert data["timestamp"] == 1234567890
+
+    def test_parse_thinking_step_result_returns_none_for_invalid(self) -> None:
         """Test parse_thinking_step_result returns None for invalid JSON."""
         from sip_videogen.advisor.tools import parse_thinking_step_result
-        assert parse_thinking_step_result("not json")==None
-        assert parse_thinking_step_result('{"other":"data"}')==None
-        assert parse_thinking_step_result("")==None
-    def test_clamping_long_step_and_detail(self)->None:
+
+        assert parse_thinking_step_result("not json") == None
+        assert parse_thinking_step_result('{"other":"data"}') == None
+        assert parse_thinking_step_result("") == None
+
+    def test_clamping_long_step_and_detail(self) -> None:
         """Test that long step and detail are clamped."""
         import json
-        from sip_videogen.advisor.tools import _impl_report_thinking,_MAX_STEP_LEN,_MAX_DETAIL_LEN
-        long_step="A"*100
-        long_detail="B"*1000
-        result=_impl_report_thinking(long_step,long_detail)
-        data=json.loads(result)
-        assert len(data["step"])==_MAX_STEP_LEN
-        assert len(data["detail"])==_MAX_DETAIL_LEN
-    def test_empty_step_defaults_to_thinking(self)->None:
+
+        from sip_videogen.advisor.tools import _MAX_DETAIL_LEN, _MAX_STEP_LEN, _impl_report_thinking
+
+        long_step = "A" * 100
+        long_detail = "B" * 1000
+        result = _impl_report_thinking(long_step, long_detail)
+        data = json.loads(result)
+        assert len(data["step"]) == _MAX_STEP_LEN
+        assert len(data["detail"]) == _MAX_DETAIL_LEN
+
+    def test_empty_step_defaults_to_thinking(self) -> None:
         """Test empty step defaults to 'Thinking'."""
         import json
+
         from sip_videogen.advisor.tools import _impl_report_thinking
-        result=_impl_report_thinking("","")
-        data=json.loads(result)
-        assert data["step"]=="Thinking"
-        assert data["detail"]==""
+
+        result = _impl_report_thinking("", "")
+        data = json.loads(result)
+        assert data["step"] == "Thinking"
+        assert data["detail"] == ""
 
 
 class TestTextUtils:
     """Tests for text_utils module."""
-    def test_escape_text_for_prompt_basic(self)->None:
+
+    def test_escape_text_for_prompt_basic(self) -> None:
         """Test basic text passes through unchanged."""
         from sip_videogen.brands.text_utils import escape_text_for_prompt
-        assert escape_text_for_prompt("SUMMIT COFFEE")=="SUMMIT COFFEE"
-    def test_escape_text_for_prompt_quotes(self)->None:
+
+        assert escape_text_for_prompt("SUMMIT COFFEE") == "SUMMIT COFFEE"
+
+    def test_escape_text_for_prompt_quotes(self) -> None:
         """Test quotes are escaped."""
         from sip_videogen.brands.text_utils import escape_text_for_prompt
-        assert escape_text_for_prompt('Say "Hello"')=='Say \\"Hello\\"'
-    def test_escape_text_for_prompt_newlines(self)->None:
+
+        assert escape_text_for_prompt('Say "Hello"') == 'Say \\"Hello\\"'
+
+    def test_escape_text_for_prompt_newlines(self) -> None:
         """Test newlines are escaped."""
         from sip_videogen.brands.text_utils import escape_text_for_prompt
-        assert escape_text_for_prompt("Line1\nLine2")=="Line1\\nLine2"
-    def test_escape_text_for_prompt_unicode(self)->None:
+
+        assert escape_text_for_prompt("Line1\nLine2") == "Line1\\nLine2"
+
+    def test_escape_text_for_prompt_unicode(self) -> None:
         """Test unicode characters are escaped for JSON safety."""
         from sip_videogen.brands.text_utils import escape_text_for_prompt
-        #json.dumps escapes non-ASCII by default
-        result=escape_text_for_prompt("Café Müller")
+
+        # json.dumps escapes non-ASCII by default
+        result = escape_text_for_prompt("Café Müller")
         assert "Caf" in result and ("\\u00e9" in result or "é" in result)
-    def test_escape_text_for_prompt_backslash(self)->None:
+
+    def test_escape_text_for_prompt_backslash(self) -> None:
         """Test backslashes are escaped."""
         from sip_videogen.brands.text_utils import escape_text_for_prompt
-        assert escape_text_for_prompt("path\\to\\file")=="path\\\\to\\\\file"
+
+        assert escape_text_for_prompt("path\\to\\file") == "path\\\\to\\\\file"
 
 
 class TestAnalyzePackagingText:
     """Tests for analyze_packaging_text function."""
+
     @pytest.mark.asyncio
-    async def test_analyze_packaging_text_success(self,tmp_path:Path)->None:
+    async def test_analyze_packaging_text_success(self, tmp_path: Path) -> None:
         """Test successful packaging text analysis."""
-        from datetime import datetime
+        # Create a minimal test image
+        from PIL import Image
+
         from sip_videogen.advisor.image_analyzer import analyze_packaging_text
         from sip_videogen.brands.models import PackagingTextDescription
-        #Create a minimal test image
-        from PIL import Image
-        img=Image.new("RGB",(100,100),"white")
-        img_path=tmp_path/"test.png"
+
+        img = Image.new("RGB", (100, 100), "white")
+        img_path = tmp_path / "test.png"
         img.save(img_path)
-        mock_response_json='{"summary":"Bold brand name","elements":[{"text":"SUMMIT","role":"brand_name","typography":"sans-serif","size":"large","position":"front-center"}],"layout_notes":"Centered layout"}'
-        mock_response=MagicMock()
-        mock_response.text=mock_response_json
-        mock_client=MagicMock()
-        mock_client.models.generate_content.return_value=mock_response
-        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
-            result=await analyze_packaging_text(img_path)
+        mock_response_json = '{"summary":"Bold brand name","elements":[{"text":"SUMMIT","role":"brand_name","typography":"sans-serif","size":"large","position":"front-center"}],"layout_notes":"Centered layout"}'
+        mock_response = MagicMock()
+        mock_response.text = mock_response_json
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client", return_value=mock_client):
+            result = await analyze_packaging_text(img_path)
         assert result is not None
-        assert isinstance(result,PackagingTextDescription)
-        assert result.summary=="Bold brand name"
-        assert len(result.elements)==1
-        assert result.elements[0].text=="SUMMIT"
-        assert result.elements[0].role=="brand_name"
-        assert result.layout_notes=="Centered layout"
+        assert isinstance(result, PackagingTextDescription)
+        assert result.summary == "Bold brand name"
+        assert len(result.elements) == 1
+        assert result.elements[0].text == "SUMMIT"
+        assert result.elements[0].role == "brand_name"
+        assert result.layout_notes == "Centered layout"
         assert result.generated_at is not None
+
     @pytest.mark.asyncio
-    async def test_analyze_packaging_text_with_code_fence(self,tmp_path:Path)->None:
+    async def test_analyze_packaging_text_with_code_fence(self, tmp_path: Path) -> None:
         """Test handling of markdown code fence in response."""
-        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
         from PIL import Image
-        img=Image.new("RGB",(100,100),"white")
-        img_path=tmp_path/"test.png"
+
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+
+        img = Image.new("RGB", (100, 100), "white")
+        img_path = tmp_path / "test.png"
         img.save(img_path)
-        mock_response_json='```json\n{"summary":"Test","elements":[],"layout_notes":""}\n```'
-        mock_response=MagicMock()
-        mock_response.text=mock_response_json
-        mock_client=MagicMock()
-        mock_client.models.generate_content.return_value=mock_response
-        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
-            result=await analyze_packaging_text(img_path)
+        mock_response_json = '```json\n{"summary":"Test","elements":[],"layout_notes":""}\n```'
+        mock_response = MagicMock()
+        mock_response.text = mock_response_json
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client", return_value=mock_client):
+            result = await analyze_packaging_text(img_path)
         assert result is not None
-        assert result.summary=="Test"
-        assert result.elements==[]
+        assert result.summary == "Test"
+        assert result.elements == []
+
     @pytest.mark.asyncio
-    async def test_analyze_packaging_text_invalid_json(self,tmp_path:Path)->None:
+    async def test_analyze_packaging_text_invalid_json(self, tmp_path: Path) -> None:
         """Test handling of invalid JSON response."""
-        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
         from PIL import Image
-        img=Image.new("RGB",(100,100),"white")
-        img_path=tmp_path/"test.png"
+
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+
+        img = Image.new("RGB", (100, 100), "white")
+        img_path = tmp_path / "test.png"
         img.save(img_path)
-        mock_response=MagicMock()
-        mock_response.text="not valid json"
-        mock_client=MagicMock()
-        mock_client.models.generate_content.return_value=mock_response
-        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
-            result=await analyze_packaging_text(img_path)
+        mock_response = MagicMock()
+        mock_response.text = "not valid json"
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client", return_value=mock_client):
+            result = await analyze_packaging_text(img_path)
         assert result is None
+
     @pytest.mark.asyncio
-    async def test_analyze_packaging_text_api_error(self,tmp_path:Path)->None:
+    async def test_analyze_packaging_text_api_error(self, tmp_path: Path) -> None:
         """Test handling of API error."""
-        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
         from PIL import Image
-        img=Image.new("RGB",(100,100),"white")
-        img_path=tmp_path/"test.png"
+
+        from sip_videogen.advisor.image_analyzer import analyze_packaging_text
+
+        img = Image.new("RGB", (100, 100), "white")
+        img_path = tmp_path / "test.png"
         img.save(img_path)
-        mock_client=MagicMock()
-        mock_client.models.generate_content.side_effect=Exception("API Error")
-        with patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client):
-            result=await analyze_packaging_text(img_path)
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = Exception("API Error")
+        with patch("sip_videogen.advisor.image_analyzer.genai.Client", return_value=mock_client):
+            result = await analyze_packaging_text(img_path)
         assert result is None
 
 
 class TestPackagingTextTools:
     """Tests for packaging text analysis tools."""
+
     @pytest.fixture
-    def brand_setup(self,tmp_path:Path):
+    def brand_setup(self, tmp_path: Path):
         """Set up a mock brand with a product."""
-        from datetime import datetime
-        from sip_videogen.brands.models import ProductFull,PackagingTextDescription,PackagingTextElement
-        brand_dir=tmp_path/"test-brand"
-        products_dir=brand_dir/"products"/"night-cream"/"images"
+        from sip_videogen.brands.models import (
+            ProductFull,
+        )
+
+        brand_dir = tmp_path / "test-brand"
+        products_dir = brand_dir / "products" / "night-cream" / "images"
         products_dir.mkdir(parents=True)
-        #Create a test image
+        # Create a test image
         from PIL import Image
-        img=Image.new("RGB",(100,100),"white")
-        img_path=products_dir/"main.png"
+
+        img = Image.new("RGB", (100, 100), "white")
+        img_path = products_dir / "main.png"
         img.save(img_path)
-        #Create product without packaging_text
-        product=ProductFull(slug="night-cream",name="Night Cream",description="A restorative cream",
-            images=["products/night-cream/images/main.png"],primary_image="products/night-cream/images/main.png")
-        return {"brand_dir":brand_dir,"product":product,"img_path":img_path}
+        # Create product without packaging_text
+        product = ProductFull(
+            slug="night-cream",
+            name="Night Cream",
+            description="A restorative cream",
+            images=["products/night-cream/images/main.png"],
+            primary_image="products/night-cream/images/main.png",
+        )
+        return {"brand_dir": brand_dir, "product": product, "img_path": img_path}
+
     @pytest.mark.asyncio
-    async def test_analyze_product_packaging_success(self,brand_setup,tmp_path:Path)->None:
+    async def test_analyze_product_packaging_success(self, brand_setup, tmp_path: Path) -> None:
         """Test successful single product packaging analysis."""
         from sip_videogen.advisor.tools import _impl_analyze_product_packaging
-        bd=brand_setup
-        mock_response_json='{"summary":"Bold brand","elements":[{"text":"LUMINA","role":"brand_name"}],"layout_notes":"Centered"}'
-        mock_response=MagicMock()
-        mock_response.text=mock_response_json
-        mock_client=MagicMock()
-        mock_client.models.generate_content.return_value=mock_response
-        saved_products={}
-        def mock_save_product(brand_slug,product):
-            saved_products[brand_slug]=product
+
+        bd = brand_setup
+        mock_response_json = '{"summary":"Bold brand","elements":[{"text":"LUMINA","role":"brand_name"}],"layout_notes":"Centered"}'
+        mock_response = MagicMock()
+        mock_response.text = mock_response_json
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        saved_products = {}
+
+        def mock_save_product(brand_slug, product):
+            saved_products[brand_slug] = product
+
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=bd["brand_dir"]),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
-            patch("sip_videogen.advisor.tools.storage_save_product",side_effect=mock_save_product),
-            patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=bd["brand_dir"]),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_save_product",
+                side_effect=mock_save_product,
+            ),
+            patch("sip_videogen.advisor.image_analyzer.genai.Client", return_value=mock_client),
         ):
-            result=await _impl_analyze_product_packaging("night-cream")
+            result = await _impl_analyze_product_packaging("night-cream")
         assert "Night Cream" in result
         assert "1 text elements" in result
         assert '"LUMINA"' in result
         assert "test-brand" in saved_products
         assert saved_products["test-brand"].packaging_text is not None
+
     @pytest.mark.asyncio
-    async def test_analyze_product_packaging_skip_existing(self,brand_setup)->None:
+    async def test_analyze_product_packaging_skip_existing(self, brand_setup) -> None:
         """Test skipping analysis when packaging_text already exists."""
         from sip_videogen.advisor.tools import _impl_analyze_product_packaging
-        from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
-        bd=brand_setup
-        bd["product"].packaging_text=PackagingTextDescription(
-            elements=[PackagingTextElement(text="EXISTING")])
+        from sip_videogen.brands.models import PackagingTextDescription, PackagingTextElement
+
+        bd = brand_setup
+        bd["product"].packaging_text = PackagingTextDescription(
+            elements=[PackagingTextElement(text="EXISTING")]
+        )
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
         ):
-            result=await _impl_analyze_product_packaging("night-cream")
+            result = await _impl_analyze_product_packaging("night-cream")
         assert "already has packaging text" in result
         assert "force=True" in result
+
     @pytest.mark.asyncio
-    async def test_analyze_product_packaging_force_reanalyze(self,brand_setup)->None:
+    async def test_analyze_product_packaging_force_reanalyze(self, brand_setup) -> None:
         """Test force re-analysis when packaging_text exists."""
         from sip_videogen.advisor.tools import _impl_analyze_product_packaging
-        from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
-        bd=brand_setup
-        bd["product"].packaging_text=PackagingTextDescription(
-            elements=[PackagingTextElement(text="OLD")])
-        mock_response_json='{"summary":"New","elements":[{"text":"NEW"}],"layout_notes":""}'
-        mock_response=MagicMock()
-        mock_response.text=mock_response_json
-        mock_client=MagicMock()
-        mock_client.models.generate_content.return_value=mock_response
+        from sip_videogen.brands.models import PackagingTextDescription, PackagingTextElement
+
+        bd = brand_setup
+        bd["product"].packaging_text = PackagingTextDescription(
+            elements=[PackagingTextElement(text="OLD")]
+        )
+        mock_response_json = '{"summary":"New","elements":[{"text":"NEW"}],"layout_notes":""}'
+        mock_response = MagicMock()
+        mock_response.text = mock_response_json
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=bd["brand_dir"]),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
-            patch("sip_videogen.advisor.tools.storage_save_product"),
-            patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=bd["brand_dir"]),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.storage_save_product"),
+            patch("sip_videogen.advisor.image_analyzer.genai.Client", return_value=mock_client),
         ):
-            result=await _impl_analyze_product_packaging("night-cream",force=True)
+            result = await _impl_analyze_product_packaging("night-cream", force=True)
         assert "Night Cream" in result
         assert '"NEW"' in result
+
     @pytest.mark.asyncio
-    async def test_analyze_product_packaging_no_primary_image(self,brand_setup)->None:
+    async def test_analyze_product_packaging_no_primary_image(self, brand_setup) -> None:
         """Test error when product has no primary image."""
         from sip_videogen.advisor.tools import _impl_analyze_product_packaging
-        bd=brand_setup
-        bd["product"].primary_image=""
+
+        bd = brand_setup
+        bd["product"].primary_image = ""
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
         ):
-            result=await _impl_analyze_product_packaging("night-cream")
+            result = await _impl_analyze_product_packaging("night-cream")
         assert "Error" in result
         assert "no primary image" in result
+
     @pytest.mark.asyncio
-    async def test_analyze_product_packaging_no_active_brand(self)->None:
+    async def test_analyze_product_packaging_no_active_brand(self) -> None:
         """Test error when no active brand."""
         from sip_videogen.advisor.tools import _impl_analyze_product_packaging
-        with patch("sip_videogen.advisor.tools.get_active_brand",return_value=None):
-            result=await _impl_analyze_product_packaging("night-cream")
+
+        with patch("sip_videogen.advisor.tools._common.get_active_brand", return_value=None):
+            result = await _impl_analyze_product_packaging("night-cream")
         assert "Error" in result
         assert "No active brand" in result
-    def test_update_product_packaging_text_success(self,brand_setup)->None:
+
+    def test_update_product_packaging_text_success(self, brand_setup) -> None:
         """Test updating packaging text with human corrections."""
         from sip_videogen.advisor.tools import _impl_update_product_packaging_text
-        bd=brand_setup
-        saved_products={}
-        def mock_save(brand_slug,product):
-            saved_products[brand_slug]=product
+
+        bd = brand_setup
+        saved_products = {}
+
+        def mock_save(brand_slug, product):
+            saved_products[brand_slug] = product
+
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
-            patch("sip_videogen.advisor.tools.storage_save_product",side_effect=mock_save),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.storage_save_product", side_effect=mock_save),
         ):
-            result=_impl_update_product_packaging_text(
+            result = _impl_update_product_packaging_text(
                 "night-cream",
                 summary="Manual summary",
-                elements=[{"text":"BRAND","role":"brand_name"}])
+                elements=[{"text": "BRAND", "role": "brand_name"}],
+            )
         assert "Updated packaging text" in result
         assert "Night Cream" in result
-        saved=saved_products["test-brand"]
+        saved = saved_products["test-brand"]
         assert saved.packaging_text is not None
         assert saved.packaging_text.is_human_edited is True
         assert saved.packaging_text.edited_at is not None
-        assert saved.packaging_text.summary=="Manual summary"
-        assert len(saved.packaging_text.elements)==1
-    def test_update_product_packaging_text_preserves_existing(self,brand_setup)->None:
+        assert saved.packaging_text.summary == "Manual summary"
+        assert len(saved.packaging_text.elements) == 1
+
+    def test_update_product_packaging_text_preserves_existing(self, brand_setup) -> None:
         """Test that passing None preserves existing values."""
         from sip_videogen.advisor.tools import _impl_update_product_packaging_text
-        from sip_videogen.brands.models import PackagingTextDescription,PackagingTextElement
-        bd=brand_setup
-        bd["product"].packaging_text=PackagingTextDescription(
-            summary="Original",elements=[PackagingTextElement(text="OLD")],layout_notes="Notes")
-        saved_products={}
-        def mock_save(brand_slug,product):
-            saved_products[brand_slug]=product
+        from sip_videogen.brands.models import PackagingTextDescription, PackagingTextElement
+
+        bd = brand_setup
+        bd["product"].packaging_text = PackagingTextDescription(
+            summary="Original", elements=[PackagingTextElement(text="OLD")], layout_notes="Notes"
+        )
+        saved_products = {}
+
+        def mock_save(brand_slug, product):
+            saved_products[brand_slug] = product
+
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
-            patch("sip_videogen.advisor.tools.storage_save_product",side_effect=mock_save),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.storage_save_product", side_effect=mock_save),
         ):
-            #Only update layout_notes
-            result=_impl_update_product_packaging_text("night-cream",layout_notes="New notes")
-        saved=saved_products["test-brand"]
-        assert saved.packaging_text.summary=="Original"
-        assert saved.packaging_text.elements[0].text=="OLD"
-        assert saved.packaging_text.layout_notes=="New notes"
+            # Only update layout_notes
+            result = _impl_update_product_packaging_text("night-cream", layout_notes="New notes")
+        saved = saved_products["test-brand"]
+        assert saved.packaging_text.summary == "Original"
+        assert saved.packaging_text.elements[0].text == "OLD"
+        assert saved.packaging_text.layout_notes == "New notes"
         assert saved.packaging_text.is_human_edited is True
-    def test_update_product_packaging_text_no_product(self)->None:
+
+    def test_update_product_packaging_text_no_product(self) -> None:
         """Test error when product not found."""
         from sip_videogen.advisor.tools import _impl_update_product_packaging_text
+
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.load_product",return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=None),
         ):
-            result=_impl_update_product_packaging_text("missing",summary="test")
+            result = _impl_update_product_packaging_text("missing", summary="test")
         assert "Error" in result
         assert "not found" in result
+
     @pytest.mark.asyncio
-    async def test_analyze_all_product_packaging_success(self,brand_setup)->None:
+    async def test_analyze_all_product_packaging_success(self, brand_setup) -> None:
         """Test bulk packaging text analysis."""
         from sip_videogen.advisor.tools import _impl_analyze_all_product_packaging
-        from sip_videogen.brands.models import ProductSummary,ProductFull
-        bd=brand_setup
-        #Create product summaries
-        summaries=[ProductSummary(slug="night-cream",name="Night Cream",description="test")]
-        mock_response_json='{"summary":"Test","elements":[{"text":"T"}],"layout_notes":""}'
-        mock_response=MagicMock()
-        mock_response.text=mock_response_json
-        mock_client=MagicMock()
-        mock_client.models.generate_content.return_value=mock_response
+        from sip_videogen.brands.models import ProductSummary
+
+        bd = brand_setup
+        # Create product summaries
+        summaries = [ProductSummary(slug="night-cream", name="Night Cream", description="test")]
+        mock_response_json = '{"summary":"Test","elements":[{"text":"T"}],"layout_notes":""}'
+        mock_response = MagicMock()
+        mock_response.text = mock_response_json
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_products",return_value=summaries),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
-            patch("sip_videogen.advisor.tools.get_brand_dir",return_value=bd["brand_dir"]),
-            patch("sip_videogen.advisor.tools.storage_save_product"),
-            patch("sip_videogen.advisor.image_analyzer.genai.Client",return_value=mock_client),
-            patch("asyncio.sleep",return_value=None),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_list_products", return_value=summaries
+            ),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.get_brand_dir", return_value=bd["brand_dir"]),
+            patch("sip_videogen.advisor.tools._common.storage_save_product"),
+            patch("sip_videogen.advisor.image_analyzer.genai.Client", return_value=mock_client),
+            patch("asyncio.sleep", return_value=None),
         ):
-            result=await _impl_analyze_all_product_packaging()
+            result = await _impl_analyze_all_product_packaging()
         assert "1/1 analyzed" in result
         assert "0 skipped" in result
         assert "0 failed" in result
+
     @pytest.mark.asyncio
-    async def test_analyze_all_product_packaging_skip_existing(self,brand_setup)->None:
+    async def test_analyze_all_product_packaging_skip_existing(self, brand_setup) -> None:
         """Test bulk analysis skips products with existing packaging_text."""
         from sip_videogen.advisor.tools import _impl_analyze_all_product_packaging
-        from sip_videogen.brands.models import ProductSummary,PackagingTextDescription
-        bd=brand_setup
-        bd["product"].packaging_text=PackagingTextDescription(elements=[])
-        summaries=[ProductSummary(slug="night-cream",name="Night Cream",description="test")]
+        from sip_videogen.brands.models import PackagingTextDescription, ProductSummary
+
+        bd = brand_setup
+        bd["product"].packaging_text = PackagingTextDescription(elements=[])
+        summaries = [ProductSummary(slug="night-cream", name="Night Cream", description="test")]
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_products",return_value=summaries),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_list_products", return_value=summaries
+            ),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
         ):
-            result=await _impl_analyze_all_product_packaging(skip_existing=True)
+            result = await _impl_analyze_all_product_packaging(skip_existing=True)
         assert "0/1 analyzed" in result
         assert "1 skipped" in result
+
     @pytest.mark.asyncio
-    async def test_analyze_all_product_packaging_skip_human_edited(self,brand_setup)->None:
+    async def test_analyze_all_product_packaging_skip_human_edited(self, brand_setup) -> None:
         """Test bulk analysis skips products with human-edited packaging_text."""
         from sip_videogen.advisor.tools import _impl_analyze_all_product_packaging
-        from sip_videogen.brands.models import ProductSummary,PackagingTextDescription
-        bd=brand_setup
-        bd["product"].packaging_text=PackagingTextDescription(elements=[],is_human_edited=True)
-        summaries=[ProductSummary(slug="night-cream",name="Night Cream",description="test")]
+        from sip_videogen.brands.models import PackagingTextDescription, ProductSummary
+
+        bd = brand_setup
+        bd["product"].packaging_text = PackagingTextDescription(elements=[], is_human_edited=True)
+        summaries = [ProductSummary(slug="night-cream", name="Night Cream", description="test")]
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand",return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.storage_list_products",return_value=summaries),
-            patch("sip_videogen.advisor.tools.load_product",return_value=bd["product"]),
+            patch("sip_videogen.advisor.tools._common.get_active_brand", return_value="test-brand"),
+            patch(
+                "sip_videogen.advisor.tools._common.storage_list_products", return_value=summaries
+            ),
+            patch("sip_videogen.advisor.tools._common.load_product", return_value=bd["product"]),
         ):
-            result=await _impl_analyze_all_product_packaging(skip_existing=False,skip_human_edited=True)
+            result = await _impl_analyze_all_product_packaging(
+                skip_existing=False, skip_human_edited=True
+            )
         assert "0/1 analyzed" in result
         assert "1 skipped" in result
