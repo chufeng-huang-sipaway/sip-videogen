@@ -23,6 +23,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+from sip_videogen.config.constants import RESOLUTIONS
 from sip_videogen.generators.base import (
     BaseVideoGenerator,
     PromptSafetyError,
@@ -35,7 +36,6 @@ from sip_videogen.generators.prompt_builder import (
 from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.aspect_ratio import get_supported_ratio, validate_aspect_ratio
 from sip_videogen.models.script import SceneAction, VideoScript
-
 logger = logging.getLogger(__name__)
 
 
@@ -88,16 +88,9 @@ class SoraVideoGenerator(BaseVideoGenerator):
     POLL_INTERVAL_SECONDS = 10
     MAX_POLL_TIME_SECONDS = 600  # 10 minutes max wait per video
 
-    # Resolution mappings - Sora only supports specific sizes:
-    # 720x1280, 1280x720, 1024x1792, 1792x1024
-    RESOLUTION_MAP_LANDSCAPE = {
-        "720p": "1280x720",
-        "1080p": "1792x1024",  # Closest to 1080p landscape
-    }
-    RESOLUTION_MAP_PORTRAIT = {
-        "720p": "720x1280",
-        "1080p": "1024x1792",  # Closest to 1080p portrait
-    }
+    #Resolution mappings from centralized constants
+    RESOLUTION_MAP_LANDSCAPE=RESOLUTIONS["16:9"]
+    RESOLUTION_MAP_PORTRAIT=RESOLUTIONS["9:16"]
 
     def __init__(
         self,

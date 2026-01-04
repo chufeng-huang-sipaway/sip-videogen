@@ -79,9 +79,9 @@ from sip_videogen.brands.storage import (
     delete_template as storage_delete_template,
 )
 from sip_videogen.advisor.template_analyzer import analyze_template_v2
+from sip_videogen.config.constants import Limits
 from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
-
 logger = get_logger(__name__)
 # =============================================================================
 # Session Context for Generation Settings
@@ -2053,7 +2053,7 @@ async def _impl_analyze_product_packaging(product_slug:str,force:bool=False)->st
         return f"Error analyzing packaging text: {e}"
 
 
-async def _impl_analyze_all_product_packaging(skip_existing:bool=True,skip_human_edited:bool=True,max_products:int=50)->str:
+async def _impl_analyze_all_product_packaging(skip_existing:bool=True,skip_human_edited:bool=True,max_products:int=Limits.MAX_PRODUCTS)->str:
     """Implementation of analyze_all_product_packaging tool.
     Args:
         skip_existing: Skip products that already have packaging_text.
@@ -2167,10 +2167,10 @@ def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
     # Parameter validation
     if chunk < 0:
         return f"Error: chunk must be >= 0, got {chunk}"
-    if chunk_size < 100:
-        chunk_size = 100  # Minimum chunk size
-    if chunk_size > 10000:
-        chunk_size = 10000  # Maximum chunk size
+    if chunk_size < Limits.CHUNK_SIZE_FILE_MIN:
+        chunk_size = Limits.CHUNK_SIZE_FILE_MIN  #Minimum chunk size
+    if chunk_size > Limits.CHUNK_SIZE_FILE_MAX:
+        chunk_size = Limits.CHUNK_SIZE_FILE_MAX  #Maximum chunk size
 
     resolved = _resolve_brand_path(path)
 
@@ -3340,7 +3340,7 @@ async def analyze_product_packaging(product_slug:str,force:bool=False)->str:
 
 
 @function_tool
-async def analyze_all_product_packaging(skip_existing:bool=True,skip_human_edited:bool=True,max_products:int=50)->str:
+async def analyze_all_product_packaging(skip_existing:bool=True,skip_human_edited:bool=True,max_products:int=Limits.MAX_PRODUCTS)->str:
     """Bulk analyze packaging text for all products in the active brand.
     Useful for backfilling existing products with packaging text analysis.
     Args:

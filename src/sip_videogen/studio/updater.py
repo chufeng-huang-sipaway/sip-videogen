@@ -7,12 +7,10 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
-
 import httpx
 from packaging import version
-
+from sip_videogen.config.constants import Timeouts,Limits
 from sip_videogen.studio import __version__ as current_version_str
-
 logger=logging.getLogger(__name__)
 
 # GitHub repository info - update this to match your repo
@@ -78,7 +76,7 @@ async def check_for_updates() -> UpdateInfo | None:
     Returns UpdateInfo if an update is available, None otherwise.
     """
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=Timeouts.UPDATE_CHECK) as client:
             # Fetch latest release from GitHub API
             api_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
             response = await client.get(
@@ -147,7 +145,7 @@ async def download_update(
         dmg_path = temp_dir / f"Brand-Studio-{update_info.version}.dmg"
 
         # Download with progress tracking
-        async with httpx.AsyncClient(timeout=600.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=Timeouts.UPDATE_DOWNLOAD, follow_redirects=True) as client:
             async with client.stream("GET", update_info.download_url) as response:
                 response.raise_for_status()
 
@@ -155,7 +153,7 @@ async def download_update(
                 downloaded = 0
 
                 with open(dmg_path, "wb") as f:
-                    async for chunk in response.aiter_bytes(chunk_size=65536):
+                    async for chunk in response.aiter_bytes(chunk_size=Limits.CHUNK_SIZE_DOWNLOAD):
                         f.write(chunk)
                         downloaded += len(chunk)
 

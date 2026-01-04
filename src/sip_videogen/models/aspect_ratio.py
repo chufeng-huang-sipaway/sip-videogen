@@ -2,10 +2,8 @@
 This module defines canonical aspect ratios for video generation
 with provider-specific support tables and fallback logic."""
 from __future__ import annotations
-
 import logging
 from enum import Enum
-
 logger=logging.getLogger(__name__)
 class AspectRatio(str,Enum):
     """Supported aspect ratios for video generation."""
@@ -25,10 +23,8 @@ PROVIDER_SUPPORTED_RATIOS:dict[str,list[str]]={
 "sora":["16:9","9:16"],#Sora: landscape/portrait only
 }
 #Sora maps ratios to fixed sizes per resolution
-SORA_SIZE_MAP:dict[str,dict[str,str]]={
-"16:9":{"720p":"1280x720","1080p":"1792x1024"},
-"9:16":{"720p":"720x1280","1080p":"1024x1792"},
-}
+#Note: Also exported as RESOLUTIONS in config/constants.py for other modules
+SORA_SIZE_MAP:dict[str,dict[str,str]]={"16:9":{"720p":"1280x720","1080p":"1792x1024"},"9:16":{"720p":"720x1280","1080p":"1024x1792"}}
 DEFAULT_ASPECT_RATIO=AspectRatio.LANDSCAPE_16_9
 def parse_ratio(ratio:str)->tuple[int,int]:
     """Parse ratio string to (width,height) tuple.
