@@ -11,7 +11,6 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-import httpx
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from rich.progress import (
@@ -33,9 +32,10 @@ from sip_videogen.generators.prompt_builder import (
     DEFAULT_MAX_PROMPT_CHARS,
     build_structured_scene_prompt,
 )
-from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.aspect_ratio import get_supported_ratio, validate_aspect_ratio
+from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.script import SceneAction, VideoScript
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,11 +63,7 @@ class SoraGenerationResult:
     @property
     def success_rate(self) -> float:
         """Calculate success rate as a percentage."""
-        return (
-            len(self.successful) / self.total_scenes * 100
-            if self.total_scenes > 0
-            else 0.0
-        )
+        return len(self.successful) / self.total_scenes * 100 if self.total_scenes > 0 else 0.0
 
     @property
     def all_succeeded(self) -> bool:
@@ -88,9 +84,9 @@ class SoraVideoGenerator(BaseVideoGenerator):
     POLL_INTERVAL_SECONDS = 10
     MAX_POLL_TIME_SECONDS = 600  # 10 minutes max wait per video
 
-    #Resolution mappings from centralized constants
-    RESOLUTION_MAP_LANDSCAPE=RESOLUTIONS["16:9"]
-    RESOLUTION_MAP_PORTRAIT=RESOLUTIONS["9:16"]
+    # Resolution mappings from centralized constants
+    RESOLUTION_MAP_LANDSCAPE = RESOLUTIONS["16:9"]
+    RESOLUTION_MAP_PORTRAIT = RESOLUTIONS["9:16"]
 
     def __init__(
         self,
@@ -195,11 +191,13 @@ class SoraVideoGenerator(BaseVideoGenerator):
         duration = self.map_duration(scene.duration_seconds)
 
         # Validate and apply provider-specific fallback for aspect ratio
-        validated_ratio=validate_aspect_ratio(aspect_ratio)
-        actual_ratio,was_fallback=get_supported_ratio(validated_ratio,self.PROVIDER_NAME)
+        validated_ratio = validate_aspect_ratio(aspect_ratio)
+        actual_ratio, was_fallback = get_supported_ratio(validated_ratio, self.PROVIDER_NAME)
         if was_fallback:
-            logger.warning(f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})")
-        final_aspect_ratio=actual_ratio.value
+            logger.warning(
+                f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})"
+            )
+        final_aspect_ratio = actual_ratio.value
 
         size = self._map_aspect_ratio_to_size(final_aspect_ratio)
 
@@ -297,9 +295,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
 
             # Write the video content to file
             output_path.write_bytes(response.content)
-            logger.info(
-                "Downloaded video for scene %d to %s", scene_number, output_path
-            )
+            logger.info("Downloaded video for scene %d to %s", scene_number, output_path)
             return output_path
 
         except Exception as e:
@@ -452,16 +448,11 @@ class SoraVideoGenerator(BaseVideoGenerator):
                     total=total_scenes,
                 )
 
-                tasks = [
-                    generate_with_semaphore(scene, task_id, progress)
-                    for scene in scenes
-                ]
+                tasks = [generate_with_semaphore(scene, task_id, progress) for scene in scenes]
                 generated = await asyncio.gather(*tasks)
 
         else:
-            tasks = [
-                generate_with_semaphore(scene, None, None) for scene in scenes
-            ]
+            tasks = [generate_with_semaphore(scene, None, None) for scene in scenes]
             generated = await asyncio.gather(*tasks)
 
         # Filter out None results (failed generations)
@@ -501,9 +492,7 @@ class SoraVideoGenerator(BaseVideoGenerator):
             return {}
 
         # Build element_id to image mapping
-        element_to_image = {
-            img.element_id: img for img in reference_images if img.element_id
-        }
+        element_to_image = {img.element_id: img for img in reference_images if img.element_id}
 
         # Build scene to references mapping
         scene_refs: dict[int, list[GeneratedAsset]] = {}

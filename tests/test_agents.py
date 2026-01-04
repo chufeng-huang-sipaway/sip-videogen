@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sip_videogen.models.agent_outputs import (
-    ScreenwriterOutput,
-    ProductionDesignerOutput,
     ContinuitySupervisorOutput,
+    ProductionDesignerOutput,
+    ScreenwriterOutput,
     ShowrunnerOutput,
 )
 from sip_videogen.models.script import (
@@ -22,9 +22,7 @@ class TestScreenwriterAgent:
     """Tests for the Screenwriter agent."""
 
     @pytest.mark.asyncio
-    async def test_develop_scenes_success(
-        self, sample_scene_action: SceneAction
-    ) -> None:
+    async def test_develop_scenes_success(self, sample_scene_action: SceneAction) -> None:
         """Test successful scene development."""
         mock_output = ScreenwriterOutput(
             scenes=[sample_scene_action],
@@ -129,9 +127,7 @@ class TestShowrunnerAgent:
     """Tests for the Showrunner orchestrator agent."""
 
     @pytest.mark.asyncio
-    async def test_develop_script_success(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    async def test_develop_script_success(self, sample_video_script: VideoScript) -> None:
         """Test successful script development."""
         mock_output = ShowrunnerOutput(
             script=sample_video_script,
@@ -208,21 +204,28 @@ class TestAgentPrompts:
         """Test screenwriter prompt file exists."""
         from pathlib import Path
 
-        prompt_path = Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/screenwriter.md"
+        prompt_path = (
+            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/screenwriter.md"
+        )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_production_designer_prompt_exists(self) -> None:
         """Test production designer prompt file exists."""
         from pathlib import Path
 
-        prompt_path = Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/production_designer.md"
+        prompt_path = (
+            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/production_designer.md"
+        )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_continuity_supervisor_prompt_exists(self) -> None:
         """Test continuity supervisor prompt file exists."""
         from pathlib import Path
 
-        prompt_path = Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/continuity_supervisor.md"
+        prompt_path = (
+            Path(__file__).parent.parent
+            / "src/sip_videogen/agents/prompts/continuity_supervisor.md"
+        )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_showrunner_prompt_exists(self) -> None:

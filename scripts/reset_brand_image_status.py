@@ -33,7 +33,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 STATUS_FILE_NAME = "image_status.json"
 CURRENT_VERSION = 1
@@ -131,7 +130,9 @@ def build_entry(
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="Reset Brand Studio image_status.json for a brand.")
+    parser = argparse.ArgumentParser(
+        description="Reset Brand Studio image_status.json for a brand."
+    )
     parser.add_argument("slug", help="Brand slug (e.g. activatedyou)")
     parser.add_argument(
         "--no-backfill",
@@ -179,10 +180,11 @@ def main(argv: list[str]) -> int:
     safe_write_json(status_path, data)
     print(f"Wrote fresh status file: {status_path}")
     print(f"Entries: {len(data.get('images', {}))}")
-    print("Next: restart the app, select the brand, and generate a new image to see unread indicators.")
+    print(
+        "Next: restart the app, select the brand, and generate a new image to see unread indicators."
+    )
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-

@@ -32,7 +32,7 @@ def _impl_fetch_url_content(url: str) -> str:
         return "Error: firecrawl-py not installed. Run: pip install firecrawl-py"
     api_key = os.environ.get("FIRECRAWL_API_KEY", "")
     logger.info(
-        f"FIRECRAWL_API_KEY from env: {'set ('+api_key[:8]+'...)'if api_key else 'NOT SET'}"
+        f"FIRECRAWL_API_KEY from env: {'set (' + api_key[:8] + '...)' if api_key else 'NOT SET'}"
     )
     if not api_key:
         return "Error: FireCrawl API key not configured. Please add your key in Brand Studio Settings (gear icon in sidebar)."

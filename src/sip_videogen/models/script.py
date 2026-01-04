@@ -163,9 +163,7 @@ class SceneAction(BaseModel):
 
         # Validate pattern sums to 8 (should always be true for valid patterns)
         if sum(self.clip_pattern) != 8:
-            raise ValueError(
-                f"Clip pattern durations must sum to 8, got {sum(self.clip_pattern)}"
-            )
+            raise ValueError(f"Clip pattern durations must sum to 8, got {sum(self.clip_pattern)}")
 
         # If sub_shots are provided, validate they match the pattern
         if self.sub_shots:

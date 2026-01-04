@@ -219,7 +219,9 @@ class TestEvolveBrandFlow:
         create_brand(complete_brand_identity)
 
         # Evolve audience
-        complete_brand_identity.audience.primary_summary = "Health-conscious millennials who love specialty coffee"
+        complete_brand_identity.audience.primary_summary = (
+            "Health-conscious millennials who love specialty coffee"
+        )
         save_brand(complete_brand_identity)
 
         # Verify audience is stored
@@ -395,9 +397,7 @@ class TestAssetCountUpdates:
 class TestBrowseAssetsIntegration:
     """Tests for _impl_browse_brand_assets tool integration."""
 
-    def test_browse_assets_returns_all_assets(
-        self, brand_with_assets: BrandIdentityFull
-    ) -> None:
+    def test_browse_assets_returns_all_assets(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test that _impl_browse_brand_assets returns all assets."""
         set_active_brand("summit-coffee")
 
@@ -408,9 +408,7 @@ class TestBrowseAssetsIntegration:
         categories = {a["category"] for a in assets}
         assert categories == {"logo", "packaging", "lifestyle", "marketing"}
 
-    def test_browse_assets_filters_by_category(
-        self, brand_with_assets: BrandIdentityFull
-    ) -> None:
+    def test_browse_assets_filters_by_category(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test filtering assets by category."""
         set_active_brand("summit-coffee")
 
@@ -429,7 +427,9 @@ class TestBrowseAssetsIntegration:
         result = _impl_browse_brand_assets(category="logo")
         assets = json.loads(result)
 
-        expected_path = str(temp_brands_dir / "summit-coffee" / "assets" / "logo" / "primary-logo.png")
+        expected_path = str(
+            temp_brands_dir / "summit-coffee" / "assets" / "logo" / "primary-logo.png"
+        )
         assert assets[0]["path"] == expected_path
 
 
@@ -489,9 +489,7 @@ class TestRoundTripIntegration:
 
         # Modify
         loaded.core.tagline = "Modified tagline"
-        loaded.visual.primary_colors.append(
-            ColorDefinition(hex="#FF0000", name="New Red")
-        )
+        loaded.visual.primary_colors.append(ColorDefinition(hex="#FF0000", name="New Red"))
 
         # Save
         save_brand(loaded)

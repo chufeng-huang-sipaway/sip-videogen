@@ -6,13 +6,16 @@ to create background music tracks for videos.
 
 import base64
 from pathlib import Path
+
 import google.auth
 import google.auth.transport.requests
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
+
 from sip_videogen.config.constants import Timeouts
 from sip_videogen.config.logging import get_logger
 from sip_videogen.models.music import GeneratedMusic, MusicBrief
+
 logger = get_logger(__name__)
 
 
@@ -116,7 +119,7 @@ class MusicGenerator:
                 self.endpoint,
                 headers=headers,
                 json=request_body,
-                timeout=Timeouts.MUSIC_GENERATION,  #Music generation can take time
+                timeout=Timeouts.MUSIC_GENERATION,  # Music generation can take time
             )
             response.raise_for_status()
             result = response.json()

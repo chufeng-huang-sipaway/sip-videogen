@@ -413,8 +413,8 @@ class StyleReferenceContextBuilder:
         if analysis is None:
             return f"""### Style Reference: {sr.name}
 **Slug**: `{sr.slug}`
-**Description**: {sr.description or '(No description)'}
-**Mode**: {'Strict' if self.strict else 'Loose'}
+**Description**: {sr.description or "(No description)"}
+**Mode**: {"Strict" if self.strict else "Loose"}
 *Analysis pending - style reference not yet analyzed.*
 """
         # Detect V2 vs V1 analysis
@@ -490,7 +490,7 @@ class StyleReferenceContextBuilder:
             from collections import Counter
 
             type_counts = Counter(elem_types)
-            elem_summary += f" ({', '.join(f'{v}x {k}' for k,v in type_counts.most_common(3))})"
+            elem_summary += f" ({', '.join(f'{v}x {k}' for k, v in type_counts.most_common(3))})"
         slot_info = ""
         if product_slot:
             geo = product_slot.geometry

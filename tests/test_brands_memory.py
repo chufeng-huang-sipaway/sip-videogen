@@ -311,18 +311,25 @@ class TestListBrandAssets:
 
 class TestBrandContext:
     """Tests for brand context management."""
-    def test_set_and_get_active_brand(self,temp_brands_dir:Path,sample_brand_identity:BrandIdentityFull)->None:
+
+    def test_set_and_get_active_brand(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
         """Test setting and getting brand context."""
         create_brand(sample_brand_identity)
         set_active_brand("test-brand")
-        assert get_active_brand()=="test-brand"
-    def test_clear_brand_context(self,temp_brands_dir:Path,sample_brand_identity:BrandIdentityFull)->None:
+        assert get_active_brand() == "test-brand"
+
+    def test_clear_brand_context(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
         """Test clearing brand context."""
         create_brand(sample_brand_identity)
         set_active_brand("test-brand")
         set_active_brand(None)
         assert get_active_brand() is None
-    def test_initial_context_is_none(self,temp_brands_dir:Path)->None:
+
+    def test_initial_context_is_none(self, temp_brands_dir: Path) -> None:
         """Test that initial context is None."""
         set_active_brand(None)
         assert get_active_brand() is None
@@ -353,10 +360,11 @@ class TestFetchBrandDetailTool:
         data = json.loads(result)
         assert "primary_colors" in data
 
-    def test_set_active_brand_raises_for_nonexistent(self,temp_brands_dir:Path)->None:
+    def test_set_active_brand_raises_for_nonexistent(self, temp_brands_dir: Path) -> None:
         """Test that set_active_brand raises for nonexistent brand."""
         import pytest
-        with pytest.raises(ValueError,match="not found"):
+
+        with pytest.raises(ValueError, match="not found"):
             set_active_brand("nonexistent")
 
 
@@ -403,9 +411,7 @@ class TestBrowseBrandAssetsTool:
         assert len(data) == 2
         assert all(a["category"] == "logo" for a in data)
 
-    def test_no_assets_with_category_filter(
-        self, brand_with_assets: BrandIdentityFull
-    ) -> None:
+    def test_no_assets_with_category_filter(self, brand_with_assets: BrandIdentityFull) -> None:
         """Test message when category has no assets."""
         set_active_brand("test-brand")
 
@@ -700,9 +706,7 @@ class TestGetProductSummary:
         summary = get_product_summary("test-brand", "nonexistent")
         assert summary is None
 
-    def test_returns_none_for_nonexistent_brand(
-        self, temp_brands_dir: Path
-    ) -> None:
+    def test_returns_none_for_nonexistent_brand(self, temp_brands_dir: Path) -> None:
         """Test that get_product_summary returns None for nonexistent brand."""
         summary = get_product_summary("nonexistent", "night-cream")
         assert summary is None
@@ -711,9 +715,7 @@ class TestGetProductSummary:
 class TestGetProductDetail:
     """Tests for get_product_detail function."""
 
-    def test_returns_json_for_existing_product(
-        self, brand_with_product: BrandIdentityFull
-    ) -> None:
+    def test_returns_json_for_existing_product(self, brand_with_product: BrandIdentityFull) -> None:
         """Test that get_product_detail returns valid JSON."""
         result = get_product_detail("test-brand", "night-cream")
 
@@ -735,9 +737,7 @@ class TestGetProductDetail:
 class TestGetProductImagesForGeneration:
     """Tests for get_product_images_for_generation function."""
 
-    def test_returns_brand_relative_paths(
-        self, brand_with_product: BrandIdentityFull
-    ) -> None:
+    def test_returns_brand_relative_paths(self, brand_with_product: BrandIdentityFull) -> None:
         """Test that get_product_images_for_generation returns brand-relative paths."""
         images = get_product_images_for_generation("test-brand", "night-cream")
 
@@ -755,9 +755,7 @@ class TestGetProductImagesForGeneration:
 class TestGetProductFull:
     """Tests for get_product_full function."""
 
-    def test_returns_full_product(
-        self, brand_with_product: BrandIdentityFull
-    ) -> None:
+    def test_returns_full_product(self, brand_with_product: BrandIdentityFull) -> None:
         """Test that get_product_full returns complete product."""
         product = get_product_full("test-brand", "night-cream")
 
@@ -804,9 +802,7 @@ class TestGetProjectSummary:
 class TestGetProjectInstructions:
     """Tests for get_project_instructions function."""
 
-    def test_returns_instructions_markdown(
-        self, brand_with_project: BrandIdentityFull
-    ) -> None:
+    def test_returns_instructions_markdown(self, brand_with_project: BrandIdentityFull) -> None:
         """Test that get_project_instructions returns markdown."""
         instructions = get_project_instructions("test-brand", "christmas-campaign")
 
@@ -826,9 +822,7 @@ class TestGetProjectInstructions:
 class TestGetProjectDetail:
     """Tests for get_project_detail function."""
 
-    def test_returns_json_for_existing_project(
-        self, brand_with_project: BrandIdentityFull
-    ) -> None:
+    def test_returns_json_for_existing_project(self, brand_with_project: BrandIdentityFull) -> None:
         """Test that get_project_detail returns valid JSON."""
         result = get_project_detail("test-brand", "christmas-campaign")
 
@@ -850,9 +844,7 @@ class TestGetProjectDetail:
 class TestGetProjectFull:
     """Tests for get_project_full function."""
 
-    def test_returns_full_project(
-        self, brand_with_project: BrandIdentityFull
-    ) -> None:
+    def test_returns_full_project(self, brand_with_project: BrandIdentityFull) -> None:
         """Test that get_project_full returns complete project."""
         project = get_project_full("test-brand", "christmas-campaign")
 
@@ -876,9 +868,7 @@ class TestGetProjectFull:
 class TestProductContextBuilder:
     """Tests for ProductContextBuilder class."""
 
-    def test_raises_for_nonexistent_product(
-        self, brand_with_product: BrandIdentityFull
-    ) -> None:
+    def test_raises_for_nonexistent_product(self, brand_with_product: BrandIdentityFull) -> None:
         """Test that ProductContextBuilder raises ValueError for nonexistent product."""
         with pytest.raises(ValueError, match="not found"):
             ProductContextBuilder("test-brand", "nonexistent")
@@ -888,9 +878,7 @@ class TestProductContextBuilder:
         with pytest.raises(ValueError, match="not found"):
             ProductContextBuilder("nonexistent", "night-cream")
 
-    def test_builds_context_with_product_info(
-        self, brand_with_product: BrandIdentityFull
-    ) -> None:
+    def test_builds_context_with_product_info(self, brand_with_product: BrandIdentityFull) -> None:
         """Test that context includes product information."""
         builder = ProductContextBuilder("test-brand", "night-cream")
         context = builder.build_context_section()
@@ -899,9 +887,7 @@ class TestProductContextBuilder:
         assert "night-cream" in context
         assert "rejuvenates" in context
 
-    def test_includes_attributes(
-        self, brand_with_product: BrandIdentityFull
-    ) -> None:
+    def test_includes_attributes(self, brand_with_product: BrandIdentityFull) -> None:
         """Test that context includes product attributes."""
         builder = ProductContextBuilder("test-brand", "night-cream")
         context = builder.build_context_section()
@@ -951,9 +937,7 @@ class TestBuildProductContext:
 class TestProjectContextBuilder:
     """Tests for ProjectContextBuilder class."""
 
-    def test_raises_for_nonexistent_project(
-        self, brand_with_project: BrandIdentityFull
-    ) -> None:
+    def test_raises_for_nonexistent_project(self, brand_with_project: BrandIdentityFull) -> None:
         """Test that ProjectContextBuilder raises ValueError for nonexistent project."""
         with pytest.raises(ValueError, match="not found"):
             ProjectContextBuilder("test-brand", "nonexistent")
@@ -963,9 +947,7 @@ class TestProjectContextBuilder:
         with pytest.raises(ValueError, match="not found"):
             ProjectContextBuilder("nonexistent", "christmas-campaign")
 
-    def test_builds_context_with_project_info(
-        self, brand_with_project: BrandIdentityFull
-    ) -> None:
+    def test_builds_context_with_project_info(self, brand_with_project: BrandIdentityFull) -> None:
         """Test that context includes project information."""
         builder = ProjectContextBuilder("test-brand", "christmas-campaign")
         context = builder.build_context_section()
@@ -974,9 +956,7 @@ class TestProjectContextBuilder:
         assert "christmas-campaign" in context
         assert "active" in context.lower()
 
-    def test_includes_instructions(
-        self, brand_with_project: BrandIdentityFull
-    ) -> None:
+    def test_includes_instructions(self, brand_with_project: BrandIdentityFull) -> None:
         """Test that context includes project instructions."""
         builder = ProjectContextBuilder("test-brand", "christmas-campaign")
         context = builder.build_context_section()
@@ -1028,9 +1008,7 @@ class TestHierarchicalContextBuilder:
         self, brand_with_product_and_project: BrandIdentityFull
     ) -> None:
         """Test that builder includes project context when project is active."""
-        builder = HierarchicalContextBuilder(
-            "test-brand", project_slug="christmas-campaign"
-        )
+        builder = HierarchicalContextBuilder("test-brand", project_slug="christmas-campaign")
         context = builder.build_turn_context()
 
         assert "Christmas 2024 Campaign" in context
@@ -1040,9 +1018,7 @@ class TestHierarchicalContextBuilder:
         self, brand_with_product_and_project: BrandIdentityFull
     ) -> None:
         """Test that builder includes product context when products are attached."""
-        builder = HierarchicalContextBuilder(
-            "test-brand", product_slugs=["night-cream"]
-        )
+        builder = HierarchicalContextBuilder("test-brand", product_slugs=["night-cream"])
         context = builder.build_turn_context()
 
         assert "Restorative Night Cream" in context
@@ -1126,9 +1102,7 @@ class TestBuildTurnContext:
         self, brand_with_product_and_project: BrandIdentityFull
     ) -> None:
         """Test that build_turn_context returns context with project."""
-        context = build_turn_context(
-            "test-brand", project_slug="christmas-campaign"
-        )
+        context = build_turn_context("test-brand", project_slug="christmas-campaign")
 
         assert "Christmas 2024 Campaign" in context
 
@@ -1136,9 +1110,7 @@ class TestBuildTurnContext:
         self, brand_with_product_and_project: BrandIdentityFull
     ) -> None:
         """Test that build_turn_context returns context with products."""
-        context = build_turn_context(
-            "test-brand", product_slugs=["night-cream"]
-        )
+        context = build_turn_context("test-brand", product_slugs=["night-cream"])
 
         assert "Restorative Night Cream" in context
 

@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from sip_videogen.generators import VideoProvider
 
 
@@ -94,11 +92,14 @@ class TestVideoGeneratorFactorySmoke:
         mock_settings = MagicMock()
         mock_settings.gemini_api_key = "test-gemini-api-key"
 
-        with patch(
-            "sip_videogen.generators.factory.get_settings",
-            return_value=mock_settings,
-        ), patch(
-            "sip_videogen.config.user_preferences.UserPreferences.load",
+        with (
+            patch(
+                "sip_videogen.generators.factory.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "sip_videogen.config.user_preferences.UserPreferences.load",
+            ),
         ):
             from sip_videogen.generators import VideoGeneratorFactory
 
@@ -117,12 +118,15 @@ class TestVideoGeneratorFactorySmoke:
         mock_prefs.kling.model_version = "kling-v2-master"
         mock_prefs.kling.mode = "std"
 
-        with patch(
-            "sip_videogen.generators.factory.get_settings",
-            return_value=mock_settings,
-        ), patch(
-            "sip_videogen.config.user_preferences.UserPreferences.load",
-            return_value=mock_prefs,
+        with (
+            patch(
+                "sip_videogen.generators.factory.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "sip_videogen.config.user_preferences.UserPreferences.load",
+                return_value=mock_prefs,
+            ),
         ):
             from sip_videogen.generators import VideoGeneratorFactory
 
@@ -140,12 +144,15 @@ class TestVideoGeneratorFactorySmoke:
         mock_prefs.sora.model = "sora"
         mock_prefs.sora.resolution = "1080p"
 
-        with patch(
-            "sip_videogen.generators.factory.get_settings",
-            return_value=mock_settings,
-        ), patch(
-            "sip_videogen.config.user_preferences.UserPreferences.load",
-            return_value=mock_prefs,
+        with (
+            patch(
+                "sip_videogen.generators.factory.get_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "sip_videogen.config.user_preferences.UserPreferences.load",
+                return_value=mock_prefs,
+            ),
         ):
             from sip_videogen.generators import VideoGeneratorFactory
 

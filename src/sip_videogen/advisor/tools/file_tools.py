@@ -53,15 +53,17 @@ def _impl_read_file(path: str, chunk: int = 0, chunk_size: int = 2000) -> str:
                 return content
             total_chunks = (len(content) + chunk_size - 1) // chunk_size
             if chunk >= total_chunks:
-                return f"Error: chunk {chunk} does not exist. File has {total_chunks} chunks (0-{total_chunks-1})."
+                return f"Error: chunk {chunk} does not exist. File has {total_chunks} chunks (0-{total_chunks - 1})."
             start = chunk * chunk_size
             end = min(start + chunk_size, len(content))
             chunk_content = content[start:end]
             total_len = len(content)
-            header = f"[Chunk {chunk+1}/{total_chunks}] (chars {start+1}-{end} of {total_len})\n\n"
+            header = (
+                f"[Chunk {chunk + 1}/{total_chunks}] (chars {start + 1}-{end} of {total_len})\n\n"
+            )
             footer = ""
             if chunk < total_chunks - 1:
-                footer = f'\n\n---\nUse read_file("{path}", chunk={chunk+1}) for next chunk.'
+                footer = f'\n\n---\nUse read_file("{path}", chunk={chunk + 1}) for next chunk.'
             return header + chunk_content + footer
         except Exception as e:
             return f"Error reading file: {e}"
@@ -108,7 +110,7 @@ def _impl_list_files(path: str = "", limit: int = 20, offset: int = 0) -> str:
         items = sorted(resolved.iterdir())
         total_count = len(items)
         if offset >= total_count and total_count > 0:
-            return f"Error: offset {offset} is past end of directory ({total_count} items). Use offset 0-{total_count-1}."
+            return f"Error: offset {offset} is past end of directory ({total_count} items). Use offset 0-{total_count - 1}."
         paginated_items = items[offset : offset + limit]
         lines = []
         for item in paginated_items:

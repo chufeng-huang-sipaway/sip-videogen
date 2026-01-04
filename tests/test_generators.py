@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from sip_videogen.generators import VideoGenerator
 from sip_videogen.generators.image_generator import (
     ImageGenerationError,
     ImageGenerator,
 )
-from sip_videogen.generators import VideoGenerator
 from sip_videogen.models.assets import AssetType
-from sip_videogen.models.script import ElementType, SceneAction, SharedElement
+from sip_videogen.models.script import SceneAction, SharedElement
 
 
 class TestImageGenerator:
@@ -26,9 +26,7 @@ class TestImageGenerator:
     def test_init_custom_model(self) -> None:
         """Test ImageGenerator with custom model."""
         with patch("sip_videogen.generators.image_generator.genai.Client"):
-            generator = ImageGenerator(
-                api_key="test-key", model="gemini-3-pro-image-preview"
-            )
+            generator = ImageGenerator(api_key="test-key", model="gemini-3-pro-image-preview")
             assert generator.model == "gemini-3-pro-image-preview"
 
     def test_build_prompt_character(self, sample_shared_element: SharedElement) -> None:
@@ -41,9 +39,7 @@ class TestImageGenerator:
             assert "portrait" in prompt.lower()
             assert "photorealistic" in prompt.lower()
 
-    def test_build_prompt_environment(
-        self, sample_environment_element: SharedElement
-    ) -> None:
+    def test_build_prompt_environment(self, sample_environment_element: SharedElement) -> None:
         """Test prompt building for environment elements."""
         with patch("sip_videogen.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
@@ -61,18 +57,14 @@ class TestImageGenerator:
             assert sample_prop_element.visual_description in prompt
             assert "product photograph" in prompt.lower()
 
-    def test_get_aspect_ratio_character(
-        self, sample_shared_element: SharedElement
-    ) -> None:
+    def test_get_aspect_ratio_character(self, sample_shared_element: SharedElement) -> None:
         """Test aspect ratio for character elements is 1:1."""
         with patch("sip_videogen.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             ratio = generator._get_aspect_ratio_for_element(sample_shared_element)
             assert ratio == "1:1"
 
-    def test_get_aspect_ratio_environment(
-        self, sample_environment_element: SharedElement
-    ) -> None:
+    def test_get_aspect_ratio_environment(self, sample_environment_element: SharedElement) -> None:
         """Test aspect ratio for environment elements is 16:9."""
         with patch("sip_videogen.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
@@ -158,9 +150,7 @@ class TestImageGenerator:
             generator = ImageGenerator(api_key="test-key")
 
             # Disable retries for faster test
-            generator.generate_reference_image.retry.stop = (
-                lambda *args, **kwargs: True
-            )
+            generator.generate_reference_image.retry.stop = lambda *args, **kwargs: True
 
             with pytest.raises(ImageGenerationError) as exc_info:
                 await generator.generate_reference_image(
@@ -239,9 +229,7 @@ class TestImageGenerator:
             original_retry = generator.generate_reference_image
             generator.generate_reference_image = AsyncMock(
                 side_effect=[
-                    await original_retry.__wrapped__(
-                        generator, sample_shared_element, tmp_path
-                    ),
+                    await original_retry.__wrapped__(generator, sample_shared_element, tmp_path),
                     ImageGenerationError("No image"),
                 ]
             )

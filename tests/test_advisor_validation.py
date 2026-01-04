@@ -59,9 +59,7 @@ class TestValidateReferenceIdentity:
         )
 
         with patch("agents.Runner") as mock_runner:
-            mock_runner.run = AsyncMock(
-                return_value=MagicMock(final_output=mock_result)
-            )
+            mock_runner.run = AsyncMock(return_value=MagicMock(final_output=mock_result))
 
             result = await validate_reference_identity(
                 reference_image_bytes=b"fake_ref_bytes",
@@ -83,9 +81,7 @@ class TestValidateReferenceIdentity:
         )
 
         with patch("agents.Runner") as mock_runner:
-            mock_runner.run = AsyncMock(
-                return_value=MagicMock(final_output=mock_result)
-            )
+            mock_runner.run = AsyncMock(return_value=MagicMock(final_output=mock_result))
 
             result = await validate_reference_identity(
                 reference_image_bytes=b"fake_ref_bytes",
@@ -107,12 +103,8 @@ class TestValidateReferenceIdentity:
             improvement_suggestions="",
         )
 
-        with patch("agents.Agent") as mock_agent_class, patch(
-            "agents.Runner"
-        ) as mock_runner:
-            mock_runner.run = AsyncMock(
-                return_value=MagicMock(final_output=mock_result)
-            )
+        with patch("agents.Agent") as mock_agent_class, patch("agents.Runner") as mock_runner:
+            mock_runner.run = AsyncMock(return_value=MagicMock(final_output=mock_result))
 
             await validate_reference_identity(
                 reference_image_bytes=b"fake_ref_bytes",
@@ -312,9 +304,7 @@ class TestGenerateWithValidation:
         assert "0.7" in result.warning
 
     @pytest.mark.asyncio
-    async def test_handles_generation_errors_gracefully(
-        self, tmp_path: Path, fake_reference_image
-    ):
+    async def test_handles_generation_errors_gracefully(self, tmp_path: Path, fake_reference_image):
         """Test handling when image generation fails."""
         mock_client = MagicMock()
         mock_client.models.generate_content.side_effect = Exception("API error")

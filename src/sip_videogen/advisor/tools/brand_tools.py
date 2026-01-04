@@ -232,7 +232,7 @@ def _impl_get_project_detail(project_slug: str) -> str:
         for asset in assets[:10]:
             lines.append(f"- `{asset}`")
         if len(assets) > 10:
-            lines.append(f"- *...and {len(assets)-10} more*")
+            lines.append(f"- *...and {len(assets) - 10} more*")
         lines.append("")
     lines.append("## Metadata")
     lines.append(f"- Created: {project.created_at.strftime('%Y-%m-%d %H:%M')}")
@@ -265,7 +265,7 @@ def _impl_browse_brand_assets(category: str | None = None) -> str:
     logger.info("Agent browsing brand assets: category=%s for %s", category, slug)
     assets = list_brand_assets(slug, category)
     if not assets:
-        return f"No assets found{' in category '+category if category else ''}."
+        return f"No assets found{' in category ' + category if category else ''}."
     return json.dumps(assets, indent=2)
 
 

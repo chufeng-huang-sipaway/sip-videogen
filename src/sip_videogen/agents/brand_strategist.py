@@ -94,11 +94,11 @@ You are creating a NEW brand from scratch. Be bold and creative.
 ## Your Task
 
 {
-    "Evolve this existing brand based on the concept above. "
-    "Respect established identity while proposing strategic improvements."
-    if existing_brand_slug
-    else "Create a comprehensive brand strategy for this new brand concept."
-}
+        "Evolve this existing brand based on the concept above. "
+        "Respect established identity while proposing strategic improvements."
+        if existing_brand_slug
+        else "Create a comprehensive brand strategy for this new brand concept."
+    }
 
 Produce:
 1. **Core Identity**: Name, tagline, mission, brand story, and 3-5 values

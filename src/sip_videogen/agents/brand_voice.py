@@ -95,11 +95,11 @@ You are creating a NEW brand voice from scratch. Be distinctive and memorable.
 ## Your Task
 
 {
-    "Evolve this existing brand's voice based on the strategy above. "
-    "Respect established voice elements while proposing refinements that enhance communication."
-    if existing_brand_slug
-    else "Create comprehensive voice guidelines for this new brand."
-}
+        "Evolve this existing brand's voice based on the strategy above. "
+        "Respect established voice elements while proposing refinements that enhance communication."
+        if existing_brand_slug
+        else "Create comprehensive voice guidelines for this new brand."
+    }
 
 Produce:
 1. **Voice Guidelines**: Personality, 3-5 tone attributes, messaging do's (4-6) and don'ts (4-6)

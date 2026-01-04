@@ -267,7 +267,7 @@ class ProductSpecs:
     distinguishers: list[str] = field(default_factory=list)
     forbidden: list[str] = field(default_factory=list)
     required: list[str] = field(default_factory=list)
-    #Packaging text (formatted for prompt injection)
+    # Packaging text (formatted for prompt injection)
     packaging_text: str = ""
 
     def compute_ratios(self) -> None:
@@ -279,8 +279,19 @@ class ProductSpecs:
 
     def has_structured_data(self) -> bool:
         """Check whether the specs include structured visual data."""
-        return any([self.height_mm,self.width_mm,self.depth_mm,self.diameter_mm,
-            self.materials,self.finishes,self.colors,self.distinguishers,self.packaging_text])
+        return any(
+            [
+                self.height_mm,
+                self.width_mm,
+                self.depth_mm,
+                self.diameter_mm,
+                self.materials,
+                self.finishes,
+                self.colors,
+                self.distinguishers,
+                self.packaging_text,
+            ]
+        )
 
     def has_details(self) -> bool:
         """Check whether any meaningful data exists to include."""
@@ -333,7 +344,7 @@ class ProductSpecs:
         # Distinguishers
         if self.distinguishers:
             lines.append(f"  Key features: {', '.join(self.distinguishers)}")
-        #Packaging text (critical for text reproduction)
+        # Packaging text (critical for text reproduction)
         if self.packaging_text:
             lines.append(f"  Packaging text: {self.packaging_text} [REPRODUCE EXACTLY]")
         # Required (explicit positives)
@@ -466,29 +477,30 @@ def build_product_specs(product: "ProductFull") -> ProductSpecs:
     specs.compute_ratios()
     specs.forbidden = _dedupe_forbidden_items(forbidden_items)
     specs.required = _derive_required_from_forbidden(specs.forbidden)
-    #Extract packaging text: include ALL elements (text fidelity is critical for brand owners)
+    # Extract packaging text: include ALL elements (text fidelity is critical for brand owners)
     if product.packaging_text is not None and product.packaging_text.elements:
         from sip_videogen.brands.text_utils import escape_text_for_prompt
-        valid_elems=[e for e in product.packaging_text.elements if len(e.text)<=80]
-        parts=[]
+
+        valid_elems = [e for e in product.packaging_text.elements if len(e.text) <= 80]
+        parts = []
         for elem in valid_elems:
-            text=escape_text_for_prompt(elem.text)
-            part=f'"{text}"'
-            #Add disambiguation if present
+            text = escape_text_for_prompt(elem.text)
+            part = f'"{text}"'
+            # Add disambiguation if present
             if elem.notes:
-                part+=f" [{elem.notes}]"
-            #Build style info (typography AND/OR emphasis)
-            style_parts=[]
+                part += f" [{elem.notes}]"
+            # Build style info (typography AND/OR emphasis)
+            style_parts = []
             if elem.typography:
                 style_parts.append(elem.typography)
-            if elem.emphasis and elem.emphasis not in ("printed",""):
+            if elem.emphasis and elem.emphasis not in ("printed", ""):
                 style_parts.append(elem.emphasis)
             if style_parts:
-                part+=f" ({', '.join(style_parts)})"
+                part += f" ({', '.join(style_parts)})"
             if elem.position:
-                part+=f" at {elem.position}"
+                part += f" at {elem.position}"
             parts.append(part)
-        specs.packaging_text="; ".join(parts)
+        specs.packaging_text = "; ".join(parts)
     return specs
 
 
@@ -565,15 +577,17 @@ def build_product_specs_block(
 
     if include_constraints:
         # Add constraint reminders
-        lines.extend([
-            "**CRITICAL CONSTRAINTS:**",
-            "- DO NOT change proportions — preserve height:width ratios exactly",
-            "- DO NOT substitute materials — glass stays glass, metal stays metal",
-            "- DO NOT alter colors — exact shades must be preserved",
-            "- The reference image is PRIMARY TRUTH for appearance",
-            "- Attributes above provide additional precision",
-            "",
-        ])
+        lines.extend(
+            [
+                "**CRITICAL CONSTRAINTS:**",
+                "- DO NOT change proportions — preserve height:width ratios exactly",
+                "- DO NOT substitute materials — glass stays glass, metal stays metal",
+                "- DO NOT alter colors — exact shades must be preserved",
+                "- The reference image is PRIMARY TRUTH for appearance",
+                "- Attributes above provide additional precision",
+                "",
+            ]
+        )
 
     return "\n".join(lines)
 
@@ -599,7 +613,9 @@ def _prompt_has_constraints(prompt: str) -> bool:
         "exactly as in the reference",
     ]
     hits = sum(1 for marker in markers if marker in lowered)
-    return hits >= 2 or ("critical:" in lowered and ("reference" in lowered or "identical" in lowered))
+    return hits >= 2 or (
+        "critical:" in lowered and ("reference" in lowered or "identical" in lowered)
+    )
 
 
 def _prompt_has_product_list(prompt: str) -> bool:
@@ -638,13 +654,15 @@ def inject_specs_into_prompt(
     global_forbidden = _extract_global_forbidden_from_prompt(prompt)
     forbidden_block = ""
     if global_forbidden:
-        forbidden_block = "\n".join([
-            "",
-            "### FORBIDDEN (GLOBAL)",
-            "",
-            *[f"- {item}" for item in global_forbidden],
-            "",
-        ])
+        forbidden_block = "\n".join(
+            [
+                "",
+                "### FORBIDDEN (GLOBAL)",
+                "",
+                *[f"- {item}" for item in global_forbidden],
+                "",
+            ]
+        )
 
     if specs_block or forbidden_block:
         return prompt + specs_block + forbidden_block

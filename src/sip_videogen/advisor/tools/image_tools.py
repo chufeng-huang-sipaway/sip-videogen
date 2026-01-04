@@ -198,7 +198,7 @@ async def _impl_generate_image(
                         logger.info(f"Loaded primary reference for '{product.name}': {img_path}")
                     else:
                         logger.info(
-                            f"Loaded angle {images_loaded+1} for '{product.name}': {img_path}"
+                            f"Loaded angle {images_loaded + 1} for '{product.name}': {img_path}"
                         )
                     images_loaded += 1
                     total_images_loaded += 1
@@ -668,7 +668,7 @@ def propose_images(question: str, image_paths: list[str], labels: list[str] | No
         "type": "image_select",
         "question": question,
         "image_paths": image_paths,
-        "labels": labels or [f"Option {i+1}" for i in range(len(image_paths))],
+        "labels": labels or [f"Option {i + 1}" for i in range(len(image_paths))],
     }
     return f"[Presenting {len(image_paths)} images for user to select]"
 

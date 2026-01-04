@@ -4,13 +4,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.advisor.agent import (
-    AdvisorHooks,
-    AdvisorProgress,
-    BrandAdvisor,
-    _build_system_prompt,
-    _format_brand_context,
+from sip_videogen.advisor.agent import AdvisorHooks, AdvisorProgress, BrandAdvisor
+from sip_videogen.advisor.prompt_builder import (
     _group_assets,
+)
+from sip_videogen.advisor.prompt_builder import (
+    build_system_prompt as _build_system_prompt,
+)
+from sip_videogen.advisor.prompt_builder import (
+    format_brand_context as _format_brand_context,
 )
 
 
@@ -635,7 +637,7 @@ class TestPerTurnContextInjection:
 
             mock_builder = MagicMock()
             mock_builder.build_turn_context.return_value = (
-                "### Project: Big Campaign\n" "Lots of context here that shouldn't be in history"
+                "### Project: Big Campaign\nLots of context here that shouldn't be in history"
             )
             mock_builder_class.return_value = mock_builder
 

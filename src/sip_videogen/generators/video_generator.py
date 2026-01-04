@@ -10,7 +10,7 @@ import asyncio
 from dataclasses import dataclass
 
 from google import genai
-from google.genai.types import GenerateVideosConfig, VideoGenerationReferenceImage, Image
+from google.genai.types import GenerateVideosConfig, Image, VideoGenerationReferenceImage
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -22,8 +22,8 @@ from sip_videogen.generators.base import (
     VideoGenerationError,
 )
 from sip_videogen.generators.prompt_builder import build_structured_scene_prompt
+from sip_videogen.models.aspect_ratio import get_supported_ratio, validate_aspect_ratio
 from sip_videogen.models.assets import AssetType, GeneratedAsset
-from sip_videogen.models.aspect_ratio import AspectRatio, get_supported_ratio, validate_aspect_ratio
 from sip_videogen.models.script import SceneAction, VideoScript
 
 logger = get_logger(__name__)
@@ -122,11 +122,13 @@ class VEOVideoGenerator(BaseVideoGenerator):
         logger.info(f"Generating video clip for scene {scene.scene_number}")
 
         # Validate and apply provider-specific fallback for aspect ratio
-        validated_ratio=validate_aspect_ratio(aspect_ratio)
-        actual_ratio,was_fallback=get_supported_ratio(validated_ratio,self.PROVIDER_NAME)
+        validated_ratio = validate_aspect_ratio(aspect_ratio)
+        actual_ratio, was_fallback = get_supported_ratio(validated_ratio, self.PROVIDER_NAME)
         if was_fallback:
-            logger.warning(f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})")
-        final_aspect_ratio=actual_ratio.value
+            logger.warning(
+                f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})"
+            )
+        final_aspect_ratio = actual_ratio.value
 
         # Build reference image configs (max 3)
         ref_configs = None
@@ -273,6 +275,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 # Read image as bytes for Gemini API
                 logger.debug(f"Reading reference image {idx + 1}: {asset.local_path}")
                 from pathlib import Path
+
                 image_path = Path(asset.local_path)
                 image_bytes = image_path.read_bytes()
                 mime_type = self._get_mime_type(asset.local_path)
@@ -401,7 +404,9 @@ class VEOVideoGenerator(BaseVideoGenerator):
             descriptor = element.role_descriptor or element.name
             if element.element_type.value == "character":
                 name = descriptor
-                detail = f"{descriptor.capitalize()}'s appearance matches {_format_indices(indices)}"
+                detail = (
+                    f"{descriptor.capitalize()}'s appearance matches {_format_indices(indices)}"
+                )
             elif element.element_type.value == "environment":
                 name = _ensure_the(descriptor)
                 detail = f"{name.capitalize()} matches {_format_indices(indices)}"

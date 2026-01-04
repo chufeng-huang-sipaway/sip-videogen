@@ -135,9 +135,7 @@ class TestMusicGeneratorGenerate:
     ) -> None:
         """Test music generation with seed for reproducibility."""
         encoded_audio = base64.b64encode(mock_audio_content).decode("utf-8")
-        mock_response = {
-            "predictions": [{"bytesBase64Encoded": encoded_audio}]
-        }
+        mock_response = {"predictions": [{"bytesBase64Encoded": encoded_audio}]}
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
@@ -268,9 +266,7 @@ class TestMusicGeneratorGenerate:
         """Test that output directory is created if it doesn't exist."""
         output_dir = tmp_path / "nested" / "output" / "dir"
         encoded_audio = base64.b64encode(mock_audio_content).decode("utf-8")
-        mock_response = {
-            "predictions": [{"bytesBase64Encoded": encoded_audio}]
-        }
+        mock_response = {"predictions": [{"bytesBase64Encoded": encoded_audio}]}
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,

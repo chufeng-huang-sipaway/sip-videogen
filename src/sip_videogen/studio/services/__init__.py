@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-__all__=[
+__all__ = [
     "AssetService",
     "BrandService",
     "ChatService",
@@ -16,7 +16,7 @@ __all__=[
     "ImageStatusService",
     "ProductService",
     "ProjectService",
-    "TemplateService",
+    "StyleReferenceService",
     "UpdateService",
 ]
 
@@ -28,36 +28,45 @@ if TYPE_CHECKING:
     from .image_status import ImageStatusService as ImageStatusService
     from .product_service import ProductService as ProductService
     from .project_service import ProjectService as ProjectService
-    from .template_service import TemplateService as TemplateService
+    from .style_reference_service import StyleReferenceService as StyleReferenceService
     from .update_service import UpdateService as UpdateService
 
 
-def __getattr__(name:str):
-    if name=="AssetService":
+def __getattr__(name: str):
+    if name == "AssetService":
         from .asset_service import AssetService
+
         return AssetService
-    if name=="BrandService":
+    if name == "BrandService":
         from .brand_service import BrandService
+
         return BrandService
-    if name=="ChatService":
+    if name == "ChatService":
         from .chat_service import ChatService
+
         return ChatService
-    if name=="DocumentService":
+    if name == "DocumentService":
         from .document_service import DocumentService
+
         return DocumentService
-    if name=="ImageStatusService":
+    if name == "ImageStatusService":
         from .image_status import ImageStatusService
+
         return ImageStatusService
-    if name=="ProductService":
+    if name == "ProductService":
         from .product_service import ProductService
+
         return ProductService
-    if name=="ProjectService":
+    if name == "ProjectService":
         from .project_service import ProjectService
+
         return ProjectService
-    if name=="TemplateService":
-        from .template_service import TemplateService
-        return TemplateService
-    if name=="UpdateService":
+    if name == "StyleReferenceService":
+        from .style_reference_service import StyleReferenceService
+
+        return StyleReferenceService
+    if name == "UpdateService":
         from .update_service import UpdateService
+
         return UpdateService
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -188,83 +188,98 @@ class ImageGenerator:
         if element_type == "character":
             # Include role descriptor if available for additional context
             role_context = f" ({element.role_descriptor})" if element.role_descriptor else ""
-            prompt_parts.extend([
-                f"A photorealistic studio portrait photograph of {name}{role_context}.",
-                f"Subject description: {description}",
-                "",
-                "CRITICAL REQUIREMENTS:",
-                "- Single person only, no other people or figures in the image",
-                "- Face must be clearly visible, sharp, and well-defined",
-                "- Front-facing or slight three-quarter angle for clear facial features",
-                "- Upper body or head-and-shoulders framing, centered in frame",
-                "- Plain neutral background (solid gray, white, or soft gradient)",
-                "- Professional studio lighting: soft key light, subtle fill, clean shadows",
-                "- Sharp focus on the subject, no motion blur",
-                "- Natural skin tones, realistic proportions",
-                "- Clothing and accessories as described, no extra items",
-                "",
-                "STYLE: Professional headshot photography, magazine quality, "
-                "high-end commercial portrait. 8K resolution, extremely detailed, "
-                "natural lighting simulation, subtle catchlights in eyes.",
-            ])
+            prompt_parts.extend(
+                [
+                    f"A photorealistic studio portrait photograph of {name}{role_context}.",
+                    f"Subject description: {description}",
+                    "",
+                    "CRITICAL REQUIREMENTS:",
+                    "- Single person only, no other people or figures in the image",
+                    "- Face must be clearly visible, sharp, and well-defined",
+                    "- Front-facing or slight three-quarter angle for clear facial features",
+                    "- Upper body or head-and-shoulders framing, centered in frame",
+                    "- Plain neutral background (solid gray, white, or soft gradient)",
+                    "- Professional studio lighting: soft key light, subtle fill, clean shadows",
+                    "- Sharp focus on the subject, no motion blur",
+                    "- Natural skin tones, realistic proportions",
+                    "- Clothing and accessories as described, no extra items",
+                    "",
+                    "STYLE: Professional headshot photography, magazine quality, "
+                    "high-end commercial portrait. 8K resolution, extremely detailed, "
+                    "natural lighting simulation, subtle catchlights in eyes.",
+                ]
+            )
 
         elif element_type == "environment":
-            prompt_parts.extend([
-                f"A photorealistic establishing shot photograph of {name}.",
-                f"Location description: {description}",
-                "",
-                "CRITICAL REQUIREMENTS:",
-                "- Wide angle establishing shot showing the full environment",
-                "- NO people, characters, or human figures in the frame",
-                "- Clear visibility of key architectural and environmental features",
-                "- Balanced composition with clear focal point",
-                "- Natural ambient lighting appropriate to the setting",
-                "- Sharp focus throughout, deep depth of field",
-                "- Clean and uncluttered scene, no distracting elements",
-                "- Weather and time of day as appropriate to the description",
-                "",
-                "STYLE: Professional location photography, cinematic framing, "
-                "high-end real estate or film location scout quality. "
-                "8K resolution, HDR dynamic range, vivid but natural colors.",
-            ])
+            prompt_parts.extend(
+                [
+                    f"A photorealistic establishing shot photograph of {name}.",
+                    f"Location description: {description}",
+                    "",
+                    "CRITICAL REQUIREMENTS:",
+                    "- Wide angle establishing shot showing the full environment",
+                    "- NO people, characters, or human figures in the frame",
+                    "- Clear visibility of key architectural and environmental features",
+                    "- Balanced composition with clear focal point",
+                    "- Natural ambient lighting appropriate to the setting",
+                    "- Sharp focus throughout, deep depth of field",
+                    "- Clean and uncluttered scene, no distracting elements",
+                    "- Weather and time of day as appropriate to the description",
+                    "",
+                    "STYLE: Professional location photography, cinematic framing, "
+                    "high-end real estate or film location scout quality. "
+                    "8K resolution, HDR dynamic range, vivid but natural colors.",
+                ]
+            )
 
         elif element_type == "prop":
-            prompt_parts.extend([
-                f"A photorealistic product photograph of {name}.",
-                f"Object description: {description}",
-                "",
-                "CRITICAL REQUIREMENTS:",
-                "- Single object only, isolated on neutral seamless background",
-                "- Object perfectly centered in frame with adequate padding",
-                "- NO people, hands, or other objects in the image",
-                "- Full visibility of the object's key features and details",
-                "- Three-quarter angle or straight-on view for clear identification",
-                "- Professional product lighting: soft diffused light, minimal shadows",
-                "- Sharp focus on the entire object, no blur",
-                "- Accurate colors and materials as described",
-                "- Correct scale and proportions",
-                "",
-                "STYLE: Professional product photography, e-commerce or catalog quality. "
-                "8K resolution, studio lighting, pristine presentation, "
-                "white or light gray seamless backdrop.",
-            ])
+            prompt_parts.extend(
+                [
+                    f"A photorealistic product photograph of {name}.",
+                    f"Object description: {description}",
+                    "",
+                    "CRITICAL REQUIREMENTS:",
+                    "- Single object only, isolated on neutral seamless background",
+                    "- Object perfectly centered in frame with adequate padding",
+                    "- NO people, hands, or other objects in the image",
+                    "- Full visibility of the object's key features and details",
+                    "- Three-quarter angle or straight-on view for clear identification",
+                    "- Professional product lighting: soft diffused light, minimal shadows",
+                    "- Sharp focus on the entire object, no blur",
+                    "- Accurate colors and materials as described",
+                    "- Correct scale and proportions",
+                    "",
+                    "STYLE: Professional product photography, e-commerce or catalog quality. "
+                    "8K resolution, studio lighting, pristine presentation, "
+                    "white or light gray seamless backdrop.",
+                ]
+            )
 
         # Universal quality and technical requirements
-        prompt_parts.extend([
-            "",
-            "TECHNICAL SPECIFICATIONS:",
-            "- Photorealistic rendering, indistinguishable from a real photograph",
-            "- High resolution with fine detail throughout",
-            "- No text, watermarks, signatures, or logos",
-            "- No split-screen, collage, or multiple panels",
-            "- No artistic filters, no illustration style, no cartoon elements",
-            "- Clean image without artifacts, distortions, or anomalies",
-            "- Professional color grading with natural tones",
-        ])
+        prompt_parts.extend(
+            [
+                "",
+                "TECHNICAL SPECIFICATIONS:",
+                "- Photorealistic rendering, indistinguishable from a real photograph",
+                "- High resolution with fine detail throughout",
+                "- No text, watermarks, signatures, or logos",
+                "- No split-screen, collage, or multiple panels",
+                "- No artistic filters, no illustration style, no cartoon elements",
+                "- Clean image without artifacts, distortions, or anomalies",
+                "- Professional color grading with natural tones",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
-    async def generate_reference_image_variants(self,element: SharedElement,output_dir: Path,num_variants: int=2,*,aspect_ratio: str|None=None) -> list[str]:
+    async def generate_reference_image_variants(
+        self,
+        element: SharedElement,
+        output_dir: Path,
+        num_variants: int = 2,
+        *,
+        aspect_ratio: str | None = None,
+    ) -> list[str]:
         """Generate multiple variant images for a shared element in parallel.
         Args:
             element: The SharedElement to generate images for.
@@ -274,18 +289,26 @@ class ImageGenerator:
         Returns:
             List of file paths to successfully generated variant images.
         """
-        num_variants=min(max(num_variants,1),4)
-        ar=aspect_ratio or self._get_aspect_ratio_for_element(element)
+        num_variants = min(max(num_variants, 1), 4)
+        ar = aspect_ratio or self._get_aspect_ratio_for_element(element)
         logger.info(f"Generating {num_variants} variants for: {element.name} ({element.id})")
-        output_dir.mkdir(parents=True,exist_ok=True)
-        async def gen_variant(idx: int) -> str|None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        async def gen_variant(idx: int) -> str | None:
             try:
-                prompt=self._build_prompt(element)
-                response=self.client.models.generate_content(model=self.model,contents=prompt,config=types.GenerateContentConfig(response_modalities=["IMAGE"],image_config=types.ImageConfig(aspect_ratio=ar,image_size="4K")))
+                prompt = self._build_prompt(element)
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        image_config=types.ImageConfig(aspect_ratio=ar, image_size="4K"),
+                    ),
+                )
                 for part in response.parts:
                     if part.inline_data:
-                        image=part.as_image()
-                        path=output_dir/f"{element.id}_v{idx}.png"
+                        image = part.as_image()
+                        path = output_dir / f"{element.id}_v{idx}.png"
                         image.save(str(path))
                         logger.debug(f"Saved variant {idx} to: {path}")
                         return str(path)
@@ -293,9 +316,10 @@ class ImageGenerator:
             except Exception as e:
                 logger.warning(f"Failed to generate variant {idx} for {element.id}: {e}")
                 return None
-        tasks=[gen_variant(i) for i in range(num_variants)]
-        results=await asyncio.gather(*tasks)
-        paths=[p for p in results if p]
+
+        tasks = [gen_variant(i) for i in range(num_variants)]
+        results = await asyncio.gather(*tasks)
+        paths = [p for p in results if p]
         logger.info(f"Generated {len(paths)}/{num_variants} variants for {element.id}")
         return paths
 
@@ -306,8 +330,8 @@ class ImageGenerator:
         Returns:
             Aspect ratio string (e.g., "1:1", "16:9").
         """
-        #Use square for characters (good for consistency)
-        #Use wide for environments (establishes scene)
-        #Use square for props (clear detail)
-        aspect_ratios={"character":"1:1","environment":"16:9","prop":"1:1"}
-        return aspect_ratios.get(element.element_type.value,"1:1")
+        # Use square for characters (good for consistency)
+        # Use wide for environments (establishes scene)
+        # Use square for props (clear detail)
+        aspect_ratios = {"character": "1:1", "environment": "16:9", "prop": "1:1"}
+        return aspect_ratios.get(element.element_type.value, "1:1")

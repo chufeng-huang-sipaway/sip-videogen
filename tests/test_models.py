@@ -1,4 +1,5 @@
 """Tests for Pydantic models in sip-videogen."""
+
 import pytest
 from pydantic import ValidationError
 
@@ -47,9 +48,7 @@ class TestElementType:
 class TestSharedElement:
     """Tests for SharedElement model."""
 
-    def test_create_valid_shared_element(
-        self, sample_shared_element: SharedElement
-    ) -> None:
+    def test_create_valid_shared_element(self, sample_shared_element: SharedElement) -> None:
         """Test creating a valid SharedElement."""
         assert sample_shared_element.id == "char_protagonist"
         assert sample_shared_element.element_type == ElementType.CHARACTER
@@ -384,9 +383,7 @@ class TestClipPatterns:
 class TestVideoScript:
     """Tests for VideoScript model."""
 
-    def test_create_valid_video_script(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    def test_create_valid_video_script(self, sample_video_script: VideoScript) -> None:
         """Test creating a valid VideoScript."""
         assert sample_video_script.title == "Space Cat: Mars Mission"
         assert "cat astronaut" in sample_video_script.logline
@@ -409,17 +406,13 @@ class TestVideoScript:
         )
         assert script.total_duration == 0
 
-    def test_get_element_by_id_found(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    def test_get_element_by_id_found(self, sample_video_script: VideoScript) -> None:
         """Test get_element_by_id returns correct element."""
         element = sample_video_script.get_element_by_id("char_protagonist")
         assert element is not None
         assert element.name == "Space Cat"
 
-    def test_get_element_by_id_not_found(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    def test_get_element_by_id_not_found(self, sample_video_script: VideoScript) -> None:
         """Test get_element_by_id returns None for unknown ID."""
         element = sample_video_script.get_element_by_id("nonexistent")
         assert element is None
@@ -435,9 +428,7 @@ class TestVideoScript:
         elements_scene2 = sample_video_script.get_elements_for_scene(2)
         assert len(elements_scene2) == 2
 
-    def test_get_elements_for_nonexistent_scene(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    def test_get_elements_for_nonexistent_scene(self, sample_video_script: VideoScript) -> None:
         """Test get_elements_for_scene returns empty for nonexistent scene."""
         elements = sample_video_script.get_elements_for_scene(99)
         assert elements == []
@@ -466,9 +457,7 @@ class TestGeneratedAsset:
         assert "char_protagonist.png" in asset.local_path
         assert asset.gcs_uri is not None
 
-    def test_create_video_clip_asset(
-        self, sample_video_clip_asset: GeneratedAsset
-    ) -> None:
+    def test_create_video_clip_asset(self, sample_video_clip_asset: GeneratedAsset) -> None:
         """Test creating a video clip asset."""
         asset = sample_video_clip_asset
         assert asset.asset_type == AssetType.VIDEO_CLIP
@@ -489,9 +478,7 @@ class TestGeneratedAsset:
 class TestProductionPackage:
     """Tests for ProductionPackage model."""
 
-    def test_create_production_package(
-        self, sample_production_package: ProductionPackage
-    ) -> None:
+    def test_create_production_package(self, sample_production_package: ProductionPackage) -> None:
         """Test creating a ProductionPackage."""
         pkg = sample_production_package
         assert pkg.script.title == "Space Cat: Mars Mission"
@@ -503,9 +490,7 @@ class TestProductionPackage:
         self, sample_production_package: ProductionPackage
     ) -> None:
         """Test finding reference image by element ID."""
-        asset = sample_production_package.get_reference_image_for_element(
-            "char_protagonist"
-        )
+        asset = sample_production_package.get_reference_image_for_element("char_protagonist")
         assert asset is not None
         assert asset.element_id == "char_protagonist"
 
@@ -531,9 +516,7 @@ class TestProductionPackage:
         clip = sample_production_package.get_video_clip_for_scene(99)
         assert clip is None
 
-    def test_is_complete_true(
-        self, sample_production_package: ProductionPackage
-    ) -> None:
+    def test_is_complete_true(self, sample_production_package: ProductionPackage) -> None:
         """Test is_complete returns True when all assets are present."""
         assert sample_production_package.is_complete is True
 
@@ -555,9 +538,7 @@ class TestProductionPackage:
         )
         assert pkg.is_complete is False
 
-    def test_is_complete_false_missing_video_clips(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    def test_is_complete_false_missing_video_clips(self, sample_video_script: VideoScript) -> None:
         """Test is_complete returns False when missing video clips."""
         pkg = ProductionPackage(
             script=sample_video_script,
@@ -590,16 +571,12 @@ class TestAgentOutputs:
         assert len(output.scenes) == 1
         assert output.narrative_notes is not None
 
-    def test_screenwriter_output_without_notes(
-        self, sample_scene_action: SceneAction
-    ) -> None:
+    def test_screenwriter_output_without_notes(self, sample_scene_action: SceneAction) -> None:
         """Test ScreenwriterOutput without narrative notes."""
         output = ScreenwriterOutput(scenes=[sample_scene_action])
         assert output.narrative_notes is None
 
-    def test_production_designer_output(
-        self, sample_shared_element: SharedElement
-    ) -> None:
+    def test_production_designer_output(self, sample_shared_element: SharedElement) -> None:
         """Test ProductionDesignerOutput model."""
         output = ProductionDesignerOutput(
             shared_elements=[sample_shared_element],
@@ -619,9 +596,7 @@ class TestAgentOutputs:
         assert issue.scene_number == 2
         assert issue.element_id == "char_protagonist"
 
-    def test_continuity_supervisor_output(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    def test_continuity_supervisor_output(self, sample_video_script: VideoScript) -> None:
         """Test ContinuitySupervisorOutput model."""
         issue = ContinuityIssue(
             scene_number=1,
@@ -647,9 +622,7 @@ class TestAgentOutputs:
         assert output.script == sample_video_script
         assert output.production_ready is True
 
-    def test_showrunner_output_not_ready(
-        self, sample_video_script: VideoScript
-    ) -> None:
+    def test_showrunner_output_not_ready(self, sample_video_script: VideoScript) -> None:
         """Test ShowrunnerOutput with production_ready=False."""
         output = ShowrunnerOutput(
             script=sample_video_script,
@@ -657,29 +630,35 @@ class TestAgentOutputs:
         )
         assert output.production_ready is False
         assert output.creative_brief is None
+
+
 class TestAspectRatio:
     """Tests for AspectRatio enum and utilities."""
-    def test_aspect_ratio_enum_values(self)->None:
+
+    def test_aspect_ratio_enum_values(self) -> None:
         """Test AspectRatio enum has expected values."""
-        assert AspectRatio.SQUARE.value=="1:1"
-        assert AspectRatio.LANDSCAPE_16_9.value=="16:9"
-        assert AspectRatio.PORTRAIT_9_16.value=="9:16"
-        assert AspectRatio.CINEMATIC_5_3.value=="5:3"
-        assert AspectRatio.PORTRAIT_CINEMATIC_3_5.value=="3:5"
-        assert AspectRatio.CLASSIC_4_3.value=="4:3"
-        assert AspectRatio.PORTRAIT_CLASSIC_3_4.value=="3:4"
-        assert AspectRatio.PHOTO_3_2.value=="3:2"
-        assert AspectRatio.PORTRAIT_PHOTO_2_3.value=="2:3"
-    def test_default_aspect_ratio(self)->None:
+        assert AspectRatio.SQUARE.value == "1:1"
+        assert AspectRatio.LANDSCAPE_16_9.value == "16:9"
+        assert AspectRatio.PORTRAIT_9_16.value == "9:16"
+        assert AspectRatio.CINEMATIC_5_3.value == "5:3"
+        assert AspectRatio.PORTRAIT_CINEMATIC_3_5.value == "3:5"
+        assert AspectRatio.CLASSIC_4_3.value == "4:3"
+        assert AspectRatio.PORTRAIT_CLASSIC_3_4.value == "3:4"
+        assert AspectRatio.PHOTO_3_2.value == "3:2"
+        assert AspectRatio.PORTRAIT_PHOTO_2_3.value == "2:3"
+
+    def test_default_aspect_ratio(self) -> None:
         """Test DEFAULT_ASPECT_RATIO is SQUARE."""
-        assert DEFAULT_ASPECT_RATIO==AspectRatio.SQUARE
-    def test_parse_ratio_valid(self)->None:
+        assert DEFAULT_ASPECT_RATIO == AspectRatio.SQUARE
+
+    def test_parse_ratio_valid(self) -> None:
         """Test parse_ratio with valid inputs."""
-        assert parse_ratio("16:9")==(16,9)
-        assert parse_ratio("9:16")==(9,16)
-        assert parse_ratio("1:1")==(1,1)
-        assert parse_ratio("4:3")==(4,3)
-    def test_parse_ratio_invalid(self)->None:
+        assert parse_ratio("16:9") == (16, 9)
+        assert parse_ratio("9:16") == (9, 16)
+        assert parse_ratio("1:1") == (1, 1)
+        assert parse_ratio("4:3") == (4, 3)
+
+    def test_parse_ratio_invalid(self) -> None:
         """Test parse_ratio raises ValueError for invalid inputs."""
         with pytest.raises(ValueError):
             parse_ratio("invalid")
@@ -687,97 +666,110 @@ class TestAspectRatio:
             parse_ratio("16-9")
         with pytest.raises(ValueError):
             parse_ratio("")
-    def test_validate_aspect_ratio_valid(self)->None:
+
+    def test_validate_aspect_ratio_valid(self) -> None:
         """Test validate_aspect_ratio with valid ratio strings."""
-        assert validate_aspect_ratio("1:1")==AspectRatio.SQUARE
-        assert validate_aspect_ratio("16:9")==AspectRatio.LANDSCAPE_16_9
-        assert validate_aspect_ratio("9:16")==AspectRatio.PORTRAIT_9_16
-        assert validate_aspect_ratio("5:3")==AspectRatio.CINEMATIC_5_3
-        assert validate_aspect_ratio("3:5")==AspectRatio.PORTRAIT_CINEMATIC_3_5
-        assert validate_aspect_ratio("4:3")==AspectRatio.CLASSIC_4_3
-        assert validate_aspect_ratio("3:4")==AspectRatio.PORTRAIT_CLASSIC_3_4
-        assert validate_aspect_ratio("3:2")==AspectRatio.PHOTO_3_2
-        assert validate_aspect_ratio("2:3")==AspectRatio.PORTRAIT_PHOTO_2_3
-    def test_validate_aspect_ratio_none(self)->None:
+        assert validate_aspect_ratio("1:1") == AspectRatio.SQUARE
+        assert validate_aspect_ratio("16:9") == AspectRatio.LANDSCAPE_16_9
+        assert validate_aspect_ratio("9:16") == AspectRatio.PORTRAIT_9_16
+        assert validate_aspect_ratio("5:3") == AspectRatio.CINEMATIC_5_3
+        assert validate_aspect_ratio("3:5") == AspectRatio.PORTRAIT_CINEMATIC_3_5
+        assert validate_aspect_ratio("4:3") == AspectRatio.CLASSIC_4_3
+        assert validate_aspect_ratio("3:4") == AspectRatio.PORTRAIT_CLASSIC_3_4
+        assert validate_aspect_ratio("3:2") == AspectRatio.PHOTO_3_2
+        assert validate_aspect_ratio("2:3") == AspectRatio.PORTRAIT_PHOTO_2_3
+
+    def test_validate_aspect_ratio_none(self) -> None:
         """Test validate_aspect_ratio returns default for None."""
-        assert validate_aspect_ratio(None)==AspectRatio.SQUARE
-    def test_validate_aspect_ratio_invalid(self)->None:
+        assert validate_aspect_ratio(None) == AspectRatio.SQUARE
+
+    def test_validate_aspect_ratio_invalid(self) -> None:
         """Test validate_aspect_ratio returns default for invalid inputs."""
-        assert validate_aspect_ratio("invalid")==AspectRatio.SQUARE
-        assert validate_aspect_ratio("2:1")==AspectRatio.SQUARE
-        assert validate_aspect_ratio("")==AspectRatio.SQUARE
-    def test_provider_supported_ratios_defined(self)->None:
+        assert validate_aspect_ratio("invalid") == AspectRatio.SQUARE
+        assert validate_aspect_ratio("2:1") == AspectRatio.SQUARE
+        assert validate_aspect_ratio("") == AspectRatio.SQUARE
+
+    def test_provider_supported_ratios_defined(self) -> None:
         """Test all providers have supported ratios defined."""
         assert "veo" in PROVIDER_SUPPORTED_RATIOS
         assert "kling" in PROVIDER_SUPPORTED_RATIOS
         assert "sora" in PROVIDER_SUPPORTED_RATIOS
-    def test_get_supported_ratio_exact_match(self)->None:
+
+    def test_get_supported_ratio_exact_match(self) -> None:
         """Test get_supported_ratio returns exact match when supported."""
-        #VEO supports all ratios
-        ratio,fallback=get_supported_ratio(AspectRatio.SQUARE,"veo")
-        assert ratio==AspectRatio.SQUARE
+        # VEO supports all ratios
+        ratio, fallback = get_supported_ratio(AspectRatio.SQUARE, "veo")
+        assert ratio == AspectRatio.SQUARE
         assert fallback is False
-        ratio,fallback=get_supported_ratio(AspectRatio.CLASSIC_4_3,"veo")
-        assert ratio==AspectRatio.CLASSIC_4_3
+        ratio, fallback = get_supported_ratio(AspectRatio.CLASSIC_4_3, "veo")
+        assert ratio == AspectRatio.CLASSIC_4_3
         assert fallback is False
-    def test_get_supported_ratio_fallback_portrait(self)->None:
+
+    def test_get_supported_ratio_fallback_portrait(self) -> None:
         """Test portrait ratio fallback to 9:16."""
-        #Sora doesn't support 3:4, should fallback to 9:16
-        ratio,fallback=get_supported_ratio(AspectRatio.PORTRAIT_CLASSIC_3_4,"sora")
-        assert ratio==AspectRatio.PORTRAIT_9_16
+        # Sora doesn't support 3:4, should fallback to 9:16
+        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_CLASSIC_3_4, "sora")
+        assert ratio == AspectRatio.PORTRAIT_9_16
         assert fallback is True
-    def test_get_supported_ratio_fallback_landscape(self)->None:
+
+    def test_get_supported_ratio_fallback_landscape(self) -> None:
         """Test landscape ratio fallback to 16:9."""
-        #Sora doesn't support 4:3, should fallback to 16:9
-        ratio,fallback=get_supported_ratio(AspectRatio.CLASSIC_4_3,"sora")
-        assert ratio==AspectRatio.LANDSCAPE_16_9
+        # Sora doesn't support 4:3, should fallback to 16:9
+        ratio, fallback = get_supported_ratio(AspectRatio.CLASSIC_4_3, "sora")
+        assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
-    def test_get_supported_ratio_fallback_square(self)->None:
+
+    def test_get_supported_ratio_fallback_square(self) -> None:
         """Test square ratio fallback when unsupported."""
-        #Sora doesn't support 1:1, should fallback to 16:9 (first supported)
-        ratio,fallback=get_supported_ratio(AspectRatio.SQUARE,"sora")
-        assert ratio==AspectRatio.LANDSCAPE_16_9
+        # Sora doesn't support 1:1, should fallback to 16:9 (first supported)
+        ratio, fallback = get_supported_ratio(AspectRatio.SQUARE, "sora")
+        assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
-    def test_get_supported_ratio_unknown_provider(self)->None:
+
+    def test_get_supported_ratio_unknown_provider(self) -> None:
         """Test unknown provider assumes all ratios supported."""
-        ratio,fallback=get_supported_ratio(AspectRatio.CLASSIC_4_3,"unknown_provider")
-        assert ratio==AspectRatio.CLASSIC_4_3
+        ratio, fallback = get_supported_ratio(AspectRatio.CLASSIC_4_3, "unknown_provider")
+        assert ratio == AspectRatio.CLASSIC_4_3
         assert fallback is False
-    def test_kling_supported_ratios(self)->None:
+
+    def test_kling_supported_ratios(self) -> None:
         """Test Kling supports expected ratios."""
-        for r in ["1:1","16:9","9:16"]:
-            ar=AspectRatio(r)
-            ratio,fallback=get_supported_ratio(ar,"kling")
-            assert ratio==ar
+        for r in ["1:1", "16:9", "9:16"]:
+            ar = AspectRatio(r)
+            ratio, fallback = get_supported_ratio(ar, "kling")
+            assert ratio == ar
             assert fallback is False
-        #Kling doesn't support 4:3 or 3:4
-        ratio,fallback=get_supported_ratio(AspectRatio.CLASSIC_4_3,"kling")
-        assert ratio==AspectRatio.LANDSCAPE_16_9
+        # Kling doesn't support 4:3 or 3:4
+        ratio, fallback = get_supported_ratio(AspectRatio.CLASSIC_4_3, "kling")
+        assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
-    def test_veo_supports_new_ratios(self)->None:
+
+    def test_veo_supports_new_ratios(self) -> None:
         """Test VEO supports all new cinematic and photo ratios."""
-        for r in ["5:3","3:5","3:2","2:3"]:
-            ar=AspectRatio(r)
-            ratio,fallback=get_supported_ratio(ar,"veo")
-            assert ratio==ar
+        for r in ["5:3", "3:5", "3:2", "2:3"]:
+            ar = AspectRatio(r)
+            ratio, fallback = get_supported_ratio(ar, "veo")
+            assert ratio == ar
             assert fallback is False
-    def test_cinematic_fallback_on_kling(self)->None:
+
+    def test_cinematic_fallback_on_kling(self) -> None:
         """Test 5:3 and 3:5 fallback on Kling."""
-        #5:3 (landscape) should fallback to 16:9
-        ratio,fallback=get_supported_ratio(AspectRatio.CINEMATIC_5_3,"kling")
-        assert ratio==AspectRatio.LANDSCAPE_16_9
+        # 5:3 (landscape) should fallback to 16:9
+        ratio, fallback = get_supported_ratio(AspectRatio.CINEMATIC_5_3, "kling")
+        assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
-        #3:5 (portrait) should fallback to 9:16
-        ratio,fallback=get_supported_ratio(AspectRatio.PORTRAIT_CINEMATIC_3_5,"kling")
-        assert ratio==AspectRatio.PORTRAIT_9_16
+        # 3:5 (portrait) should fallback to 9:16
+        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_CINEMATIC_3_5, "kling")
+        assert ratio == AspectRatio.PORTRAIT_9_16
         assert fallback is True
-    def test_photo_fallback_on_sora(self)->None:
+
+    def test_photo_fallback_on_sora(self) -> None:
         """Test 3:2 and 2:3 fallback on Sora."""
-        #3:2 (landscape) should fallback to 16:9
-        ratio,fallback=get_supported_ratio(AspectRatio.PHOTO_3_2,"sora")
-        assert ratio==AspectRatio.LANDSCAPE_16_9
+        # 3:2 (landscape) should fallback to 16:9
+        ratio, fallback = get_supported_ratio(AspectRatio.PHOTO_3_2, "sora")
+        assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
-        #2:3 (portrait) should fallback to 9:16
-        ratio,fallback=get_supported_ratio(AspectRatio.PORTRAIT_PHOTO_2_3,"sora")
-        assert ratio==AspectRatio.PORTRAIT_9_16
+        # 2:3 (portrait) should fallback to 9:16
+        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_PHOTO_2_3, "sora")
+        assert ratio == AspectRatio.PORTRAIT_9_16
         assert fallback is True

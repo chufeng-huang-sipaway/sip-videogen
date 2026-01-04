@@ -219,9 +219,7 @@ class TestBrandStrategyOutput:
         assert sample_brand_strategy_output.positioning.market_category == "Premium Coffee"
         assert "adventure" in sample_brand_strategy_output.strategy_notes.lower()
 
-    def test_serialization_to_json(
-        self, sample_brand_strategy_output: BrandStrategyOutput
-    ) -> None:
+    def test_serialization_to_json(self, sample_brand_strategy_output: BrandStrategyOutput) -> None:
         """Test that BrandStrategyOutput can be serialized to JSON."""
         json_str = sample_brand_strategy_output.model_dump_json()
         data = json.loads(json_str)
@@ -262,9 +260,7 @@ class TestBrandVoiceOutput:
         assert len(sample_brand_voice_output.sample_copy) == 2
         assert sample_brand_voice_output.voice_rationale != ""
 
-    def test_serialization_to_json(
-        self, sample_brand_voice_output: BrandVoiceOutput
-    ) -> None:
+    def test_serialization_to_json(self, sample_brand_voice_output: BrandVoiceOutput) -> None:
         """Test that BrandVoiceOutput can be serialized to JSON."""
         json_str = sample_brand_voice_output.model_dump_json()
         data = json.loads(json_str)
@@ -297,9 +293,7 @@ class TestBrandGuardianOutput:
         assert "visual" in categories
         assert "voice" in categories
 
-    def test_serialization_to_json(
-        self, sample_brand_guardian_output: BrandGuardianOutput
-    ) -> None:
+    def test_serialization_to_json(self, sample_brand_guardian_output: BrandGuardianOutput) -> None:
         """Test that BrandGuardianOutput can be serialized to JSON."""
         json_str = sample_brand_guardian_output.model_dump_json()
         data = json.loads(json_str)
@@ -319,9 +313,7 @@ class TestBrandDirectorOutput:
         assert sample_brand_director_output.validation_passed is True
         assert len(sample_brand_director_output.next_steps) == 3
 
-    def test_serialization_to_json(
-        self, sample_brand_director_output: BrandDirectorOutput
-    ) -> None:
+    def test_serialization_to_json(self, sample_brand_director_output: BrandDirectorOutput) -> None:
         """Test that BrandDirectorOutput can be serialized to JSON."""
         json_str = sample_brand_director_output.model_dump_json()
         data = json.loads(json_str)
@@ -361,18 +353,27 @@ class TestBrandStrategistAgent:
             assert result.core_identity.name == "Summit Coffee Co."
 
     @pytest.mark.asyncio
-    async def test_develop_brand_strategy_with_existing_brand(self,sample_brand_strategy_output:BrandStrategyOutput)->None:
+    async def test_develop_brand_strategy_with_existing_brand(
+        self, sample_brand_strategy_output: BrandStrategyOutput
+    ) -> None:
         """Test brand strategy development with existing brand context."""
-        mock_result=MagicMock()
-        mock_result.final_output=sample_brand_strategy_output
+        mock_result = MagicMock()
+        mock_result.final_output = sample_brand_strategy_output
         with (
-            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
-            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
+            patch(
+                "sip_videogen.brands.context.build_brand_context",
+                return_value="## Brand Context\nExisting brand info...",
+            ),
             patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.brand_strategist import develop_brand_strategy
-            result=await develop_brand_strategy(concept="Evolve the brand to target younger audience",existing_brand_slug="test-brand")
-            assert isinstance(result,BrandStrategyOutput)
+
+            result = await develop_brand_strategy(
+                concept="Evolve the brand to target younger audience",
+                existing_brand_slug="test-brand",
+            )
+            assert isinstance(result, BrandStrategyOutput)
             mock_set_active.assert_called_once_with("test-brand")
 
 
@@ -407,18 +408,27 @@ class TestVisualDesignerAgent:
             assert result.visual_identity is not None
 
     @pytest.mark.asyncio
-    async def test_develop_visual_identity_with_existing_brand(self,sample_visual_identity_output:VisualIdentityOutput)->None:
+    async def test_develop_visual_identity_with_existing_brand(
+        self, sample_visual_identity_output: VisualIdentityOutput
+    ) -> None:
         """Test visual identity development with existing brand context."""
-        mock_result=MagicMock()
-        mock_result.final_output=sample_visual_identity_output
+        mock_result = MagicMock()
+        mock_result.final_output = sample_visual_identity_output
         with (
-            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
-            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
+            patch(
+                "sip_videogen.brands.context.build_brand_context",
+                return_value="## Brand Context\nExisting brand info...",
+            ),
             patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.visual_designer import develop_visual_identity
-            result=await develop_visual_identity(brand_strategy="Update visual identity for summer campaign",existing_brand_slug="test-brand")
-            assert isinstance(result,VisualIdentityOutput)
+
+            result = await develop_visual_identity(
+                brand_strategy="Update visual identity for summer campaign",
+                existing_brand_slug="test-brand",
+            )
+            assert isinstance(result, VisualIdentityOutput)
             mock_set_active.assert_called_once_with("test-brand")
 
 
@@ -453,18 +463,27 @@ class TestBrandVoiceAgent:
             assert len(result.sample_copy) == 2
 
     @pytest.mark.asyncio
-    async def test_develop_brand_voice_with_existing_brand(self,sample_brand_voice_output:BrandVoiceOutput)->None:
+    async def test_develop_brand_voice_with_existing_brand(
+        self, sample_brand_voice_output: BrandVoiceOutput
+    ) -> None:
         """Test brand voice development with existing brand context."""
-        mock_result=MagicMock()
-        mock_result.final_output=sample_brand_voice_output
+        mock_result = MagicMock()
+        mock_result.final_output = sample_brand_voice_output
         with (
-            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
-            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
+            patch(
+                "sip_videogen.brands.context.build_brand_context",
+                return_value="## Brand Context\nExisting brand info...",
+            ),
             patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.brand_voice import develop_brand_voice
-            result=await develop_brand_voice(brand_strategy="Refine voice for social media campaigns",existing_brand_slug="test-brand")
-            assert isinstance(result,BrandVoiceOutput)
+
+            result = await develop_brand_voice(
+                brand_strategy="Refine voice for social media campaigns",
+                existing_brand_slug="test-brand",
+            )
+            assert isinstance(result, BrandVoiceOutput)
             mock_set_active.assert_called_once_with("test-brand")
 
 
@@ -672,18 +691,26 @@ class TestBrandDirectorAgent:
             # The mock bypasses the hooks, so we just verify the callback was passed
 
     @pytest.mark.asyncio
-    async def test_develop_brand_with_existing_brand(self,sample_brand_director_output:BrandDirectorOutput)->None:
+    async def test_develop_brand_with_existing_brand(
+        self, sample_brand_director_output: BrandDirectorOutput
+    ) -> None:
         """Test brand development with existing brand context."""
-        mock_result=MagicMock()
-        mock_result.final_output=sample_brand_director_output
+        mock_result = MagicMock()
+        mock_result.final_output = sample_brand_director_output
         with (
-            patch("agents.Runner.run",new_callable=AsyncMock,return_value=mock_result),
-            patch("sip_videogen.brands.context.build_brand_context",return_value="## Brand Context\nExisting brand info..."),
+            patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
+            patch(
+                "sip_videogen.brands.context.build_brand_context",
+                return_value="## Brand Context\nExisting brand info...",
+            ),
             patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
         ):
             from sip_videogen.agents.brand_director import develop_brand
-            result=await develop_brand(concept="Evolve the brand for younger audience",existing_brand_slug="test-brand")
-            assert isinstance(result,BrandIdentityFull)
+
+            result = await develop_brand(
+                concept="Evolve the brand for younger audience", existing_brand_slug="test-brand"
+            )
+            assert isinstance(result, BrandIdentityFull)
             mock_set_active.assert_called_once_with("test-brand")
 
 
@@ -852,40 +879,35 @@ class TestBrandAgentPrompts:
     def test_brand_strategist_prompt_exists(self) -> None:
         """Test brand strategist prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent
-            / "src/sip_videogen/agents/prompts/brand_strategist.md"
+            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_strategist.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_visual_designer_prompt_exists(self) -> None:
         """Test visual designer prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent
-            / "src/sip_videogen/agents/prompts/visual_designer.md"
+            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/visual_designer.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_brand_voice_prompt_exists(self) -> None:
         """Test brand voice prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent
-            / "src/sip_videogen/agents/prompts/brand_voice.md"
+            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_voice.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_brand_guardian_prompt_exists(self) -> None:
         """Test brand guardian prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent
-            / "src/sip_videogen/agents/prompts/brand_guardian.md"
+            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_guardian.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_brand_director_prompt_exists(self) -> None:
         """Test brand director prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent
-            / "src/sip_videogen/agents/prompts/brand_director.md"
+            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_director.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
@@ -934,8 +956,7 @@ class TestAgentDefinitions:
 
         # Tools can be functions (use __name__) or FunctionTool objects (use .name)
         tool_names = [
-            getattr(t, "name", getattr(t, "__name__", None))
-            for t in brand_strategist_agent.tools
+            getattr(t, "name", getattr(t, "__name__", None)) for t in brand_strategist_agent.tools
         ]
         assert "fetch_brand_detail" in tool_names
         assert "browse_brand_assets" in tool_names
@@ -946,8 +967,7 @@ class TestAgentDefinitions:
 
         # Tools can be functions (use __name__) or FunctionTool objects (use .name)
         tool_names = [
-            getattr(t, "name", getattr(t, "__name__", None))
-            for t in brand_director_agent.tools
+            getattr(t, "name", getattr(t, "__name__", None)) for t in brand_director_agent.tools
         ]
         assert "brand_strategist" in tool_names
         assert "visual_designer" in tool_names

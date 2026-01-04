@@ -15,7 +15,9 @@ from agents import Agent, Runner
 from sip_videogen.advisor.context_budget import ContextBudgetManager
 from sip_videogen.advisor.history_manager import ConversationHistoryManager
 from sip_videogen.advisor.hooks import AdvisorHooks, AdvisorProgress, ProgressCallback
-from sip_videogen.advisor.prompt_builder import build_system_prompt as _build_system_prompt
+from sip_videogen.advisor.prompt_builder import (
+    build_system_prompt as _build_system_prompt,
+)
 from sip_videogen.advisor.skills.registry import get_skills_registry
 from sip_videogen.advisor.tools import (
     ADVISOR_TOOLS,
@@ -180,7 +182,7 @@ class BrandAdvisor:
         # Generation mode injection - ALWAYS for chat_with_metadata (defaults to "image")
         if inject_generation_mode:
             mode = generation_mode if generation_mode in ("image", "video") else "image"
-            mode_ctx = f"**Generation Mode**: {mode.capitalize()} - {'Generate videos using generate_video tool.' if mode=='video' else 'Generate images using generate_image tool.'}"
+            mode_ctx = f"**Generation Mode**: {mode.capitalize()} - {'Generate videos using generate_video tool.' if mode == 'video' else 'Generate images using generate_image tool.'}"
             turn_context = f"{turn_context}\n\n{mode_ctx}" if turn_context else mode_ctx
             if aspect_ratio:
                 set_active_aspect_ratio(aspect_ratio)

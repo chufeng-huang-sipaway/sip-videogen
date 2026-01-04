@@ -1,4 +1,5 @@
 """Auto-update system for Brand Studio using GitHub Releases."""
+
 import logging
 import os
 import subprocess
@@ -7,11 +8,14 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
+
 import httpx
 from packaging import version
-from sip_videogen.config.constants import Timeouts,Limits
+
+from sip_videogen.config.constants import Limits, Timeouts
 from sip_videogen.studio import __version__ as current_version_str
-logger=logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 # GitHub repository info - update this to match your repo
 GITHUB_OWNER = "chufeng-huang-sipaway"
@@ -121,7 +125,7 @@ async def check_for_updates() -> UpdateInfo | None:
             )
 
     except Exception as e:
-        logger.error("Error checking for updates: %s",e)
+        logger.error("Error checking for updates: %s", e)
         return None
 
 
@@ -145,7 +149,9 @@ async def download_update(
         dmg_path = temp_dir / f"Brand-Studio-{update_info.version}.dmg"
 
         # Download with progress tracking
-        async with httpx.AsyncClient(timeout=Timeouts.UPDATE_DOWNLOAD, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=Timeouts.UPDATE_DOWNLOAD, follow_redirects=True
+        ) as client:
             async with client.stream("GET", update_info.download_url) as response:
                 response.raise_for_status()
 
@@ -169,7 +175,7 @@ async def download_update(
         return dmg_path
 
     except Exception as e:
-        logger.error("Error downloading update: %s",e)
+        logger.error("Error downloading update: %s", e)
         return None
 
 
@@ -203,7 +209,7 @@ def install_update(dmg_path: Path) -> bool:
         return True
 
     except Exception as e:
-        logger.error("Error starting update: %s",e)
+        logger.error("Error starting update: %s", e)
         return False
 
 
@@ -224,7 +230,7 @@ def _create_update_helper_script(dmg_path: Path) -> Path:
     if not app_path:
         app_path = install_path
 
-    script_content = f'''#!/bin/bash
+    script_content = f"""#!/bin/bash
 # Brand Studio Update Helper
 # This script is auto-generated and runs after the app quits
 
@@ -285,7 +291,7 @@ open "$INSTALL_PATH"
 
 # Clean up this script
 rm -f "$0"
-'''
+"""
 
     # Write script to temp location
     script_path = Path(tempfile.gettempdir()) / "brand-studio-update" / "update-helper.sh"

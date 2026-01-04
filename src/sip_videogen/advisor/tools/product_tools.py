@@ -419,7 +419,7 @@ async def _impl_analyze_product_packaging(product_slug: str, force: bool = False
             return f"Analyzed **{product.name}** - no text found on packaging."
         texts = [e.text for e in result.elements[:3]]
         preview = ", ".join(f'"{t}"' for t in texts)
-        more = f" (+{elem_count-3} more)" if elem_count > 3 else ""
+        more = f" (+{elem_count - 3} more)" if elem_count > 3 else ""
         return f"Analyzed **{product.name}** - found {elem_count} text elements: {preview}{more}"
     except Exception as e:
         logger.error(f"Packaging text analysis failed: {e}")
@@ -490,7 +490,7 @@ async def _impl_analyze_all_product_packaging(
         for f in failures[:5]:
             result_lines.append(f"  - {f}")
         if len(failures) > 5:
-            result_lines.append(f"  ... and {len(failures)-5} more")
+            result_lines.append(f"  ... and {len(failures) - 5} more")
     return "\n".join(result_lines)
 
 

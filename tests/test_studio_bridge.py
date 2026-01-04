@@ -311,9 +311,23 @@ class TestChatDelegation:
         """Should delegate chat with all parameters."""
         bridge._chat = MagicMock()
         bridge._chat.chat.return_value = {"success": True, "data": {"response": "Hello"}}
-        bridge.chat("hi", [{"file": "a.png"}], "project-1", ["prod-1"], [{"slug": "tmpl-1"}])
+        bridge.chat(
+            "hi",
+            [{"file": "a.png"}],
+            "project-1",
+            ["prod-1"],
+            [{"slug": "tmpl-1"}],
+            "16:9",
+            "image",
+        )
         bridge._chat.chat.assert_called_once_with(
-            "hi", [{"file": "a.png"}], "project-1", ["prod-1"], [{"slug": "tmpl-1"}]
+            "hi",
+            [{"file": "a.png"}],
+            "project-1",
+            ["prod-1"],
+            [{"slug": "tmpl-1"}],
+            "16:9",
+            "image",
         )
 
     def test_clear_chat_delegates(self, bridge):
