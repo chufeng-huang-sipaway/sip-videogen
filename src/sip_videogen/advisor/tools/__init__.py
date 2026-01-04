@@ -50,15 +50,15 @@ __all__ = [
     "update_product_packaging_text",
     "AttributeInput",
     "PackagingTextElementInput",
-    # template_tools
-    "list_templates",
-    "get_template_detail",
-    "create_template",
-    "create_templates_from_images",
-    "update_template",
-    "add_template_image",
-    "reanalyze_template",
-    "delete_template",
+    # style_reference_tools
+    "list_style_references",
+    "get_style_reference_detail",
+    "create_style_reference",
+    "create_style_references_from_images",
+    "update_style_reference",
+    "add_style_reference_image",
+    "reanalyze_style_reference",
+    "delete_style_reference",
     # brand_tools
     "load_brand",
     "fetch_brand_detail",
@@ -102,17 +102,33 @@ from datetime import datetime
 
 from sip_videogen.brands.storage import (
     add_product_image as storage_add_product_image,
+)
+from sip_videogen.brands.storage import (
     create_product as storage_create_product,
+)
+from sip_videogen.brands.storage import (
     delete_product as storage_delete_product,
+)
+from sip_videogen.brands.storage import (
     get_active_brand,
     get_active_project,
     get_brand_dir,
     get_brands_dir,
-    list_products as storage_list_products,
-    list_projects as storage_list_projects,
-    load_brand as storage_load_brand,
     load_product,
+)
+from sip_videogen.brands.storage import (
+    list_products as storage_list_products,
+)
+from sip_videogen.brands.storage import (
+    list_projects as storage_list_projects,
+)
+from sip_videogen.brands.storage import (
+    load_brand as storage_load_brand,
+)
+from sip_videogen.brands.storage import (
     save_product as storage_save_product,
+)
+from sip_videogen.brands.storage import (
     set_primary_product_image as storage_set_primary_product_image,
 )
 from sip_videogen.config.settings import get_settings
@@ -191,15 +207,15 @@ from .product_tools import (
     update_product_packaging_text,
 )
 from .session import get_active_aspect_ratio, set_active_aspect_ratio
-from .template_tools import (
-    add_template_image,
-    create_template,
-    create_templates_from_images,
-    delete_template,
-    get_template_detail,
-    list_templates,
-    reanalyze_template,
-    update_template,
+from .style_reference_tools import (
+    add_style_reference_image,
+    create_style_reference,
+    create_style_references_from_images,
+    delete_style_reference,
+    get_style_reference_detail,
+    list_style_references,
+    reanalyze_style_reference,
+    update_style_reference,
 )
 from .utility_tools import (
     _MAX_DETAIL_LEN,
@@ -232,14 +248,14 @@ ADVISOR_TOOLS = [
     delete_product,
     add_product_image,
     set_product_primary_image,
-    list_templates,
-    get_template_detail,
-    create_template,
-    create_templates_from_images,
-    update_template,
-    add_template_image,
-    reanalyze_template,
-    delete_template,
+    list_style_references,
+    get_style_reference_detail,
+    create_style_reference,
+    create_style_references_from_images,
+    update_style_reference,
+    add_style_reference_image,
+    reanalyze_style_reference,
+    delete_style_reference,
     analyze_product_packaging,
     analyze_all_product_packaging,
     update_product_packaging_text,
