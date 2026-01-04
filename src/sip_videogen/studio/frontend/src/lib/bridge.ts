@@ -104,7 +104,7 @@ export interface ProjectFull {
   updated_at: string
 }
 
-//Template types
+//Style Reference types
 export interface CanvasSpec {
   aspect_ratio: string
   background: string
@@ -173,8 +173,8 @@ export interface ProductSlot {
   appearance: AppearanceSpec
   interaction: InteractionSpec
 }
-//V1 Template Analysis (geometry-focused, deprecated)
-export interface TemplateAnalysisV1 {
+//V1 Style Reference Analysis (geometry-focused, deprecated)
+export interface StyleReferenceAnalysisV1 {
   version: string
   canvas: CanvasSpec
   message: MessageSpec
@@ -182,7 +182,7 @@ export interface TemplateAnalysisV1 {
   elements: LayoutElement[]
   product_slot: ProductSlot | null
 }
-//V2 Template Analysis (semantic-focused)
+//V2 Style Reference Analysis (semantic-focused)
 export interface CopywritingSpec {
   headline: string
   subheadline: string
@@ -205,27 +205,27 @@ export interface LayoutStructureSpec {
   hierarchy: string
   alignment: string
 }
-export interface TemplateConstraintsSpec {
+export interface StyleReferenceConstraintsSpec {
   non_negotiables: string[]
   creative_freedom: string[]
   product_integration: string
 }
-export interface TemplateAnalysisV2 {
+export interface StyleReferenceAnalysisV2 {
   version: string
   canvas: CanvasSpec
   style: StyleSpec
   layout: LayoutStructureSpec
   copywriting: CopywritingSpec
   visual_scene: VisualSceneSpec
-  constraints: TemplateConstraintsSpec
+  constraints: StyleReferenceConstraintsSpec
 }
 //Union type for both versions
-export type TemplateAnalysis = TemplateAnalysisV1 | TemplateAnalysisV2
+export type StyleReferenceAnalysis = StyleReferenceAnalysisV1 | StyleReferenceAnalysisV2
 //Type guard to check if analysis is V2
-export function isV2Analysis(analysis: TemplateAnalysis): analysis is TemplateAnalysisV2 {
+export function isV2StyleReferenceAnalysis(analysis: StyleReferenceAnalysis): analysis is StyleReferenceAnalysisV2 {
   return analysis.version === '2.0'
 }
-export interface TemplateSummary {
+export interface StyleReferenceSummary {
   slug: string
   name: string
   description: string
@@ -234,19 +234,19 @@ export interface TemplateSummary {
   created_at: string
   updated_at: string
 }
-export interface TemplateFull {
+export interface StyleReferenceFull {
   slug: string
   name: string
   description: string
   images: string[]
   primary_image: string
   default_strict: boolean
-  analysis: TemplateAnalysis | null
+  analysis: StyleReferenceAnalysis | null
   created_at: string
   updated_at: string
 }
-export interface AttachedTemplate {
-  template_slug: string
+export interface AttachedStyleReference {
+  style_reference_slug: string
   strict: boolean
 }
 //Chat context types
@@ -254,7 +254,7 @@ import type { AspectRatio,GenerationMode } from '../types/aspectRatio'
 export interface ChatContext {
   project_slug?: string | null
   attached_products?: string[]
-  attached_templates?: AttachedTemplate[]
+  attached_style_references?: AttachedStyleReference[]
   aspect_ratio?: AspectRatio
   generation_mode?: GenerationMode
 }
@@ -335,7 +335,7 @@ export interface GeneratedImage {
   url: string
   path?: string
   id?: string
-  sourceTemplatePath?: string
+  sourceStyleReferencePath?: string
   metadata?: ImageGenerationMetadata | null
 }
 //Image status types for workstation curation
@@ -346,14 +346,14 @@ export interface ImageStatusEntry {
   originalPath: string
   currentPath: string
   prompt?: string | null
-  sourceTemplatePath?: string | null
+  sourceStyleReferencePath?: string | null
   timestamp: string
   viewedAt?: string | null
 }
 export interface RegisterImageInput {
   path: string
   prompt?: string
-  sourceTemplatePath?: string
+  sourceStyleReferencePath?: string
 }
 
 //Video generation metadata
@@ -380,7 +380,7 @@ interface ChatResponse {
   response: string
   images: GeneratedImage[]
   videos?: GeneratedVideo[]
-  templates?: string[]
+  style_references?: string[]
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null
@@ -458,7 +458,7 @@ interface PyWebViewAPI {
     attachments?: ChatAttachment[],
     project_slug?: string | null,
     attached_products?: string[],
-    attached_templates?: AttachedTemplate[],
+    attached_style_references?: AttachedStyleReference[],
     aspect_ratio?: string,
     generation_mode?: string
   ): Promise<BridgeResponse<ChatResponse>>
@@ -492,19 +492,19 @@ interface PyWebViewAPI {
   get_product_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   get_product_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
   analyze_product_packaging(product_slug:string,force:boolean):Promise<BridgeResponse<{result:string}>>
-  //Template methods
-  get_templates(brand_slug?: string): Promise<BridgeResponse<{ templates: TemplateSummary[] }>>
-  get_template(template_slug: string): Promise<BridgeResponse<TemplateFull>>
-  create_template(name: string, description: string, images?: Array<{ filename: string; data: string }>, default_strict?: boolean): Promise<BridgeResponse<{ slug: string }>>
-  update_template(template_slug: string, name?: string, description?: string, default_strict?: boolean): Promise<BridgeResponse<{ slug: string; name: string; description: string }>>
-  delete_template(template_slug: string): Promise<BridgeResponse<void>>
-  get_template_images(template_slug: string): Promise<BridgeResponse<{ images: string[] }>>
-  upload_template_image(template_slug: string, filename: string, data_base64: string): Promise<BridgeResponse<{ path: string }>>
-  delete_template_image(template_slug: string, filename: string): Promise<BridgeResponse<void>>
-  set_primary_template_image(template_slug: string, filename: string): Promise<BridgeResponse<void>>
-  get_template_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
-  get_template_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
-  reanalyze_template(template_slug: string): Promise<BridgeResponse<{ analysis: TemplateAnalysis }>>
+  //Style Reference methods
+  get_style_references(brand_slug?: string): Promise<BridgeResponse<{ style_references: StyleReferenceSummary[] }>>
+  get_style_reference(style_reference_slug: string): Promise<BridgeResponse<StyleReferenceFull>>
+  create_style_reference(name: string, description: string, images?: Array<{ filename: string; data: string }>, default_strict?: boolean): Promise<BridgeResponse<{ slug: string }>>
+  update_style_reference(style_reference_slug: string, name?: string, description?: string, default_strict?: boolean): Promise<BridgeResponse<{ slug: string; name: string; description: string }>>
+  delete_style_reference(style_reference_slug: string): Promise<BridgeResponse<void>>
+  get_style_reference_images(style_reference_slug: string): Promise<BridgeResponse<{ images: string[] }>>
+  upload_style_reference_image(style_reference_slug: string, filename: string, data_base64: string): Promise<BridgeResponse<{ path: string }>>
+  delete_style_reference_image(style_reference_slug: string, filename: string): Promise<BridgeResponse<void>>
+  set_primary_style_reference_image(style_reference_slug: string, filename: string): Promise<BridgeResponse<void>>
+  get_style_reference_image_thumbnail(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  get_style_reference_image_full(path: string): Promise<BridgeResponse<{ dataUrl: string }>>
+  reanalyze_style_reference(style_reference_slug: string): Promise<BridgeResponse<{ analysis: StyleReferenceAnalysis }>>
 
   // Project methods
   get_projects(brand_slug?: string): Promise<BridgeResponse<{ projects: ProjectEntry[]; active_project: string | null }>>
@@ -543,7 +543,7 @@ interface PyWebViewAPI {
   //Image status methods (workstation curation)
   get_unsorted_images(brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
   mark_image_viewed(image_id: string, brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry>>
-  register_image(image_path: string, brand_slug?: string, prompt?: string, source_template_path?: string): Promise<BridgeResponse<ImageStatusEntry>>
+  register_image(image_path: string, brand_slug?: string, prompt?: string, source_style_reference_path?: string): Promise<BridgeResponse<ImageStatusEntry>>
   register_generated_images(images: RegisterImageInput[], brand_slug?: string): Promise<BridgeResponse<ImageStatusEntry[]>>
   cancel_generation(brand_slug?: string): Promise<BridgeResponse<{ cancelled: boolean }>>
   backfill_images(brand_slug?: string): Promise<BridgeResponse<{ added: ImageStatusEntry[]; count: number }>>
@@ -645,7 +645,7 @@ export const bridge = {
         attachments || [],
         context?.project_slug,
         context?.attached_products,
-        context?.attached_templates,
+        context?.attached_style_references,
         context?.aspect_ratio || '16:9',
         context?.generation_mode || 'image'
       )
@@ -684,29 +684,29 @@ export const bridge = {
     (await callBridge(() => window.pywebview!.api.get_product_image_full(path))).dataUrl,
   analyzeProductPackaging: async (productSlug:string,force:boolean=false) =>
     (await callBridge(()=>window.pywebview!.api.analyze_product_packaging(productSlug,force))).result,
-  //Templates
-  getTemplates: async (brandSlug?: string) =>
-    (await callBridge(() => window.pywebview!.api.get_templates(brandSlug))).templates,
-  getTemplate: (templateSlug: string) => callBridge(() => window.pywebview!.api.get_template(templateSlug)),
-  createTemplate: async (name: string, description: string, images?: Array<{ filename: string; data: string }>, defaultStrict?: boolean) =>
-    (await callBridge(() => window.pywebview!.api.create_template(name, description, images, defaultStrict))).slug,
-  updateTemplate: (templateSlug: string, name?: string, description?: string, defaultStrict?: boolean) =>
-    callBridge(() => window.pywebview!.api.update_template(templateSlug, name, description, defaultStrict)),
-  deleteTemplate: (templateSlug: string) => callBridge(() => window.pywebview!.api.delete_template(templateSlug)),
-  getTemplateImages: async (templateSlug: string) =>
-    (await callBridge(() => window.pywebview!.api.get_template_images(templateSlug))).images,
-  uploadTemplateImage: async (templateSlug: string, filename: string, dataBase64: string) =>
-    (await callBridge(() => window.pywebview!.api.upload_template_image(templateSlug, filename, dataBase64))).path,
-  deleteTemplateImage: (templateSlug: string, filename: string) =>
-    callBridge(() => window.pywebview!.api.delete_template_image(templateSlug, filename)),
-  setPrimaryTemplateImage: (templateSlug: string, filename: string) =>
-    callBridge(() => window.pywebview!.api.set_primary_template_image(templateSlug, filename)),
-  getTemplateImageThumbnail: async (path: string) =>
-    (await callBridge(() => window.pywebview!.api.get_template_image_thumbnail(path))).dataUrl,
-  getTemplateImageFull: async (path: string) =>
-    (await callBridge(() => window.pywebview!.api.get_template_image_full(path))).dataUrl,
-  reanalyzeTemplate: async (templateSlug: string) =>
-    (await callBridge(() => window.pywebview!.api.reanalyze_template(templateSlug))).analysis,
+  //Style References
+  getStyleReferences: async (brandSlug?: string) =>
+    (await callBridge(() => window.pywebview!.api.get_style_references(brandSlug))).style_references,
+  getStyleReference: (slug: string) => callBridge(() => window.pywebview!.api.get_style_reference(slug)),
+  createStyleReference: async (name: string, description: string, images?: Array<{ filename: string; data: string }>, defaultStrict?: boolean) =>
+    (await callBridge(() => window.pywebview!.api.create_style_reference(name, description, images, defaultStrict))).slug,
+  updateStyleReference: (slug: string, name?: string, description?: string, defaultStrict?: boolean) =>
+    callBridge(() => window.pywebview!.api.update_style_reference(slug, name, description, defaultStrict)),
+  deleteStyleReference: (slug: string) => callBridge(() => window.pywebview!.api.delete_style_reference(slug)),
+  getStyleReferenceImages: async (slug: string) =>
+    (await callBridge(() => window.pywebview!.api.get_style_reference_images(slug))).images,
+  uploadStyleReferenceImage: async (slug: string, filename: string, dataBase64: string) =>
+    (await callBridge(() => window.pywebview!.api.upload_style_reference_image(slug, filename, dataBase64))).path,
+  deleteStyleReferenceImage: (slug: string, filename: string) =>
+    callBridge(() => window.pywebview!.api.delete_style_reference_image(slug, filename)),
+  setPrimaryStyleReferenceImage: (slug: string, filename: string) =>
+    callBridge(() => window.pywebview!.api.set_primary_style_reference_image(slug, filename)),
+  getStyleReferenceImageThumbnail: async (path: string) =>
+    (await callBridge(() => window.pywebview!.api.get_style_reference_image_thumbnail(path))).dataUrl,
+  getStyleReferenceImageFull: async (path: string) =>
+    (await callBridge(() => window.pywebview!.api.get_style_reference_image_full(path))).dataUrl,
+  reanalyzeStyleReference: async (slug: string) =>
+    (await callBridge(() => window.pywebview!.api.reanalyze_style_reference(slug))).analysis,
 
   // Projects
   getProjects: async (brandSlug?: string) => {
@@ -752,7 +752,7 @@ export const bridge = {
   //Image status (workstation curation)
   getUnsortedImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.get_unsorted_images(brandSlug)),
   markImageViewed: (imageId: string, brandSlug?: string) => callBridge(() => window.pywebview!.api.mark_image_viewed(imageId, brandSlug)),
-  registerImage: (imagePath: string, brandSlug?: string, prompt?: string, sourceTemplatePath?: string) => callBridge(() => window.pywebview!.api.register_image(imagePath, brandSlug, prompt, sourceTemplatePath)),
+  registerImage: (imagePath: string, brandSlug?: string, prompt?: string, sourceStyleReferencePath?: string) => callBridge(() => window.pywebview!.api.register_image(imagePath, brandSlug, prompt, sourceStyleReferencePath)),
   registerGeneratedImages: (images: RegisterImageInput[], brandSlug?: string) => callBridge(() => window.pywebview!.api.register_generated_images(images, brandSlug)),
   cancelGeneration: (brandSlug?: string) => callBridge(() => window.pywebview!.api.cancel_generation(brandSlug)),
   backfillImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.backfill_images(brandSlug)),
