@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from sip_videogen.brands.product_description import extract_attributes_from_description
 from sip_videogen.brands.text_utils import escape_text_for_prompt
+from sip_videogen.config.logging import get_logger
 from sip_videogen.config.settings import get_settings
 
 from .storage import (
@@ -21,6 +22,8 @@ from .storage import (
     load_project,
     load_style_reference,
 )
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -455,10 +458,12 @@ class StyleReferenceContextBuilder:
         from sip_videogen.advisor.style_reference_prompt import build_style_reference_constraints_v2
 
         constraints = build_style_reference_constraints_v2(analysis, strict=self.strict)
+        tool_usage = f'**IMPORTANT**: When generating images, you MUST pass `template_slug="{slug}"` to the generate_image tool to apply these style constraints.'
         return f"""### Style Reference: {name}
 **Slug**: `{slug}`
 **Description**: {description}
 **Mode**: {mode_label}
+{tool_usage}
 
 {canvas_info}
 {layout_info}
@@ -500,10 +505,12 @@ class StyleReferenceContextBuilder:
         from sip_videogen.advisor.style_reference_prompt import build_style_reference_constraints
 
         constraints = build_style_reference_constraints(analysis, strict=self.strict)
+        tool_usage = f'**IMPORTANT**: When generating images, you MUST pass `template_slug="{slug}"` to the generate_image tool to apply these style constraints.'
         return f"""### Style Reference: {name}
 **Slug**: `{slug}`
 **Description**: {description}
 **Mode**: {mode_label}
+{tool_usage}
 
 {canvas_info}
 {style_info}
@@ -613,16 +620,28 @@ class HierarchicalContextBuilder:
                     sections.append(products_header + "\n\n" + "\n\n".join(product_sections))
         # Attached style references
         if self.attached_style_references:
+            logger.info(
+                "[HierarchicalContext] Building style ref context for: %s",
+                self.attached_style_references,
+            )
             sr_sections = []
             for sr in self.attached_style_references:
-                slug = sr.get("style_ref_slug") or sr.get("slug", "")
+                slug = (
+                    sr.get("style_reference_slug") or sr.get("style_ref_slug") or sr.get("slug", "")
+                )
                 strict = sr.get("strict", True)
+                logger.info(
+                    "[HierarchicalContext] Processing style ref: slug=%s, strict=%s", slug, strict
+                )
                 if not slug:
+                    logger.warning("[HierarchicalContext] Skipping style ref with empty slug")
                     continue
                 try:
                     sr_builder = StyleReferenceContextBuilder(self.brand_slug, slug, strict)
                     sr_sections.append(sr_builder.build_context_section())
-                except ValueError:
+                    logger.info("[HierarchicalContext] Built context for style ref: %s", slug)
+                except ValueError as e:
+                    logger.warning("[HierarchicalContext] Failed to build style ref context: %s", e)
                     pass
             if sr_sections:
                 if len(sr_sections) > 1:
@@ -630,6 +649,9 @@ class HierarchicalContextBuilder:
                 else:
                     sr_header = "### Attached Style Reference"
                 sections.append(sr_header + "\n\n" + "\n\n".join(sr_sections))
+                logger.info(
+                    "[HierarchicalContext] Added %d style ref sections to context", len(sr_sections)
+                )
         if not sections:
             return ""
         return "\n\n---\n\n".join(sections)

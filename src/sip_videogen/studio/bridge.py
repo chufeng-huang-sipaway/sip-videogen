@@ -1,5 +1,7 @@
 """Python bridge exposed to JavaScript - thin facade delegating to services."""
 
+from sip_videogen.config.logging import get_logger
+
 from ..constants import (
     ALLOWED_IMAGE_EXTS,
     ALLOWED_TEXT_EXTS,
@@ -22,6 +24,8 @@ from .utils.bridge_types import bridge_error, bridge_ok
 from .utils.config_store import check_api_keys as do_check_api_keys
 from .utils.config_store import load_api_keys_from_config
 from .utils.config_store import save_api_keys as do_save_api_keys
+
+logger = get_logger(__name__)
 
 
 class StudioBridge:
@@ -331,6 +335,7 @@ class StudioBridge:
         aspect_ratio: str | None = None,
         generation_mode: str | None = None,
     ) -> dict:
+        logger.info("[Bridge.chat] attached_style_references=%s", attached_style_references)
         return self._chat.chat(
             message,
             attachments,

@@ -130,10 +130,11 @@ class ChatService:
             if not slug:
                 return bridge_error("No brand selected")
             logger.info(
-                "chat(): slug=%s, project_slug=%s, attached_products=%s",
+                "chat(): slug=%s, project_slug=%s, attached_products=%s, attached_style_refs=%s",
                 slug,
                 project_slug,
                 attached_products,
+                attached_style_references,
             )
             if project_slug is not None:
                 logger.debug("chat(): Setting active project to %s", project_slug)

@@ -175,8 +175,9 @@ class BrandAdvisor:
             )
             turn_context = builder.build_turn_context()
             logger.info(
-                "_prepare_chat_context(): attached_products=%s, turn_context_len=%d",
+                "_prepare_chat_context(): attached_products=%s, attached_style_refs=%s, turn_context_len=%d",
                 attached_products,
+                attached_style_references,
                 len(turn_context),
             )
         # Generation mode injection - ALWAYS for chat_with_metadata (defaults to "image")

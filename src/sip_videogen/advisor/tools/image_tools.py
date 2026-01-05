@@ -71,10 +71,12 @@ async def _impl_generate_image(
     from PIL import Image as PILImage
 
     logger.info(
-        "[generate_image] PARAMS: slug=%s, slugs=%s, ref_img=%s, validate=%s",
+        "[generate_image] PARAMS: slug=%s, slugs=%s, ref_img=%s, template_slug=%s, strict=%s, validate=%s",
         product_slug,
         product_slugs,
         reference_image,
+        template_slug,
+        strict,
         validate_identity,
     )
     settings = _common.get_settings()
@@ -101,20 +103,20 @@ async def _impl_generate_image(
     template_constraints = ""
     if template_slug:
         if not brand_slug:
-            return "Error: No active brand - cannot load template"
-        template = _common.load_template(brand_slug, template_slug)
-        if template is None:
-            return f"Error: Template not found: {template_slug}"
-        if template.analysis is None:
-            return f"Error: Template '{template_slug}' has no analysis"
-        is_v2 = getattr(template.analysis, "version", "1.0") == "2.0"
+            return "Error: No active brand - cannot load style reference"
+        style_ref = _common.load_style_reference(brand_slug, template_slug)
+        if style_ref is None:
+            return f"Error: Style reference not found: {template_slug}"
+        if style_ref.analysis is None:
+            return f"Error: Style reference '{template_slug}' has no analysis"
+        is_v2 = getattr(style_ref.analysis, "version", "1.0") == "2.0"
         if is_v2:
             from sip_videogen.advisor.style_reference_prompt import (
                 build_style_reference_constraints_v2,
             )
 
             template_constraints = build_style_reference_constraints_v2(
-                template.analysis, strict=strict, include_usage=False
+                style_ref.analysis, strict=strict, include_usage=False
             )
         else:
             from sip_videogen.advisor.style_reference_prompt import (
@@ -122,9 +124,9 @@ async def _impl_generate_image(
             )
 
             template_constraints = build_style_reference_constraints(
-                template.analysis, strict=strict, include_usage=False
+                style_ref.analysis, strict=strict, include_usage=False
             )
-        template_aspect_ratio = template.analysis.canvas.aspect_ratio
+        template_aspect_ratio = style_ref.analysis.canvas.aspect_ratio
         allowed_aspects = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"}
         if template_aspect_ratio and template_aspect_ratio in allowed_aspects:
             if template_aspect_ratio != aspect_ratio:
