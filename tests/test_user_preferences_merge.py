@@ -59,4 +59,3 @@ def test_user_preferences_load_ignores_extra_keys(tmp_path: Path) -> None:
     assert loaded.default_video_provider == VideoProvider.KLING
     assert loaded.kling.model_version == "2.6"
     assert loaded.kling.mode == "pro"
-

@@ -461,7 +461,7 @@ async def develop_script_from_pitch(
 - **Logline**: {pitch.logline}
 - **Tone**: {pitch.tone}
 - **Description**: {pitch.brief_description}
-- **Key Elements**: {', '.join(pitch.key_elements)}
+- **Key Elements**: {", ".join(pitch.key_elements)}
 - **Target**: {pitch.scene_count} scenes, ~{pitch.estimated_duration} seconds total
 
 ## Original Idea
@@ -519,9 +519,7 @@ Requirements:
             logger.info(f"Script development complete: '{output.title}'")
             return output
 
-        raise ScriptDevelopmentError(
-            f"Unexpected output type: {type(output).__name__}"
-        )
+        raise ScriptDevelopmentError(f"Unexpected output type: {type(output).__name__}")
     except AgentsException as e:
         logger.error(f"Script development from pitch failed: {e}")
         raise ScriptDevelopmentError(f"Script development failed: {e}") from e

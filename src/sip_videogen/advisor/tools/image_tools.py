@@ -71,10 +71,12 @@ async def _impl_generate_image(
     from PIL import Image as PILImage
 
     logger.info(
-        "[generate_image] PARAMS: product_slug=%s, product_slugs=%s, reference_image=%s, validate_identity=%s",
+        "[generate_image] PARAMS: slug=%s, slugs=%s, ref_img=%s, template_slug=%s, strict=%s, validate=%s",
         product_slug,
         product_slugs,
         reference_image,
+        template_slug,
+        strict,
         validate_identity,
     )
     settings = _common.get_settings()
@@ -91,7 +93,7 @@ async def _impl_generate_image(
         generated_filename = _generate_output_filename(active_project)
         if filename:
             logger.debug(
-                f"Agent provided filename '{filename}', overriding with '{generated_filename}' for project tagging"
+                f"Overriding filename '{filename}' with '{generated_filename}' for project"
             )
         filename = generated_filename
         logger.info(f"Tagging generated image with project: {active_project}")
@@ -101,26 +103,30 @@ async def _impl_generate_image(
     template_constraints = ""
     if template_slug:
         if not brand_slug:
-            return "Error: No active brand - cannot load template"
-        template = _common.load_template(brand_slug, template_slug)
-        if template is None:
-            return f"Error: Template not found: {template_slug}"
-        if template.analysis is None:
-            return f"Error: Template '{template_slug}' has no analysis"
-        is_v2 = getattr(template.analysis, "version", "1.0") == "2.0"
+            return "Error: No active brand - cannot load style reference"
+        style_ref = _common.load_style_reference(brand_slug, template_slug)
+        if style_ref is None:
+            return f"Error: Style reference not found: {template_slug}"
+        if style_ref.analysis is None:
+            return f"Error: Style reference '{template_slug}' has no analysis"
+        is_v2 = getattr(style_ref.analysis, "version", "1.0") == "2.0"
         if is_v2:
-            from sip_videogen.advisor.template_prompt import build_template_constraints_v2
+            from sip_videogen.advisor.style_reference_prompt import (
+                build_style_reference_constraints_v2,
+            )
 
-            template_constraints = build_template_constraints_v2(
-                template.analysis, strict=strict, include_usage=False
+            template_constraints = build_style_reference_constraints_v2(
+                style_ref.analysis, strict=strict, include_usage=False
             )
         else:
-            from sip_videogen.advisor.template_prompt import build_template_constraints
-
-            template_constraints = build_template_constraints(
-                template.analysis, strict=strict, include_usage=False
+            from sip_videogen.advisor.style_reference_prompt import (
+                build_style_reference_constraints,
             )
-        template_aspect_ratio = template.analysis.canvas.aspect_ratio
+
+            template_constraints = build_style_reference_constraints(
+                style_ref.analysis, strict=strict, include_usage=False
+            )
+        template_aspect_ratio = style_ref.analysis.canvas.aspect_ratio
         allowed_aspects = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"}
         if template_aspect_ratio and template_aspect_ratio in allowed_aspects:
             if template_aspect_ratio != aspect_ratio:
@@ -160,9 +166,8 @@ async def _impl_generate_image(
                         product_images.append(img)
             max_refs = min(settings.sip_product_ref_images_per_product, len(product_images))
             if max_refs < len(product_images):
-                logger.info(
-                    f"Limiting '{product.name}' references to {max_refs} of {len(product_images)} available"
-                )
+                n = len(product_images)
+                logger.info(f"Limiting '{product.name}' refs to {max_refs} of {n} available")
                 product_images = product_images[:max_refs]
             images_loaded = 0
             primary_bytes: bytes | None = None
@@ -170,18 +175,15 @@ async def _impl_generate_image(
             current_product_paths: list[str] = []
             for img_path in product_images:
                 if total_images_loaded >= max_total_images and images_loaded > 0:
-                    logger.warning(
-                        f"Total image cap ({max_total_images}) reached, skipping remaining images for '{product.name}'"
-                    )
+                    pn = product.name
+                    logger.warning(f"Image cap ({max_total_images}) reached, skip rest for '{pn}'")
                     break
                 ref_path = _resolve_brand_path(img_path)
                 if ref_path is None or not ref_path.exists():
                     if images_loaded == 0:
                         return f"Error: Reference image not found for product '{slug}': {img_path}"
                     else:
-                        logger.warning(
-                            f"Image not found for '{product.name}': {img_path} → resolved to {ref_path}"
-                        )
+                        logger.warning(f"Image not found for '{product.name}': {img_path}")
                         continue
                 try:
                     ref_bytes = ref_path.read_bytes()
@@ -198,7 +200,7 @@ async def _impl_generate_image(
                         logger.info(f"Loaded primary reference for '{product.name}': {img_path}")
                     else:
                         logger.info(
-                            f"Loaded angle {images_loaded+1} for '{product.name}': {img_path}"
+                            f"Loaded angle {images_loaded + 1} for '{product.name}': {img_path}"
                         )
                     images_loaded += 1
                     total_images_loaded += 1
@@ -206,9 +208,7 @@ async def _impl_generate_image(
                     if images_loaded == 0:
                         return f"Error reading reference image for '{slug}': {e}"
                     else:
-                        logger.warning(
-                            f"Failed to read image for '{product.name}': {img_path} - {type(e).__name__}: {e}"
-                        )
+                        logger.warning(f"Failed to read image for '{product.name}': {e}")
                         continue
             if primary_bytes:
                 product_references.append((product.name, primary_bytes))
@@ -217,9 +217,8 @@ async def _impl_generate_image(
                 grouped_reference_image_paths.append((product.name, current_product_paths))
             logger.info(f"Loaded {images_loaded}/{len(product_images)} images for '{product.name}'")
             if images_loaded != len(product_images):
-                logger.warning(
-                    f"Some images failed to load for '{product.name}': expected {len(product_images)}, got {images_loaded}"
-                )
+                exp, got = len(product_images), images_loaded
+                logger.warning(f"Load partial for '{product.name}': {got}/{exp}")
         generation_prompt = prompt
         if settings.sip_product_specs_injection:
             from sip_videogen.advisor.product_specs import inject_specs_into_prompt
@@ -671,7 +670,7 @@ def propose_images(question: str, image_paths: list[str], labels: list[str] | No
         "type": "image_select",
         "question": question,
         "image_paths": image_paths,
-        "labels": labels or [f"Option {i+1}" for i in range(len(image_paths))],
+        "labels": labels or [f"Option {i + 1}" for i in range(len(image_paths))],
     }
     return f"[Presenting {len(image_paths)} images for user to select]"
 

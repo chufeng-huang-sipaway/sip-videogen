@@ -4,7 +4,7 @@ import App from './App'
 import {BrandProvider} from '@/context/BrandContext'
 import {ProductProvider} from '@/context/ProductContext'
 import {ProjectProvider} from '@/context/ProjectContext'
-import {TemplateProvider} from '@/context/TemplateContext'
+import {StyleReferenceProvider} from '@/context/StyleReferenceContext'
 import {WorkstationProvider} from '@/context/WorkstationContext'
 import './index.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -12,11 +12,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 <BrandProvider>
 <ProjectProvider>
 <ProductProvider>
-<TemplateProvider>
+<StyleReferenceProvider>
 <WorkstationProvider>
 <App/>
 </WorkstationProvider>
-</TemplateProvider>
+</StyleReferenceProvider>
 </ProductProvider>
 </ProjectProvider>
 </BrandProvider>

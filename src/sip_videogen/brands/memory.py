@@ -9,9 +9,12 @@ Also provides access to Product and Project memory layers.
 """
 
 from __future__ import annotations
+
 import logging
 from typing import Literal
-from sip_videogen.constants import ASSET_CATEGORIES,ALLOWED_IMAGE_EXTS,ALLOWED_VIDEO_EXTS
+
+from sip_videogen.constants import ALLOWED_IMAGE_EXTS, ALLOWED_VIDEO_EXTS, ASSET_CATEGORIES
+
 from .models import (
     BrandSummary,
     ProductFull,
@@ -92,19 +95,30 @@ def list_brand_assets(slug: str, category: str | None = None) -> list[dict]:
     """
     brand_dir = get_brand_dir(slug)
     assets_dir = brand_dir / "assets"
-    if not assets_dir.exists():return []
-    assets=[]
-    cats=[category]if category else ASSET_CATEGORIES
-    allowed_exts=ALLOWED_IMAGE_EXTS|ALLOWED_VIDEO_EXTS
+    if not assets_dir.exists():
+        return []
+    assets = []
+    cats = [category] if category else ASSET_CATEGORIES
+    allowed_exts = ALLOWED_IMAGE_EXTS | ALLOWED_VIDEO_EXTS
     for cat in cats:
-        cat_dir=assets_dir/cat
-        if not cat_dir.exists():continue
+        cat_dir = assets_dir / cat
+        if not cat_dir.exists():
+            continue
         for fp in cat_dir.glob("*"):
-            if not fp.is_file():continue
-            ext=fp.suffix.lower()
+            if not fp.is_file():
+                continue
+            ext = fp.suffix.lower()
             if ext in allowed_exts:
-                asset_type="video"if ext in ALLOWED_VIDEO_EXTS else"image"
-                assets.append({"path":str(fp),"category":cat,"name":fp.stem,"filename":fp.name,"type":asset_type})
+                asset_type = "video" if ext in ALLOWED_VIDEO_EXTS else "image"
+                assets.append(
+                    {
+                        "path": str(fp),
+                        "category": cat,
+                        "name": fp.stem,
+                        "filename": fp.name,
+                        "type": asset_type,
+                    }
+                )
     return assets
 
 
@@ -117,10 +131,12 @@ def list_brand_videos(slug: str) -> list[dict]:
     Returns:
         List of video asset dicts with path, category, name.
     """
-    #Check both 'generated' and 'video' folders since videos can be in either
-    videos=[]
-    for cat in ["generated","video"]:
-        videos.extend([a for a in list_brand_assets(slug,category=cat)if a.get("type")=="video"])
+    # Check both 'generated' and 'video' folders since videos can be in either
+    videos = []
+    for cat in ["generated", "video"]:
+        videos.extend(
+            [a for a in list_brand_assets(slug, category=cat) if a.get("type") == "video"]
+        )
     return videos
 
 
@@ -160,9 +176,7 @@ def get_product_detail(brand_slug: str, product_slug: str) -> str:
     return product.model_dump_json(indent=2)
 
 
-def get_product_images_for_generation(
-    brand_slug: str, product_slug: str
-) -> list[str]:
+def get_product_images_for_generation(brand_slug: str, product_slug: str) -> list[str]:
     """Get product images for use in generation.
 
     Args:

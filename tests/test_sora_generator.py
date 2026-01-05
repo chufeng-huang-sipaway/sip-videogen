@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from sip_videogen.generators.base import PromptSafetyError, VideoGenerationError
 from sip_videogen.generators.sora_generator import (
     SoraConfig,
     SoraGenerationResult,
     SoraVideoGenerator,
 )
-from sip_videogen.generators.base import PromptSafetyError, VideoGenerationError
 from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.script import SceneAction, VideoScript
 

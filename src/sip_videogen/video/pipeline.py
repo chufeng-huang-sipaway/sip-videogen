@@ -56,7 +56,7 @@ from sip_videogen.models import (
 from sip_videogen.utils.file_utils import write_atomically
 
 if TYPE_CHECKING:
-    from sip_videogen.generators.base import BaseVideoGenerator
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,7 @@ class PipelineConfig:
         image_variants_per_request: Number of image variants per element (default: 1).
             If >1, generates multiple variants and uses early-exit review. Max 4.
     """
+
     idea: str
     num_scenes: int = 3
     output_dir: Path | None = None
@@ -111,6 +112,7 @@ class PipelineResult:
         final_video_path: Path to the assembled final video (if not dry_run).
         stages_completed: List of completed stage names.
     """
+
     project_id: str
     project_dir: Path
     script: VideoScript
@@ -192,7 +194,7 @@ class VideoPipeline:
 
         # Save script atomically
         script_path = project_dir / "script.json"
-        write_atomically(script_path,script.model_dump_json(indent=2))
+        write_atomically(script_path, script.model_dump_json(indent=2))
         self._emit_progress("script", f"Script saved to {script_path}")
 
         # Early return for dry run
@@ -317,6 +319,7 @@ class VideoPipeline:
         def on_complete(element_id: str, result) -> None:
             status = "✓" if result.status in ("success", "fallback", "unreviewed") else "✗"
             self._emit_progress("images", f"{status} {element_id}")
+
         results = await image_production.generate_all_with_review_parallel(
             elements=script.shared_elements,
             max_concurrent=self.config.image_max_concurrent,

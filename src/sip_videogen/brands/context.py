@@ -9,18 +9,24 @@ HierarchicalContextBuilder for per-turn context injection.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from sip_videogen.brands.product_description import extract_attributes_from_description
+from sip_videogen.brands.text_utils import escape_text_for_prompt
+from sip_videogen.config.logging import get_logger
+from sip_videogen.config.settings import get_settings
+
 from .storage import (
     load_brand_summary,
     load_product,
     load_project,
-    load_template,
+    load_style_reference,
 )
-from sip_videogen.brands.product_description import extract_attributes_from_description
-from sip_videogen.brands.text_utils import escape_text_for_prompt
-from sip_videogen.config.settings import get_settings
-from typing import TYPE_CHECKING
+
+logger = get_logger(__name__)
+
 if TYPE_CHECKING:
-    from sip_videogen.brands.models import TemplateAnalysis
+    pass
 
 # Description of each detail type for agent prompts
 DETAIL_DESCRIPTIONS = {
@@ -151,9 +157,7 @@ class ProductContextBuilder:
         self.product = load_product(brand_slug, product_slug)
 
         if self.product is None:
-            raise ValueError(
-                f"Product '{product_slug}' not found in brand '{brand_slug}'"
-            )
+            raise ValueError(f"Product '{product_slug}' not found in brand '{brand_slug}'")
 
     def build_context_section(self) -> str:
         """Build product context section for prompts.
@@ -229,22 +233,30 @@ class ProductContextBuilder:
 
         attributes_str = "\n".join(attr_sections)
 
-        #Packaging text section (preserves text label fidelity during edits - include ALL elements)
-        packaging_text_str=""
+        # Packaging text section (preserves text label fidelity during edits - include ALL elements)
+        packaging_text_str = ""
         if p.packaging_text and p.packaging_text.elements:
-            valid_elems=[e for e in p.packaging_text.elements if len(e.text)<=80]
-            parts=[]
+            valid_elems = [e for e in p.packaging_text.elements if len(e.text) <= 80]
+            parts = []
             for elem in valid_elems:
-                text=escape_text_for_prompt(elem.text)
-                part=f'"{text}"'
-                if elem.notes:part+=f" [{elem.notes}]"
-                style_parts=[]
-                if elem.typography:style_parts.append(elem.typography)
-                if elem.emphasis and elem.emphasis not in("printed",""):style_parts.append(elem.emphasis)
-                if style_parts:part+=f" ({', '.join(style_parts)})"
-                if elem.position:part+=f" at {elem.position}"
+                text = escape_text_for_prompt(elem.text)
+                part = f'"{text}"'
+                if elem.notes:
+                    part += f" [{elem.notes}]"
+                style_parts = []
+                if elem.typography:
+                    style_parts.append(elem.typography)
+                if elem.emphasis and elem.emphasis not in ("printed", ""):
+                    style_parts.append(elem.emphasis)
+                if style_parts:
+                    part += f" ({', '.join(style_parts)})"
+                if elem.position:
+                    part += f" at {elem.position}"
                 parts.append(part)
-            if parts:packaging_text_str="**Packaging Text** [REPRODUCE EXACTLY]:\n  "+"; ".join(parts)
+            if parts:
+                packaging_text_str = "**Packaging Text** [REPRODUCE EXACTLY]:\n  " + "; ".join(
+                    parts
+                )
 
         # Format images
         images_str = ""
@@ -266,8 +278,8 @@ class ProductContextBuilder:
                 "- Omit numeric dimensions and do not restate constraint blocks\n"
             )
 
-        #Add packaging text with newline separator if present
-        pkg_section=f"\n{packaging_text_str}\n" if packaging_text_str else ""
+        # Add packaging text with newline separator if present
+        pkg_section = f"\n{packaging_text_str}\n" if packaging_text_str else ""
         context = f"""### Product: {p.name}
 **CRITICAL - EXACT REPRODUCTION REQUIRED**
 This product must appear IDENTICAL to its reference image.
@@ -331,9 +343,7 @@ class ProjectContextBuilder:
         self.project = load_project(brand_slug, project_slug)
 
         if self.project is None:
-            raise ValueError(
-                f"Project '{project_slug}' not found in brand '{brand_slug}'"
-            )
+            raise ValueError(f"Project '{project_slug}' not found in brand '{brand_slug}'")
 
     def build_context_section(self) -> str:
         """Build project context section for prompts.
@@ -373,106 +383,123 @@ def build_project_context(brand_slug: str, project_slug: str) -> str:
 
 
 # =============================================================================
-# Template Context Builder
+# Style Reference Context Builder
 # =============================================================================
-class TemplateContextBuilder:
-    """Builds template context for agent prompts."""
-    def __init__(self,brand_slug:str,template_slug:str,strict:bool=True):
-        """Initialize with brand/template slugs and strictness mode.
+class StyleReferenceContextBuilder:
+    """Builds style reference context for agent prompts."""
+
+    def __init__(self, brand_slug: str, style_ref_slug: str, strict: bool = True):
+        """Initialize with brand/style_ref slugs and strictness mode.
         Args:
             brand_slug: Brand identifier.
-            template_slug: Template identifier.
+            style_ref_slug: Style reference identifier.
             strict: True=exact layout reproduction, False=allow variation.
         Raises:
-            ValueError: If template not found.
+            ValueError: If style reference not found.
         """
-        self.brand_slug=brand_slug
-        self.template_slug=template_slug
-        self.strict=strict
-        self.template=load_template(brand_slug,template_slug)
-        if self.template is None:
-            raise ValueError(f"Template '{template_slug}' not found in brand '{brand_slug}'")
-    def build_context_section(self)->str:
-        """Build template context section for prompts.
+        self.brand_slug = brand_slug
+        self.style_ref_slug = style_ref_slug
+        self.strict = strict
+        self.style_ref = load_style_reference(brand_slug, style_ref_slug)
+        if self.style_ref is None:
+            raise ValueError(
+                f"Style reference '{style_ref_slug}' not found in brand '{brand_slug}'"
+            )
+
+    def build_context_section(self) -> str:
+        """Build style reference context section for prompts.
         Returns:
             Formatted string with layout constraints based on strict/loose mode.
         """
-        t=self.template
-        analysis=t.analysis
+        sr = self.style_ref
+        analysis = sr.analysis
         if analysis is None:
-            return f"""### Template: {t.name}
-**Slug**: `{t.slug}`
-**Description**: {t.description or '(No description)'}
-**Mode**: {'Strict' if self.strict else 'Loose'}
-*Analysis pending - template not yet analyzed.*
+            return f"""### Style Reference: {sr.name}
+**Slug**: `{sr.slug}`
+**Description**: {sr.description or "(No description)"}
+**Mode**: {"Strict" if self.strict else "Loose"}
+*Analysis pending - style reference not yet analyzed.*
 """
-        #Detect V2 vs V1 analysis
-        is_v2=getattr(analysis,"version","1.0")=="2.0"
-        if is_v2:return self._build_v2_context(t.name,t.slug,t.description or"",analysis)
-        return self._build_v1_context(t.name,t.slug,t.description or"",analysis)
-    def _build_v2_context(self,name:str,slug:str,description:str,analysis)->str:
+        # Detect V2 vs V1 analysis
+        is_v2 = getattr(analysis, "version", "1.0") == "2.0"
+        if is_v2:
+            return self._build_v2_context(sr.name, sr.slug, sr.description or "", analysis)
+        return self._build_v1_context(sr.name, sr.slug, sr.description or "", analysis)
+
+    def _build_v2_context(self, name: str, slug: str, description: str, analysis) -> str:
         """Build context from V2 semantic analysis."""
-        mode_label="Strict" if self.strict else "Loose"
-        canvas=analysis.canvas
-        style=analysis.style
-        layout=analysis.layout
-        copy=analysis.copywriting
-        scene=analysis.visual_scene
-        #Summary info
-        canvas_info=f"**Canvas**: {canvas.aspect_ratio} aspect"
-        layout_info=f"**Layout**: {layout.structure}"
-        #Copywriting summary
-        copy_items=[]
-        if copy.headline:copy_items.append("headline")
-        if copy.benefits:copy_items.append(f"{len(copy.benefits)} benefits")
-        if copy.disclaimer:copy_items.append("disclaimer")
-        copy_info=f"**Copywriting**: {', '.join(copy_items)}" if copy_items else"**Copywriting**: none"
-        #Visual treatments
-        treatments_info=f"**Visual Treatments**: {', '.join(scene.visual_treatments[:3])}" if scene.visual_treatments else""
-        #Build constraints using V2 builder
-        from sip_videogen.advisor.template_prompt import build_template_constraints_v2
-        constraints=build_template_constraints_v2(analysis,strict=self.strict)
-        return f"""### Template: {name}
+        mode_label = "Strict" if self.strict else "Loose"
+        canvas = analysis.canvas
+        style = analysis.style
+        layout = analysis.layout
+        scene = analysis.visual_scene
+        # Summary info
+        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect"
+        layout_info = f"**Layout**: {layout.structure}"
+        mood_info = f"**Mood**: {style.mood}" if style.mood else ""
+        # Visual treatments
+        treatments_info = (
+            f"**Visual Treatments**: {', '.join(scene.visual_treatments[:3])}"
+            if scene.visual_treatments
+            else ""
+        )
+        # Build constraints using V2 builder
+        from sip_videogen.advisor.style_reference_prompt import build_style_reference_constraints_v2
+
+        constraints = build_style_reference_constraints_v2(analysis, strict=self.strict)
+        tool_usage = f'**IMPORTANT**: When generating images, you MUST pass `template_slug="{slug}"` to the generate_image tool to apply these style constraints.'
+        return f"""### Style Reference: {name}
 **Slug**: `{slug}`
 **Description**: {description}
 **Mode**: {mode_label}
+{tool_usage}
 
 {canvas_info}
 {layout_info}
-{copy_info}
+{mood_info}
 {treatments_info}
 
 {constraints}
 """
-    def _build_v1_context(self,name:str,slug:str,description:str,analysis)->str:
+
+    def _build_v1_context(self, name: str, slug: str, description: str, analysis) -> str:
         """Build context from V1 geometry analysis (deprecated)."""
-        mode_label="Strict" if self.strict else "Loose"
-        canvas=analysis.canvas
-        style=analysis.style
-        message=analysis.message
-        elements=analysis.elements
-        product_slot=analysis.product_slot
-        canvas_info=f"**Canvas**: {canvas.aspect_ratio} aspect, {canvas.background} background"
-        palette_str=", ".join(style.palette[:4]) if style.palette else"(not defined)"
-        style_info=f"**Style**: {style.mood} mood, {style.lighting} lighting\n**Palette**: {palette_str}"
-        message_info=f"**Intent**: {message.intent}\n**Audience**: {message.audience}"
-        if message.key_claims:message_info+=f"\n**Key Claims**: {', '.join(message.key_claims[:3])}"
-        elem_types=[e.type for e in elements]
-        elem_summary=f"**Elements**: {len(elements)} layout elements"
+        mode_label = "Strict" if self.strict else "Loose"
+        canvas = analysis.canvas
+        style = analysis.style
+        message = analysis.message
+        elements = analysis.elements
+        product_slot = analysis.product_slot
+        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect, {canvas.background} background"
+        palette_str = ", ".join(style.palette[:4]) if style.palette else "(not defined)"
+        style_info = (
+            f"**Style**: {style.mood} mood, {style.lighting} lighting\n**Palette**: {palette_str}"
+        )
+        message_info = f"**Intent**: {message.intent}\n**Audience**: {message.audience}"
+        if message.key_claims:
+            message_info += f"\n**Key Claims**: {', '.join(message.key_claims[:3])}"
+        elem_types = [e.type for e in elements]
+        elem_summary = f"**Elements**: {len(elements)} layout elements"
         if elem_types:
             from collections import Counter
-            type_counts=Counter(elem_types)
-            elem_summary+=f" ({', '.join(f'{v}x {k}' for k,v in type_counts.most_common(3))})"
-        slot_info=""
+
+            type_counts = Counter(elem_types)
+            elem_summary += f" ({', '.join(f'{v}x {k}' for k, v in type_counts.most_common(3))})"
+        slot_info = ""
         if product_slot:
-            geo=product_slot.geometry
-            slot_info=f"**Product Slot**: id=`{product_slot.id}`, Position: ({geo.x:.0%}, {geo.y:.0%})"
-        from sip_videogen.advisor.template_prompt import build_template_constraints
-        constraints=build_template_constraints(analysis,strict=self.strict)
-        return f"""### Template: {name}
+            geo = product_slot.geometry
+            slot_info = (
+                f"**Product Slot**: id=`{product_slot.id}`, Position: ({geo.x:.0%}, {geo.y:.0%})"
+            )
+        from sip_videogen.advisor.style_reference_prompt import build_style_reference_constraints
+
+        constraints = build_style_reference_constraints(analysis, strict=self.strict)
+        tool_usage = f'**IMPORTANT**: When generating images, you MUST pass `template_slug="{slug}"` to the generate_image tool to apply these style constraints.'
+        return f"""### Style Reference: {name}
 **Slug**: `{slug}`
 **Description**: {description}
 **Mode**: {mode_label}
+{tool_usage}
 
 {canvas_info}
 {style_info}
@@ -482,17 +509,19 @@ class TemplateContextBuilder:
 
 {constraints}
 """
-def build_template_context(brand_slug:str,template_slug:str,strict:bool=True)->str:
-    """Convenience function to build template context.
+
+
+def build_style_reference_context(brand_slug: str, style_ref_slug: str, strict: bool = True) -> str:
+    """Convenience function to build style reference context.
     Args:
         brand_slug: Brand identifier.
-        template_slug: Template identifier.
+        style_ref_slug: Style reference identifier.
         strict: True for strict mode, False for loose mode.
     Returns:
-        Formatted template context string, or error message if not found.
+        Formatted style reference context string, or error message if not found.
     """
     try:
-        builder=TemplateContextBuilder(brand_slug,template_slug,strict)
+        builder = StyleReferenceContextBuilder(brand_slug, style_ref_slug, strict)
         return builder.build_context_section()
     except ValueError as e:
         return f"Error: {e}"
@@ -504,14 +533,14 @@ def build_template_context(brand_slug:str,template_slug:str,strict:bool=True)->s
 
 
 class HierarchicalContextBuilder:
-    """Combines brand, product, project, and template context for per-turn injection.
+    """Combines brand, product, project, and style reference context for per-turn injection.
 
     This builder creates dynamic context to prepend to user messages each turn.
     Unlike brand context (which is in the system prompt at init), project,
-    product, and template context can change mid-conversation.
+    product, and style reference context can change mid-conversation.
 
     NOTE: Brand context is NOT included here - it's already in the system prompt.
-    This builder only handles project, attached products, and attached templates.
+    This builder only handles project, attached products, and attached style references.
     """
 
     def __init__(
@@ -519,20 +548,20 @@ class HierarchicalContextBuilder:
         brand_slug: str,
         product_slugs: list[str] | None = None,
         project_slug: str | None = None,
-        attached_templates: list[dict] | None = None,
+        attached_style_references: list[dict] | None = None,
     ):
-        """Initialize with brand slug and optional products/project/templates.
+        """Initialize with brand slug and optional products/project/style_references.
 
         Args:
             brand_slug: Brand identifier.
             product_slugs: List of product slugs to include (attached products).
             project_slug: Active project slug (if any).
-            attached_templates: List of template dicts with template_slug and strict.
+            attached_style_references: List of style ref dicts with style_ref_slug and strict.
         """
         self.brand_slug = brand_slug
         self.product_slugs = product_slugs or []
         self.project_slug = project_slug
-        self.attached_templates = attached_templates or []
+        self.attached_style_references = attached_style_references or []
 
     def build_turn_context(self) -> str:
         """Build context to prepend to user message each turn.
@@ -540,14 +569,14 @@ class HierarchicalContextBuilder:
         - Project instructions (if project active)
         - Attached product descriptions + image paths (if products attached)
         - Multi-product accuracy requirements (if 2+ products attached)
-        - Attached template layout constraints (if templates attached)
+        - Attached style reference layout constraints (if style references attached)
         NOTE: Brand context is in system prompt (existing).
         This is ADDITIONAL context injected per-turn.
         Returns:
             Formatted context string, or empty string if no context.
         """
         sections = []
-        #Project context first (more global)
+        # Project context first (more global)
         if self.project_slug:
             try:
                 project_builder = ProjectContextBuilder(self.brand_slug, self.project_slug)
@@ -556,7 +585,7 @@ class HierarchicalContextBuilder:
                 pass
         settings = get_settings()
         specs_injection_enabled = settings.sip_product_specs_injection
-        #Attached products
+        # Attached products
         if self.product_slugs:
             product_sections = []
             for slug in self.product_slugs:
@@ -572,29 +601,46 @@ class HierarchicalContextBuilder:
                 else:
                     products_header = "### Attached Product"
                     if specs_injection_enabled:
-                        products_header += ("\nNOTE: Product specs (measurements/materials/colors) will be appended "
+                        products_header += (
+                            "\nNOTE: Product specs (measurements/materials/colors) will be appended "
                             "automatically. Keep the prompt concise; omit numeric dimensions and "
-                            "do not restate the constraints block.")
+                            "do not restate the constraints block."
+                        )
                     sections.append(products_header + "\n\n" + "\n\n".join(product_sections))
-        #Attached templates
-        if self.attached_templates:
-            template_sections = []
-            for tpl in self.attached_templates:
-                slug = tpl.get("template_slug") or tpl.get("slug", "")
-                strict = tpl.get("strict", True)
+        # Attached style references
+        if self.attached_style_references:
+            logger.info(
+                "[HierarchicalContext] Building style ref context for: %s",
+                self.attached_style_references,
+            )
+            sr_sections = []
+            for sr in self.attached_style_references:
+                slug = (
+                    sr.get("style_reference_slug") or sr.get("style_ref_slug") or sr.get("slug", "")
+                )
+                strict = sr.get("strict", True)
+                logger.info(
+                    "[HierarchicalContext] Processing style ref: slug=%s, strict=%s", slug, strict
+                )
                 if not slug:
+                    logger.warning("[HierarchicalContext] Skipping style ref with empty slug")
                     continue
                 try:
-                    template_builder = TemplateContextBuilder(self.brand_slug, slug, strict)
-                    template_sections.append(template_builder.build_context_section())
-                except ValueError:
+                    sr_builder = StyleReferenceContextBuilder(self.brand_slug, slug, strict)
+                    sr_sections.append(sr_builder.build_context_section())
+                    logger.info("[HierarchicalContext] Built context for style ref: %s", slug)
+                except ValueError as e:
+                    logger.warning("[HierarchicalContext] Failed to build style ref context: %s", e)
                     pass
-            if template_sections:
-                if len(template_sections) > 1:
-                    templates_header = f"### Attached Templates ({len(template_sections)})\nMultiple templates attached. Follow the constraints of EACH template."
+            if sr_sections:
+                if len(sr_sections) > 1:
+                    sr_header = f"### Attached Style References ({len(sr_sections)})\nMultiple style references attached. Follow the constraints of EACH style reference."
                 else:
-                    templates_header = "### Attached Template"
-                sections.append(templates_header + "\n\n" + "\n\n".join(template_sections))
+                    sr_header = "### Attached Style Reference"
+                sections.append(sr_header + "\n\n" + "\n\n".join(sr_sections))
+                logger.info(
+                    "[HierarchicalContext] Added %d style ref sections to context", len(sr_sections)
+                )
         if not sections:
             return ""
         return "\n\n---\n\n".join(sections)

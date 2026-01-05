@@ -33,10 +33,10 @@ class CostEstimate:
         lines = [
             f"Image Generation ({self.image_count} images):",
             f"  ~${self.image_total:.2f}",
-            f"",
+            "",
             f"Video Generation ({self.video_count} clips, {self.video_duration_seconds}s total):",
             f"  ~${self.video_total:.2f}",
-            f"",
+            "",
             f"Estimated Total: ${self.total_min:.2f} - ${self.total_max:.2f}",
         ]
         return "\n".join(lines)

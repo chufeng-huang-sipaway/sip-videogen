@@ -1,8 +1,8 @@
-//Autocomplete dropdown for @product: and @template: mentions
+//Autocomplete dropdown for @product: and @style: mentions
 import{useState,useEffect,useMemo,useRef,useCallback,forwardRef,useImperativeHandle}from'react'
 import{Package,FileImage}from'lucide-react'
 import{useProducts}from'@/context/ProductContext'
-import{useTemplates}from'@/context/TemplateContext'
+import{useStyleReferences}from'@/context/StyleReferenceContext'
 import{bridge,isPyWebView}from'@/lib/bridge'
 import{getCurrentMention}from'@/lib/mentionParser'
 import{cn}from'@/lib/utils'
@@ -18,30 +18,30 @@ ld()
 return()=>{c=true}},[path])
 if(!src)return(<div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0"><Package className="h-3 w-3 text-muted-foreground/50"/></div>)
 return<img src={src} alt="" className="h-6 w-6 rounded object-cover shrink-0"/>}
-//Thumbnail component for templates
-function TplThumb({path}:{path:string}){
+//Thumbnail component for style references
+function SrThumb({path}:{path:string}){
 const[src,setSrc]=useState<string|null>(null)
 useEffect(()=>{
 let c=false
 async function ld(){
 if(!isPyWebView()||!path)return
-try{const u=await bridge.getTemplateImageThumbnail(path);if(!c)setSrc(u)}catch{}}
+try{const u=await bridge.getStyleReferenceImageThumbnail(path);if(!c)setSrc(u)}catch{}}
 ld()
 return()=>{c=true}},[path])
 if(!src)return(<div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0"><FileImage className="h-3 w-3 text-muted-foreground/50"/></div>)
 return<img src={src} alt="" className="h-6 w-6 rounded object-cover shrink-0"/>}
-interface MentionItem{type:'product'|'template';slug:string;name:string;description:string;image:string}
+interface MentionItem{type:'product'|'style';slug:string;name:string;description:string;image:string}
 export interface MentionAutocompleteRef{
 handleKeyDown:(e:React.KeyboardEvent)=>boolean}
 interface MentionAutocompleteProps{
 text:string
 caretPos:number
-onSelect:(type:'product'|'template',slug:string,start:number)=>void
+onSelect:(type:'product'|'style',slug:string,start:number)=>void
 onClose:()=>void}
 export const MentionAutocomplete=forwardRef<MentionAutocompleteRef,MentionAutocompleteProps>(
 function MentionAutocomplete({text,caretPos,onSelect,onClose},ref){
 const{products}=useProducts()
-const{templates}=useTemplates()
+const{styleReferences}=useStyleReferences()
 const[hlIdx,setHlIdx]=useState(0)
 const listRef=useRef<HTMLDivElement>(null)
 //Get current mention context
@@ -56,11 +56,11 @@ if(type==='all'||type==='product'){
 for(const p of products){
 if(!q||p.name.toLowerCase().includes(q)||p.slug.includes(q)){
 result.push({type:'product',slug:p.slug,name:p.name,description:p.description,image:p.primary_image})}}}
-if(type==='all'||type==='template'){
-for(const t of templates){
-if(!q||t.name.toLowerCase().includes(q)||t.slug.includes(q)){
-result.push({type:'template',slug:t.slug,name:t.name,description:t.description,image:t.primary_image})}}}
-return result.slice(0,10)},[mentionCtx,products,templates])
+if(type==='all'||type==='style'){
+for(const sr of styleReferences){
+if(!q||sr.name.toLowerCase().includes(q)||sr.slug.includes(q)){
+result.push({type:'style',slug:sr.slug,name:sr.name,description:sr.description,image:sr.primary_image})}}}
+return result.slice(0,10)},[mentionCtx,products,styleReferences])
 //Reset highlight on list change
 useEffect(()=>{setHlIdx(0)},[items.length])
 //Scroll highlighted into view
@@ -101,7 +101,7 @@ return(
 <div className="p-1 space-y-0.5">
 {items.map((item,i)=>(
 <button key={`${item.type}-${item.slug}`} data-idx={i} type="button" onClick={()=>selectItem(item)} className={cn('w-full flex items-center gap-2 p-1.5 rounded-lg text-left transition-colors',hlIdx===i?'bg-muted':'hover:bg-muted/50')}>
-{item.type==='product'?<ProdThumb path={item.image}/>:<TplThumb path={item.image}/>}
+{item.type==='product'?<ProdThumb path={item.image}/>:<SrThumb path={item.image}/>}
 <div className="flex-1 min-w-0">
 <div className="flex items-center gap-1.5">
 <span className="font-medium text-xs truncate">{item.name}</span>

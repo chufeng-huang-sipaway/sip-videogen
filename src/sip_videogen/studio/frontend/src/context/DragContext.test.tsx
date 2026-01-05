@@ -64,7 +64,7 @@ Object.defineProperty(secondZone,'getBoundingClientRect',{value:()=>({left:200,r
 const secondHandler=vi.fn()
 api.registerDropZone('zone-1',dropZoneEl,dropHandler)
 api.registerDropZone('zone-2',secondZone,secondHandler)
-act(()=>{api.setDragData({type:'template',path:'my-template'})})
+act(()=>{api.setDragData({type:'style-reference',path:'my-style-ref'})})
 //Drop in second zone
 const mouseUp=new MouseEvent('mouseup',{clientX:250,clientY:50,bubbles:true})
 act(()=>{document.dispatchEvent(mouseUp)})

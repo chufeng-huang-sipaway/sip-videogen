@@ -17,14 +17,14 @@ from sip_videogen.generators.kling_generator import (
     KlingGenerationResult,
     KlingVideoGenerator,
 )
+from sip_videogen.generators.music_generator import (
+    MusicGenerationError,
+    MusicGenerator,
+)
 from sip_videogen.generators.sora_generator import (
     SoraConfig,
     SoraGenerationResult,
     SoraVideoGenerator,
-)
-from sip_videogen.generators.music_generator import (
-    MusicGenerationError,
-    MusicGenerator,
 )
 from sip_videogen.generators.video_generator import (
     VEOVideoGenerator,

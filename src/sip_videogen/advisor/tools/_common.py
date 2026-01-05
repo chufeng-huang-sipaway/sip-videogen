@@ -8,8 +8,8 @@ from sip_videogen.brands.storage import (
     get_brand_dir,
     get_brands_dir,
     load_product,
-    load_template,
-    load_template_summary,
+    load_style_reference,
+    load_style_reference_summary,
     list_brands,
     list_project_assets,
     add_product_image as storage_add_product_image,
@@ -20,11 +20,11 @@ from sip_videogen.brands.storage import (
     load_brand as storage_load_brand,
     save_product as storage_save_product,
     set_primary_product_image as storage_set_primary_product_image,
-    create_template as storage_create_template,
-    save_template as storage_save_template,
-    add_template_image as storage_add_template_image,
-    list_templates as storage_list_templates,
-    delete_template as storage_delete_template,
+    create_style_reference as storage_create_style_reference,
+    save_style_reference as storage_save_style_reference,
+    add_style_reference_image as storage_add_style_reference_image,
+    list_style_references as storage_list_style_references,
+    delete_style_reference as storage_delete_style_reference,
 )
 from sip_videogen.config.settings import get_settings
 from sip_videogen.config.logging import get_logger

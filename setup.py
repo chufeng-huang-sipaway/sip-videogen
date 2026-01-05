@@ -20,8 +20,8 @@ Notes:
 - Full builds may require additional configuration for production deployment
 """
 
-import sys
 import os
+import sys
 
 # Ensure py2app is available
 try:

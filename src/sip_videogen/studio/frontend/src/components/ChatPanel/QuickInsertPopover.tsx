@@ -3,8 +3,8 @@ import {Search,Package,FileImage,Check,Upload} from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
 import {Tabs,TabsList,TabsTrigger,TabsContent} from '@/components/ui/tabs'
 import {useProducts} from '@/context/ProductContext'
-import {useTemplates} from '@/context/TemplateContext'
-import {bridge,isPyWebView,type ProductEntry,type TemplateSummary} from '@/lib/bridge'
+import {useStyleReferences} from '@/context/StyleReferenceContext'
+import {bridge,isPyWebView,type ProductEntry,type StyleReferenceSummary} from '@/lib/bridge'
 //Thumbnail component for products
 function ProdThumb({path}:{path:string}){
 const [src,setSrc]=useState<string|null>(null)
@@ -17,14 +17,14 @@ ld()
 return()=>{c=true}},[path])
 if(!src)return(<div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Package className="h-4 w-4 text-muted-foreground/50"/></div>)
 return <img src={src} alt="" className="h-9 w-9 rounded-lg object-cover shrink-0 ring-1 ring-border/20"/>}
-//Thumbnail component for templates
-function TplThumb({path}:{path:string}){
+//Thumbnail component for style references
+function SrThumb({path}:{path:string}){
 const [src,setSrc]=useState<string|null>(null)
 useEffect(()=>{
 let c=false
 async function ld(){
 if(!isPyWebView()||!path)return
-try{const u=await bridge.getTemplateImageThumbnail(path);if(!c)setSrc(u)}catch{}}
+try{const u=await bridge.getStyleReferenceImageThumbnail(path);if(!c)setSrc(u)}catch{}}
 ld()
 return()=>{c=true}},[path])
 if(!src)return(<div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><FileImage className="h-4 w-4 text-muted-foreground/50"/></div>)
@@ -36,8 +36,8 @@ trigger:React.ReactNode
 onUploadImage?:()=>void}
 export function QuickInsertPopover({open,onOpenChange,trigger,onUploadImage}:QuickInsertPopoverProps){
 const {products,attachedProducts,attachProduct,detachProduct}=useProducts()
-const {templates,attachedTemplates,attachTemplate,detachTemplate}=useTemplates()
-const [tab,setTab]=useState<'products'|'templates'>('products')
+const {styleReferences,attachedStyleReferences,attachStyleReference,detachStyleReference}=useStyleReferences()
+const [tab,setTab]=useState<'products'|'styles'>('products')
 const [query,setQuery]=useState('')
 const searchRef=useRef<HTMLInputElement>(null)
 const listRef=useRef<HTMLDivElement>(null)
@@ -49,12 +49,12 @@ const filteredProds=useMemo(()=>{
 if(!query.trim())return products
 const q=query.toLowerCase()
 return products.filter(p=>p.name.toLowerCase().includes(q)||p.description?.toLowerCase().includes(q))},[products,query])
-//Filter templates
-const filteredTpls=useMemo(()=>{
-if(!query.trim())return templates
+//Filter style references
+const filteredSrs=useMemo(()=>{
+if(!query.trim())return styleReferences
 const q=query.toLowerCase()
-return templates.filter(t=>t.name.toLowerCase().includes(q)||t.description?.toLowerCase().includes(q))},[templates,query])
-const curList=tab==='products'?filteredProds:filteredTpls
+return styleReferences.filter(sr=>sr.name.toLowerCase().includes(q)||sr.description?.toLowerCase().includes(q))},[styleReferences,query])
+const curList=tab==='products'?filteredProds:filteredSrs
 const maxIdx=curList.length-1
 //Reset highlight when list/tab changes
 useEffect(()=>{setHlIdx(0)},[tab,query])
@@ -66,27 +66,27 @@ el?.scrollIntoView({block:'nearest'})},[hlIdx])
 const toggleProd=useCallback((slug:string)=>{
 if(attachedProducts.includes(slug))detachProduct(slug)
 else attachProduct(slug)},[attachedProducts,attachProduct,detachProduct])
-const toggleTpl=useCallback((slug:string)=>{
-const att=attachedTemplates.some(t=>t.template_slug===slug)
-if(att)detachTemplate(slug)
-else attachTemplate(slug)},[attachedTemplates,attachTemplate,detachTemplate])
+const toggleSr=useCallback((slug:string)=>{
+const att=attachedStyleReferences.some(sr=>sr.style_reference_slug===slug)
+if(att)detachStyleReference(slug)
+else attachStyleReference(slug)},[attachedStyleReferences,attachStyleReference,detachStyleReference])
 const handleKeyDown=(e:React.KeyboardEvent)=>{
 if(e.key==='ArrowDown'){e.preventDefault();setHlIdx(i=>Math.min(i+1,maxIdx))}
 else if(e.key==='ArrowUp'){e.preventDefault();setHlIdx(i=>Math.max(i-1,0))}
 else if(e.key==='Enter'&&curList.length>0){
 e.preventDefault()
 if(tab==='products')toggleProd((curList[hlIdx] as ProductEntry).slug)
-else toggleTpl((curList[hlIdx] as TemplateSummary).slug)}
+else toggleSr((curList[hlIdx] as StyleReferenceSummary).slug)}
 else if(e.key==='Escape'){onOpenChange(false)}}
 return(
 <Popover.Root open={open} onOpenChange={onOpenChange}>
 <Popover.Trigger asChild>{trigger}</Popover.Trigger>
 <Popover.Portal>
 <Popover.Content align="start" sideOffset={10} className="z-50 w-72 rounded-2xl border border-border/30 bg-popover text-popover-foreground shadow-float p-3 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95" onKeyDown={handleKeyDown}>
-<Tabs value={tab} onValueChange={v=>setTab(v as 'products'|'templates')} className="w-full">
+<Tabs value={tab} onValueChange={v=>setTab(v as 'products'|'styles')} className="w-full">
 <TabsList className="w-full grid grid-cols-2 mb-2">
 <TabsTrigger value="products" className="text-xs">Products</TabsTrigger>
-<TabsTrigger value="templates" className="text-xs">Templates</TabsTrigger>
+<TabsTrigger value="styles" className="text-xs">Styles</TabsTrigger>
 </TabsList>
 {/* Search input */}
 <div className="relative mb-2">
@@ -105,15 +105,15 @@ return(<button key={p.slug} data-idx={i} onClick={()=>toggleProd(p.slug)} classN
 {att&&<Check className="h-3.5 w-3.5 text-primary shrink-0"/>}
 </button>)})}</div>)}</div>
 </TabsContent>
-{/* Templates list */}
-<TabsContent value="templates" className="mt-0">
-<div ref={tab==='templates'?listRef:undefined} className="max-h-48 overflow-y-auto -mx-1">
-{filteredTpls.length===0?(<div className="py-6 text-center text-muted-foreground text-xs">{query?'No templates match':'No templates'}</div>):(
-<div className="space-y-0.5 px-1">{filteredTpls.map((t,i)=>{
-const att=attachedTemplates.some(a=>a.template_slug===t.slug)
-return(<button key={t.slug} data-idx={i} onClick={()=>toggleTpl(t.slug)} className={`w-full flex items-center gap-2.5 p-1.5 rounded-lg text-left transition-colors ${att?'bg-primary/10 hover:bg-primary/15':hlIdx===i?'bg-muted':'hover:bg-muted'}`}>
-<TplThumb path={t.primary_image}/>
-<div className="flex-1 min-w-0"><div className="font-medium text-xs text-foreground truncate">{t.name}</div>{t.description&&<div className="text-[10px] text-muted-foreground truncate">{t.description}</div>}</div>
+{/* Style references list */}
+<TabsContent value="styles" className="mt-0">
+<div ref={tab==='styles'?listRef:undefined} className="max-h-48 overflow-y-auto -mx-1">
+{filteredSrs.length===0?(<div className="py-6 text-center text-muted-foreground text-xs">{query?'No styles match':'No style references'}</div>):(
+<div className="space-y-0.5 px-1">{filteredSrs.map((sr,i)=>{
+const att=attachedStyleReferences.some(a=>a.style_reference_slug===sr.slug)
+return(<button key={sr.slug} data-idx={i} onClick={()=>toggleSr(sr.slug)} className={`w-full flex items-center gap-2.5 p-1.5 rounded-lg text-left transition-colors ${att?'bg-primary/10 hover:bg-primary/15':hlIdx===i?'bg-muted':'hover:bg-muted'}`}>
+<SrThumb path={sr.primary_image}/>
+<div className="flex-1 min-w-0"><div className="font-medium text-xs text-foreground truncate">{sr.name}</div>{sr.description&&<div className="text-[10px] text-muted-foreground truncate">{sr.description}</div>}</div>
 {att&&<Check className="h-3.5 w-3.5 text-primary shrink-0"/>}
 </button>)})}</div>)}</div>
 </TabsContent>

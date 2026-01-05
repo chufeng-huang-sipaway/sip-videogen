@@ -12,7 +12,6 @@ models tend to drop when text is unstructured or overly long.
 from __future__ import annotations
 
 import re
-from typing import Iterable
 
 from sip_videogen.models.script import ElementType, SceneAction, SharedElement, VideoScript
 
@@ -124,9 +123,17 @@ def _build_shot_lines(
     key_elements = ", ".join(roles) if roles else ""
     shared_tail = f"Setting: {setting_anchor}" if setting_anchor else ""
     if atmosphere:
-        shared_tail = f"{shared_tail}; Atmosphere: {atmosphere}" if shared_tail else f"Atmosphere: {atmosphere}"
+        shared_tail = (
+            f"{shared_tail}; Atmosphere: {atmosphere}"
+            if shared_tail
+            else f"Atmosphere: {atmosphere}"
+        )
     if key_elements:
-        shared_tail = f"{shared_tail}; Key elements: {key_elements}" if shared_tail else f"Key elements: {key_elements}"
+        shared_tail = (
+            f"{shared_tail}; Key elements: {key_elements}"
+            if shared_tail
+            else f"Key elements: {key_elements}"
+        )
 
     if scene.sub_shots:
         for sub_shot in scene.sub_shots:
@@ -188,7 +195,9 @@ def build_structured_scene_prompt(
     if script and script.tone:
         style_parts.append(f"Tone: {_compact_text(script.tone, max_phrases=1, max_words=8)}")
     if script and script.visual_style:
-        style_parts.append(f"Visual style: {_compact_text(script.visual_style, max_phrases=2, max_words=14)}")
+        style_parts.append(
+            f"Visual style: {_compact_text(script.visual_style, max_phrases=2, max_words=14)}"
+        )
     if style_parts:
         sections.append(" | ".join(style_parts))
 

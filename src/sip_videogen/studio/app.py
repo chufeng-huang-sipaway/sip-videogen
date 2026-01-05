@@ -1,61 +1,77 @@
 """PyWebView application setup."""
+
 import logging
 import os
 import sys
 from pathlib import Path
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-def _patch_pywebview_cocoa_drag()->None:
+
+def _patch_pywebview_cocoa_drag() -> None:
     """Work around PyWebView Cocoa bug that breaks HTML drag events."""
-    if sys.platform!="darwin":return
+    if sys.platform != "darwin":
+        return
     try:
         import webview.platforms.cocoa as cocoa
-    except Exception:return
+    except Exception:
+        return
     try:
-        host_cls=cocoa.BrowserView.WebKitHost
-        mouse_dragged=getattr(host_cls,"mouseDragged_",None)
-        code=getattr(mouse_dragged,"__code__",None)
-    except Exception:return
+        host_cls = cocoa.BrowserView.WebKitHost
+        mouse_dragged = getattr(host_cls, "mouseDragged_", None)
+        code = getattr(mouse_dragged, "__code__", None)
+    except Exception:
+        return
     # pywebview 6.1 calls `super(...).mouseDown_(event)` inside `mouseDragged_`, which
     # prevents native WebKit drag handling (HTML5 dragstart/dragover/drop never fire).
-    if not code or "mouseDown_" not in code.co_names:return
+    if not code or "mouseDown_" not in code.co_names:
+        return
 
-    AppKit=cocoa.AppKit
-    BrowserView=cocoa.BrowserView
-    state=cocoa._state
+    AppKit = cocoa.AppKit
+    BrowserView = cocoa.BrowserView
+    state = cocoa._state
 
-    def mouseDragged_(self,event):  # type: ignore[no-redef]
-        i=BrowserView.get_instance("webview",self)
-        window=self.window()
+    def mouseDragged_(self, event):  # type: ignore[no-redef]
+        i = BrowserView.get_instance("webview", self)
+        window = self.window()
 
         if i and i.frameless and i.easy_drag:
-            screenFrame=i.screen
-            if screenFrame is None:raise RuntimeError("Failed to obtain screen")
-            windowFrame=window.frame()
-            if windowFrame is None:raise RuntimeError("Failed to obtain frame")
+            screenFrame = i.screen
+            if screenFrame is None:
+                raise RuntimeError("Failed to obtain screen")
+            windowFrame = window.frame()
+            if windowFrame is None:
+                raise RuntimeError("Failed to obtain frame")
 
-            currentLocation=window.convertBaseToScreen_(window.mouseLocationOutsideOfEventStream())
-            newOrigin=AppKit.NSMakePoint(
-                (currentLocation.x-self.initialLocation.x),
-                (currentLocation.y-self.initialLocation.y),
+            currentLocation = window.convertBaseToScreen_(
+                window.mouseLocationOutsideOfEventStream()
             )
-            if (newOrigin.y+windowFrame.size.height)>(screenFrame.origin.y+screenFrame.size.height):
-                newOrigin.y=screenFrame.origin.y+(screenFrame.size.height+windowFrame.size.height)
+            newOrigin = AppKit.NSMakePoint(
+                (currentLocation.x - self.initialLocation.x),
+                (currentLocation.y - self.initialLocation.y),
+            )
+            if (newOrigin.y + windowFrame.size.height) > (
+                screenFrame.origin.y + screenFrame.size.height
+            ):
+                newOrigin.y = screenFrame.origin.y + (
+                    screenFrame.size.height + windowFrame.size.height
+                )
             window.setFrameOrigin_(newOrigin)
 
-        if event.modifierFlags()&getattr(AppKit,"NSEventModifierFlagControl",1<<18):
-            if not state.get("debug"):return
+        if event.modifierFlags() & getattr(AppKit, "NSEventModifierFlagControl", 1 << 18):
+            if not state.get("debug"):
+                return
 
-        return super(BrowserView.WebKitHost,self).mouseDragged_(event)
+        return super(BrowserView.WebKitHost, self).mouseDragged_(event)
 
-    host_cls.mouseDragged_=mouseDragged_  # type: ignore[assignment]
+    host_cls.mouseDragged_ = mouseDragged_  # type: ignore[assignment]
     logger.info("Patched PyWebView Cocoa drag handler (mouseDragged_)")
 
 
 def is_dev_mode() -> bool:
     """Check if running in development mode (uses Vite dev server)."""
     return os.environ.get("STUDIO_DEV", "0") == "1"
+
 
 def is_debug_mode() -> bool:
     """Check if debug mode enabled (right-click dev tools)."""
@@ -123,6 +139,7 @@ def main():
     """Launch the Brand Studio application."""
     # Set up logging with file output for debugging
     from sip_videogen.config.logging import setup_logging
+
     log_file = Path.home() / ".sip-videogen" / "studio.log"
     setup_logging(level="INFO", log_file=log_file)
     logging.getLogger("sip_videogen").info(f"=== Brand Studio started, logging to {log_file} ===")

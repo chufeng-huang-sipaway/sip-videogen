@@ -8,8 +8,12 @@ from sip_videogen.advisor.product_specs import (
     extract_dimensions_from_text,
     parse_measurement_to_mm,
 )
-from sip_videogen.brands.models import (PackagingTextDescription,PackagingTextElement,
-    ProductAttribute,ProductFull)
+from sip_videogen.brands.models import (
+    PackagingTextDescription,
+    PackagingTextElement,
+    ProductAttribute,
+    ProductFull,
+)
 
 
 class TestParseMeasurementToMm:
@@ -250,11 +254,22 @@ class TestPackagingTextSpecs:
 
     def test_build_with_packaging_text(self):
         """Test building specs includes packaging text."""
-        product = ProductFull(slug="bottle",name="Bottle",description="",
-            packaging_text=PackagingTextDescription(elements=[
-                PackagingTextElement(text="BRAND NAME",typography="sans-serif",
-                    emphasis="bold",position="front-center"),
-                PackagingTextElement(text="50ml",typography="serif",position="bottom")]))
+        product = ProductFull(
+            slug="bottle",
+            name="Bottle",
+            description="",
+            packaging_text=PackagingTextDescription(
+                elements=[
+                    PackagingTextElement(
+                        text="BRAND NAME",
+                        typography="sans-serif",
+                        emphasis="bold",
+                        position="front-center",
+                    ),
+                    PackagingTextElement(text="50ml", typography="serif", position="bottom"),
+                ]
+            ),
+        )
         specs = build_product_specs(product)
         assert '"BRAND NAME"' in specs.packaging_text
         assert "sans-serif" in specs.packaging_text
@@ -264,9 +279,14 @@ class TestPackagingTextSpecs:
 
     def test_packaging_text_with_disambiguation(self):
         """Test packaging text includes disambiguation notes."""
-        product = ProductFull(slug="jar",name="Jar",description="",
-            packaging_text=PackagingTextDescription(elements=[
-                PackagingTextElement(text="OLAY",notes="letter O not zero")]))
+        product = ProductFull(
+            slug="jar",
+            name="Jar",
+            description="",
+            packaging_text=PackagingTextDescription(
+                elements=[PackagingTextElement(text="OLAY", notes="letter O not zero")]
+            ),
+        )
         specs = build_product_specs(product)
         assert '"OLAY"' in specs.packaging_text
         assert "[letter O not zero]" in specs.packaging_text
@@ -274,19 +294,28 @@ class TestPackagingTextSpecs:
     def test_packaging_text_filters_long_elements(self):
         """Test elements over 80 chars are filtered out."""
         long_text = "A" * 81
-        product = ProductFull(slug="box",name="Box",description="",
-            packaging_text=PackagingTextDescription(elements=[
-                PackagingTextElement(text=long_text),
-                PackagingTextElement(text="SHORT")]))
+        product = ProductFull(
+            slug="box",
+            name="Box",
+            description="",
+            packaging_text=PackagingTextDescription(
+                elements=[PackagingTextElement(text=long_text), PackagingTextElement(text="SHORT")]
+            ),
+        )
         specs = build_product_specs(product)
         assert "SHORT" in specs.packaging_text
         assert long_text not in specs.packaging_text
 
     def test_packaging_text_caps_at_five(self):
         """Test only first 5 valid elements are included."""
-        product = ProductFull(slug="box",name="Box",description="",
-            packaging_text=PackagingTextDescription(elements=[
-                PackagingTextElement(text=f"TEXT{i}") for i in range(7)]))
+        product = ProductFull(
+            slug="box",
+            name="Box",
+            description="",
+            packaging_text=PackagingTextDescription(
+                elements=[PackagingTextElement(text=f"TEXT{i}") for i in range(7)]
+            ),
+        )
         specs = build_product_specs(product)
         assert '"TEXT0"' in specs.packaging_text
         assert '"TEXT4"' in specs.packaging_text
@@ -295,14 +324,17 @@ class TestPackagingTextSpecs:
 
     def test_packaging_text_none_unchanged(self):
         """Test products without packaging_text don't have it in specs."""
-        product = ProductFull(slug="plain",name="Plain",description="A product")
+        product = ProductFull(slug="plain", name="Plain", description="A product")
         specs = build_product_specs(product)
         assert specs.packaging_text == ""
 
     def test_packaging_text_in_prompt_block(self):
         """Test packaging text appears in prompt block."""
-        specs = ProductSpecs(product_name="Test",product_slug="test",
-            packaging_text='"BRAND" (sans-serif, bold) at front')
+        specs = ProductSpecs(
+            product_name="Test",
+            product_slug="test",
+            packaging_text='"BRAND" (sans-serif, bold) at front',
+        )
         block = specs.to_prompt_block()
         assert "Packaging text:" in block
         assert '"BRAND"' in block
@@ -310,15 +342,19 @@ class TestPackagingTextSpecs:
 
     def test_has_structured_data_with_packaging_text(self):
         """Test has_structured_data returns True with packaging_text."""
-        specs = ProductSpecs(product_name="Test",product_slug="test",
-            packaging_text='"TEXT"')
+        specs = ProductSpecs(product_name="Test", product_slug="test", packaging_text='"TEXT"')
         assert specs.has_structured_data() is True
 
     def test_packaging_text_escapes_special_chars(self):
         """Test special characters are properly escaped."""
-        product = ProductFull(slug="item",name="Item",description="",
-            packaging_text=PackagingTextDescription(elements=[
-                PackagingTextElement(text='Say "Hello"')]))
+        product = ProductFull(
+            slug="item",
+            name="Item",
+            description="",
+            packaging_text=PackagingTextDescription(
+                elements=[PackagingTextElement(text='Say "Hello"')]
+            ),
+        )
         specs = build_product_specs(product)
-        #json.dumps escapes quotes as \"
-        assert r'\"Hello\"' in specs.packaging_text
+        # json.dumps escapes quotes as \"
+        assert r"\"Hello\"" in specs.packaging_text

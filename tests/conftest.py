@@ -16,7 +16,6 @@ from sip_videogen.models.script import (
     VideoScript,
 )
 
-
 # ============================================================================
 # Environment Fixtures
 # ============================================================================
@@ -259,11 +258,13 @@ def mock_gcs_client() -> MagicMock:
     mock_bucket = MagicMock()
     mock_client.bucket.return_value = mock_bucket
     return mock_client
-#=============================================================================
-#Studio Layer Isolation Fixtures
-#=============================================================================
+
+
+# =============================================================================
+# Studio Layer Isolation Fixtures
+# =============================================================================
 @pytest.fixture
-def isolated_home(tmp_path:Path,monkeypatch)->Path:
+def isolated_home(tmp_path: Path, monkeypatch) -> Path:
     """Redirect all ~/.sip-videogen paths to temp dir for isolated tests.
     Patches:
     - HOME environment variable
@@ -271,31 +272,48 @@ def isolated_home(tmp_path:Path,monkeypatch)->Path:
     - studio.utils.config_store.CONFIG_PATH
     Returns the fake home directory path.
     """
-    fake_home=tmp_path/"home"
+    fake_home = tmp_path / "home"
     fake_home.mkdir()
-    fake_sip_dir=fake_home/".sip-videogen"
+    fake_sip_dir = fake_home / ".sip-videogen"
     fake_sip_dir.mkdir()
-    (fake_sip_dir/"brands").mkdir()
-    monkeypatch.setenv("HOME",str(fake_home))
-    #Patch storage.get_brands_dir() to return fake brands dir
-    monkeypatch.setattr("sip_videogen.brands.storage.get_brands_dir",lambda:fake_sip_dir/"brands")
-    #Patch config store path
-    try:monkeypatch.setattr("sip_videogen.studio.utils.config_store.CONFIG_PATH",fake_sip_dir/"config.json")
-    except AttributeError:pass
+    (fake_sip_dir / "brands").mkdir()
+    monkeypatch.setenv("HOME", str(fake_home))
+    # Patch storage.get_brands_dir() to return fake brands dir
+    monkeypatch.setattr(
+        "sip_videogen.brands.storage.get_brands_dir", lambda: fake_sip_dir / "brands"
+    )
+    # Patch config store path
+    try:
+        monkeypatch.setattr(
+            "sip_videogen.studio.utils.config_store.CONFIG_PATH", fake_sip_dir / "config.json"
+        )
+    except AttributeError:
+        pass
     return fake_home
+
+
 @pytest.fixture
-def mock_os_actions(monkeypatch)->None:
+def mock_os_actions(monkeypatch) -> None:
     """Stub out OS-specific actions (Finder, trash) for deterministic offline tests."""
-    #Stub open_in_finder to no-op
-    try:monkeypatch.setattr("sip_videogen.studio.utils.os_utils.open_in_finder",lambda p:None)
-    except AttributeError:pass
-    #Stub move_to_trash to just delete the file
-    try:monkeypatch.setattr("sip_videogen.studio.utils.os_utils.move_to_trash",lambda p:Path(p).unlink(missing_ok=True))
-    except AttributeError:pass
+    # Stub open_in_finder to no-op
+    try:
+        monkeypatch.setattr("sip_videogen.studio.utils.os_utils.open_in_finder", lambda p: None)
+    except AttributeError:
+        pass
+    # Stub move_to_trash to just delete the file
+    try:
+        monkeypatch.setattr(
+            "sip_videogen.studio.utils.os_utils.move_to_trash",
+            lambda p: Path(p).unlink(missing_ok=True),
+        )
+    except AttributeError:
+        pass
+
+
 @pytest.fixture
-def temp_brands_dir(tmp_path:Path)->Path:
+def temp_brands_dir(tmp_path: Path) -> Path:
     """Create a temporary brands directory with index."""
-    brands_dir=tmp_path/"brands"
+    brands_dir = tmp_path / "brands"
     brands_dir.mkdir()
-    (brands_dir/"index.json").write_text('{"brands":[]}')
+    (brands_dir / "index.json").write_text('{"brands":[]}')
     return brands_dir

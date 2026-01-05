@@ -13,9 +13,11 @@ from .context import (
     HierarchicalContextBuilder,
     ProductContextBuilder,
     ProjectContextBuilder,
+    StyleReferenceContextBuilder,
     build_brand_context,
     build_product_context,
     build_project_context,
+    build_style_reference_context,
     build_turn_context,
 )
 from .memory import (
@@ -127,10 +129,21 @@ __all__ = [
     # Context Builder - Hierarchical (Phase 3)
     "HierarchicalContextBuilder",
     "build_turn_context",
+    # Context Builder - Style Reference
+    "StyleReferenceContextBuilder",
+    "build_style_reference_context",
 ]
-#Lazy loading for tools to avoid circular import with advisor.tools
+
+
+# Lazy loading for tools to avoid circular import with advisor.tools
 def __getattr__(name):
-    if name in("browse_brand_assets","fetch_brand_detail","get_brand_context","set_brand_context"):
+    if name in (
+        "browse_brand_assets",
+        "fetch_brand_detail",
+        "get_brand_context",
+        "set_brand_context",
+    ):
         from . import tools
-        return getattr(tools,name)
+
+        return getattr(tools, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -66,22 +66,41 @@ class ValidationError(SipVideoGenError):
 
 class PipelineError(SipVideoGenError):
     """Raised when the video generation pipeline fails."""
+
     pass
-class BrandNotFoundError(SipVideoGenError,ValueError):
+
+
+class BrandNotFoundError(SipVideoGenError, ValueError):
     """Raised when a brand doesn't exist."""
+
     pass
-class ProductNotFoundError(SipVideoGenError,ValueError):
+
+
+class ProductNotFoundError(SipVideoGenError, ValueError):
     """Raised when a product doesn't exist."""
+
     pass
-class ProjectNotFoundError(SipVideoGenError,ValueError):
+
+
+class ProjectNotFoundError(SipVideoGenError, ValueError):
     """Raised when a project doesn't exist."""
+
     pass
-class TemplateNotFoundError(SipVideoGenError,ValueError):
-    """Raised when a template doesn't exist."""
+
+
+class StyleReferenceNotFoundError(SipVideoGenError, ValueError):
+    """Raised when a style reference doesn't exist."""
+
     pass
-class StorageError(SipVideoGenError,ValueError):
+
+
+class StorageError(SipVideoGenError, ValueError):
     """Raised when storage operations fail."""
+
     pass
-class DuplicateEntityError(SipVideoGenError,ValueError):
+
+
+class DuplicateEntityError(SipVideoGenError, ValueError):
     """Raised when creating an entity that already exists."""
+
     pass

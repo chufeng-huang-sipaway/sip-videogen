@@ -109,9 +109,7 @@ class PromptRepairOutput(BaseModel):
     revised_setting_description: str = Field(
         description="The revised setting description if changes were needed"
     )
-    changes_made: str = Field(
-        description="Brief explanation of what was changed and why"
-    )
+    changes_made: str = Field(description="Brief explanation of what was changed and why")
 
 
 class DirectorsPitch(BaseModel):
@@ -122,25 +120,12 @@ class DirectorsPitch(BaseModel):
     the detailed scene breakdown.
     """
 
-    title: str = Field(
-        description="Proposed title for the video (2-5 words)"
-    )
-    logline: str = Field(
-        description="One-sentence hook that sells the concept"
-    )
-    tone: str = Field(
-        description="Overall mood and style (2-3 adjectives)"
-    )
-    scene_count: int = Field(
-        description="Planned number of scenes based on target duration"
-    )
-    estimated_duration: int = Field(
-        description="Estimated total duration in seconds"
-    )
-    brief_description: str = Field(
-        description="2-3 sentence overview of the planned narrative"
-    )
+    title: str = Field(description="Proposed title for the video (2-5 words)")
+    logline: str = Field(description="One-sentence hook that sells the concept")
+    tone: str = Field(description="Overall mood and style (2-3 adjectives)")
+    scene_count: int = Field(description="Planned number of scenes based on target duration")
+    estimated_duration: int = Field(description="Estimated total duration in seconds")
+    brief_description: str = Field(description="2-3 sentence overview of the planned narrative")
     key_elements: list[str] = Field(
-        default_factory=list,
-        description="Main visual elements/characters planned (3-5 items)"
+        default_factory=list, description="Main visual elements/characters planned (3-5 items)"
     )

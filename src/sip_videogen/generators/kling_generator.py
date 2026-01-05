@@ -26,8 +26,8 @@ from sip_videogen.generators.prompt_builder import (
     DEFAULT_MAX_PROMPT_CHARS,
     build_structured_scene_prompt,
 )
-from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.aspect_ratio import get_supported_ratio, validate_aspect_ratio
+from sip_videogen.models.assets import AssetType, GeneratedAsset
 from sip_videogen.models.script import SceneAction, VideoScript
 
 logger = logging.getLogger(__name__)
@@ -197,11 +197,13 @@ class KlingVideoGenerator(BaseVideoGenerator):
         duration = self.map_duration(scene.duration_seconds)
 
         # Validate and apply provider-specific fallback for aspect ratio
-        validated_ratio=validate_aspect_ratio(aspect_ratio)
-        actual_ratio,was_fallback=get_supported_ratio(validated_ratio,self.PROVIDER_NAME)
+        validated_ratio = validate_aspect_ratio(aspect_ratio)
+        actual_ratio, was_fallback = get_supported_ratio(validated_ratio, self.PROVIDER_NAME)
         if was_fallback:
-            logger.warning(f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})")
-        final_aspect_ratio=actual_ratio.value
+            logger.warning(
+                f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})"
+            )
+        final_aspect_ratio = actual_ratio.value
 
         logger.info(
             "Generating video for scene %d with Kling (duration: %ds, mode: %s)",
@@ -230,11 +232,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
             self._handle_error_response(response, scene.scene_number)
 
         task_data = response.json()
-        task_id = (
-            task_data.get("data", {}).get("task_id")
-            if isinstance(task_data, dict)
-            else None
-        )
+        task_id = task_data.get("data", {}).get("task_id") if isinstance(task_data, dict) else None
         if not task_id:
             task_id = task_data.get("task_id") if isinstance(task_data, dict) else None
 
@@ -249,9 +247,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
         video_url = await self._poll_for_completion(task_id, scene.scene_number)
 
         # Download video from CDN
-        local_path = await self._download_video(
-            video_url, output_dir, scene.scene_number
-        )
+        local_path = await self._download_video(video_url, output_dir, scene.scene_number)
 
         return GeneratedAsset(
             asset_type=AssetType.VIDEO_CLIP,
@@ -637,17 +633,11 @@ class KlingVideoGenerator(BaseVideoGenerator):
                     total=total_scenes,
                 )
 
-                tasks = [
-                    generate_with_semaphore(scene, task_id, progress)
-                    for scene in scenes
-                ]
+                tasks = [generate_with_semaphore(scene, task_id, progress) for scene in scenes]
                 generated = await asyncio.gather(*tasks)
 
         else:
-            tasks = [
-                generate_with_semaphore(scene, None, None)
-                for scene in scenes
-            ]
+            tasks = [generate_with_semaphore(scene, None, None) for scene in scenes]
             generated = await asyncio.gather(*tasks)
 
         # Filter out None results (failed generations)
@@ -687,11 +677,7 @@ class KlingVideoGenerator(BaseVideoGenerator):
             return {}
 
         # Build element_id to image mapping
-        element_to_image = {
-            img.element_id: img
-            for img in reference_images
-            if img.element_id
-        }
+        element_to_image = {img.element_id: img for img in reference_images if img.element_id}
 
         # Build scene to references mapping
         scene_refs: dict[int, list[GeneratedAsset]] = {}
