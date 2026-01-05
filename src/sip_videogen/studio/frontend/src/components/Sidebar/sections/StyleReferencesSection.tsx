@@ -8,6 +8,7 @@ import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView, type StyleReferenceSummary } from '@/lib/bridge'
 import { CreateStyleReferenceDialog } from '../CreateStyleReferenceDialog'
 import { EditStyleReferenceDialog } from '../EditStyleReferenceDialog'
+import { StyleReferenceViewModal } from '../StyleReferenceViewModal'
 //Thumbnail component for style reference images
 function StyleReferenceThumbnail({ path, size = 'sm' }: { path: string; size?: 'sm' | 'lg' }) {
     const [src, setSrc] = useState<string | null>(null)
@@ -56,6 +57,7 @@ const [actionError,setActionError]=useState<string|null>(null)
 const [localCreateDialogOpen,setLocalCreateDialogOpen]=useState(false)
 const isCreateDialogOpen=createDialogOpen??localCreateDialogOpen
 const setIsCreateDialogOpen=onCreateDialogChange??setLocalCreateDialogOpen
+const [viewingStyleRefSlug,setViewingStyleRefSlug]=useState<string|null>(null)
 const [editingStyleRefSlug,setEditingStyleRefSlug]=useState<string|null>(null)
 useEffect(()=>{if(actionError){const t=setTimeout(()=>setActionError(null),5000);return()=>clearTimeout(t)}},[actionError])
 const handleToggleStrict=(slug:string)=>{const attached=attachedStyleReferences.find(t=>t.style_reference_slug===slug);if(attached)setStyleReferenceStrictness(slug,!attached.strict)}
@@ -63,6 +65,7 @@ const handleDelete=async(slug:string)=>{if(confirm(`Delete style reference "${sl
 if(!activeBrand){return<div className="text-sm text-muted-foreground">Select a brand</div>}
 if(error){return(<div className="text-sm text-destructive">Error: {error}<Button variant="ghost" size="sm" onClick={refresh}>Retry</Button></div>)}
 return(
-<div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{styleReferences.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No style references yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{styleReferences.map((sr)=>{const attached=attachedStyleReferences.find(t=>t.style_reference_slug===sr.slug);return(<StyleReferenceCard key={sr.slug} styleRef={sr} isAttached={!!attached} attachedStrict={attached?.strict} onOpenModal={()=>setEditingStyleRefSlug(sr.slug)} onAttach={()=>attachStyleReference(sr.slug)} onDetach={()=>detachStyleReference(sr.slug)} onToggleStrict={()=>handleToggleStrict(sr.slug)} onEdit={()=>setEditingStyleRefSlug(sr.slug)} onDelete={()=>handleDelete(sr.slug)}/>)})}</div>)}
+<div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{styleReferences.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No style references yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{styleReferences.map((sr)=>{const attached=attachedStyleReferences.find(t=>t.style_reference_slug===sr.slug);return(<StyleReferenceCard key={sr.slug} styleRef={sr} isAttached={!!attached} attachedStrict={attached?.strict} onOpenModal={()=>setViewingStyleRefSlug(sr.slug)} onAttach={()=>attachStyleReference(sr.slug)} onDetach={()=>detachStyleReference(sr.slug)} onToggleStrict={()=>handleToggleStrict(sr.slug)} onEdit={()=>setEditingStyleRefSlug(sr.slug)} onDelete={()=>handleDelete(sr.slug)}/>)})}</div>)}
 <CreateStyleReferenceDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}/>
+{viewingStyleRefSlug&&(<StyleReferenceViewModal open={!!viewingStyleRefSlug} onOpenChange={(o)=>{if(!o)setViewingStyleRefSlug(null)}} styleRefSlug={viewingStyleRefSlug} onEdit={(slug)=>{setViewingStyleRefSlug(null);setEditingStyleRefSlug(slug)}} onDelete={handleDelete}/>)}
 {editingStyleRefSlug&&(<EditStyleReferenceDialog open={!!editingStyleRefSlug} onOpenChange={(o)=>{if(!o)setEditingStyleRefSlug(null)}} styleRefSlug={editingStyleRefSlug}/>)}</div>)}
