@@ -1,7 +1,6 @@
 """Logging configuration with Rich handler for pretty console output."""
 
 import logging
-import sys
 from pathlib import Path
 from typing import Literal
 

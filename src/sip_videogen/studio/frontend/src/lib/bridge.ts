@@ -183,15 +183,6 @@ export interface StyleReferenceAnalysisV1 {
   product_slot: ProductSlot | null
 }
 //V2 Style Reference Analysis (semantic-focused)
-export interface CopywritingSpec {
-  headline: string
-  subheadline: string
-  body_texts: string[]
-  benefits: string[]
-  cta: string
-  disclaimer: string
-  tagline: string
-}
 export interface VisualSceneSpec {
   scene_description: string
   product_placement: string
@@ -215,7 +206,6 @@ export interface StyleReferenceAnalysisV2 {
   canvas: CanvasSpec
   style: StyleSpec
   layout: LayoutStructureSpec
-  copywriting: CopywritingSpec
   visual_scene: VisualSceneSpec
   constraints: StyleReferenceConstraintsSpec
 }

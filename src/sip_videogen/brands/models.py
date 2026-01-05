@@ -944,31 +944,6 @@ class StyleReferenceAnalysis(BaseModel):
 
 
 # V2 Style Reference Analysis Models - Semantic-focused
-class CopywritingSpec(BaseModel):
-    """Verbatim copywriting extracted from style reference.
-    All text must be preserved EXACTLY as written - no paraphrasing."""
-
-    headline: str = Field(default="", description="Main headline, VERBATIM")
-    subheadline: str = Field(default="", description="Subheadline, VERBATIM")
-    body_texts: List[str] = Field(default_factory=list, description="Body copy lines, VERBATIM")
-    benefits: List[str] = Field(
-        default_factory=list, description="Benefit statements, VERBATIM in order"
-    )
-    cta: str = Field(default="", description="Call-to-action text, VERBATIM")
-    disclaimer: str = Field(default="", description="Disclaimer/fine print, VERBATIM")
-    tagline: str = Field(default="", description="Brand tagline if visible, VERBATIM")
-
-    @field_validator("headline", "subheadline", "cta", "disclaimer", "tagline", mode="before")
-    @classmethod
-    def _norm_str(cls, v):
-        return "" if v is None else v
-
-    @field_validator("body_texts", "benefits", mode="before")
-    @classmethod
-    def _norm_list(cls, v):
-        return [] if v is None else ([v] if isinstance(v, str) else v)
-
-
 class VisualSceneSpec(BaseModel):
     """Description of non-text visual elements in the style reference."""
 
@@ -1040,7 +1015,7 @@ class StyleReferenceConstraintsSpec(BaseModel):
 
 class StyleReferenceAnalysisV2(BaseModel):
     """Semantic style reference analysis (V2) - focuses on meaning, not geometry.
-    Captures verbatim copywriting, prose layout descriptions, and visual treatments
+    Captures prose layout descriptions, visual treatments, and scene elements
     instead of pixel coordinates."""
 
     version: str = Field(default="2.0", description="Analysis schema version")
@@ -1049,9 +1024,6 @@ class StyleReferenceAnalysisV2(BaseModel):
         default_factory=StyleSpec, description="Visual style (palette, mood, lighting)"
     )
     layout: LayoutStructureSpec = Field(description="Prose layout structure")
-    copywriting: CopywritingSpec = Field(
-        default_factory=CopywritingSpec, description="Verbatim text content"
-    )
     visual_scene: VisualSceneSpec = Field(
         default_factory=VisualSceneSpec, description="Non-text visual elements"
     )

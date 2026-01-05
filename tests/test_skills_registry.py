@@ -1,6 +1,5 @@
 """Tests for the skills registry system."""
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -352,7 +351,7 @@ class TestBundledSkills:
 
     def test_bundled_skills_load(self) -> None:
         """Test that bundled skills load correctly."""
-        from sip_videogen.advisor.skills.registry import SKILLS_DIR, get_skills_registry
+        from sip_videogen.advisor.skills.registry import get_skills_registry
 
         registry = get_skills_registry()
 

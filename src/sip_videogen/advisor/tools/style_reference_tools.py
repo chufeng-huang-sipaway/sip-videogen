@@ -53,14 +53,12 @@ def _impl_get_style_reference_detail(style_ref_slug: str) -> str:
         lines.append(f"**Primary Image:** {sr.primary_image}")
     if sr.analysis:
         lines.append("\n## Analysis")
-        if hasattr(sr.analysis, "copywriting"):
+        if hasattr(sr.analysis, "visual_scene"):
             lines.append("**V2 Semantic Analysis Available**")
-            if sr.analysis.copywriting:
-                cw = sr.analysis.copywriting
-                if cw.headline:
-                    lines.append(f'- Headline: "{cw.headline}"')
-                if cw.cta:
-                    lines.append(f'- CTA: "{cw.cta}"')
+            if sr.analysis.style and sr.analysis.style.mood:
+                lines.append(f'- Mood: "{sr.analysis.style.mood}"')
+            if sr.analysis.visual_scene and sr.analysis.visual_scene.photography_style:
+                lines.append(f'- Photography: "{sr.analysis.visual_scene.photography_style}"')
         else:
             lines.append("**V1 Geometry Analysis Available**")
     return "\n".join(lines)

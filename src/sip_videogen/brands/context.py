@@ -430,24 +430,13 @@ class StyleReferenceContextBuilder:
         """Build context from V2 semantic analysis."""
         mode_label = "Strict" if self.strict else "Loose"
         canvas = analysis.canvas
-        _ = analysis.style  # Available but not used in context header
+        style = analysis.style
         layout = analysis.layout
-        copy = analysis.copywriting
         scene = analysis.visual_scene
         # Summary info
         canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect"
         layout_info = f"**Layout**: {layout.structure}"
-        # Copywriting summary
-        copy_items = []
-        if copy.headline:
-            copy_items.append("headline")
-        if copy.benefits:
-            copy_items.append(f"{len(copy.benefits)} benefits")
-        if copy.disclaimer:
-            copy_items.append("disclaimer")
-        copy_info = (
-            f"**Copywriting**: {', '.join(copy_items)}" if copy_items else "**Copywriting**: none"
-        )
+        mood_info = f"**Mood**: {style.mood}" if style.mood else ""
         # Visual treatments
         treatments_info = (
             f"**Visual Treatments**: {', '.join(scene.visual_treatments[:3])}"
@@ -467,7 +456,7 @@ class StyleReferenceContextBuilder:
 
 {canvas_info}
 {layout_info}
-{copy_info}
+{mood_info}
 {treatments_info}
 
 {constraints}

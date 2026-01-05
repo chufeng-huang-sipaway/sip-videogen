@@ -92,9 +92,8 @@ const analysisSummary=originalStyleRef?.analysis?(
 {isV2StyleReferenceAnalysis(originalStyleRef.analysis)?(<>
 <div><span className="font-medium">Version:</span> V2 Semantic Analysis</div>
 <div><span className="font-medium">Aspect Ratio:</span> {originalStyleRef.analysis.canvas.aspect_ratio}</div>
-<div><span className="font-medium">Benefits:</span> {originalStyleRef.analysis.copywriting.benefits.length} identified</div>
-{originalStyleRef.analysis.copywriting.benefits.length>0&&(
-<div className="pl-2 border-l-2 border-muted text-muted-foreground/80 mt-1">{originalStyleRef.analysis.copywriting.benefits.slice(0,3).map((b,i)=><div key={i}>• {b}</div>)}{originalStyleRef.analysis.copywriting.benefits.length>3&&<div className="text-muted-foreground/60">...and {originalStyleRef.analysis.copywriting.benefits.length-3} more</div>}</div>)}
+{originalStyleRef.analysis.style?.mood&&(<div><span className="font-medium">Mood:</span> {originalStyleRef.analysis.style.mood}</div>)}
+{originalStyleRef.analysis.visual_scene?.visual_treatments?.length>0&&(<div><span className="font-medium">Treatments:</span> {originalStyleRef.analysis.visual_scene.visual_treatments.length} identified</div>)}
 </>):(<>
 <div><span className="font-medium">Version:</span> V1 Analysis</div>
 <div><span className="font-medium">Aspect Ratio:</span> {originalStyleRef.analysis.canvas.aspect_ratio}</div>

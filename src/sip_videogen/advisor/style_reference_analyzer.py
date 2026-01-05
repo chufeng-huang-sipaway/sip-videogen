@@ -1,6 +1,6 @@
 """Style reference analyzer for extracting layout using Gemini Vision.
 V1: Geometry-focused (deprecated)
-V2: Semantic-focused - verbatim copywriting, prose layout, visual treatments
+V2: Semantic-focused - prose layout, visual treatments, scene elements
 """
 
 import json
@@ -220,15 +220,6 @@ Return a JSON object with this exact structure:
     "hierarchy": "What draws the eye first, second, third? Describe the visual flow.",
     "alignment": "Alignment pattern: 'left-aligned text, right-aligned imagery' or 'centered'"
   },
-  "copywriting": {
-    "headline": "EXACT headline text, CHARACTER-FOR-CHARACTER as shown in image",
-    "subheadline": "EXACT subheadline if present, CHARACTER-FOR-CHARACTER",
-    "body_texts": ["Each line of body copy EXACTLY as written, preserve punctuation"],
-    "benefits": ["Each benefit statement EXACTLY as written, preserve asterisks/daggers"],
-    "cta": "Call-to-action text EXACTLY as written",
-    "disclaimer": "Any fine print or disclaimers EXACTLY as written, preserve line breaks",
-    "tagline": "Brand tagline if visible"
-  },
   "visual_scene": {
     "scene_description": "Describe the overall visual scene in detail",
     "product_placement": "How does the product appear? (e.g., 'Product centered on marble surface')",
@@ -238,10 +229,9 @@ Return a JSON object with this exact structure:
   },
   "constraints": {
     "non_negotiables": [
-      "All copywriting text must appear VERBATIM",
-      "Benefit statements must appear in exact order shown",
       "Layout structure must be preserved",
-      "Visual treatments must be replicated"
+      "Visual treatments must be replicated",
+      "Color palette and mood must be maintained"
     ],
     "creative_freedom": [
       "Background scene details can vary",
@@ -253,11 +243,10 @@ Return a JSON object with this exact structure:
 }
 
 CRITICAL INSTRUCTIONS:
-1. **VERBATIM TEXT**: Extract ALL text CHARACTER-FOR-CHARACTER. Include asterisks, daggers, etc.
-2. **PROSE LAYOUT**: Describe layout in words ('left half', 'right third'), NOT coordinates
-3. **VISUAL TREATMENTS**: Name specific design techniques ('rounded pill badges', 'soft shadow')
-4. **NON-NEGOTIABLES**: Identify what makes this style work
-5. **BENEFITS ORDER**: If there are ordered benefit statements, preserve their exact order
+1. **PROSE LAYOUT**: Describe layout in words ('left half', 'right third'), NOT coordinates
+2. **VISUAL TREATMENTS**: Name specific design techniques ('rounded pill badges', 'soft shadow')
+3. **NON-NEGOTIABLES**: Identify what makes this visual style work
+4. **MOOD & ATMOSPHERE**: Capture the overall feeling and aesthetic vibe
 
 Return ONLY valid JSON, no markdown formatting."""  # noqa: E501
 
@@ -305,9 +294,8 @@ async def analyze_style_reference_v2(images: list[Path | bytes]) -> StyleReferen
         data = json.loads(txt)
         analysis = StyleReferenceAnalysisV2(**data)
         c = analysis.canvas.aspect_ratio
-        b = len(analysis.copywriting.benefits)
         t = len(analysis.visual_scene.visual_treatments)
-        logger.info(f"V2 analysis complete: canvas={c}, copywriting_items={b}, treatments={t}")
+        logger.info(f"V2 analysis complete: canvas={c}, treatments={t}")
         return analysis
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse V2 Gemini response as JSON: {e}")

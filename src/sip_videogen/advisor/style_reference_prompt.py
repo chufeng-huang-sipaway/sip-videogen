@@ -1,6 +1,6 @@
 """Style reference prompt helper for building layout constraints.
 V1: Geometry-focused constraints (deprecated)
-V2: Semantic constraints - verbatim copywriting, prose layout, visual treatments
+V2: Semantic constraints - prose layout, visual treatments, scene elements
 """
 
 from __future__ import annotations
@@ -204,32 +204,12 @@ def build_style_reference_constraints_v2(
 
 
 def _build_strict_v2(analysis: "StyleReferenceAnalysisV2", include_usage: bool) -> str:
-    """Build strict V2 constraints - verbatim copy, exact layout."""
+    """Build strict V2 constraints - exact layout and visual style."""
     canvas = analysis.canvas
     style = analysis.style
     layout = analysis.layout
-    copy = analysis.copywriting
     scene = analysis.visual_scene
     constraints = analysis.constraints
-    # Verbatim copywriting block
-    copy_lines = []
-    if copy.headline:
-        copy_lines.append(f'Headline: "{copy.headline}"')
-    if copy.subheadline:
-        copy_lines.append(f'Subheadline: "{copy.subheadline}"')
-    for i, b in enumerate(copy.benefits, 1):
-        copy_lines.append(f'Benefit {i}: "{b}"')
-    for t in copy.body_texts:
-        copy_lines.append(f'Body: "{t}"')
-    if copy.cta:
-        copy_lines.append(f'CTA: "{copy.cta}"')
-    if copy.disclaimer:
-        copy_lines.append(f'Disclaimer: "{copy.disclaimer}"')
-    if copy.tagline:
-        copy_lines.append(f'Tagline: "{copy.tagline}"')
-    copy_block = (
-        "\n".join(f"  - {ln}" for ln in copy_lines) if copy_lines else "  (no text content)"
-    )
     # Visual treatments
     treatments = (
         ", ".join(scene.visual_treatments) if scene.visual_treatments else "(none specified)"
@@ -238,7 +218,7 @@ def _build_strict_v2(analysis: "StyleReferenceAnalysisV2", include_usage: bool) 
     non_neg = (
         "\n".join(f"  - {item}" for item in constraints.non_negotiables)
         if constraints.non_negotiables
-        else "  - All copywriting verbatim\n  - Layout structure preserved"
+        else "  - Layout structure preserved\n  - Visual treatments replicated"
     )
     # Palette
     palette_str = ", ".join(style.palette[:5]) if style.palette else "(not specified)"
@@ -257,9 +237,6 @@ Style reference constraints are auto-applied."""
   Hierarchy: {layout.hierarchy}
   Alignment: {layout.alignment}
 
-**VERBATIM COPYWRITING** (use EXACTLY as written, character-for-character):
-{copy_block}
-
 **Visual Scene**: {scene.scene_description}
   Photography: {scene.photography_style}
   Product placement: {scene.product_placement}
@@ -275,39 +252,20 @@ Style reference constraints are auto-applied."""
 {non_neg}
 
 **CRITICAL RULES**:
-1. Use ALL copywriting text VERBATIM - do not paraphrase or reword
-2. Preserve the layout structure described above
-3. Replicate visual treatments (pill badges, shadows, etc.)
-4. Maintain visual hierarchy
-5. Place product as described in product_placement
+1. Preserve the layout structure described above
+2. Replicate visual treatments (pill badges, shadows, etc.)
+3. Maintain visual hierarchy
+4. Place product as described in product_placement
 {usage_block}"""
 
 
 def _build_loose_v2(analysis: "StyleReferenceAnalysisV2", include_usage: bool) -> str:
-    """Build loose V2 constraints - verbatim copy, flexible layout."""
+    """Build loose V2 constraints - flexible layout with preserved visual style."""
     canvas = analysis.canvas
     style = analysis.style
     layout = analysis.layout
-    copy = analysis.copywriting
     scene = analysis.visual_scene
     constraints = analysis.constraints
-    # Verbatim copywriting block - STILL EXACT even in loose mode
-    copy_lines = []
-    if copy.headline:
-        copy_lines.append(f'Headline: "{copy.headline}"')
-    if copy.subheadline:
-        copy_lines.append(f'Subheadline: "{copy.subheadline}"')
-    for i, b in enumerate(copy.benefits, 1):
-        copy_lines.append(f'Benefit {i}: "{b}"')
-    for t in copy.body_texts:
-        copy_lines.append(f'Body: "{t}"')
-    if copy.cta:
-        copy_lines.append(f'CTA: "{copy.cta}"')
-    if copy.disclaimer:
-        copy_lines.append(f'Disclaimer: "{copy.disclaimer}"')
-    copy_block = (
-        "\n".join(f"  - {ln}" for ln in copy_lines) if copy_lines else "  (no text content)"
-    )
     # Creative freedom
     freedom = (
         "\n".join(f"  ✓ {item}" for item in constraints.creative_freedom)
@@ -329,9 +287,6 @@ Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
 **Layout Intent**: {layout.structure}
   (Preserve general structure, exact positions can vary)
 
-**VERBATIM COPYWRITING** (STILL EXACT - do not paraphrase):
-{copy_block}
-
 **Visual Scene Intent**: {scene.scene_description}
   Photography style: {scene.photography_style}
   Product integration: {constraints.product_integration or scene.product_placement}
@@ -350,23 +305,14 @@ Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
 ✓ Lifestyle elements can vary
 ✓ Minor compositional adjustments allowed
 
-✗ Do NOT change copywriting text - use VERBATIM
 ✗ Do NOT change aspect ratio
-✗ Do NOT remove key elements (headline, benefits, product)
 ✗ Do NOT change the overall layout intent
+✗ Do NOT lose the visual mood and atmosphere
 {usage_block}"""
 
 
 def format_v2_summary(analysis: "StyleReferenceAnalysisV2") -> str:
     """Format a brief V2 analysis summary for context display."""
-    copy = analysis.copywriting
-    items = []
-    if copy.headline:
-        items.append("headline")
-    if copy.benefits:
-        items.append(f"{len(copy.benefits)} benefits")
-    if copy.disclaimer:
-        items.append("disclaimer")
-    copy_summary = ", ".join(items) if items else "no copy"
     treatments = len(analysis.visual_scene.visual_treatments)
-    return f"V2: {analysis.layout.structure[:40]}..., {copy_summary}, {treatments} treatments"
+    mood = analysis.style.mood[:20] if analysis.style.mood else "no mood"
+    return f"V2: {analysis.layout.structure[:40]}..., {mood}, {treatments} treatments"

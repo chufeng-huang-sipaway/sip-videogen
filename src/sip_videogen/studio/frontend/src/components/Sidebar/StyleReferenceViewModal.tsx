@@ -92,14 +92,6 @@ return(<Dialog open={open} onOpenChange={onOpenChange}><DialogContent className=
 {v2.visual_scene?.lifestyle_elements?.length>0&&(<div className="pt-1"><span className="text-xs text-neutral-500 dark:text-neutral-400">Lifestyle Elements:</span><p className="text-sm text-neutral-900 dark:text-neutral-100 mt-0.5">{v2.visual_scene.lifestyle_elements.join(' • ')}</p></div>)}
 {v2.visual_scene?.visual_treatments?.length>0&&(<div className="pt-1"><span className="text-xs text-neutral-500 dark:text-neutral-400">Visual Treatments:</span><p className="text-sm text-neutral-900 dark:text-neutral-100 mt-0.5">{v2.visual_scene.visual_treatments.join(' • ')}</p></div>)}
 </InfoCard></Section>)}
-{/*Copywriting*/}
-{(v2.copywriting?.headline||v2.copywriting?.benefits?.length>0)&&(<Section title="Copywriting"><InfoCard>
-{v2.copywriting?.headline&&(<InfoRow label="Headline" value={v2.copywriting.headline}/>)}
-{v2.copywriting?.subheadline&&(<InfoRow label="Subheadline" value={v2.copywriting.subheadline}/>)}
-{v2.copywriting?.cta&&(<InfoRow label="CTA" value={v2.copywriting.cta}/>)}
-{v2.copywriting?.tagline&&(<InfoRow label="Tagline" value={v2.copywriting.tagline}/>)}
-{v2.copywriting?.benefits?.length>0&&(<div className="pt-1"><span className="text-xs text-neutral-500 dark:text-neutral-400">Benefits ({v2.copywriting.benefits.length}):</span><ul className="mt-1 space-y-0.5">{v2.copywriting.benefits.map((b,i)=><li key={i} className="text-sm text-neutral-900 dark:text-neutral-100">• {b}</li>)}</ul></div>)}
-</InfoCard></Section>)}
 {/*Constraints*/}
 {(v2.constraints?.non_negotiables?.length>0||v2.constraints?.creative_freedom?.length>0)&&(<Section title="Constraints"><div className="space-y-3">
 {v2.constraints?.non_negotiables?.length>0&&(<div><span className="text-xs font-medium text-brand-600 dark:text-brand-500">Must Preserve</span><ul className="mt-1 space-y-1">{v2.constraints.non_negotiables.map((item,i)=>(<li key={i} className="text-xs flex items-start gap-1.5 text-neutral-900 dark:text-neutral-100"><Check className="h-3 w-3 text-brand-500 mt-0.5 shrink-0"/>{item}</li>))}</ul></div>)}
