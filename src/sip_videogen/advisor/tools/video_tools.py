@@ -292,17 +292,27 @@ async def _impl_generate_video_clip(
                 music_brief=_build_placeholder_music_brief(),
             )
         from sip_videogen.generators.video_generator import VEOVideoGenerator
+        from sip_videogen.models.assets import AssetType, GeneratedAsset
 
         generator = VEOVideoGenerator(api_key=settings.gemini_api_key)
         logger.info(f"Generating video with VEO ({duration}s, {aspect_ratio})")
-        refs = reference_images if reference_images else None
+        # Use concept image as start_frame for image-to-video (supports 9:16)
+        start_frame_asset = None
+        if resolved_concept and resolved_concept.exists():
+            start_frame_asset = GeneratedAsset(
+                asset_type=AssetType.REFERENCE_IMAGE,
+                local_path=str(resolved_concept),
+                element_id="start_frame",
+            )
+            logger.info(f"Using concept image as start frame: {resolved_concept}")
         result = await generator.generate_video_clip(
             scene=scene,
             output_dir=str(output_dir),
-            reference_images=refs,
+            reference_images=None,  # Don't use reference_images with start_frame
             aspect_ratio=aspect_ratio,
             script=script_context,
             constraints_context=constraints_context,
+            start_frame=start_frame_asset,
         )
         if result and result.local_path:
             output_path = Path(result.local_path)

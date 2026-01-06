@@ -95,6 +95,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
         total_scenes: int | None = None,
         script: VideoScript | None = None,
         constraints_context: str | None = None,
+        start_frame: GeneratedAsset | None = None,
     ) -> GeneratedAsset:
         """Generate a video clip for a scene.
 
@@ -102,7 +103,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
             scene: The SceneAction to generate a video for.
             output_dir: Local directory to save the generated video.
             reference_images: Optional list of reference images for visual consistency.
-                             Maximum 3 images allowed.
+                             Maximum 3 images allowed. Only used with 16:9 aspect ratio.
             aspect_ratio: Video aspect ratio. Defaults to 16:9. Options: 16:9, 9:16.
             generate_audio: Whether to generate audio. Defaults to True.
             total_scenes: Total number of scenes in the video sequence. When provided,
@@ -112,6 +113,9 @@ class VEOVideoGenerator(BaseVideoGenerator):
                    linking context. When provided with reference_images, adds explicit
                    phrases linking characters to their reference images.
             constraints_context: Optional constraints block to append to the prompt.
+            start_frame: Optional start frame image for image-to-video mode.
+                        Supports both 16:9 and 9:16 aspect ratios. When provided,
+                        the video will animate from this frame.
 
         Returns:
             GeneratedAsset with the local path to the generated video.
@@ -131,9 +135,21 @@ class VEOVideoGenerator(BaseVideoGenerator):
             )
         final_aspect_ratio = actual_ratio.value
 
-        # Build reference image configs (max 3)
+        # Build start frame image for image-to-video mode (supports 9:16)
+        start_frame_image = None
+        if start_frame and start_frame.local_path:
+            from pathlib import Path
+
+            sf_path = Path(start_frame.local_path)
+            if sf_path.exists():
+                sf_bytes = sf_path.read_bytes()
+                sf_mime = self._get_mime_type(start_frame.local_path)
+                start_frame_image = Image(image_bytes=sf_bytes, mime_type=sf_mime)
+                logger.info(f"Using start frame for image-to-video mode ({len(sf_bytes)} bytes)")
+
+        # Build reference image configs (max 3) - only for 16:9 or when no start_frame
         ref_configs = None
-        if reference_images:
+        if reference_images and not start_frame_image:
             ref_configs = await self._build_reference_configs(reference_images)
             logger.debug(f"Using {len(ref_configs)} reference images")
 
@@ -152,17 +168,48 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
         try:
             # Start video generation via Gemini API
-            # Note: generate_audio and person_generation removed - not supported
             # VEO 3.1 generates audio by default
-            operation = self.client.models.generate_videos(
-                model=self.model,
-                prompt=prompt,
-                config=GenerateVideosConfig(
-                    reference_images=ref_configs,
-                    duration_seconds=duration,
-                    aspect_ratio=final_aspect_ratio,
-                ),
-            )
+            config_kwargs: dict = {
+                "duration_seconds": duration,
+                "aspect_ratio": final_aspect_ratio,
+            }
+            # Image-to-video mode: use `image` param (supports 9:16)
+            # Reference images mode: use `reference_images` in config (16:9 only)
+            if start_frame_image:
+                # Image-to-video mode - supports both 16:9 and 9:16
+                config_kwargs["person_generation"] = "allow_adult"
+                logger.info(
+                    f"Scene {scene.scene_number}: Using image-to-video mode "
+                    f"(aspect_ratio={final_aspect_ratio})"
+                )
+                operation = self.client.models.generate_videos(
+                    model=self.model,
+                    prompt=prompt,
+                    image=start_frame_image,
+                    config=GenerateVideosConfig(**config_kwargs),
+                )
+            elif ref_configs:
+                # Reference images mode - 16:9 only
+                config_kwargs["reference_images"] = ref_configs
+                config_kwargs["person_generation"] = "allow_adult"
+                if final_aspect_ratio != "16:9":
+                    logger.warning(
+                        f"Scene {scene.scene_number}: VEO reference images only support 16:9. "
+                        f"Falling back from {final_aspect_ratio} to 16:9."
+                    )
+                    config_kwargs["aspect_ratio"] = "16:9"
+                operation = self.client.models.generate_videos(
+                    model=self.model,
+                    prompt=prompt,
+                    config=GenerateVideosConfig(**config_kwargs),
+                )
+            else:
+                # Text-to-video mode
+                operation = self.client.models.generate_videos(
+                    model=self.model,
+                    prompt=prompt,
+                    config=GenerateVideosConfig(**config_kwargs),
+                )
 
             logger.info(
                 f"Started video generation for scene {scene.scene_number}, "
