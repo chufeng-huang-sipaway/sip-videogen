@@ -24,6 +24,7 @@ from sip_videogen.config.constants import Limits
 from sip_videogen.config.logging import get_logger
 
 from . import _common
+from .memory_tools import emit_tool_thinking
 
 logger = get_logger(__name__)
 # Slug pattern: lowercase alphanumeric with hyphens
@@ -129,6 +130,9 @@ def _impl_create_product(
     existing = _common.load_product(brand_slug, slug)
     if existing:
         return f"Error: Product '{slug}' already exists. Use update_product() instead."
+    step_id = emit_tool_thinking(
+        "Setting up your product...", name, expertise="Product Setup", status="pending"
+    )
     description_text = (description or "").strip()
     parsed_attrs: list[ProductAttribute] = []
     if attributes is not None:
@@ -147,11 +151,28 @@ def _impl_create_product(
     try:
         _common.storage_create_product(brand_slug, product)
         logger.info(f"Created product '{slug}' for brand '{brand_slug}'")
+        emit_tool_thinking(
+            "Product created", None, expertise="Product Setup", status="complete", step_id=step_id
+        )
         return f"Created product **{name}** (`{slug}`)."
     except ValueError as e:
+        emit_tool_thinking(
+            "Product setup failed",
+            str(e)[:100],
+            expertise="Product Setup",
+            status="failed",
+            step_id=step_id,
+        )
         return f"Error: {e}"
     except Exception as e:
         logger.error(f"Failed to create product: {e}")
+        emit_tool_thinking(
+            "Product setup failed",
+            str(e)[:100],
+            expertise="Product Setup",
+            status="failed",
+            step_id=step_id,
+        )
         return f"Error creating product: {e}"
 
 

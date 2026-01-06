@@ -11,6 +11,7 @@ from sip_videogen.brands.product_description import extract_attributes_from_desc
 from sip_videogen.config.logging import get_logger
 
 from . import _common
+from .memory_tools import emit_tool_thinking
 
 logger = get_logger(__name__)
 
@@ -251,8 +252,28 @@ def _impl_fetch_brand_detail(
     slug = _common.get_active_brand()
     if not slug:
         return "Error: No brand context set. Cannot fetch brand details."
+    step_id = emit_tool_thinking(
+        "Looking at your brand identity...",
+        detail_type.replace("_", " "),
+        expertise="Research",
+        status="pending",
+    )
     logger.info("Agent fetching brand detail: %s for %s", detail_type, slug)
-    return get_brand_detail(slug, detail_type)
+    try:
+        result = get_brand_detail(slug, detail_type)
+        emit_tool_thinking(
+            "Brand context loaded", None, expertise="Research", status="complete", step_id=step_id
+        )
+        return result
+    except Exception as e:
+        emit_tool_thinking(
+            "Couldn't load brand context",
+            str(e)[:100],
+            expertise="Research",
+            status="failed",
+            step_id=step_id,
+        )
+        raise
 
 
 def _impl_browse_brand_assets(category: str | None = None) -> str:
@@ -262,11 +283,35 @@ def _impl_browse_brand_assets(category: str | None = None) -> str:
     slug = _common.get_active_brand()
     if not slug:
         return "Error: No brand context set. Cannot browse assets."
+    cat_label = category or "all"
+    step_id = emit_tool_thinking(
+        "Browsing your brand assets...", cat_label, expertise="Research", status="pending"
+    )
     logger.info("Agent browsing brand assets: category=%s for %s", category, slug)
-    assets = list_brand_assets(slug, category)
-    if not assets:
-        return f"No assets found{' in category ' + category if category else ''}."
-    return json.dumps(assets, indent=2)
+    try:
+        assets = list_brand_assets(slug, category)
+        if not assets:
+            emit_tool_thinking(
+                "No assets found", None, expertise="Research", status="complete", step_id=step_id
+            )
+            return f"No assets found{' in category ' + category if category else ''}."
+        emit_tool_thinking(
+            f"Found {len(assets)} assets",
+            None,
+            expertise="Research",
+            status="complete",
+            step_id=step_id,
+        )
+        return json.dumps(assets, indent=2)
+    except Exception as e:
+        emit_tool_thinking(
+            "Couldn't browse assets",
+            str(e)[:100],
+            expertise="Research",
+            status="failed",
+            step_id=step_id,
+        )
+        raise
 
 
 @function_tool

@@ -13,6 +13,7 @@ from sip_videogen.brands.models import StyleReferenceFull
 from sip_videogen.config.logging import get_logger
 
 from . import _common
+from .memory_tools import emit_tool_thinking
 
 logger = get_logger(__name__)
 
@@ -99,6 +100,9 @@ async def _impl_create_style_reference_async(
     existing = _common.load_style_reference_summary(slug, sr_slug)
     if existing:
         return f"Error: Style reference '{sr_slug}' already exists."
+    step_id = emit_tool_thinking(
+        "Analyzing style from your images...", name, expertise="Visual Design", status="pending"
+    )
     now = _dt.utcnow()
     sr = StyleReferenceFull(
         slug=sr_slug,
@@ -114,11 +118,32 @@ async def _impl_create_style_reference_async(
     try:
         _common.storage_create_style_reference(slug, sr)
     except Exception as e:
+        emit_tool_thinking(
+            "Style reference creation failed",
+            str(e)[:100],
+            expertise="Visual Design",
+            status="failed",
+            step_id=step_id,
+        )
         return f"Error creating style reference: {e}"
     if image_path:
         result = await _impl_add_style_reference_image_async(sr_slug, image_path, reanalyze=True)
         if result.startswith("Error"):
+            emit_tool_thinking(
+                "Style reference created, image failed",
+                None,
+                expertise="Visual Design",
+                status="complete",
+                step_id=step_id,
+            )
             return f"Created style reference but failed to add image: {result}"
+    emit_tool_thinking(
+        "Style reference created",
+        None,
+        expertise="Visual Design",
+        status="complete",
+        step_id=step_id,
+    )
     return f"Created style reference **{name}** (`{sr_slug}`)."
 
 
@@ -255,17 +280,41 @@ async def _impl_reanalyze_style_reference_async(style_ref_slug: str) -> str:
         return f"Error: Style reference '{style_ref_slug}' not found."
     if not sr.images:
         return "Error: Style reference has no images to analyze."
+    step_id = emit_tool_thinking(
+        "Analyzing style from your images...", sr.name, expertise="Visual Design", status="pending"
+    )
     brand_dir = _common.get_brand_dir(slug)
     img_paths = [brand_dir / img for img in sr.images[:2]]
     try:
         analysis = await analyze_style_reference_v2(img_paths)
         if not analysis:
+            emit_tool_thinking(
+                "Analysis failed",
+                "No result returned",
+                expertise="Visual Design",
+                status="failed",
+                step_id=step_id,
+            )
             return "Error: Analysis failed - no result returned."
         sr.analysis = analysis
         sr.updated_at = _dt.utcnow()
         _common.storage_save_style_reference(slug, sr)
+        emit_tool_thinking(
+            "Style analysis complete",
+            None,
+            expertise="Visual Design",
+            status="complete",
+            step_id=step_id,
+        )
         return f"Re-analyzed style reference **{sr.name}** with V2 semantic analysis."
     except Exception as e:
+        emit_tool_thinking(
+            "Analysis failed",
+            str(e)[:100],
+            expertise="Visual Design",
+            status="failed",
+            step_id=step_id,
+        )
         return f"Error during analysis: {e}"
 
 

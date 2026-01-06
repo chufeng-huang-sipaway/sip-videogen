@@ -245,6 +245,12 @@ async def _impl_generate_image(
             f"Generating multi-product image with {len(product_references)} products, {total_gen_images} total reference images (max {max_retries} retries)..."
         )
         start_time = time.time()
+        mp_step_id = emit_tool_thinking(
+            "Creating your image...",
+            f"Combining {len(product_references)} products",
+            expertise="Image Generation",
+            status="pending",
+        )
         try:
             client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
             result = await generate_with_multi_validation(
@@ -312,9 +318,23 @@ async def _impl_generate_image(
                 reference_images_detail=reference_images_detail,
             )
             store_image_metadata(actual_path, metadata)
+            emit_tool_thinking(
+                "Image ready",
+                None,
+                expertise="Image Generation",
+                status="complete",
+                step_id=mp_step_id,
+            )
             return return_value
         except Exception as e:
             logger.error(f"Multi-product image generation failed: {e}")
+            emit_tool_thinking(
+                "Generation failed",
+                str(e)[:100],
+                expertise="Image Generation",
+                status="failed",
+                step_id=mp_step_id,
+            )
             return f"Error generating multi-product image: {str(e)}"
     # Single-product reference handling
     generation_prompt = prompt
@@ -444,6 +464,12 @@ async def _impl_generate_image(
             reference_image_bytes = ref_bytes
             logger.info(f"Loaded reference image: {img_path} ({len(ref_bytes)} bytes)")
     start_time = time.time()
+    step_id = emit_tool_thinking(
+        "Creating your image...",
+        "Generating with Gemini",
+        expertise="Image Generation",
+        status="pending",
+    )
     try:
         client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
         if validate_identity and reference_image_bytes:
@@ -510,6 +536,13 @@ async def _impl_generate_image(
                 reference_images_detail=reference_images_detail,
             )
             store_image_metadata(actual_path, metadata)
+            emit_tool_thinking(
+                "Image ready",
+                None,
+                expertise="Image Generation",
+                status="complete",
+                step_id=step_id,
+            )
             return return_value
         # Standard generation
         if reference_images_bytes:
@@ -523,8 +556,6 @@ async def _impl_generate_image(
         else:
             contents = generation_prompt
             logger.info(f"Generating image: {generation_prompt[:100]}...")
-        emit_tool_thinking("Prompt enhancement", generation_prompt)
-        emit_tool_thinking("Calling Gemini API", "Generating image with Gemini 3.0 Pro")
         response = client.models.generate_content(
             model=model,
             contents=contents,
@@ -583,10 +614,31 @@ async def _impl_generate_image(
                     reference_images_detail=reference_images_detail,
                 )
                 store_image_metadata(str(output_path), metadata)
+                emit_tool_thinking(
+                    "Image ready",
+                    None,
+                    expertise="Image Generation",
+                    status="complete",
+                    step_id=step_id,
+                )
                 return str(output_path)
+        emit_tool_thinking(
+            "Generation failed",
+            "No image in response",
+            expertise="Image Generation",
+            status="failed",
+            step_id=step_id,
+        )
         return "Error: No image generated in response"
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
+        emit_tool_thinking(
+            "Generation failed",
+            str(e)[:100],
+            expertise="Image Generation",
+            status="failed",
+            step_id=step_id,
+        )
         return f"Error generating image: {str(e)}"
 
 

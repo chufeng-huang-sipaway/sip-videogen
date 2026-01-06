@@ -32,6 +32,7 @@ class AdvisorProgress:
     detail: str = ""
     expertise: str | None = None
     step_id: str | None = None
+    status: str = "complete"  # pending, complete, failed
 
 
 ProgressCallback = Callable[[AdvisorProgress], None]
