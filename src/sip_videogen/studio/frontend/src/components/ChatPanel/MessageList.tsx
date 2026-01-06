@@ -5,7 +5,7 @@ import { type GeneratedVideo, type StyleReferenceSummary, type ProductEntry, typ
 import type { Message } from '@/hooks/useChat'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
-import { ThinkingSteps } from './ThinkingSteps'
+import { ThinkingTimeline } from './ThinkingTimeline'
 import { InteractionRenderer } from './InteractionRenderer'
 import { ChatImageGallery } from './ChatImageGallery'
 import { PromptDetailsModal } from './PromptDetailsModal'
@@ -198,7 +198,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
           const hasContent = (message.thinkingSteps && message.thinkingSteps.length > 0) || imgMeta
           return hasContent ? (
             <div className="mt-2 w-full">
-              <ThinkingSteps steps={message.thinkingSteps || []} isGenerating={false} skills={message.loadedSkills} imageMetadata={imgMeta} onViewFullDetails={imgMeta && onViewDetails ? () => onViewDetails(imgMeta) : undefined}/>
+              <ThinkingTimeline steps={message.thinkingSteps || []} isGenerating={false} skills={message.loadedSkills} imageMetadata={imgMeta} onViewFullDetails={imgMeta && onViewDetails ? () => onViewDetails(imgMeta) : undefined}/>
               {normImgs.length > 1 && imgMeta && (<div className="text-xs text-muted-foreground mt-1">Showing metadata for image 1 of {normImgs.length}</div>)}
             </div>
           ) : null
@@ -258,8 +258,8 @@ export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, 
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta}/>
       ))}
-      {/* Thinking Steps (Real-time during loading) */}
-      {isLoading && <div className="px-6"><ThinkingSteps steps={thinkingSteps} isGenerating={true} skills={loadedSkills} /></div>}
+      {/* Thinking Timeline (Real-time during loading) */}
+      {isLoading && <div className="px-6"><ThinkingTimeline steps={thinkingSteps} isGenerating={true} skills={loadedSkills} /></div>}
       <div ref={bottomRef} className="h-px" />
       {/* Modal rendered ONCE at parent level */}
       {detailsMeta&&<PromptDetailsModal metadata={detailsMeta} onClose={()=>setDetailsMeta(null)}/>}
