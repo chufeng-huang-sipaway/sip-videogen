@@ -163,7 +163,7 @@ class TestGenerateWithValidation:
         )
 
         with patch(
-            "sip_videogen.advisor.validation.validate_reference_identity",
+            "sip_videogen.advisor.validation.generator.validate_reference_identity",
             return_value=mock_validation,
         ):
             result = await generate_with_validation(
@@ -207,7 +207,7 @@ class TestGenerateWithValidation:
             return result
 
         with patch(
-            "sip_videogen.advisor.validation.validate_reference_identity",
+            "sip_videogen.advisor.validation.generator.validate_reference_identity",
             side_effect=mock_validate,
         ):
             result = await generate_with_validation(
@@ -237,7 +237,7 @@ class TestGenerateWithValidation:
         )
 
         with patch(
-            "sip_videogen.advisor.validation.validate_reference_identity",
+            "sip_videogen.advisor.validation.generator.validate_reference_identity",
             return_value=mock_validation,
         ):
             result = await generate_with_validation(
@@ -287,7 +287,7 @@ class TestGenerateWithValidation:
             return result
 
         with patch(
-            "sip_videogen.advisor.validation.validate_reference_identity",
+            "sip_videogen.advisor.validation.generator.validate_reference_identity",
             side_effect=mock_validate,
         ):
             result = await generate_with_validation(
