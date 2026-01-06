@@ -39,6 +39,10 @@ class ChatService:
 
     def _progress_callback(self, progress) -> None:
         """Called by BrandAdvisor during execution."""
+        from datetime import datetime, timezone
+
+        from ..state import ThinkingStep
+
         ts = int(time.time() * 1000)
         event = {
             "type": progress.event_type,
@@ -51,17 +55,21 @@ class ChatService:
             skill_name = progress.message.replace("Loading ", "").replace(" skill", "")
             if skill_name not in self._state.matched_skills:
                 self._state.matched_skills.append(skill_name)
-        # Accumulate thinking steps for real-time polling; do NOT update current_progress_type
+        # Accumulate thinking steps using new ThinkingStep model
         if progress.event_type == "thinking_step":
-            step_id = f"{ts}-{len(self._state.thinking_steps)}"
-            self._state.thinking_steps.append(
-                {
-                    "id": step_id,
-                    "step": progress.message,
-                    "detail": progress.detail or "",
-                    "timestamp": ts,
-                }
+            step_id = progress.step_id or f"{ts}-{len(self._state.thinking_steps)}"
+            run_id = self._state.current_run_id or ""
+            step = ThinkingStep(
+                id=step_id,
+                run_id=run_id,
+                step=progress.message,
+                detail=progress.detail or None,
+                expertise=progress.expertise,
+                status="complete",
+                source="agent",
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
+            self._state.add_thinking_step(step)
         elif progress.event_type == "tool_end":
             self._state.current_progress = ""
             self._state.current_progress_type = ""
@@ -121,7 +129,7 @@ class ChatService:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace = []
         self._state.matched_skills = []
-        self._state.thinking_steps = []
+        self._state.start_chat_turn()  # Generates run_id, clears thinking_steps
         try:
             advisor, err = self._ensure_advisor()
             if err or advisor is None:

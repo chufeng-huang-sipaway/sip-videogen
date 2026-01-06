@@ -62,29 +62,30 @@ def _impl_fetch_url_content(url: str) -> str:
 
 
 # Thinking visibility constants
-_MAX_STEP_LEN = 50
+_MAX_STEP_LEN = 100
 _MAX_DETAIL_LEN = 500
 
 
-def _build_thinking_step_result(step: str, detail: str) -> str:
+def _build_thinking_step_result(step: str, detail: str, expertise: str | None = None) -> str:
     """Build JSON result string containing thinking step data."""
     s = step[:_MAX_STEP_LEN].strip() if step else "Thinking"
     d = detail[:_MAX_DETAIL_LEN].strip() if detail else ""
-    return json.dumps(
-        {
-            "_thinking_step": True,
-            "id": str(uuid.uuid4()),
-            "step": s,
-            "detail": d,
-            "timestamp": int(_time() * 1000),
-        }
-    )
+    data: dict = {
+        "_thinking_step": True,
+        "id": str(uuid.uuid4()),
+        "step": s,
+        "detail": d,
+        "timestamp": int(_time() * 1000),
+    }
+    if expertise:
+        data["expertise"] = expertise[:50].strip()
+    return json.dumps(data)
 
 
-def _impl_report_thinking(step: str, detail: str) -> str:
+def _impl_report_thinking(step: str, detail: str, expertise: str | None = None) -> str:
     """Report a thinking step to show reasoning to the user."""
     logger.debug(f"[THINKING] {step[:50]}")
-    return _build_thinking_step_result(step, detail)
+    return _build_thinking_step_result(step, detail, expertise)
 
 
 def parse_thinking_step_result(result: str) -> dict | None:
@@ -92,12 +93,15 @@ def parse_thinking_step_result(result: str) -> dict | None:
     try:
         data = json.loads(result)
         if isinstance(data, dict) and data.get("_thinking_step"):
-            return {
+            r = {
                 "id": data["id"],
                 "step": data["step"],
                 "detail": data["detail"],
                 "timestamp": data["timestamp"],
             }
+            if data.get("expertise"):
+                r["expertise"] = data["expertise"]
+            return r
     except (json.JSONDecodeError, KeyError, TypeError):
         pass
     return None
@@ -117,16 +121,19 @@ def fetch_url_content(url: str) -> str:
 
 
 @function_tool
-def report_thinking(step: str, detail: str) -> str:
+def report_thinking(step: str, detail: str, expertise: str = "") -> str:
     """Report a thinking step to show the user your reasoning process.
     REQUIRED: Call this tool to explain what you're doing at each decision point.
-    Users see these steps as a collapsible list, building trust in your process.
+    Users see these steps in a timeline, building trust in your process.
     Args:
-        step: Brief title (2-5 words) describing this stage.
-              Examples: "Understanding request", "Choosing approach", "Crafting scene"
-        detail: Brief explanation of what you decided and why (1-2 sentences).
-                Focus on WHAT and WHY, not internal reasoning or system details.
+        step: Brief title (2-8 words) in first-person voice describing this stage.
+              Examples: "Setting the scene", "Considering your brand", "Crafting the shot"
+        detail: Brief first-person explanation (1-2 sentences) of your thinking.
+                Use "I'm", "Your brand", "I think" — focus on creative/technical decisions.
+        expertise: Optional domain label for this decision. Include when relevant.
+                   Values: "Visual Design", "Brand Strategy", "Copywriting", "Image Generation", "Research"
     Returns:
         Confirmation that thinking step was recorded.
     """
-    return _impl_report_thinking(step, detail)
+    exp = expertise if expertise else None
+    return _impl_report_thinking(step, detail, exp)
