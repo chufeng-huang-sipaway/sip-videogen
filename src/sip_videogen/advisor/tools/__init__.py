@@ -33,12 +33,19 @@ __all__ = [
     "generate_image",
     "propose_images",
     "get_recent_generated_images",
+    "_generate_output_filename",
+    "_impl_generate_image",
     # video_tools
     "generate_video_clip",
+    "_impl_generate_video_clip",
     # file_tools
     "read_file",
     "write_file",
     "list_files",
+    "_impl_list_files",
+    "_impl_read_file",
+    "_impl_write_file",
+    "_resolve_brand_path",
     # product_tools
     "create_product",
     "add_product_image",
@@ -50,6 +57,16 @@ __all__ = [
     "update_product_packaging_text",
     "AttributeInput",
     "PackagingTextElementInput",
+    "MAX_PRODUCT_IMAGE_SIZE_BYTES",
+    "_impl_add_product_image",
+    "_impl_analyze_all_product_packaging",
+    "_impl_analyze_product_packaging",
+    "_impl_create_product",
+    "_impl_delete_product",
+    "_impl_set_product_primary_image",
+    "_impl_update_product",
+    "_impl_update_product_packaging_text",
+    "_validate_slug",
     # style_reference_tools
     "list_style_references",
     "get_style_reference_detail",
@@ -67,6 +84,13 @@ __all__ = [
     "list_projects",
     "get_product_detail",
     "get_project_detail",
+    "_impl_browse_brand_assets",
+    "_impl_fetch_brand_detail",
+    "_impl_get_product_detail",
+    "_impl_get_project_detail",
+    "_impl_list_products",
+    "_impl_list_projects",
+    "_impl_load_brand",
     # memory_tools
     "update_memory",
     "propose_choices",
@@ -78,6 +102,9 @@ __all__ = [
     "fetch_url_content",
     "report_thinking",
     "parse_thinking_step_result",
+    "_MAX_DETAIL_LEN",
+    "_MAX_STEP_LEN",
+    "_impl_report_thinking",
     # aggregate
     "ADVISOR_TOOLS",
     # Re-exports for test patching compatibility
@@ -225,7 +252,7 @@ from .utility_tools import (
     parse_thinking_step_result,
     report_thinking,
 )
-from .video_tools import generate_video_clip
+from .video_tools import _impl_generate_video_clip, generate_video_clip
 
 # List of all tools for the advisor agent
 ADVISOR_TOOLS = [
