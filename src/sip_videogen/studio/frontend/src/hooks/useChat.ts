@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
-import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, saveAspectRatioPreference, loadAspectRatioPreference, saveGenerationModePreference, loadGenerationModePreference, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
+import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
 import type { SetStateAction } from 'react'
 
 export interface Message {
@@ -78,7 +78,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     attachmentsRef.current = attachments
   }, [attachments])
 
-//Clear messages when brand changes, load persisted preferences
+//Clear messages when brand changes, load persisted preferences from backend
   useEffect(() => {
     //Mark current request as cancelled so late responses are ignored
     if(requestIdRef.current>0)cancelledRequestIdRef.current=requestIdRef.current
@@ -86,12 +86,16 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setError(null)
     setAttachments([])
     setAttachmentError(null)
-    //Load persisted aspect ratio for this brand, or use default
-    const savedRatio=brandSlug?loadAspectRatioPreference(brandSlug):null
-    setAspectRatio(savedRatio||DEFAULT_ASPECT_RATIO)
-    const savedMode=brandSlug?loadGenerationModePreference(brandSlug):null
-    setGenerationMode(savedMode||DEFAULT_GENERATION_MODE)
     setIsLoading(false)
+    //Load persisted preferences from backend config file
+    if(brandSlug&&isPyWebView()){
+      bridge.getChatPrefs(brandSlug).then(prefs=>{
+        if(prefs.aspect_ratio)setAspectRatio(prefs.aspect_ratio as AspectRatio)
+        else setAspectRatio(DEFAULT_ASPECT_RATIO)
+        if(prefs.generation_mode)setGenerationMode(prefs.generation_mode as GenerationMode)
+        else setGenerationMode(DEFAULT_GENERATION_MODE)
+      }).catch(()=>{setAspectRatio(DEFAULT_ASPECT_RATIO);setGenerationMode(DEFAULT_GENERATION_MODE)})
+    }else{setAspectRatio(DEFAULT_ASPECT_RATIO);setGenerationMode(DEFAULT_GENERATION_MODE)}
   }, [brandSlug])
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
@@ -369,18 +373,18 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     }
   }, [brandSlug, isLoading])
 
-//Wrapper setters that persist to localStorage
+//Wrapper setters that persist to backend config file
   const setAspectRatioWithPersist=useCallback((action:SetStateAction<AspectRatio>)=>{
     setAspectRatio(prev=>{
       const next=typeof action==='function'?action(prev):action
-      if(brandSlug)saveAspectRatioPreference(brandSlug,next)
+      if(brandSlug&&isPyWebView())bridge.saveChatPrefs(brandSlug,next,undefined).catch(()=>{})
       return next
     })
   },[brandSlug])
   const setGenerationModeWithPersist=useCallback((action:SetStateAction<GenerationMode>)=>{
     setGenerationMode(prev=>{
       const next=typeof action==='function'?action(prev):action
-      if(brandSlug)saveGenerationModePreference(brandSlug,next)
+      if(brandSlug&&isPyWebView())bridge.saveChatPrefs(brandSlug,undefined,next).catch(()=>{})
       return next
     })
   },[brandSlug])

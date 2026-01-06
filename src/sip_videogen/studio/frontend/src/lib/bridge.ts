@@ -416,6 +416,8 @@ interface PyWebViewAPI {
   get_constants(): Promise<BridgeResponse<ConstantsPayload>>
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
   save_api_keys(openai: string, gemini: string, firecrawl?: string): Promise<BridgeResponse<void>>
+  get_chat_prefs(brand_slug: string): Promise<BridgeResponse<{ aspect_ratio?: string; generation_mode?: string }>>
+  save_chat_prefs(brand_slug: string, aspect_ratio?: string, generation_mode?: string): Promise<BridgeResponse<void>>
   get_brands(): Promise<BridgeResponse<{ brands: BrandEntry[]; active: string | null }>>
   set_brand(slug: string): Promise<BridgeResponse<{ slug: string }>>
   get_brand_info(slug?: string): Promise<BridgeResponse<{ slug: string; name: string; tagline: string; category: string }>>
@@ -599,6 +601,8 @@ export async function fetchAndInitConstants(): Promise<boolean> {
 export const bridge = {
   checkApiKeys: () => callBridge(() => window.pywebview!.api.check_api_keys()),
   saveApiKeys: (o: string, g: string, f?: string) => callBridge(() => window.pywebview!.api.save_api_keys(o, g, f || '')),
+  getChatPrefs: (brandSlug: string) => callBridge(() => window.pywebview!.api.get_chat_prefs(brandSlug)),
+  saveChatPrefs: (brandSlug: string, aspectRatio?: string, generationMode?: string) => callBridge(() => window.pywebview!.api.save_chat_prefs(brandSlug, aspectRatio, generationMode)),
   getBrands: () => callBridge(() => window.pywebview!.api.get_brands()),
   setBrand: (s: string) => callBridge(() => window.pywebview!.api.set_brand(s)),
   getBrandInfo: (s?: string) => callBridge(() => window.pywebview!.api.get_brand_info(s)),

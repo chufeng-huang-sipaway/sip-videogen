@@ -63,3 +63,24 @@ def check_api_keys() -> dict[str, bool]:
     g = bool(os.environ.get("GEMINI_API_KEY"))
     f = bool(os.environ.get("FIRECRAWL_API_KEY"))
     return {"openai": o, "gemini": g, "firecrawl": f, "all_configured": o and g}
+
+
+def get_chat_preferences(brand_slug: str) -> dict:
+    """Get chat preferences for a brand (aspect_ratio, generation_mode)."""
+    c = _load_config()
+    prefs = c.get("chat_preferences", {})
+    return prefs.get(brand_slug, {})
+
+
+def save_chat_preferences(
+    brand_slug: str, aspect_ratio: str | None = None, generation_mode: str | None = None
+) -> None:
+    """Save chat preferences for a brand."""
+    c = _load_config()
+    prefs = c.setdefault("chat_preferences", {})
+    bp = prefs.setdefault(brand_slug, {})
+    if aspect_ratio is not None:
+        bp["aspect_ratio"] = aspect_ratio
+    if generation_mode is not None:
+        bp["generation_mode"] = generation_mode
+    _save_config(c)
