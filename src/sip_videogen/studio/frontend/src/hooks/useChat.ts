@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
-import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
+import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, saveAspectRatioPreference, loadAspectRatioPreference, saveGenerationModePreference, loadGenerationModePreference, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
+import type { SetStateAction } from 'react'
 
 export interface Message {
   id: string
@@ -77,7 +78,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     attachmentsRef.current = attachments
   }, [attachments])
 
-//Clear messages when brand changes
+//Clear messages when brand changes, load persisted preferences
   useEffect(() => {
     //Mark current request as cancelled so late responses are ignored
     if(requestIdRef.current>0)cancelledRequestIdRef.current=requestIdRef.current
@@ -85,8 +86,11 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setError(null)
     setAttachments([])
     setAttachmentError(null)
-    setAspectRatio(DEFAULT_ASPECT_RATIO)
-    setGenerationMode(DEFAULT_GENERATION_MODE)
+    //Load persisted aspect ratio for this brand, or use default
+    const savedRatio=brandSlug?loadAspectRatioPreference(brandSlug):null
+    setAspectRatio(savedRatio||DEFAULT_ASPECT_RATIO)
+    const savedMode=brandSlug?loadGenerationModePreference(brandSlug):null
+    setGenerationMode(savedMode||DEFAULT_GENERATION_MODE)
     setIsLoading(false)
   }, [brandSlug])
 
@@ -365,13 +369,28 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     }
   }, [brandSlug, isLoading])
 
+//Wrapper setters that persist to localStorage
+  const setAspectRatioWithPersist=useCallback((action:SetStateAction<AspectRatio>)=>{
+    setAspectRatio(prev=>{
+      const next=typeof action==='function'?action(prev):action
+      if(brandSlug)saveAspectRatioPreference(brandSlug,next)
+      return next
+    })
+  },[brandSlug])
+  const setGenerationModeWithPersist=useCallback((action:SetStateAction<GenerationMode>)=>{
+    setGenerationMode(prev=>{
+      const next=typeof action==='function'?action(prev):action
+      if(brandSlug)saveGenerationModePreference(brandSlug,next)
+      return next
+    })
+  },[brandSlug])
+
 const clearMessages = useCallback(() => {
     setMessages([])
     setError(null)
     setAttachments([])
     setAttachmentError(null)
-    setAspectRatio(DEFAULT_ASPECT_RATIO)
-    setGenerationMode(DEFAULT_GENERATION_MODE)
+    //Preserve aspect ratio and generation mode (user preferences)
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
 
@@ -418,8 +437,10 @@ const clearMessages = useCallback(() => {
     await sendMessage(userMessage.content, {
       attached_products: userMessage.attachedProductSlugs,
       attached_style_references: userMessage.attachedStyleReferences,
+      aspect_ratio: aspectRatio,
+      generation_mode: generationMode,
     })
-  }, [messages, isLoading, brandSlug, sendMessage])
+  }, [messages, isLoading, brandSlug, sendMessage, aspectRatio, generationMode])
 
 return {
     messages,
@@ -442,7 +463,7 @@ return {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
-    setAspectRatio,
-    setGenerationMode,
+    setAspectRatio: setAspectRatioWithPersist,
+    setGenerationMode: setGenerationModeWithPersist,
   }
 }

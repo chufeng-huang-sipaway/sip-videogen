@@ -53,3 +53,23 @@ if(allowed.includes(current))return current
 const isL=['16:9','5:3','4:3','3:2'].includes(current)
 const fallback=isL?'16:9':'9:16'
 return allowed.includes(fallback)?fallback:allowed[0]}
+//Persistence helpers for aspect ratio (per-brand localStorage)
+const STORAGE_KEY_PREFIX='sip-aspect-ratio-'
+export function saveAspectRatioPreference(brandSlug:string,ratio:AspectRatio):void{
+if(!brandSlug)return
+try{localStorage.setItem(`${STORAGE_KEY_PREFIX}${brandSlug}`,ratio)}catch{}}
+export function loadAspectRatioPreference(brandSlug:string):AspectRatio|null{
+if(!brandSlug)return null
+try{const s=localStorage.getItem(`${STORAGE_KEY_PREFIX}${brandSlug}`)
+if(s&&isValidAspectRatio(s))return s}catch{}
+return null}
+//Persistence helpers for generation mode (per-brand localStorage)
+const MODE_STORAGE_KEY_PREFIX='sip-gen-mode-'
+export function saveGenerationModePreference(brandSlug:string,mode:GenerationMode):void{
+if(!brandSlug)return
+try{localStorage.setItem(`${MODE_STORAGE_KEY_PREFIX}${brandSlug}`,mode)}catch{}}
+export function loadGenerationModePreference(brandSlug:string):GenerationMode|null{
+if(!brandSlug)return null
+try{const s=localStorage.getItem(`${MODE_STORAGE_KEY_PREFIX}${brandSlug}`)
+if(s==='image'||s==='video')return s}catch{}
+return null}
