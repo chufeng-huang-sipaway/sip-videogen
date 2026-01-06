@@ -124,6 +124,21 @@ class BridgeState:
                 steps.append(step)
             # Sync to legacy thinking_steps for backward compat
             self._sync_legacy_steps(rid)
+        # Push to frontend via evaluate_js (works around PyWebView concurrency)
+        self._push_thinking_step(step)
+
+    def _push_thinking_step(self, step: ThinkingStep) -> None:
+        """Push thinking step to frontend via evaluate_js."""
+        w = self.window
+        if not w or not hasattr(w, "evaluate_js"):
+            return
+        try:
+            import json
+
+            data = json.dumps(step.to_dict())
+            w.evaluate_js(f"window.__onThinkingStep&&window.__onThinkingStep({data})")  # type: ignore[union-attr]
+        except Exception:
+            pass  # Ignore errors - window may not be ready
 
     def _sync_legacy_steps(self, rid: str) -> None:
         """Sync new format to legacy thinking_steps list (for backward compat)."""

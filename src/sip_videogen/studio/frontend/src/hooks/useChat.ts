@@ -64,6 +64,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [loadedSkills, setLoadedSkills] = useState<string[]>([])
   const loadedSkillsRef = useRef<string[]>([])
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
+  const thinkingStepsRef = useRef<ThinkingStep[]>([])
   const [error, setError] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
@@ -73,6 +74,26 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
   const cancelledRequestIdRef = useRef<number | null>(null)
+  //Register global handler for pushed thinking steps (works around PyWebView concurrency)
+  useEffect(()=>{
+    const handler=(step:ThinkingStep)=>{
+      const prev=thinkingStepsRef.current
+      const byId=new Map(prev.map(s=>[s.id,s]))
+      const ex=byId.get(step.id)
+      if(ex){
+        if(ex.status==='pending'&&(step.status==='complete'||step.status==='failed')){
+          byId.set(step.id,{...ex,status:step.status,detail:step.detail??ex.detail})
+        }else if(step.detail&&(!ex.detail||step.detail.length>ex.detail.length)){
+          byId.set(step.id,{...ex,detail:step.detail})
+        }else return //No change
+      }else{byId.set(step.id,step)}
+      const sorted=Array.from(byId.values()).sort((a,b)=>(a.seq??0)-(b.seq??0))
+      thinkingStepsRef.current=sorted
+      setThinkingSteps(sorted)
+    }
+    ;(window as unknown as{__onThinkingStep?:(s:ThinkingStep)=>void}).__onThinkingStep=handler
+    return()=>{(window as unknown as{__onThinkingStep?:unknown}).__onThinkingStep=undefined}
+  },[])
 
   useEffect(() => {
     attachmentsRef.current = attachments
@@ -235,6 +256,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
 
     //Clear thinking steps and skills at start
     setThinkingSteps([])
+    thinkingStepsRef.current=[]
     setLoadedSkills([])
     loadedSkillsRef.current = []
     //Try polling for progress (may not work due to PyWebView concurrency)
@@ -369,7 +391,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       ))
     } finally {
       if (progressInterval.current) { clearInterval(progressInterval.current); progressInterval.current = null }
-      setProgress(''); setProgressType(''); setLoadedSkills([]); setThinkingSteps([]); setIsLoading(false)
+      setProgress(''); setProgressType(''); setLoadedSkills([]); setThinkingSteps([]); thinkingStepsRef.current=[]; setIsLoading(false)
     }
   }, [brandSlug, isLoading])
 
