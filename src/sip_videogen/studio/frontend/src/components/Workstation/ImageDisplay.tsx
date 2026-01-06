@@ -6,7 +6,7 @@ import{useQuickEdit}from'../../context/QuickEditContext'
 import{useViewer}from'../../context/ViewerContext'
 import{bridge,isPyWebView}from'../../lib/bridge'
 import{Loader2,ChevronLeft,ChevronRight}from'lucide-react'
-import{QuickEditPreview}from'./QuickEditPreview'
+import{QuickEditPreview,QuickEditResultImage}from'./QuickEditPreview'
 import{FullscreenControls}from'./FullscreenControls'
 import{InfoOverlay}from'./InfoOverlay'
 import{getFullCached,setFullCached,hasFullCached}from'../../lib/thumbnailCache'
@@ -194,8 +194,8 @@ return(<div ref={containerRef} className={cn("w-full h-full flex items-center ju
 {displayedSrc&&!error&&(<img draggable={false} onMouseDown={handleMouseDown} onLoad={handleImgLoad} onError={handleImgError} src={displayedSrc} alt="" className={imgClass} style={imgStyle}/>)}
 {/* Pending image - fades in on top */}
 {pendingSrc&&pendingSrc!==displayedSrc&&(<img draggable={false} src={pendingSrc} alt={currentImage.prompt||'Generated image'} onLoad={(e)=>{handlePendingLoad();handleImgLoad(e)}} onError={()=>{handlePendingError();handleImgError()}} className={cn(imgClass,"absolute inset-0")} style={{...imgStyle,animation:'fadeIn 200ms ease-out forwards'}}/>)}
-{/* Quick Edit result preview */}
-{resultPath&&!isGenerating&&<QuickEditPreview/>}
+{/* Quick Edit result image - inside wrapper to match original image bounds */}
+{resultPath&&!isGenerating&&<QuickEditResultImage/>}
 {/* Shimmer overlay with sparkles - now contained to image area */}
 {isGenerating&&(<><div className="shimmer-overlay rounded-lg"/><div className="shimmer-sparkles rounded-lg">{Array.from({length:38},(_,i)=><span key={i} className={`sparkle${i%3===1?' brand':''}`}/>)}</div><button onClick={cancelEdit} className="magic-stop-btn" style={{pointerEvents:'auto'}}><span className="magic-stop-icon"/></button></>)}
 </div>
@@ -204,6 +204,8 @@ return(<div ref={containerRef} className={cn("w-full h-full flex items-center ju
 {isLoading&&!displayedSrc&&(<div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/30"/></div>)}
 {/* Error state */}
 {!isLoading&&error&&!displayedSrc&&(<div className="text-sm text-muted-foreground">{error}</div>)}
+{/* Quick Edit result preview - outside wrappers to prevent clipping */}
+{resultPath&&!isGenerating&&<QuickEditPreview/>}
 {/* Navigation buttons - hidden in fullscreen since FullscreenControls handles it */}
 {!isFullscreen&&<><button onClick={goPrev} disabled={!canPrev||isGenerating} className={cn(navBtnClass,"left-2 transition-opacity duration-200",hovered&&!isGenerating?"opacity-100":"opacity-0")}><ChevronLeft className="w-6 h-6"/></button>
 <button onClick={goNext} disabled={!canNext||isGenerating} className={cn(navBtnClass,"right-2 transition-opacity duration-200",hovered&&!isGenerating?"opacity-100":"opacity-0")}><ChevronRight className="w-6 h-6"/></button></>}

@@ -8,13 +8,15 @@ import{invalidatePath,clearAllCaches}from'../lib/thumbnailCache'
 //Generate unique request ID with fallback for older runtimes
 const genId=()=>crypto.randomUUID?.()??`${Date.now()}-${Math.random().toString(36).slice(2)}`
 //Quick edit state interface
-interface QuickEditState{isGenerating:boolean;originalPath:string|null;resultPath:string|null;prompt:string;error:string|null;isActionLoading:boolean}
-interface QuickEditContextType extends QuickEditState{startEdit:(path:string)=>void;submitEdit:(prompt:string)=>Promise<void>;cancelEdit:()=>void;keepAndOverride:()=>Promise<{success:boolean;newPath?:string;error?:string}>;saveAsCopy:()=>void;rerun:()=>void;discardResult:()=>Promise<void>;clearError:()=>void}
+interface QuickEditState{isGenerating:boolean;originalPath:string|null;resultPath:string|null;prompt:string;error:string|null;isActionLoading:boolean;isComparing:boolean}
+interface QuickEditContextType extends QuickEditState{startEdit:(path:string)=>void;submitEdit:(prompt:string)=>Promise<void>;cancelEdit:()=>void;keepAndOverride:()=>Promise<{success:boolean;newPath?:string;error?:string}>;saveAsCopy:()=>void;rerun:()=>void;discardResult:()=>Promise<void>;clearError:()=>void;setIsComparing:(v:boolean)=>void}
 const QuickEditContext=createContext<QuickEditContextType|null>(null)
 export function QuickEditProvider({children}:{children:ReactNode}){
 const{currentBatch,selectedIndex,bumpStatusVersion,prependToBatch}=useWorkstation()
 const{activeBrand}=useBrand()
-const[state,setState]=useState<QuickEditState>({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
+const[state,setState]=useState<QuickEditState>({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false,isComparing:false})
+const setIsComparing=useCallback((v:boolean)=>{setState(s=>({...s,isComparing:v}))},[])
+
 const mountedRef=useRef(true)
 const requestIdRef=useRef<string|null>(null)
 const pendingResultRef=useRef<string|null>(null)
@@ -23,7 +25,7 @@ useEffect(()=>{mountedRef.current=true;return()=>{mountedRef.current=false;if(pe
 //Reset when selected image changes
 const currImg=currentBatch[selectedIndex]
 const currPath=currImg?.originalPath||currImg?.path||null
-useEffect(()=>{if(state.originalPath&&currPath!==state.originalPath){setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false});requestIdRef.current=null}},[currPath,state.originalPath])
+useEffect(()=>{if(state.originalPath&&currPath!==state.originalPath){setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false,isComparing:false});requestIdRef.current=null}},[currPath,state.originalPath])
 //Start edit mode for an image
 const startEdit=useCallback((path:string)=>{setState(s=>({...s,originalPath:path,resultPath:null,prompt:'',error:null}))},[])
 //Submit edit request to bridge
@@ -58,7 +60,7 @@ setState(s=>({...s,isGenerating:false,error:msg}))
 const cancelEdit=useCallback(()=>{
 requestIdRef.current=null
 if(pendingResultRef.current){bridge.deleteAsset(pendingResultRef.current).catch(()=>{});pendingResultRef.current=null}
-setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
+setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false,isComparing:false})
 },[])
 //Keep & Override: backup-first replace original with result
 const keepAndOverride=useCallback(async():Promise<{success:boolean;newPath?:string;error?:string}>=>{
@@ -73,7 +75,7 @@ invalidatePath(origPath)
 if(newPath&&newPath!==origPath)invalidatePath(newPath)
 //Clear all caches to ensure fresh reload (path may have changed extension)
 clearAllCaches()
-setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
+setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false,isComparing:false})
 bumpStatusVersion()
 return{success:true,newPath}
 }catch(e){
@@ -89,7 +91,7 @@ const newImg={id:genId(),path:state.resultPath,prompt:state.prompt,timestamp:new
 prependToBatch([newImg])
 }
 pendingResultRef.current=null
-setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
+setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false,isComparing:false})
 bumpStatusVersion()
 },[state.resultPath,state.prompt,prependToBatch,bumpStatusVersion])
 //Rerun: delete current result, reopen popover with same prompt
@@ -103,10 +105,10 @@ setState(s=>({...s,resultPath:null,prompt:savedPrompt,error:null,isActionLoading
 const discardResult=useCallback(async()=>{
 if(state.resultPath){try{await bridge.deleteAsset(state.resultPath)}catch(e){console.warn('Delete failed:',e)}}
 pendingResultRef.current=null
-setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false})
+setState({isGenerating:false,originalPath:null,resultPath:null,prompt:'',error:null,isActionLoading:false,isComparing:false})
 },[state.resultPath])
 //Clear error
 const clearError=useCallback(()=>{setState(s=>({...s,error:null}))},[])
-return(<QuickEditContext.Provider value={{...state,startEdit,submitEdit,cancelEdit,keepAndOverride,saveAsCopy,rerun,discardResult,clearError}}>{children}</QuickEditContext.Provider>)
+return(<QuickEditContext.Provider value={{...state,startEdit,submitEdit,cancelEdit,keepAndOverride,saveAsCopy,rerun,discardResult,clearError,setIsComparing}}>{children}</QuickEditContext.Provider>)
 }
 export function useQuickEdit(){const ctx=useContext(QuickEditContext);if(!ctx)throw new Error('useQuickEdit must be used within a QuickEditProvider');return ctx}

@@ -6,22 +6,40 @@ import{toast}from'../ui/toaster'
 import{Eye,Check,Copy,X,Loader2,Sparkles,Send}from'lucide-react'
 import{cn}from'@/lib/utils'
 import{Button}from'../ui/button'
-export function QuickEditPreview(){
-const{resultPath,isActionLoading,keepAndOverride,saveAsCopy,discardResult,submitEdit}=useQuickEdit()
+//Result image overlay - renders inside image wrapper to match original image bounds
+export function QuickEditResultImage(){
+const{resultPath,isComparing}=useQuickEdit()
 const[resultSrc,setResultSrc]=useState<string|null>(null)
-const[isComparing,setIsComparing]=useState(false)
+const[loaded,setLoaded]=useState(false)
+//Load result image
+useEffect(()=>{
+if(!resultPath){setResultSrc(null);setLoaded(false);return}
+const rp=resultPath;let cancelled=false
+async function load(){
+if(!isPyWebView()){setResultSrc(rp);return}
+try{const dataUrl=await bridge.getAssetFull(rp);if(!cancelled&&dataUrl)setResultSrc(dataUrl)}catch(e){console.warn('Failed to load result:',e)}
+}
+void load();return()=>{cancelled=true}
+},[resultPath])
+if(!resultPath||!resultSrc)return null
+return(<img src={resultSrc} alt="Edited result" onLoad={()=>setLoaded(true)} className={cn("absolute inset-0 w-full h-full object-contain select-none transition-opacity duration-200",!loaded&&"opacity-0")} style={{zIndex:16,opacity:loaded?(isComparing?0:1):0,pointerEvents:'none'}}/>)
+}
+//Controls panel - renders outside image wrapper to avoid clipping
+export function QuickEditPreview(){
+const{resultPath,isActionLoading,isComparing,setIsComparing,keepAndOverride,saveAsCopy,discardResult,submitEdit}=useQuickEdit()
+const[resultSrc,setResultSrc]=useState<string|null>(null)
 const[loaded,setLoaded]=useState(false)
 const[editPrompt,setEditPrompt]=useState('')
 const[showEditInput,setShowEditInput]=useState(false)
 const btnRef=useRef<HTMLButtonElement>(null)
 const inputRef=useRef<HTMLInputElement>(null)
-//Load result image
+//Load result image (for loaded state tracking)
 useEffect(()=>{
 if(!resultPath){setResultSrc(null);setLoaded(false);setShowEditInput(false);setEditPrompt('');return}
 const rp=resultPath;let cancelled=false
 async function load(){
-if(!isPyWebView()){setResultSrc(rp);return}
-try{const dataUrl=await bridge.getAssetFull(rp);if(!cancelled&&dataUrl)setResultSrc(dataUrl)}catch(e){console.warn('Failed to load result:',e)}
+if(!isPyWebView()){setResultSrc(rp);setLoaded(true);return}
+try{const dataUrl=await bridge.getAssetFull(rp);if(!cancelled&&dataUrl){setResultSrc(dataUrl);setLoaded(true)}}catch(e){console.warn('Failed to load result:',e)}
 }
 void load();return()=>{cancelled=true}
 },[resultPath])
@@ -30,15 +48,15 @@ useEffect(()=>{if(loaded&&btnRef.current&&!showEditInput)btnRef.current.focus()}
 //Focus input when edit mode opens
 useEffect(()=>{if(showEditInput&&inputRef.current)setTimeout(()=>inputRef.current?.focus(),50)},[showEditInput])
 //Handle window blur - reset comparing state
-useEffect(()=>{const onBlur=()=>setIsComparing(false);window.addEventListener('blur',onBlur);return()=>window.removeEventListener('blur',onBlur)},[])
+useEffect(()=>{const onBlur=()=>setIsComparing(false);window.addEventListener('blur',onBlur);return()=>window.removeEventListener('blur',onBlur)},[setIsComparing])
 //Pointer handlers with capture for compare button
-const onPointerDown=useCallback((e:React.PointerEvent<HTMLButtonElement>)=>{e.currentTarget.setPointerCapture(e.pointerId);setIsComparing(true)},[])
-const onPointerUp=useCallback((e:React.PointerEvent<HTMLButtonElement>)=>{e.currentTarget.releasePointerCapture(e.pointerId);setIsComparing(false)},[])
-const onPointerCancel=useCallback(()=>setIsComparing(false),[])
-const onPointerLeave=useCallback(()=>setIsComparing(false),[])
+const onPointerDown=useCallback((e:React.PointerEvent<HTMLButtonElement>)=>{e.currentTarget.setPointerCapture(e.pointerId);setIsComparing(true)},[setIsComparing])
+const onPointerUp=useCallback((e:React.PointerEvent<HTMLButtonElement>)=>{e.currentTarget.releasePointerCapture(e.pointerId);setIsComparing(false)},[setIsComparing])
+const onPointerCancel=useCallback(()=>setIsComparing(false),[setIsComparing])
+const onPointerLeave=useCallback(()=>setIsComparing(false),[setIsComparing])
 //Keyboard handlers for compare
-const onKeyDown=useCallback((e:React.KeyboardEvent)=>{if(e.code==='Space'){e.preventDefault();setIsComparing(true)}},[])
-const onKeyUp=useCallback((e:React.KeyboardEvent)=>{if(e.code==='Space'){e.preventDefault();setIsComparing(false)}},[])
+const onKeyDown=useCallback((e:React.KeyboardEvent)=>{if(e.code==='Space'){e.preventDefault();setIsComparing(true)}},[setIsComparing])
+const onKeyUp=useCallback((e:React.KeyboardEvent)=>{if(e.code==='Space'){e.preventDefault();setIsComparing(false)}},[setIsComparing])
 //Action handlers
 const handleKeep=useCallback(async()=>{const res=await keepAndOverride();if(res.success)toast.success('Replaced original');else toast.error(res.error||'Failed to replace')},[keepAndOverride])
 const handleSave=useCallback(()=>{saveAsCopy();toast.success('Saved as copy')},[saveAsCopy])
@@ -46,12 +64,10 @@ const handleDiscard=useCallback(async()=>{await discardResult()},[discardResult]
 //Continue editing handler
 const handleContinueEdit=useCallback(async()=>{const trimmed=editPrompt.trim();if(!trimmed)return;setShowEditInput(false);setEditPrompt('');await submitEdit(trimmed)},[editPrompt,submitEdit])
 const handleEditKeyDown=useCallback((e:React.KeyboardEvent<HTMLInputElement>)=>{if(e.key==='Enter'){e.preventDefault();handleContinueEdit()}else if(e.key==='Escape'){setShowEditInput(false);setEditPrompt('')}},[handleContinueEdit])
-if(!resultPath||!resultSrc)return null
+if(!resultPath||!resultSrc||!loaded)return null
 return(<>
-{/* Result image overlay - fades based on comparing state */}
-<img src={resultSrc} alt="Edited result" onLoad={()=>setLoaded(true)} className="absolute inset-0 w-full h-full object-contain select-none transition-opacity duration-200" style={{zIndex:16,opacity:isComparing?0:1,pointerEvents:'none'}}/>
 {/* Controls panel - ALWAYS visible when loaded (not hidden during compare) */}
-{loaded&&(<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+<div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
 {/* Comparing indicator - shows above controls */}
 {isComparing&&(<div className="text-[10px] text-neutral-900 dark:text-white bg-white/80 dark:bg-neutral-800/80 px-3 py-1 rounded-full backdrop-blur-xl select-none mb-1 border border-neutral-200 dark:border-neutral-700 font-medium tracking-wide shadow-sm">Viewing Original</div>)}
 {/* Compare button - always accessible */}
@@ -71,6 +87,6 @@ return(<>
 <input ref={inputRef} type="text" value={editPrompt} onChange={e=>setEditPrompt(e.target.value)} onKeyDown={handleEditKeyDown} placeholder="Describe another edit..." className="bg-transparent text-white text-xs placeholder:text-neutral-400 outline-none w-48 font-medium"/>
 <Button variant="ghost" size="icon" onClick={handleContinueEdit} disabled={!editPrompt.trim()} className="h-7 w-7 rounded-full text-brand-400 hover:bg-white/10 disabled:opacity-30"><Send className="w-3.5 h-3.5"/></Button>
 </div>)}
-</div>)}
+</div>
 </>)
 }
