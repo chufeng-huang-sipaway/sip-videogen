@@ -152,7 +152,7 @@ def _impl_create_product(
         _common.storage_create_product(brand_slug, product)
         logger.info(f"Created product '{slug}' for brand '{brand_slug}'")
         emit_tool_thinking(
-            "Product created", None, expertise="Product Setup", status="complete", step_id=step_id
+            "Product created", "", expertise="Product Setup", status="complete", step_id=step_id
         )
         return f"Created product **{name}** (`{slug}`)."
     except ValueError as e:
@@ -265,11 +265,10 @@ async def _impl_add_product_image(
         )
         if not success:
             return f"Added image `{filename}` to product **{product.name}**, but failed to set as primary."
+        prod_name = product.name
         product = _common.load_product(brand_slug, product_slug)
         if product is None:
-            return (
-                f"Added image `{filename}` to product **{product.name}** and set as primary image."
-            )
+            return f"Added image `{filename}` to product **{prod_name}** and set as primary image."
         should_analyze = product.packaging_text is None or (
             product.packaging_text.source_image != brand_relative_path
             and not product.packaging_text.is_human_edited
@@ -330,18 +329,16 @@ def _impl_update_product(
             ]
         else:
             existing_by_key = {}
-            for attr in product.attributes:
-                existing_by_key[(attr.category.lower(), attr.key.lower())] = attr
-            for attr in attributes:
-                category = (attr.get("category") or "general").strip()
-                key = (category.lower(), attr["key"].lower())
+            for pa in product.attributes:
+                existing_by_key[(pa.category.lower(), pa.key.lower())] = pa
+            for ai in attributes:
+                category = (ai.get("category") or "general").strip()
+                key = (category.lower(), ai["key"].lower())
                 if key in existing_by_key:
-                    existing_by_key[key].value = attr["value"]
+                    existing_by_key[key].value = ai["value"]
                     existing_by_key[key].category = category
                 else:
-                    new_attr = ProductAttribute(
-                        key=attr["key"], value=attr["value"], category=category
-                    )
+                    new_attr = ProductAttribute(key=ai["key"], value=ai["value"], category=category)
                     product.attributes.append(new_attr)
                     existing_by_key[key] = new_attr
     elif description is not None and has_attributes_block(description_text):

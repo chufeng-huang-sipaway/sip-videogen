@@ -87,10 +87,8 @@ def _impl_load_brand(
     context_parts.append("")
     context_parts.append("## Target Audience")
     context_parts.append(f"- **Primary**: {identity.audience.primary_summary}")
-    if identity.audience.demographics:
-        demo = identity.audience.demographics
-        if demo.age_range:
-            context_parts.append(f"- **Age**: {demo.age_range}")
+    if identity.audience.age_range:
+        context_parts.append(f"- **Age**: {identity.audience.age_range}")
     context_parts.append("")
     context_parts.append("## Positioning")
     context_parts.append(f"- **UVP**: {identity.positioning.unique_value_proposition}")
@@ -110,8 +108,8 @@ def _impl_load_brand(
         context_parts.append("")
     if identity.core.values:
         context_parts.append("## Core Values")
-        for value in identity.core.values[:5]:
-            context_parts.append(f"- **{value.name}**: {value.meaning}")
+        for val in identity.core.values[:5]:
+            context_parts.append(f"- {val}")
         context_parts.append("")
     return "\n".join(context_parts)
 
@@ -262,7 +260,7 @@ def _impl_fetch_brand_detail(
     try:
         result = get_brand_detail(slug, detail_type)
         emit_tool_thinking(
-            "Brand context loaded", None, expertise="Research", status="complete", step_id=step_id
+            "Brand context loaded", "", expertise="Research", status="complete", step_id=step_id
         )
         return result
     except Exception as e:
@@ -292,12 +290,12 @@ def _impl_browse_brand_assets(category: str | None = None) -> str:
         assets = list_brand_assets(slug, category)
         if not assets:
             emit_tool_thinking(
-                "No assets found", None, expertise="Research", status="complete", step_id=step_id
+                "No assets found", "", expertise="Research", status="complete", step_id=step_id
             )
             return f"No assets found{' in category ' + category if category else ''}."
         emit_tool_thinking(
             f"Found {len(assets)} assets",
-            None,
+            "",
             expertise="Research",
             status="complete",
             step_id=step_id,

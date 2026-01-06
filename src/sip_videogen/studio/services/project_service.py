@@ -33,6 +33,8 @@ class ProjectService:
     def get_projects(self, brand_slug: str | None = None) -> dict:
         """Get list of projects for a brand."""
         try:
+            if not brand_slug:
+                return bridge_error("Brand slug required")
             projects = list_projects(brand_slug)
             active = get_active_project(brand_slug)
             return bridge_ok(

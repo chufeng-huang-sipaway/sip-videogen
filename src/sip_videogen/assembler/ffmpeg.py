@@ -247,10 +247,11 @@ class FFmpegAssembler:
                 text=True,
             )
             import json
+            from typing import Any
 
             data = json.loads(result.stdout)
 
-            info = {"path": str(video_path)}
+            info: dict[str, Any] = {"path": str(video_path)}
 
             # Extract stream info
             if data.get("streams"):

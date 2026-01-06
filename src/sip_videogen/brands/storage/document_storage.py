@@ -68,8 +68,8 @@ def save_document(
     dd = get_docs_dir(brand_slug)
     dd.mkdir(parents=True, exist_ok=True)
     resolved, err = _safe_resolve_in_dir(dd, relative_path)
-    if err:
-        return None, err
+    if err or resolved is None:
+        return None, err or "Failed to resolve path"
     # Ensure parent directories exist
     resolved.parent.mkdir(parents=True, exist_ok=True)
     resolved.write_bytes(content)
@@ -89,8 +89,8 @@ def delete_document(brand_slug: str, relative_path: str) -> tuple[bool, str | No
     if not dd.exists():
         return False, "Docs directory not found"
     resolved, err = _safe_resolve_in_dir(dd, relative_path)
-    if err:
-        return False, err
+    if err or resolved is None:
+        return False, err or "Failed to resolve path"
     if not resolved.exists():
         return False, "Document not found"
     if resolved.is_dir():
@@ -115,8 +115,8 @@ def rename_document(
     if not dd.exists():
         return None, "Docs directory not found"
     resolved, err = _safe_resolve_in_dir(dd, relative_path)
-    if err:
-        return None, err
+    if err or resolved is None:
+        return None, err or "Failed to resolve path"
     if not resolved.exists():
         return None, "Document not found"
     if "/" in new_name or "\\" in new_name:

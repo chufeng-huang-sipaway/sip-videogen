@@ -27,8 +27,8 @@ def get_image_thumbnail(brand_dir: Path, path: str, path_prefix: str) -> dict:
     if not path.startswith(f"{path_prefix}/"):
         return bridge_error(f"Path must start with '{path_prefix}/'")
     resolved, error = resolve_in_dir(brand_dir, path)
-    if error:
-        return bridge_error(error)
+    if error or resolved is None:
+        return bridge_error(error or "Failed to resolve path")
     if not resolved.exists():
         return bridge_error("Image not found")
     if not resolved.is_file():
@@ -41,8 +41,8 @@ def get_image_thumbnail(brand_dir: Path, path: str, path_prefix: str) -> dict:
             content = resolved.read_bytes()
             encoded = base64.b64encode(content).decode("utf-8")
             return bridge_ok({"dataUrl": f"data:image/svg+xml;base64,{encoded}"})
-        with Image.open(resolved) as img:
-            img = img.convert("RGBA")
+        with Image.open(resolved) as img_file:
+            img = img_file.convert("RGBA")
             img.thumbnail((256, 256))
             buf = io.BytesIO()
             img.save(buf, format="PNG")
@@ -70,8 +70,8 @@ def get_image_full(brand_dir: Path, path: str, path_prefix: str) -> dict:
     if not path.startswith(f"{path_prefix}/"):
         return bridge_error(f"Path must start with '{path_prefix}/'")
     resolved, error = resolve_in_dir(brand_dir, path)
-    if error:
-        return bridge_error(error)
+    if error or resolved is None:
+        return bridge_error(error or "Failed to resolve path")
     if not resolved.exists():
         return bridge_error("Image not found")
     if not resolved.is_file():

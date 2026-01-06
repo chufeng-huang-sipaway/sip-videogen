@@ -885,7 +885,10 @@ class LayoutElement(BaseModel):
     id: str = Field(description="Unique element identifier")
     type: str = Field(description="Element type: 'image', 'text', 'shape', 'product'")
     role: str = Field(default="", description="Semantic role, e.g., 'headline'")
-    geometry: GeometrySpec = Field(default_factory=GeometrySpec, description="Position/size")
+    geometry: GeometrySpec = Field(
+        default_factory=lambda: GeometrySpec(x=0.0, y=0.0, width=1.0, height=1.0),
+        description="Position/size",
+    )
     appearance: AppearanceSpec = Field(default_factory=AppearanceSpec, description="Visual style")
     content: ContentSpec = Field(default_factory=ContentSpec, description="Content spec")
     constraints: ConstraintSpec = Field(default_factory=ConstraintSpec, description="Constraints")

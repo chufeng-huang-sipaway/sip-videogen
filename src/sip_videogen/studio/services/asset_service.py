@@ -9,23 +9,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
-
-def _get_thumb_cache_dir() -> Path:
-    """Get or create thumbnail cache directory."""
-    d = Path.home() / ".sip-videogen" / "cache" / "thumbnails"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
-
-
-def _get_cache_key(source_path: Path) -> str:
-    """Generate cache key from source path + mtime for auto-invalidation."""
-    mtime = int(source_path.stat().st_mtime)
-    key = f"{source_path}:{mtime}"
-    return hashlib.md5(key.encode()).hexdigest()
-
-
 from sip_videogen.brands.memory import list_brand_assets
 from sip_videogen.brands.storage import get_active_brand
 from sip_videogen.brands.storage import save_asset as storage_save_asset
@@ -43,6 +26,22 @@ from ..utils.bridge_types import (
 from ..utils.decorators import require_brand
 from ..utils.os_utils import reveal_in_file_manager
 from ..utils.path_utils import resolve_assets_path, resolve_in_dir
+
+logger = logging.getLogger(__name__)
+
+
+def _get_thumb_cache_dir() -> Path:
+    """Get or create thumbnail cache directory."""
+    d = Path.home() / ".sip-videogen" / "cache" / "thumbnails"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _get_cache_key(source_path: Path) -> str:
+    """Generate cache key from source path + mtime for auto-invalidation."""
+    mtime = int(source_path.stat().st_mtime)
+    key = f"{source_path}:{mtime}"
+    return hashlib.md5(key.encode()).hexdigest()
 
 
 def _move_to_trash(path: Path) -> bool:
@@ -71,15 +70,18 @@ class AssetService:
     def _resolve_image_path(self, image_path: str) -> tuple[Path | None, str | None]:
         """Resolve an image path within the active brand directory."""
         brand_dir, err = self._state.get_brand_dir()
-        if err:
-            return None, err
+        if err or brand_dir is None:
+            return None, err or "No brand selected"
         path = Path(image_path)
+        resolved: Path | None = None
         if path.is_absolute():
             resolved = path.resolve()
         else:
             resolved, error = resolve_in_dir(brand_dir, image_path)
-            if error:
-                return None, error
+            if error or resolved is None:
+                return None, error or "Path resolution failed"
+        if resolved is None:
+            return None, "Path resolution failed"
         try:
             resolved.relative_to(brand_dir.resolve())
         except ValueError:
@@ -90,6 +92,8 @@ class AssetService:
     def get_assets(self, slug: str | None = None) -> dict:
         """Get asset tree for a brand."""
         try:
+            if not slug:
+                return bridge_error("Brand slug required")
             tree = []
             for category in ASSET_CATEGORIES:
                 assets = list_brand_assets(slug, category=category)
@@ -118,9 +122,10 @@ class AssetService:
         """Get base64-encoded thumbnail for an asset with disk caching."""
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             rp = Path(relative_path)
+            resolved: Path | None = None
             if rp.is_absolute():
                 resolved = rp.resolve()
                 try:
@@ -129,9 +134,9 @@ class AssetService:
                     return bridge_error("Invalid path: outside assets directory")
             else:
                 resolved, error = resolve_assets_path(brand_dir, relative_path)
-                if error:
-                    return bridge_error(error)
-            if not resolved.exists():
+                if error or resolved is None:
+                    return bridge_error(error or "Path resolution failed")
+            if resolved is None or not resolved.exists():
                 return bridge_error("Asset not found")
             suffix = resolved.suffix.lower()
             if suffix not in ALLOWED_IMAGE_EXTS:
@@ -149,10 +154,10 @@ class AssetService:
             # Generate and cache as WebP
             from PIL import Image
 
-            with Image.open(resolved) as img:
-                img = img.convert("RGBA")
-                img.thumbnail((256, 256))
-                img.save(cache_path, format="WEBP", quality=85)
+            with Image.open(resolved) as img_file:
+                im = img_file.convert("RGBA")
+                im.thumbnail((256, 256))
+                im.save(cache_path, format="WEBP", quality=85)
                 enc = base64.b64encode(cache_path.read_bytes()).decode("utf-8")
             return bridge_ok({"dataUrl": f"data:image/webp;base64,{enc}"})
         except Exception as e:
@@ -162,9 +167,10 @@ class AssetService:
         """Get base64-encoded full-resolution image for an asset."""
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             rp = Path(relative_path)
+            resolved: Path | None = None
             if rp.is_absolute():
                 resolved = rp.resolve()
                 try:
@@ -173,9 +179,9 @@ class AssetService:
                     return bridge_error("Invalid path: outside assets directory")
             else:
                 resolved, error = resolve_assets_path(brand_dir, relative_path)
-                if error:
-                    return bridge_error(error)
-            if not resolved.exists():
+                if error or resolved is None:
+                    return bridge_error(error or "Path resolution failed")
+            if resolved is None or not resolved.exists():
                 return bridge_error("Asset not found")
             suffix = resolved.suffix.lower()
             if suffix not in ALLOWED_IMAGE_EXTS:
@@ -191,8 +197,8 @@ class AssetService:
         """Get base64-encoded image data for a file under the brand directory."""
         try:
             resolved, error = self._resolve_image_path(image_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Image not found")
             suffix = resolved.suffix.lower()
@@ -231,7 +237,8 @@ class AssetService:
             metadata = load_image_metadata(str(resolved))
             slugs = metadata.get("product_slugs") if metadata else None
             logger.info(
-                f"[get_image_metadata] path={image_path}, resolved={resolved}, product_slugs={slugs}"
+                f"[get_image_metadata] path={image_path}, "
+                f"resolved={resolved}, product_slugs={slugs}"
             )
             return bridge_ok(metadata)
         except Exception as e:
@@ -241,8 +248,8 @@ class AssetService:
         """Get base64-encoded thumbnail for a file under the brand directory with disk caching."""
         try:
             resolved, error = self._resolve_image_path(image_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Image not found")
             suffix = resolved.suffix.lower()
@@ -261,10 +268,10 @@ class AssetService:
             # Generate and cache as WebP
             from PIL import Image
 
-            with Image.open(resolved) as img:
-                img = img.convert("RGBA")
-                img.thumbnail((256, 256))
-                img.save(cache_path, format="WEBP", quality=85)
+            with Image.open(resolved) as img_file:
+                im = img_file.convert("RGBA")
+                im.thumbnail((256, 256))
+                im.save(cache_path, format="WEBP", quality=85)
                 enc = base64.b64encode(cache_path.read_bytes()).decode("utf-8")
             return bridge_ok({"dataUrl": f"data:image/webp;base64,{enc}"})
         except Exception as e:
@@ -274,11 +281,11 @@ class AssetService:
         """Open an asset in Finder."""
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             resolved, error = resolve_assets_path(brand_dir, relative_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Asset not found")
             if resolved.suffix.lower() not in (ALLOWED_IMAGE_EXTS | ALLOWED_VIDEO_EXTS):
@@ -292,11 +299,11 @@ class AssetService:
         """Move an asset file to system trash."""
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             resolved, error = resolve_assets_path(brand_dir, relative_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Asset not found")
             if resolved.is_dir():
@@ -313,11 +320,11 @@ class AssetService:
         """Rename an asset file."""
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             resolved, error = resolve_assets_path(brand_dir, relative_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Asset not found")
             if resolved.suffix.lower() not in (ALLOWED_IMAGE_EXTS | ALLOWED_VIDEO_EXTS):
@@ -359,11 +366,11 @@ class AssetService:
         """
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             resolved, error = resolve_assets_path(brand_dir, relative_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Video not found")
             suffix = resolved.suffix.lower()
@@ -391,9 +398,10 @@ class AssetService:
         """
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             rp = Path(relative_path)
+            resolved: Path | None = None
             if rp.is_absolute():
                 resolved = rp.resolve()
                 try:
@@ -402,9 +410,9 @@ class AssetService:
                     return bridge_error("Invalid path: outside assets directory")
             else:
                 resolved, error = resolve_assets_path(brand_dir, relative_path)
-                if error:
-                    return bridge_error(error)
-            if not resolved.exists():
+                if error or resolved is None:
+                    return bridge_error(error or "Path resolution failed")
+            if resolved is None or not resolved.exists():
                 return bridge_error("Video not found")
             suffix = resolved.suffix.lower()
             if suffix not in ALLOWED_VIDEO_EXTS:
@@ -428,14 +436,14 @@ class AssetService:
 
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             orig, err1 = resolve_assets_path(brand_dir, original_path)
-            if err1:
-                return bridge_error(err1)
+            if err1 or orig is None:
+                return bridge_error(err1 or "Path resolution failed")
             new, err2 = resolve_assets_path(brand_dir, new_path)
-            if err2:
-                return bridge_error(err2)
+            if err2 or new is None:
+                return bridge_error(err2 or "Path resolution failed")
             if not orig.exists():
                 return bridge_error("Original asset not found")
             if not new.exists():
@@ -456,13 +464,13 @@ class AssetService:
                 if dest.exists() and dest != backup:
                     try:
                         dest.unlink()
-                    except:
+                    except Exception:
                         pass
                 # Restore backup
                 if backup.exists():
                     try:
                         backup.rename(orig)
-                    except:
+                    except Exception:
                         pass
                 return bridge_error(str(e))
         except Exception as e:

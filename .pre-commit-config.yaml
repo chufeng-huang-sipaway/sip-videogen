@@ -25,12 +25,11 @@ repos:
       - id: detect-private-key
       - id: check-merge-conflict
       - id: check-toml
-  # MyPy - Type checking
+  # MyPy - Type checking (uses pyproject.toml settings)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
     hooks:
       - id: mypy
-        args: [--strict]
         additional_dependencies:
           - pydantic>=2.0.0
           - pydantic-settings>=2.0.0

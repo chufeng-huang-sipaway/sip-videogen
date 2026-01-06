@@ -77,9 +77,9 @@ async def _generate_style_reference_name(image_path: Path) -> str:
         prompt = "Analyze this design style reference image and suggest a short descriptive name (2-4 words) that captures its visual style. Examples: 'Hero Centered Product', 'Split Two-Column', 'Minimalist Product Card'. Reply with ONLY the name, nothing else."
         resp = client.models.generate_content(
             model="gemini-2.0-flash",
-            contents=[types.Part.from_bytes(data=img_bytes, mime_type="image/png"), prompt],
+            contents=[types.Part.from_bytes(data=img_bytes, mime_type="image/png"), prompt],  # type: ignore[arg-type]
         )
-        name = resp.text.strip().strip('"').strip("'")
+        name = (resp.text or "").strip().strip('"').strip("'")
         return name if name else "New Style Reference"
     except Exception as e:
         logger.warning(f"Failed to generate style reference name: {e}")
@@ -131,7 +131,7 @@ async def _impl_create_style_reference_async(
         if result.startswith("Error"):
             emit_tool_thinking(
                 "Style reference created, image failed",
-                None,
+                "",
                 expertise="Visual Design",
                 status="complete",
                 step_id=step_id,
@@ -139,7 +139,7 @@ async def _impl_create_style_reference_async(
             return f"Created style reference but failed to add image: {result}"
     emit_tool_thinking(
         "Style reference created",
-        None,
+        "",
         expertise="Visual Design",
         status="complete",
         step_id=step_id,
@@ -286,7 +286,7 @@ async def _impl_reanalyze_style_reference_async(style_ref_slug: str) -> str:
     brand_dir = _common.get_brand_dir(slug)
     img_paths = [brand_dir / img for img in sr.images[:2]]
     try:
-        analysis = await analyze_style_reference_v2(img_paths)
+        analysis = await analyze_style_reference_v2(img_paths)  # type: ignore[arg-type]
         if not analysis:
             emit_tool_thinking(
                 "Analysis failed",
@@ -301,7 +301,7 @@ async def _impl_reanalyze_style_reference_async(style_ref_slug: str) -> str:
         _common.storage_save_style_reference(slug, sr)
         emit_tool_thinking(
             "Style analysis complete",
-            None,
+            "",
             expertise="Visual Design",
             status="complete",
             step_id=step_id,

@@ -114,17 +114,23 @@ async def _impl_generate_image(
             from sip_videogen.advisor.style_reference_prompt import (
                 build_style_reference_constraints_v2,
             )
+            from sip_videogen.brands.models import StyleReferenceAnalysisV2
 
+            analysis_v2 = style_ref.analysis
+            assert isinstance(analysis_v2, StyleReferenceAnalysisV2)
             template_constraints = build_style_reference_constraints_v2(
-                style_ref.analysis, strict=strict, include_usage=False
+                analysis_v2, strict=strict, include_usage=False
             )
         else:
             from sip_videogen.advisor.style_reference_prompt import (
                 build_style_reference_constraints,
             )
+            from sip_videogen.brands.models import StyleReferenceAnalysis
 
+            analysis_v1 = style_ref.analysis
+            assert isinstance(analysis_v1, StyleReferenceAnalysis)
             template_constraints = build_style_reference_constraints(
-                style_ref.analysis, strict=strict, include_usage=False
+                analysis_v1, strict=strict, include_usage=False
             )
         template_aspect_ratio = style_ref.analysis.canvas.aspect_ratio
         allowed_aspects = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"}
@@ -346,8 +352,8 @@ async def _impl_generate_image(
     # Single-product reference handling
     generation_prompt = prompt
     reference_candidates: list[dict] = []
-    reference_images: list[str] = []
-    reference_images_detail: list[dict] = []
+    reference_images: list[str] = []  # type: ignore[no-redef]
+    reference_images_detail: list[dict] = []  # type: ignore[no-redef]
     reference_images_bytes: list[bytes] = []
     reference_image_bytes: bytes | None = None
     original_reference_image = reference_image
@@ -483,7 +489,7 @@ async def _impl_generate_image(
             from sip_videogen.advisor.validation import generate_with_validation
 
             logger.info(f"Generating with validation (max {max_retries} retries)...")
-            result = await generate_with_validation(
+            val_result = await generate_with_validation(
                 client=client,
                 prompt=generation_prompt,
                 reference_image_bytes=reference_image_bytes,
@@ -493,20 +499,20 @@ async def _impl_generate_image(
                 aspect_ratio=aspect_ratio,
                 max_retries=max_retries,
             )
-            if isinstance(result, str):
-                return result
-            actual_path = result.path
+            if isinstance(val_result, str):
+                return val_result
+            actual_path = val_result.path
             return_value = actual_path
-            if result.warning:
-                return_value = f"{actual_path}\n\n{result.warning}"
+            if val_result.warning:
+                return_value = f"{actual_path}\n\n{val_result.warning}"
             attempts = _build_attempts_metadata(
-                attempts=result.attempts,
+                attempts=val_result.attempts,
                 model=model,
                 aspect_ratio=aspect_ratio,
                 image_size=image_size,
                 reference_images=reference_images,
             )
-            final_prompt = result.final_prompt
+            final_prompt = val_result.final_prompt
             final_api_call = _build_api_call_code(
                 prompt=final_prompt,
                 model=model,
@@ -530,10 +536,10 @@ async def _impl_generate_image(
                 reference_image=reference_image,
                 product_slugs=product_slugs or ([product_slug] if product_slug else []),
                 validate_identity=validate_identity,
-                validation_passed=result.validation_passed,
-                validation_warning=result.warning,
-                validation_attempts=len(result.attempts),
-                final_attempt_number=result.final_attempt_number,
+                validation_passed=val_result.validation_passed,
+                validation_warning=val_result.warning,
+                validation_attempts=len(val_result.attempts),
+                final_attempt_number=val_result.final_attempt_number,
                 attempts=attempts,
                 request_payload=final_request_payload,
                 generated_at=datetime.utcnow().isoformat(),
@@ -568,20 +574,21 @@ async def _impl_generate_image(
                 f"Generating image with {len(reference_images_bytes)} reference image(s): {generation_prompt[:100]}..."
             )
         else:
-            contents = generation_prompt
+            contents = generation_prompt  # type: ignore[assignment]
             logger.info(f"Generating image: {generation_prompt[:100]}...")
         response = client.models.generate_content(
             model=model,
-            contents=contents,
+            contents=contents,  # type: ignore[arg-type]
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE"],
                 image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size),
             ),
         )
-        for part in response.parts:
+        for part in response.parts or []:
             if part.inline_data:
                 image = part.as_image()
-                image.save(str(output_path))
+                if image:
+                    image.save(str(output_path))
                 logger.info(f"Saved image to: {output_path}")
                 final_api_call = _build_api_call_code(
                     prompt=generation_prompt,
@@ -759,15 +766,15 @@ def _impl_get_recent_generated_images(limit: int = 5) -> str:
     gen_dir = brand_dir / "assets" / "generated"
     if not gen_dir.exists():
         return "[]"
-    images = []
+    images: list[dict[str, str | float]] = []
     for fp in gen_dir.glob("*"):
         if fp.is_file() and fp.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}:
             mtime = fp.stat().st_mtime
             images.append({"path": str(fp), "filename": fp.name, "modified": mtime})
-    images.sort(key=lambda x: x["modified"], reverse=True)
+    images.sort(key=lambda x: float(x["modified"]), reverse=True)
     result = images[:limit]
     for img in result:
-        img["modified"] = datetime.fromtimestamp(img["modified"]).isoformat()
+        img["modified"] = datetime.fromtimestamp(float(img["modified"])).isoformat()
     return json.dumps(result, indent=2)
 
 

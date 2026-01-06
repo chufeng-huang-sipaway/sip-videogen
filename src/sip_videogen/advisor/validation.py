@@ -635,7 +635,7 @@ async def generate_with_validation(
             # Generate image
             response = client.models.generate_content(
                 model="gemini-3-pro-image-preview",
-                contents=contents,
+                contents=contents,  # type: ignore[arg-type]
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
@@ -650,11 +650,12 @@ async def generate_with_validation(
             attempt_path = output_dir / attempt_filename
             generated_bytes: bytes | None = None
 
-            for part in response.parts:
+            for part in response.parts or []:
                 if part.inline_data:
                     image = part.as_image()
-                    # Gemini Image.save() only accepts a file path, not buffer
-                    image.save(str(attempt_path))
+                    if image:
+                        # Gemini Image.save() only accepts a file path, not buffer
+                        image.save(str(attempt_path))
                     # Read bytes back for validation
                     generated_bytes = attempt_path.read_bytes()
                     break

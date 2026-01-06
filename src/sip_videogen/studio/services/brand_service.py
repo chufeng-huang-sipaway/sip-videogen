@@ -234,7 +234,8 @@ class BrandService:
                 elif section == "constraints_avoid":
                     if not isinstance(data, dict):
                         return bridge_error(
-                            "constraints_avoid section must be an object with 'constraints' and 'avoid' arrays"
+                            "constraints_avoid section must be an object "
+                            "with 'constraints' and 'avoid' arrays"
                         )
                     constraints = data.get("constraints", [])
                     avoid = data.get("avoid", [])
@@ -270,7 +271,8 @@ class BrandService:
             docs_dir = brand_dir / "docs"
             if not docs_dir.exists() or not any(docs_dir.iterdir()):
                 return bridge_error(
-                    "No source documents found. Add documents to the brand's docs/ folder before regenerating."
+                    "No source documents found. Add documents to the "
+                    "brand's docs/ folder before regenerating."
                 )
             concept_parts = []
             for doc_path in sorted(docs_dir.rglob("*")):
@@ -463,9 +465,9 @@ class BrandService:
         try:
             # Build concept
             concept, err = self._build_concept(description, documents)
-            if err:
+            if err or not concept:
                 logger.error("Concept error: %s", err)
-                return bridge_error(err)
+                return bridge_error(err or "Failed to build concept")
             # Run AI
             identity, err = self._run_brand_director(concept)
             if err:
@@ -473,6 +475,8 @@ class BrandService:
                 return bridge_error(err)
             # Save brand
             self._state.current_progress = "Saving brand..."
+            if identity is None:
+                return bridge_error("Failed to generate brand identity")
             storage_create_brand(identity)
             slug = identity.slug
             # Persist materials

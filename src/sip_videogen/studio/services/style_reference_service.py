@@ -42,6 +42,8 @@ class StyleReferenceService:
     def get_style_references(self, brand_slug: str | None = None) -> dict:
         """Get list of style references for a brand."""
         try:
+            if not brand_slug:
+                return bridge_error("Brand slug required")
             srs = list_style_references(brand_slug)
             return bridge_ok(
                 {
@@ -136,8 +138,9 @@ class StyleReferenceService:
                     except Exception as e:
                         logger.warning("Failed to add style reference image %s: %s", fn, e)
             # Run V2 analyzer on uploaded images
-            sr = load_style_reference(slug, sr_slug)
-            if sr and sr.images:
+            sr_loaded = load_style_reference(slug, sr_slug)
+            if sr_loaded and sr_loaded.images:
+                sr = sr_loaded
                 sr_dir = get_style_reference_dir(slug, sr_slug)
                 img_paths = [
                     sr_dir / "images" / Path(p).name
@@ -147,14 +150,14 @@ class StyleReferenceService:
                 if img_paths:
                     try:
                         analysis = asyncio.get_event_loop().run_until_complete(
-                            analyze_style_reference_v2(img_paths[:2])
+                            analyze_style_reference_v2(img_paths[:2])  # type: ignore[arg-type]
                         )
                         if analysis:
                             sr.analysis = analysis
                             sr.updated_at = datetime.utcnow()
                             save_style_reference(slug, sr)
                     except RuntimeError:
-                        analysis = asyncio.run(analyze_style_reference_v2(img_paths[:2]))
+                        analysis = asyncio.run(analyze_style_reference_v2(img_paths[:2]))  # type: ignore[arg-type]
                         if analysis:
                             sr.analysis = analysis
                             sr.updated_at = datetime.utcnow()
@@ -218,10 +221,10 @@ class StyleReferenceService:
                 return bridge_error("No valid image files found")
             try:
                 analysis = asyncio.get_event_loop().run_until_complete(
-                    analyze_style_reference_v2(img_paths[:2])
+                    analyze_style_reference_v2(img_paths[:2])  # type: ignore[arg-type]
                 )
             except RuntimeError:
-                analysis = asyncio.run(analyze_style_reference_v2(img_paths[:2]))
+                analysis = asyncio.run(analyze_style_reference_v2(img_paths[:2]))  # type: ignore[arg-type]
             if not analysis:
                 return bridge_error("Analysis failed - check Gemini API key")
             sr.analysis = analysis
@@ -307,13 +310,13 @@ class StyleReferenceService:
     def get_style_reference_image_thumbnail(self, path: str) -> dict:
         """Get base64-encoded thumbnail for a style reference image."""
         brand_dir, err = self._state.get_brand_dir()
-        if err:
-            return bridge_error(err)
+        if err or brand_dir is None:
+            return bridge_error(err or "No brand selected")
         return get_image_thumbnail(brand_dir, path, "style_references")
 
     def get_style_reference_image_full(self, path: str) -> dict:
         """Get base64-encoded full-resolution style reference image."""
         brand_dir, err = self._state.get_brand_dir()
-        if err:
-            return bridge_error(err)
+        if err or brand_dir is None:
+            return bridge_error(err or "No brand selected")
         return get_image_full(brand_dir, path, "style_references")

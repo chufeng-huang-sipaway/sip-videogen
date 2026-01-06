@@ -192,7 +192,7 @@ async def _impl_generate_video_clip(
 
             product_index = 0
             for idx, ref in enumerate(selected_refs, start=1):
-                kind = ref.get("kind")
+                kind = str(ref.get("kind") or "")
                 if kind == "product":
                     slug = str(ref.get("product_slug") or "product")
                     element_id = _normalize_element_id(f"product_{slug}")
@@ -265,7 +265,8 @@ async def _impl_generate_video_clip(
     elif duration is None:
         duration = 8
     elif duration not in valid_durations:
-        duration = min(valid_durations, key=lambda x: abs(x - duration))
+        cur_dur = duration  # capture for lambda
+        duration = min(valid_durations, key=lambda x: abs(x - cur_dur))
     try:
         from sip_videogen.models.script import SceneAction, VideoScript
 
@@ -308,7 +309,7 @@ async def _impl_generate_video_clip(
             if output_path != target_path:
                 output_path.replace(target_path)
             gen_time = int((time_mod.time() - start_time) * 1000)
-            video_meta = {
+            video_meta: dict[str, object] = {
                 "prompt": effective_prompt,
                 "concept_image_path": concept_image_path,
                 "aspect_ratio": aspect_ratio,
