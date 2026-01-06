@@ -6,7 +6,7 @@ import{useQuickEdit}from'../../context/QuickEditContext'
 import{useViewer}from'../../context/ViewerContext'
 import{bridge,isPyWebView}from'../../lib/bridge'
 import{Loader2,ChevronLeft,ChevronRight}from'lucide-react'
-import{QuickEditPreview}from'./QuickEditPreview'
+import{QuickEditPreview,QuickEditResultImage}from'./QuickEditPreview'
 import{FullscreenControls}from'./FullscreenControls'
 import{InfoOverlay}from'./InfoOverlay'
 import{getFullCached,setFullCached,hasFullCached}from'../../lib/thumbnailCache'
@@ -194,6 +194,8 @@ return(<div ref={containerRef} className={cn("w-full h-full flex items-center ju
 {displayedSrc&&!error&&(<img draggable={false} onMouseDown={handleMouseDown} onLoad={handleImgLoad} onError={handleImgError} src={displayedSrc} alt="" className={imgClass} style={imgStyle}/>)}
 {/* Pending image - fades in on top */}
 {pendingSrc&&pendingSrc!==displayedSrc&&(<img draggable={false} src={pendingSrc} alt={currentImage.prompt||'Generated image'} onLoad={(e)=>{handlePendingLoad();handleImgLoad(e)}} onError={()=>{handlePendingError();handleImgError()}} className={cn(imgClass,"absolute inset-0")} style={{...imgStyle,animation:'fadeIn 200ms ease-out forwards'}}/>)}
+{/* Quick Edit result image - inside wrapper to match original image bounds */}
+{resultPath&&!isGenerating&&<QuickEditResultImage/>}
 {/* Shimmer overlay with sparkles - now contained to image area */}
 {isGenerating&&(<><div className="shimmer-overlay rounded-lg"/><div className="shimmer-sparkles rounded-lg">{Array.from({length:38},(_,i)=><span key={i} className={`sparkle${i%3===1?' brand':''}`}/>)}</div><button onClick={cancelEdit} className="magic-stop-btn" style={{pointerEvents:'auto'}}><span className="magic-stop-icon"/></button></>)}
 </div>
