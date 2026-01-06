@@ -10,6 +10,7 @@ from typing import Literal
 from agents import function_tool
 
 from sip_videogen.config.logging import get_logger
+from sip_videogen.models.aspect_ratio import validate_aspect_ratio
 
 from . import _common
 from .image_tools import _generate_output_filename
@@ -381,7 +382,12 @@ async def generate_video_clip(
     Returns:
         Path to the saved video file (.mp4), or error message.
     """
-    effective_ratio = aspect_ratio or get_active_aspect_ratio()
+    # Session aspect ratio is source of truth (set by UI before agent runs)
+    session_ratio = get_active_aspect_ratio()
+    validated = validate_aspect_ratio(session_ratio)
+    effective_ratio = validated.value
+    if aspect_ratio and aspect_ratio != effective_ratio:
+        logger.debug(f"Using session aspect_ratio={effective_ratio} (LLM suggested {aspect_ratio})")
     return await _impl_generate_video_clip(
         prompt, concept_image_path, effective_ratio, duration, provider
     )

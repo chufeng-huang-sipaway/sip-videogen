@@ -22,7 +22,11 @@ from .services.update_service import UpdateService
 from .state import BridgeState
 from .utils.bridge_types import bridge_error, bridge_ok
 from .utils.config_store import check_api_keys as do_check_api_keys
-from .utils.config_store import load_api_keys_from_config
+from .utils.config_store import (
+    get_chat_preferences,
+    load_api_keys_from_config,
+    save_chat_preferences,
+)
 from .utils.config_store import save_api_keys as do_save_api_keys
 
 logger = get_logger(__name__)
@@ -76,6 +80,20 @@ class StudioBridge:
         """Save API keys to environment and persist to config file."""
         try:
             do_save_api_keys(openai_key, gemini_key, firecrawl_key)
+            return bridge_ok()
+        except Exception as e:
+            return bridge_error(str(e))
+
+    def get_chat_prefs(self, brand_slug: str) -> dict:
+        """Get chat preferences (aspect_ratio, generation_mode) for a brand."""
+        return bridge_ok(get_chat_preferences(brand_slug))
+
+    def save_chat_prefs(
+        self, brand_slug: str, aspect_ratio: str | None = None, generation_mode: str | None = None
+    ) -> dict:
+        """Save chat preferences for a brand."""
+        try:
+            save_chat_preferences(brand_slug, aspect_ratio, generation_mode)
             return bridge_ok()
         except Exception as e:
             return bridge_error(str(e))
