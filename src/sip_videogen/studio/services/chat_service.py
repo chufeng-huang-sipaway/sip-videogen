@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone
 
 from sip_videogen.advisor.agent import BrandAdvisor
 from sip_videogen.advisor.tools import get_image_metadata, get_video_metadata
@@ -18,7 +19,7 @@ from sip_videogen.brands.storage import list_style_references as storage_list_st
 from sip_videogen.config.logging import get_logger
 from sip_videogen.models.aspect_ratio import validate_aspect_ratio
 
-from ..state import BridgeState
+from ..state import BridgeState, ThinkingStep
 from ..utils.bridge_types import bridge_error, bridge_ok
 from ..utils.chat_utils import (
     analyze_and_format_attachments,
@@ -39,10 +40,6 @@ class ChatService:
 
     def _progress_callback(self, progress) -> None:
         """Called by BrandAdvisor during execution."""
-        from datetime import datetime, timezone
-
-        from ..state import ThinkingStep
-
         ts = int(time.time() * 1000)
         event = {
             "type": progress.event_type,
@@ -59,14 +56,17 @@ class ChatService:
         if progress.event_type == "thinking_step":
             step_id = progress.step_id or f"{ts}-{len(self._state.thinking_steps)}"
             run_id = self._state.current_run_id or ""
+            # Determine source: report_thinking (agent) vs emit_tool_thinking (auto)
+            # If step_id looks like a UUID (36 chars with dashes), it's from emit_tool_thinking
+            source = "auto" if step_id and len(step_id) == 36 and "-" in step_id else "agent"
             step = ThinkingStep(
                 id=step_id,
                 run_id=run_id,
                 step=progress.message,
                 detail=progress.detail or None,
                 expertise=progress.expertise,
-                status="complete",
-                source="agent",
+                status=progress.status or "complete",
+                source=source,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
             self._state.add_thinking_step(step)
@@ -129,7 +129,18 @@ class ChatService:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace = []
         self._state.matched_skills = []
-        self._state.start_chat_turn()  # Generates run_id, clears thinking_steps
+        run_id = self._state.start_chat_turn()  # Generates run_id, clears thinking_steps
+        # Add initial thinking step so timeline shows immediately
+        initial_step = ThinkingStep(
+            id=f"initial-{run_id[:8]}",
+            run_id=run_id,
+            step="Let me think about this...",
+            expertise="Research",
+            status="pending",
+            source="auto",
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+        self._state.add_thinking_step(initial_step)
         try:
             advisor, err = self._ensure_advisor()
             if err or advisor is None:
@@ -190,6 +201,16 @@ class ChatService:
             images = self._collect_new_images(slug, before_images)
             videos = self._collect_new_videos(slug, before_videos)
             style_refs = self._collect_new_style_references(slug, before_style_refs)
+            # Mark initial step as complete
+            initial_complete = ThinkingStep(
+                id=f"initial-{run_id[:8]}",
+                run_id=run_id,
+                step="Let me think about this...",
+                expertise="Research",
+                status="complete",
+                source="auto",
+            )
+            self._state.add_thinking_step(initial_complete)
             return bridge_ok(
                 {
                     "response": response,

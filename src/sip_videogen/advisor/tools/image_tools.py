@@ -246,8 +246,8 @@ async def _impl_generate_image(
         )
         start_time = time.time()
         mp_step_id = emit_tool_thinking(
-            "Creating your image...",
-            f"Combining {len(product_references)} products",
+            "I'm gathering your product images...",
+            f"Preparing {len(product_references)} products for the shot",
             expertise="Image Generation",
             status="pending",
         )
@@ -318,18 +318,25 @@ async def _impl_generate_image(
                 reference_images_detail=reference_images_detail,
             )
             store_image_metadata(actual_path, metadata)
+            # Mark setup complete and emit new completion step
             emit_tool_thinking(
-                "Image ready",
-                None,
+                "I'm gathering your product images...",
+                "All set!",
                 expertise="Image Generation",
                 status="complete",
                 step_id=mp_step_id,
+            )
+            emit_tool_thinking(
+                "Your image is ready!",
+                "Take a look at what I created",
+                expertise="Image Generation",
+                status="complete",
             )
             return return_value
         except Exception as e:
             logger.error(f"Multi-product image generation failed: {e}")
             emit_tool_thinking(
-                "Generation failed",
+                "I ran into an issue...",
                 str(e)[:100],
                 expertise="Image Generation",
                 status="failed",
@@ -465,8 +472,8 @@ async def _impl_generate_image(
             logger.info(f"Loaded reference image: {img_path} ({len(ref_bytes)} bytes)")
     start_time = time.time()
     step_id = emit_tool_thinking(
-        "Creating your image...",
-        "Generating with Gemini",
+        "I'm preparing your references...",
+        "Loading your brand assets",
         expertise="Image Generation",
         status="pending",
     )
@@ -536,12 +543,19 @@ async def _impl_generate_image(
                 reference_images_detail=reference_images_detail,
             )
             store_image_metadata(actual_path, metadata)
+            # Mark setup complete and emit new completion step
             emit_tool_thinking(
-                "Image ready",
-                None,
+                "I'm preparing your references...",
+                "All set!",
                 expertise="Image Generation",
                 status="complete",
                 step_id=step_id,
+            )
+            emit_tool_thinking(
+                "Your image is ready!",
+                "Take a look at what I created",
+                expertise="Image Generation",
+                status="complete",
             )
             return return_value
         # Standard generation
@@ -614,17 +628,24 @@ async def _impl_generate_image(
                     reference_images_detail=reference_images_detail,
                 )
                 store_image_metadata(str(output_path), metadata)
+                # Mark setup complete and emit new completion step
                 emit_tool_thinking(
-                    "Image ready",
-                    None,
+                    "I'm preparing your references...",
+                    "All set!",
                     expertise="Image Generation",
                     status="complete",
                     step_id=step_id,
                 )
+                emit_tool_thinking(
+                    "Your image is ready!",
+                    "Take a look at what I created",
+                    expertise="Image Generation",
+                    status="complete",
+                )
                 return str(output_path)
         emit_tool_thinking(
-            "Generation failed",
-            "No image in response",
+            "Something went wrong",
+            "Couldn't generate the image",
             expertise="Image Generation",
             status="failed",
             step_id=step_id,
@@ -633,7 +654,7 @@ async def _impl_generate_image(
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         emit_tool_thinking(
-            "Generation failed",
+            "I ran into an issue...",
             str(e)[:100],
             expertise="Image Generation",
             status="failed",

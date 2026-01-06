@@ -57,7 +57,7 @@ interface MessageListProps {
   onRegenerate?: (messageId: string) => void
 }
 
-function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails }: {
+function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails, liveThinkingSteps, liveSkills }: {
   message: Message;
   products: ProductEntry[];
   styleReferences?: StyleReferenceSummary[];
@@ -65,6 +65,8 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   isLoading: boolean;
   onRegenerate?: (id: string) => void;
   onViewDetails?: (metadata: ImageGenerationMetadata) => void;
+  liveThinkingSteps?: ThinkingStep[];
+  liveSkills?: string[];
 }) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
@@ -129,13 +131,33 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
     }
   }
 
-  // Don't render status updates as full bubbles yet - they are rendered specially
-  if (message.status === 'sending') return null
+  // For 'sending' status, show the thinking timeline (loading state)
+  if (message.status === 'sending') {
+    return (
+      <div className={cn('group relative flex w-full px-2 py-0 transition-colors duration-200 justify-start')}>
+        <div className="flex flex-col items-start w-full">
+          <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={cn('group relative flex w-full px-2 py-0 transition-colors duration-200',isUser?'justify-end':'justify-start')}>
       {/* Content Container */}
       <div className={cn("flex flex-col",isUser?"items-end max-w-[80%]":"items-start w-full")}>
+        {/* Thinking Steps (Persisted from completed messages) - ABOVE response */}
+        {message.role === 'assistant' && (() => {
+          const normImgs = normalizeImages(message.images)
+          const imgMeta = normImgs.find(i => i.metadata)?.metadata ?? null
+          const hasContent = (message.thinkingSteps && message.thinkingSteps.length > 0) || imgMeta
+          return hasContent ? (
+            <div className="mb-2 w-full">
+              <ThinkingTimeline steps={message.thinkingSteps || []} isGenerating={false} skills={message.loadedSkills} imageMetadata={imgMeta} onViewFullDetails={imgMeta && onViewDetails ? () => onViewDetails(imgMeta) : undefined}/>
+              {normImgs.length > 1 && imgMeta && (<div className="text-xs text-muted-foreground mt-1">Showing metadata for image 1 of {normImgs.length}</div>)}
+            </div>
+          ) : null
+        })()}
         {/* Message Content */}
         {isUser?(
           <div className="relative px-5 py-3 rounded-2xl text-sm leading-relaxed bg-secondary/80 text-foreground font-normal rounded-tr-sm">
@@ -191,18 +213,6 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
           </div>
         )}
 
-        {/* Thinking Steps (Persisted from completed messages) */}
-        {message.role === 'assistant' && (() => {
-          const normImgs = normalizeImages(message.images)
-          const imgMeta = normImgs.find(i => i.metadata)?.metadata ?? null
-          const hasContent = (message.thinkingSteps && message.thinkingSteps.length > 0) || imgMeta
-          return hasContent ? (
-            <div className="mt-2 w-full">
-              <ThinkingTimeline steps={message.thinkingSteps || []} isGenerating={false} skills={message.loadedSkills} imageMetadata={imgMeta} onViewFullDetails={imgMeta && onViewDetails ? () => onViewDetails(imgMeta) : undefined}/>
-              {normImgs.length > 1 && imgMeta && (<div className="text-xs text-muted-foreground mt-1">Showing metadata for image 1 of {normImgs.length}</div>)}
-            </div>
-          ) : null
-        })()}
         {/* Execution Trace (Fallback for non-report_thinking flows) */}
         {message.role === 'assistant' && message.executionTrace && message.executionTrace.length > 0 && (!message.thinkingSteps || message.thinkingSteps.length === 0) && (
           <div className="mt-2 w-full"><ExecutionTrace events={message.executionTrace} /></div>
@@ -256,10 +266,8 @@ export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, 
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta}/>
+        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills}/>
       ))}
-      {/* Thinking Timeline (Real-time during loading) */}
-      {isLoading && <div className="px-6"><ThinkingTimeline steps={thinkingSteps} isGenerating={true} skills={loadedSkills} /></div>}
       <div ref={bottomRef} className="h-px" />
       {/* Modal rendered ONCE at parent level */}
       {detailsMeta&&<PromptDetailsModal metadata={detailsMeta} onClose={()=>setDetailsMeta(null)}/>}
