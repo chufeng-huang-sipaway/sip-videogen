@@ -30,7 +30,7 @@ export function ImageDisplay() {
 const{currentBatch,selectedIndex,updateImagePath,setSelectedIndex}=useWorkstation()
 const{setDragData,dragData}=useDrag()
 const{isGenerating,cancelEdit,resultPath}=useQuickEdit()
-const{zoom,panX,panY,isFullscreen,isPanning,setZoom,setPan,zoomToFit,zoomToActual,setNaturalSize,setContainerSize,setIsPanning,clampPan,resetView,clearDimensions}=useViewer()
+const{zoom,panX,panY,isFullscreen,isPanning,setPan,setZoomAndPan,zoomToFit,zoomToActual,setNaturalSize,setContainerSize,setIsPanning,clampPan,resetView,clearDimensions}=useViewer()
 const currentImage=currentBatch[selectedIndex]
 const[isLoading,setIsLoading]=useState(false)
 const[displayedSrc,setDisplayedSrc]=useState<string|null>(null)//Currently shown image
@@ -48,8 +48,8 @@ useEffect(()=>{panRef.current={x:panX,y:panY}},[panX,panY])
 const canPrev=selectedIndex>0,canNext=selectedIndex<currentBatch.length-1
 const goPrev=useCallback(()=>{if(canPrev&&!isGenerating)setSelectedIndex(selectedIndex-1)},[canPrev,selectedIndex,setSelectedIndex,isGenerating])
 const goNext=useCallback(()=>{if(canNext&&!isGenerating)setSelectedIndex(selectedIndex+1)},[canNext,selectedIndex,setSelectedIndex,isGenerating])
-//Cursor-centered zoom handler
-const handleZoom=useCallback((e:WheelEvent)=>{const z=zoomRef.current,p=panRef.current,factor=e.deltaY>0?0.9:1.1,newZoom=Math.max(1,Math.min(5,z*factor));if(newZoom===z)return;const rect=containerRef.current!.getBoundingClientRect(),cx=e.clientX-rect.left-rect.width/2,cy=e.clientY-rect.top-rect.height/2,newPanX=p.x+cx*(1/newZoom-1/z),newPanY=p.y+cy*(1/newZoom-1/z);setZoom(newZoom);setPan(newPanX,newPanY)},[setZoom,setPan])
+//Cursor-centered zoom handler - uses atomic setZoomAndPan to prevent race condition
+const handleZoom=useCallback((e:WheelEvent)=>{const z=zoomRef.current,p=panRef.current,factor=e.deltaY>0?0.9:1.1,newZoom=Math.max(1,Math.min(5,z*factor));if(newZoom===z)return;const rect=containerRef.current!.getBoundingClientRect(),cx=e.clientX-rect.left-rect.width/2,cy=e.clientY-rect.top-rect.height/2,newPanX=p.x+cx*(1/newZoom-1/z),newPanY=p.y+cy*(1/newZoom-1/z);setZoomAndPan(newZoom,newPanX,newPanY)},[setZoomAndPan])
 //Double-click: toggle between fit and actual size
 const handleDoubleClick=useCallback(()=>{if(zoom<=1.01)zoomToActual();else zoomToFit()},[zoom,zoomToActual,zoomToFit])
 //Pointer pan handlers
@@ -65,7 +65,7 @@ useEffect(()=>{if(currentImage?.id!==prevIdRef.current){resetView();clearDimensi
 //ResizeObserver for container size
 useEffect(()=>{const el=containerRef.current;if(!el||typeof ResizeObserver==='undefined')return;const ro=new ResizeObserver((entries)=>{const{width,height}=entries[0].contentRect;setContainerSize(width,height);clampPan()});ro.observe(el);return()=>ro.disconnect()},[setContainerSize,clampPan])
 //Wheel handler: zoom (Cmd/Ctrl) or pan when zoomed, else swipe navigation
-useEffect(()=>{const el=containerRef.current;if(!el)return;const handler=(e:WheelEvent)=>{const z=zoomRef.current;if(e.ctrlKey||e.metaKey){e.preventDefault();e.stopPropagation();handleZoom(e);return}if(z>1.01){e.preventDefault();e.stopPropagation();const p=panRef.current,newPanX=p.x-e.deltaX/z,newPanY=p.y-e.deltaY/z;setPan(newPanX,newPanY);clampPan();return}};el.addEventListener('wheel',handler,{passive:false});return()=>el.removeEventListener('wheel',handler)},[handleZoom,setPan,clampPan])
+useEffect(()=>{const el=containerRef.current;if(!el)return;const handler=(e:WheelEvent)=>{const z=zoomRef.current;if(e.ctrlKey||e.metaKey){e.preventDefault();e.stopPropagation();handleZoom(e);return}if(z>1.01){e.preventDefault();e.stopPropagation();const p=panRef.current,newPanX=p.x-e.deltaX/z,newPanY=p.y-e.deltaY/z;setZoomAndPan(z,newPanX,newPanY);return}};el.addEventListener('wheel',handler,{passive:false});return()=>el.removeEventListener('wheel',handler)},[handleZoom,setZoomAndPan])
 //Trackpad swipe handler - exactly one image per wheel/scroll gesture
     const handleWheel = useCallback((e: React.WheelEvent) => {
         if (isGenerating) return //Disable swipe during generation
