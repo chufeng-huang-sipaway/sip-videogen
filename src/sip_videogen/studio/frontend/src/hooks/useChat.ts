@@ -240,12 +240,29 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
             const nu = ps.skills.filter((s: string) => !loadedSkillsRef.current.includes(s))
             if (nu.length > 0) { loadedSkillsRef.current = [...loadedSkillsRef.current, ...nu]; setLoadedSkills([...loadedSkillsRef.current]) }
           }
-          //Accumulate thinking steps with ID-based dedupe
+          //Upsert thinking steps by id, sort by seq, handle status transitions
           if (ps.thinking_steps && ps.thinking_steps.length > 0) {
             setThinkingSteps(prev => {
-              const ids = new Set(prev.map(s => s.id))
-              const nu = ps.thinking_steps.filter(s => !ids.has(s.id))
-              return nu.length > 0 ? [...prev, ...nu] : prev
+              const byId = new Map(prev.map(s => [s.id, s]))
+              let changed = false
+              for (const s of ps.thinking_steps) {
+                const ex = byId.get(s.id)
+                if (ex) {
+                  //Status monotonicity: pending -> complete/failed only
+                  if (ex.status === 'pending' && (s.status === 'complete' || s.status === 'failed')) {
+                    byId.set(s.id, { ...ex, status: s.status, detail: s.detail ?? ex.detail })
+                    changed = true
+                  } else if (s.detail && (!ex.detail || s.detail.length > ex.detail.length)) {
+                    byId.set(s.id, { ...ex, detail: s.detail })
+                    changed = true
+                  }
+                } else {
+                  byId.set(s.id, s)
+                  changed = true
+                }
+              }
+              if (!changed) return prev
+              return Array.from(byId.values()).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
             })
           }
         } catch { /* Ignore - concurrent calls may fail in PyWebView */ }
