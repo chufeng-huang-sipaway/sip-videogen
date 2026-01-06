@@ -250,10 +250,19 @@ class BrandAdvisor:
     def _setup_tool_callback(self) -> None:
         """Set up tool progress callback for emit_tool_thinking."""
 
-        def _tool_cb(step: str, detail: str) -> None:
+        def _tool_cb(
+            step: str, detail: str, expertise: str | None, status: str, step_id: str | None
+        ) -> None:
             if self.progress_callback:
                 self.progress_callback(
-                    AdvisorProgress(event_type="thinking_step", message=step, detail=detail)
+                    AdvisorProgress(
+                        event_type="thinking_step",
+                        message=step,
+                        detail=detail,
+                        expertise=expertise,
+                        step_id=step_id,
+                        status=status,
+                    )
                 )
 
         set_tool_progress_callback(_tool_cb)

@@ -621,13 +621,21 @@ async def generate_with_validation(
 
             ref_pils = [PILImage.open(io.BytesIO(img_bytes)) for img_bytes in image_bytes_list]
             contents = [current_prompt, *ref_pils]
-            # Emit thinking steps before API call
-            emit_tool_thinking("Prompt enhancement", current_prompt)
-            emit_tool_thinking("Calling Gemini API", f"Attempt {attempt_number}/{max_retries}")
+            # Emit baby steps to show sophisticated prompt engineering
+            emit_tool_thinking(
+                "I'm crafting the perfect prompt...",
+                "Adding your brand's visual identity",
+                expertise="Image Generation",
+            )
+            emit_tool_thinking(
+                "I'm generating your image now...",
+                "This might take a moment",
+                expertise="Image Generation",
+            )
             # Generate image
             response = client.models.generate_content(
                 model="gemini-3-pro-image-preview",
-                contents=contents,
+                contents=contents,  # type: ignore[arg-type]
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
@@ -642,11 +650,12 @@ async def generate_with_validation(
             attempt_path = output_dir / attempt_filename
             generated_bytes: bytes | None = None
 
-            for part in response.parts:
+            for part in response.parts or []:
                 if part.inline_data:
                     image = part.as_image()
-                    # Gemini Image.save() only accepts a file path, not buffer
-                    image.save(str(attempt_path))
+                    if image:
+                        # Gemini Image.save() only accepts a file path, not buffer
+                        image.save(str(attempt_path))
                     # Read bytes back for validation
                     generated_bytes = attempt_path.read_bytes()
                     break
@@ -927,10 +936,16 @@ async def generate_with_multi_validation(
                 for ref_bytes in product_images:
                     ref_pil = PILImage.open(io.BytesIO(ref_bytes))
                     contents.append(ref_pil)
-            # Emit thinking steps before API call
-            emit_tool_thinking("Prompt enhancement", current_prompt)
+            # Emit baby steps to show sophisticated prompt engineering
             emit_tool_thinking(
-                "Calling Gemini API", f"Multi-product attempt {attempt_number}/{max_retries}"
+                "I'm crafting the perfect prompt...",
+                "Balancing all your products in the scene",
+                expertise="Image Generation",
+            )
+            emit_tool_thinking(
+                "I'm generating your image now...",
+                "This might take a moment",
+                expertise="Image Generation",
             )
             # Generate image
             response = client.models.generate_content(

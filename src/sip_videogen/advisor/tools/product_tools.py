@@ -24,6 +24,7 @@ from sip_videogen.config.constants import Limits
 from sip_videogen.config.logging import get_logger
 
 from . import _common
+from .memory_tools import emit_tool_thinking
 
 logger = get_logger(__name__)
 # Slug pattern: lowercase alphanumeric with hyphens
@@ -129,6 +130,9 @@ def _impl_create_product(
     existing = _common.load_product(brand_slug, slug)
     if existing:
         return f"Error: Product '{slug}' already exists. Use update_product() instead."
+    step_id = emit_tool_thinking(
+        "Setting up your product...", name, expertise="Product Setup", status="pending"
+    )
     description_text = (description or "").strip()
     parsed_attrs: list[ProductAttribute] = []
     if attributes is not None:
@@ -147,11 +151,28 @@ def _impl_create_product(
     try:
         _common.storage_create_product(brand_slug, product)
         logger.info(f"Created product '{slug}' for brand '{brand_slug}'")
+        emit_tool_thinking(
+            "Product created", "", expertise="Product Setup", status="complete", step_id=step_id
+        )
         return f"Created product **{name}** (`{slug}`)."
     except ValueError as e:
+        emit_tool_thinking(
+            "Product setup failed",
+            str(e)[:100],
+            expertise="Product Setup",
+            status="failed",
+            step_id=step_id,
+        )
         return f"Error: {e}"
     except Exception as e:
         logger.error(f"Failed to create product: {e}")
+        emit_tool_thinking(
+            "Product setup failed",
+            str(e)[:100],
+            expertise="Product Setup",
+            status="failed",
+            step_id=step_id,
+        )
         return f"Error creating product: {e}"
 
 
@@ -244,11 +265,10 @@ async def _impl_add_product_image(
         )
         if not success:
             return f"Added image `{filename}` to product **{product.name}**, but failed to set as primary."
+        prod_name = product.name
         product = _common.load_product(brand_slug, product_slug)
         if product is None:
-            return (
-                f"Added image `{filename}` to product **{product.name}** and set as primary image."
-            )
+            return f"Added image `{filename}` to product **{prod_name}** and set as primary image."
         should_analyze = product.packaging_text is None or (
             product.packaging_text.source_image != brand_relative_path
             and not product.packaging_text.is_human_edited
@@ -309,18 +329,16 @@ def _impl_update_product(
             ]
         else:
             existing_by_key = {}
-            for attr in product.attributes:
-                existing_by_key[(attr.category.lower(), attr.key.lower())] = attr
-            for attr in attributes:
-                category = (attr.get("category") or "general").strip()
-                key = (category.lower(), attr["key"].lower())
+            for pa in product.attributes:
+                existing_by_key[(pa.category.lower(), pa.key.lower())] = pa
+            for ai in attributes:
+                category = (ai.get("category") or "general").strip()
+                key = (category.lower(), ai["key"].lower())
                 if key in existing_by_key:
-                    existing_by_key[key].value = attr["value"]
+                    existing_by_key[key].value = ai["value"]
                     existing_by_key[key].category = category
                 else:
-                    new_attr = ProductAttribute(
-                        key=attr["key"], value=attr["value"], category=category
-                    )
+                    new_attr = ProductAttribute(key=ai["key"], value=ai["value"], category=category)
                     product.attributes.append(new_attr)
                     existing_by_key[key] = new_attr
     elif description is not None and has_attributes_block(description_text):

@@ -24,6 +24,8 @@ class DocumentService:
     def get_documents(self, slug: str | None = None) -> dict:
         """List brand documents (text files) under docs/."""
         try:
+            if not slug:
+                return bridge_error("Brand slug required")
             documents = storage.list_documents(slug)
             return bridge_ok({"documents": documents})
         except Exception as e:
@@ -33,11 +35,11 @@ class DocumentService:
         """Read a document's text content (read-only preview)."""
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             resolved, error = resolve_docs_path(brand_dir, relative_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Document not found")
             if resolved.suffix.lower() not in ALLOWED_TEXT_EXTS:
@@ -54,11 +56,11 @@ class DocumentService:
         """Reveal a document in Finder."""
         try:
             brand_dir, err = self._state.get_brand_dir()
-            if err:
-                return bridge_error(err)
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
             resolved, error = resolve_docs_path(brand_dir, relative_path)
-            if error:
-                return bridge_error(error)
+            if error or resolved is None:
+                return bridge_error(error or "Path resolution failed")
             if not resolved.exists():
                 return bridge_error("Document not found")
             reveal_in_file_manager(resolved)

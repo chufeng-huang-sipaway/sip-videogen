@@ -18,19 +18,50 @@ logger = get_logger(__name__)
 _pending_interaction: dict | None = None
 _pending_memory_update: dict | None = None
 # Progress callback for emitting thinking steps from within tools
-_tool_progress_callback: "Callable[[str,str],None]|None" = None
+_tool_progress_callback: "Callable[[str,str,str|None,str,str|None],None]|None" = None
+# Tool expertise mapping (UI adds emoji)
+TOOL_EXPERTISE_MAP = {
+    "generate_image": "Image Generation",
+    "generate_video": "Video Generation",
+    "create_product": "Product Setup",
+    "fetch_brand_detail": "Research",
+    "fetch_brand_identity": "Research",
+    "browse_brand_assets": "Research",
+    "search_assets": "Research",
+    "create_style_reference": "Visual Design",
+    "reanalyze_style_reference": "Visual Design",
+}
 
 
-def set_tool_progress_callback(cb: "Callable[[str,str],None]|None") -> None:
+def set_tool_progress_callback(cb: "Callable[[str,str,str|None,str,str|None],None]|None") -> None:
     """Set callback for tools to emit thinking steps. Called by agent before running."""
     global _tool_progress_callback
     _tool_progress_callback = cb
 
 
-def emit_tool_thinking(step: str, detail: str = "") -> None:
-    """Emit a thinking step from within a tool. No-op if no callback set."""
+def emit_tool_thinking(
+    step: str,
+    detail: str = "",
+    expertise: str | None = None,
+    status: str = "complete",
+    step_id: str | None = None,
+) -> str:
+    """Emit a thinking step from within a tool. No-op if no callback set.
+    Args:
+        step: Short label (2-10 words)
+        detail: Optional explanation (1-2 sentences)
+        expertise: Plain label for expertise badge (e.g., "Image Generation")
+        status: Step status - "pending", "complete", or "failed"
+        step_id: Optional ID for status updates (reuse same ID to update existing step)
+    Returns:
+        The step_id used (either provided or newly generated)
+    """
+    import uuid
+
+    sid = step_id or str(uuid.uuid4())
     if _tool_progress_callback:
-        _tool_progress_callback(step, detail)
+        _tool_progress_callback(step, detail, expertise, status, sid)
+    return sid
 
 
 def get_pending_interaction() -> dict | None:

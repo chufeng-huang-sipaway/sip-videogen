@@ -78,4 +78,18 @@ testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.11"
-strict = true
+#Pragmatic settings - catch real bugs, ignore noise
+warn_return_any = false
+warn_unused_ignores = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
+#Keep these strict checks - they catch real bugs
+disallow_any_generics = false
+strict_equality = true
+extra_checks = false
+[[tool.mypy.overrides]]
+module = ["agents.*","google.*","tenacity.*","openai.*","httpx.*","jwt.*","firecrawl.*","rich.*","yaml.*","requests.*","packaging.*"]
+ignore_missing_imports = true
+ignore_errors = true

@@ -27,26 +27,24 @@ def _patch_pywebview_cocoa_drag() -> None:
     if not code or "mouseDown_" not in code.co_names:
         return
 
-    AppKit = cocoa.AppKit
-    BrowserView = cocoa.BrowserView
+    AppKit = cocoa.AppKit  # noqa: N806
+    BrowserView = cocoa.BrowserView  # noqa: N806
     state = cocoa._state
 
-    def mouseDragged_(self, event):  # type: ignore[no-redef]
+    def mouseDragged_(self, event):  # noqa: N802
         i = BrowserView.get_instance("webview", self)
         window = self.window()
-
         if i and i.frameless and i.easy_drag:
-            screenFrame = i.screen
+            screenFrame = i.screen  # noqa: N806
             if screenFrame is None:
                 raise RuntimeError("Failed to obtain screen")
-            windowFrame = window.frame()
+            windowFrame = window.frame()  # noqa: N806
             if windowFrame is None:
                 raise RuntimeError("Failed to obtain frame")
-
-            currentLocation = window.convertBaseToScreen_(
+            currentLocation = window.convertBaseToScreen_(  # noqa: N806
                 window.mouseLocationOutsideOfEventStream()
             )
-            newOrigin = AppKit.NSMakePoint(
+            newOrigin = AppKit.NSMakePoint(  # noqa: N806
                 (currentLocation.x - self.initialLocation.x),
                 (currentLocation.y - self.initialLocation.y),
             )
@@ -64,7 +62,7 @@ def _patch_pywebview_cocoa_drag() -> None:
 
         return super(BrowserView.WebKitHost, self).mouseDragged_(event)
 
-    host_cls.mouseDragged_ = mouseDragged_  # type: ignore[assignment]
+    host_cls.mouseDragged_ = mouseDragged_  # noqa: N802
     logger.info("Patched PyWebView Cocoa drag handler (mouseDragged_)")
 
 

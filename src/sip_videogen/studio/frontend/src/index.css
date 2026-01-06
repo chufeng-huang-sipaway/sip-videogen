@@ -129,14 +129,15 @@
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
+/* Thinking step breathing animation */
+@keyframes step-breathing {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-step-breathing { animation: step-breathing 2s ease-in-out infinite; }
 
 /* Scrollbar refinement */
 ::-webkit-scrollbar {

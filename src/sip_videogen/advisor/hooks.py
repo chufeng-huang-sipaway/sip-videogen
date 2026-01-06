@@ -30,6 +30,9 @@ class AdvisorProgress:
     event_type: str  # thinking, tool_start, tool_end, skill_loaded, thinking_step, response
     message: str
     detail: str = ""
+    expertise: str | None = None
+    step_id: str | None = None
+    status: str = "complete"  # pending, complete, failed
 
 
 ProgressCallback = Callable[[AdvisorProgress], None]
@@ -92,6 +95,8 @@ class AdvisorHooks(RunHooks):
                         event_type="thinking_step",
                         message=step_data["step"],
                         detail=step_data["detail"],
+                        expertise=step_data.get("expertise"),
+                        step_id=step_data.get("id"),
                     )
                 )
             return  # Skip normal tool_end reporting

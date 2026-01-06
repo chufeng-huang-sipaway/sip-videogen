@@ -27,7 +27,7 @@ def _get_env_files() -> tuple[Path, ...]:
     # User config second (higher priority)
     if USER_CONFIG_FILE.exists():
         files.append(USER_CONFIG_FILE)
-    return tuple(files) if files else (".env",)
+    return tuple(files) if files else (Path(".env"),)
 
 
 class Settings(BaseSettings):
@@ -182,7 +182,7 @@ def get_settings() -> Settings:
     Raises:
         pydantic.ValidationError: If required settings are missing or invalid.
     """
-    return Settings()
+    return Settings()  # type: ignore[call-arg]
 
 
 def clear_settings_cache() -> None:

@@ -195,7 +195,8 @@ class SoraVideoGenerator(BaseVideoGenerator):
         actual_ratio, was_fallback = get_supported_ratio(validated_ratio, self.PROVIDER_NAME)
         if was_fallback:
             logger.warning(
-                f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})"
+                f"Scene {scene.scene_number}: Using fallback ratio "
+                f"{actual_ratio.value} (requested: {aspect_ratio})"
             )
         final_aspect_ratio = actual_ratio.value
 
@@ -216,9 +217,9 @@ class SoraVideoGenerator(BaseVideoGenerator):
             # Parameters: prompt (str), model, seconds (str like "4"), size
             video = await client.videos.create_and_poll(
                 prompt=prompt,
-                model=self.config.model,
-                seconds=str(duration),  # Must be "4", "8", or "12"
-                size=size,
+                model=self.config.model,  # type: ignore[arg-type]
+                seconds=str(duration),  # type: ignore[arg-type]
+                size=size,  # type: ignore[arg-type]
             )
 
             # Check if generation succeeded

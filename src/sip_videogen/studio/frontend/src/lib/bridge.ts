@@ -21,11 +21,17 @@ export interface ExecutionEvent {
   detail: string
 }
 
+//ThinkingStep - matches backend ThinkingStep schema (snake_case -> camelCase)
 export interface ThinkingStep {
   id: string
+  runId?: string
+  seq?: number
   step: string
-  detail: string
-  timestamp: number
+  detail?: string
+  expertise?: string
+  status?: 'pending' | 'complete' | 'failed'
+  source?: 'agent' | 'auto'
+  timestamp?: string | number
 }
 
 export interface ProgressStatus {

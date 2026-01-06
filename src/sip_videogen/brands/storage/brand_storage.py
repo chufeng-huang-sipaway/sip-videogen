@@ -273,7 +273,7 @@ def list_brand_backups(slug: str) -> list[dict]:
                     {"filename": fp.name, "timestamp": its, "size_bytes": fp.stat().st_size}
                 )
     # Sort by timestamp descending
-    backups.sort(key=lambda b: b["timestamp"], reverse=True)
+    backups.sort(key=lambda b: float(str(b["timestamp"])), reverse=True)
     logger.debug("Found %d backups for brand %s", len(backups), slug)
     return backups
 

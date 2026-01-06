@@ -96,14 +96,14 @@ async def analyze_image(image_path: Path) -> ImageAnalysisResult | None:
         # Call Gemini Vision
         response = client.models.generate_content(
             model="gemini-2.0-flash",
-            contents=[_ANALYSIS_PROMPT, pil_image],
+            contents=[_ANALYSIS_PROMPT, pil_image],  # type: ignore[arg-type]
             config=types.GenerateContentConfig(
                 temperature=0.1,  # Low temperature for consistent JSON output
             ),
         )
 
         # Parse response
-        response_text = response.text.strip()
+        response_text = (response.text or "").strip()
 
         # Handle potential markdown code blocks
         if response_text.startswith("```"):
@@ -197,10 +197,10 @@ async def analyze_packaging_text(
         logger.debug(f"Analyzing packaging text: {image_path.name} ({pil_image.size})")
         response = client.models.generate_content(
             model="gemini-3-pro-image-preview",
-            contents=[prompt, pil_image],
+            contents=[prompt, pil_image],  # type: ignore[arg-type]
             config=types.GenerateContentConfig(temperature=0.1),
         )
-        response_text = response.text.strip()
+        response_text = (response.text or "").strip()
         # Handle potential markdown code blocks (reuse existing pattern)
         if response_text.startswith("```"):
             lines = response_text.split("\n")

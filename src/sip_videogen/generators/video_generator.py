@@ -126,7 +126,8 @@ class VEOVideoGenerator(BaseVideoGenerator):
         actual_ratio, was_fallback = get_supported_ratio(validated_ratio, self.PROVIDER_NAME)
         if was_fallback:
             logger.warning(
-                f"Scene {scene.scene_number}: Using fallback ratio {actual_ratio.value} (requested: {aspect_ratio})"
+                f"Scene {scene.scene_number}: Using fallback ratio "
+                f"{actual_ratio.value} (requested: {aspect_ratio})"
             )
         final_aspect_ratio = actual_ratio.value
 
@@ -227,12 +228,16 @@ class VEOVideoGenerator(BaseVideoGenerator):
             output_path = Path(output_dir)
             output_path.mkdir(parents=True, exist_ok=True)
 
+            if not operation.result or not operation.result.generated_videos:
+                raise VideoGenerationError(f"No video generated for scene {scene.scene_number}")
             video_data = operation.result.generated_videos[0]
             video_filename = f"scene_{scene.scene_number:03d}.mp4"
             video_path = output_path / video_filename
 
             # Download video via Files API (handles authentication)
             logger.info(f"Downloading video for scene {scene.scene_number} via Files API...")
+            if not video_data.video:
+                raise VideoGenerationError(f"No video data for scene {scene.scene_number}")
             self.client.files.download(file=video_data.video)
             video_data.video.save(str(video_path))
 
@@ -256,7 +261,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
     async def _build_reference_configs(
         self,
         reference_images: list[GeneratedAsset],
-    ) -> list[RawReferenceImage]:
+    ) -> list[VideoGenerationReferenceImage]:
         """Build reference image configurations for VEO using Files API.
 
         Args:
@@ -284,7 +289,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 configs.append(
                     VideoGenerationReferenceImage(
                         image=Image(image_bytes=image_bytes, mime_type=mime_type),
-                        reference_type="asset",
+                        reference_type="asset",  # type: ignore[arg-type]
                     )
                 )
                 logger.debug(f"Added reference image {idx + 1} ({len(image_bytes)} bytes)")
@@ -513,8 +518,11 @@ class VEOVideoGenerator(BaseVideoGenerator):
                 "but no sub_shots. Falling back to standard prompt."
             )
             # Fall back to standard prompt building
-            return self._build_prompt_full(
-                scene, reference_images, script, exclude_background_music
+            return self._build_prompt(
+                scene,
+                exclude_background_music=exclude_background_music,
+                reference_images=reference_images,
+                script=script,
             )
 
         parts = []
@@ -680,8 +688,8 @@ class VEOVideoGenerator(BaseVideoGenerator):
 
         # Combine and add no-music instruction
         no_music_clause = (
-            "No background music, no soundtrack, no score or instrumental bed; keep only production "
-            "sound, ambience, SFX, and dialogue"
+            "No background music, no soundtrack, no score or instrumental bed; "
+            "keep only production sound, ambience, SFX, and dialogue"
         )
 
         if audio_parts:
@@ -888,7 +896,7 @@ class VEOVideoGenerator(BaseVideoGenerator):
             # Default to PNG for unknown
             return "image/png"
 
-    async def generate_all_video_clips(
+    async def generate_all_video_clips(  # type: ignore[override]
         self,
         script: VideoScript,
         output_dir: str,

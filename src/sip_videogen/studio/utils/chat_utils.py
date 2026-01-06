@@ -88,7 +88,9 @@ async def analyze_and_format_attachments(
     saved_attachments: list[tuple[str, str, Path, bool]], brand_dir: Path
 ) -> str:
     """Analyze images with Gemini Vision and format for agent message."""
-    analyses: list[tuple[str, str, dict | None]] = []
+    from sip_videogen.advisor.image_analyzer import ImageAnalysisResult
+
+    analyses: list[tuple[str, str, ImageAnalysisResult | None]] = []
     for filename, rel_path, full_path, is_image in saved_attachments:
         if is_image and full_path.suffix.lower() not in {".svg", ".gif"}:
             try:

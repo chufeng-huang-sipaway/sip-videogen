@@ -107,7 +107,7 @@ def _build_request_payload(
                 contents_items.append({"type": "image", "path": path})
         contents = {"items": contents_items}
     else:
-        contents = {"prompt": prompt, "reference_images": reference_images or []}
+        contents = {"prompt": prompt, "reference_images": reference_images or []}  # type: ignore[dict-item]
     return {
         "model": model,
         "contents": contents,

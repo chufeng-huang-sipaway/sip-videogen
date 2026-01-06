@@ -453,11 +453,11 @@ class StudioBridge:
             # Handle relative paths (e.g. "generated/project__image.png")
             if not path.is_absolute():
                 brand_dir, err = self._state.get_brand_dir()
-                if err:
-                    return bridge_error(err)
+                if err or brand_dir is None:
+                    return bridge_error(err or "No brand selected")
                 resolved, err = resolve_assets_path(brand_dir, image_path)
-                if err:
-                    return bridge_error(err)
+                if err or resolved is None:
+                    return bridge_error(err or "Path resolution failed")
                 path = resolved
             if not path.exists():
                 return bridge_error(f"File not found: {image_path}")
@@ -480,11 +480,11 @@ class StudioBridge:
             # Handle relative paths (e.g. "generated/project__image.png")
             if not path.is_absolute():
                 brand_dir, err = self._state.get_brand_dir()
-                if err:
-                    return bridge_error(err)
+                if err or brand_dir is None:
+                    return bridge_error(err or "No brand selected")
                 resolved, err = resolve_assets_path(brand_dir, image_path)
-                if err:
-                    return bridge_error(err)
+                if err or resolved is None:
+                    return bridge_error(err or "Path resolution failed")
                 path = resolved
             if not path.exists():
                 return bridge_error(f"File not found: {image_path}")

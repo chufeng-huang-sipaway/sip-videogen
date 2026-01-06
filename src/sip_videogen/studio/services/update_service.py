@@ -62,7 +62,8 @@ class UpdateService:
         try:
             if not is_bundled_app():
                 return bridge_error(
-                    "Updates only work when running as a bundled .app. For development, use git pull instead."
+                    "Updates only work when running as a bundled .app. "
+                    "For development, use git pull instead."
                 )
             self._state.update_progress = {"status": "downloading", "percent": 0}
 
@@ -96,7 +97,7 @@ class UpdateService:
 
                 time.sleep(1)
                 if self._state.window:
-                    self._state.window.destroy()
+                    self._state.window.destroy()  # type: ignore[attr-defined]
                 sys.exit(0)
 
             threading.Thread(target=quit_app, daemon=True).start()

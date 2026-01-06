@@ -91,18 +91,19 @@ class ImageGenerator:
             )
 
             # Extract and save the image
-            for part in response.parts:
-                if part.inline_data:
-                    image = part.as_image()
-                    image_path = output_dir / f"{element.id}.png"
-                    image.save(str(image_path))
-                    logger.info(f"Saved reference image to: {image_path}")
-
-                    return GeneratedAsset(
-                        asset_type=AssetType.REFERENCE_IMAGE,
-                        element_id=element.id,
-                        local_path=str(image_path),
-                    )
+            if response.parts:
+                for part in response.parts:
+                    if part.inline_data:
+                        image = part.as_image()
+                        if image:
+                            image_path = output_dir / f"{element.id}.png"
+                            image.save(str(image_path))
+                            logger.info(f"Saved reference image to: {image_path}")
+                            return GeneratedAsset(
+                                asset_type=AssetType.REFERENCE_IMAGE,
+                                element_id=element.id,
+                                local_path=str(image_path),
+                            )
 
             # No image was generated
             raise ImageGenerationError(
@@ -305,13 +306,15 @@ class ImageGenerator:
                         image_config=types.ImageConfig(aspect_ratio=ar, image_size="4K"),
                     ),
                 )
-                for part in response.parts:
-                    if part.inline_data:
-                        image = part.as_image()
-                        path = output_dir / f"{element.id}_v{idx}.png"
-                        image.save(str(path))
-                        logger.debug(f"Saved variant {idx} to: {path}")
-                        return str(path)
+                if response.parts:
+                    for part in response.parts:
+                        if part.inline_data:
+                            image = part.as_image()
+                            if image:
+                                path = output_dir / f"{element.id}_v{idx}.png"
+                                image.save(str(path))
+                                logger.debug(f"Saved variant {idx} to: {path}")
+                                return str(path)
                 return None
             except Exception as e:
                 logger.warning(f"Failed to generate variant {idx} for {element.id}: {e}")

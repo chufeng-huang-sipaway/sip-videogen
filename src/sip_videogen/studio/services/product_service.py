@@ -44,6 +44,8 @@ class ProductService:
     def get_products(self, brand_slug: str | None = None) -> dict:
         """Get list of products for a brand."""
         try:
+            if not brand_slug:
+                return bridge_error("Brand slug required")
             products = list_products(brand_slug)
             return bridge_ok(
                 {
@@ -291,15 +293,15 @@ class ProductService:
     def get_product_image_thumbnail(self, path: str) -> dict:
         """Get base64-encoded thumbnail for a product image."""
         brand_dir, err = self._state.get_brand_dir()
-        if err:
-            return bridge_error(err)
+        if err or brand_dir is None:
+            return bridge_error(err or "No brand selected")
         return get_image_thumbnail(brand_dir, path, "products")
 
     def get_product_image_full(self, path: str) -> dict:
         """Get base64-encoded full-resolution product image."""
         brand_dir, err = self._state.get_brand_dir()
-        if err:
-            return bridge_error(err)
+        if err or brand_dir is None:
+            return bridge_error(err or "No brand selected")
         return get_image_full(brand_dir, path, "products")
 
     async def analyze_all_packaging_text(self, skip_existing: bool = True) -> dict:

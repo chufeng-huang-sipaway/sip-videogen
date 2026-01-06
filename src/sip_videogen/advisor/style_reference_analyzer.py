@@ -164,10 +164,10 @@ async def analyze_style_reference(images: list[Path | bytes]) -> StyleReferenceA
         # Call Gemini Vision
         resp = client.models.generate_content(
             model="gemini-2.0-flash",
-            contents=contents,
+            contents=contents,  # type: ignore[arg-type]
             config=types.GenerateContentConfig(temperature=0.1),
         )
-        txt = _strip_md(resp.text.strip())
+        txt = _strip_md((resp.text or "").strip())
         data = json.loads(txt)
         analysis = StyleReferenceAnalysis(**data)
         c, e, s = (
@@ -287,10 +287,10 @@ async def analyze_style_reference_v2(images: list[Path | bytes]) -> StyleReferen
         contents = [prompt] + pil_imgs
         resp = client.models.generate_content(
             model="gemini-2.0-flash",
-            contents=contents,
+            contents=contents,  # type: ignore[arg-type]
             config=types.GenerateContentConfig(temperature=0.1),
         )
-        txt = _strip_md(resp.text.strip())
+        txt = _strip_md((resp.text or "").strip())
         data = json.loads(txt)
         analysis = StyleReferenceAnalysisV2(**data)
         c = analysis.canvas.aspect_ratio

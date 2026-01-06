@@ -50,10 +50,10 @@ class BrandContextBuilder:
             ValueError: If brand not found.
         """
         self.slug = slug
-        self.summary = load_brand_summary(slug)
-
-        if self.summary is None:
+        summary = load_brand_summary(slug)
+        if summary is None:
             raise ValueError(f"Brand '{slug}' not found")
+        self.summary = summary
 
     def build_context_section(self) -> str:
         """Build the complete brand context section for prompts.
@@ -154,10 +154,10 @@ class ProductContextBuilder:
         """
         self.brand_slug = brand_slug
         self.product_slug = product_slug
-        self.product = load_product(brand_slug, product_slug)
-
-        if self.product is None:
+        product = load_product(brand_slug, product_slug)
+        if product is None:
             raise ValueError(f"Product '{product_slug}' not found in brand '{brand_slug}'")
+        self.product = product
 
     def build_context_section(self) -> str:
         """Build product context section for prompts.
@@ -340,10 +340,10 @@ class ProjectContextBuilder:
         """
         self.brand_slug = brand_slug
         self.project_slug = project_slug
-        self.project = load_project(brand_slug, project_slug)
-
-        if self.project is None:
+        project = load_project(brand_slug, project_slug)
+        if project is None:
             raise ValueError(f"Project '{project_slug}' not found in brand '{brand_slug}'")
+        self.project = project
 
     def build_context_section(self) -> str:
         """Build project context section for prompts.
@@ -400,11 +400,12 @@ class StyleReferenceContextBuilder:
         self.brand_slug = brand_slug
         self.style_ref_slug = style_ref_slug
         self.strict = strict
-        self.style_ref = load_style_reference(brand_slug, style_ref_slug)
-        if self.style_ref is None:
+        style_ref = load_style_reference(brand_slug, style_ref_slug)
+        if style_ref is None:
             raise ValueError(
                 f"Style reference '{style_ref_slug}' not found in brand '{brand_slug}'"
             )
+        self.style_ref = style_ref
 
     def build_context_section(self) -> str:
         """Build style reference context section for prompts.
