@@ -70,7 +70,8 @@ select = ["E", "F", "I", "N", "W"]
 "src/sip_videogen/advisor/*_analyzer.py" = ["E501"]
 "src/sip_videogen/advisor/*_prompt.py" = ["E501"]
 "src/sip_videogen/brands/context.py" = ["E501"]
-"src/sip_videogen/brands/models.py" = ["E501"]
+"src/sip_videogen/brands/models/*.py" = ["E501"]
+"src/sip_videogen/advisor/validation/*.py" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

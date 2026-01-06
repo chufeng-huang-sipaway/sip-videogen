@@ -125,10 +125,16 @@ class TestGenerateVideoClip:
         from sip_videogen.advisor.tools import _impl_generate_video_clip
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=tmp_path),
             patch(
-                "sip_videogen.advisor.tools.get_settings",
+                "sip_videogen.advisor.tools.video_tools._common.get_active_brand",
+                return_value="test-brand",
+            ),
+            patch(
+                "sip_videogen.advisor.tools.video_tools._common.get_brand_dir",
+                return_value=tmp_path,
+            ),
+            patch(
+                "sip_videogen.advisor.tools.video_tools._common.get_settings",
                 return_value=MagicMock(gemini_api_key="fake"),
             ),
         ):
@@ -142,10 +148,16 @@ class TestGenerateVideoClip:
         from sip_videogen.advisor.tools import _impl_generate_video_clip
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=tmp_path),
             patch(
-                "sip_videogen.advisor.tools.get_settings",
+                "sip_videogen.advisor.tools.video_tools._common.get_active_brand",
+                return_value="test-brand",
+            ),
+            patch(
+                "sip_videogen.advisor.tools.video_tools._common.get_brand_dir",
+                return_value=tmp_path,
+            ),
+            patch(
+                "sip_videogen.advisor.tools.video_tools._common.get_settings",
                 return_value=MagicMock(gemini_api_key="fake"),
             ),
         ):
@@ -159,10 +171,16 @@ class TestGenerateVideoClip:
         from sip_videogen.advisor.tools import _impl_generate_video_clip
 
         with (
-            patch("sip_videogen.advisor.tools.get_active_brand", return_value="test-brand"),
-            patch("sip_videogen.advisor.tools.get_brand_dir", return_value=tmp_path),
             patch(
-                "sip_videogen.advisor.tools.get_settings",
+                "sip_videogen.advisor.tools.video_tools._common.get_active_brand",
+                return_value="test-brand",
+            ),
+            patch(
+                "sip_videogen.advisor.tools.video_tools._common.get_brand_dir",
+                return_value=tmp_path,
+            ),
+            patch(
+                "sip_videogen.advisor.tools.video_tools._common.get_settings",
                 return_value=MagicMock(gemini_api_key="fake"),
             ),
         ):
