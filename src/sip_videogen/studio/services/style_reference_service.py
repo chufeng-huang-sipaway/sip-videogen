@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from sip_videogen.advisor.style_reference_analyzer import analyze_style_reference_v2
+from sip_videogen.advisor.style_reference_analyzer import analyze_style_reference_v3
 from sip_videogen.brands.models import StyleReferenceFull
 from sip_videogen.brands.storage import (
     add_style_reference_image,
@@ -137,7 +137,7 @@ class StyleReferenceService:
                         add_style_reference_image(slug, sr_slug, fn, content)
                     except Exception as e:
                         logger.warning("Failed to add style reference image %s: %s", fn, e)
-            # Run V2 analyzer on uploaded images
+            # Run V3 analyzer (color grading DNA) on uploaded images
             sr_loaded = load_style_reference(slug, sr_slug)
             if sr_loaded and sr_loaded.images:
                 sr = sr_loaded
@@ -150,14 +150,14 @@ class StyleReferenceService:
                 if img_paths:
                     try:
                         analysis = asyncio.get_event_loop().run_until_complete(
-                            analyze_style_reference_v2(img_paths[:2])  # type: ignore[arg-type]
+                            analyze_style_reference_v3(img_paths[:2])  # type: ignore[arg-type]
                         )
                         if analysis:
                             sr.analysis = analysis
                             sr.updated_at = datetime.utcnow()
                             save_style_reference(slug, sr)
                     except RuntimeError:
-                        analysis = asyncio.run(analyze_style_reference_v2(img_paths[:2]))  # type: ignore[arg-type]
+                        analysis = asyncio.run(analyze_style_reference_v3(img_paths[:2]))  # type: ignore[arg-type]
                         if analysis:
                             sr.analysis = analysis
                             sr.updated_at = datetime.utcnow()
@@ -201,7 +201,7 @@ class StyleReferenceService:
             return bridge_error(str(e))
 
     def reanalyze_style_reference(self, sr_slug: str) -> dict:
-        """Re-run V2 Gemini analysis on style reference images."""
+        """Re-run V3 Gemini analysis (color grading DNA) on style reference images."""
         try:
             slug = self._state.get_active_slug()
             if not slug:
@@ -221,10 +221,10 @@ class StyleReferenceService:
                 return bridge_error("No valid image files found")
             try:
                 analysis = asyncio.get_event_loop().run_until_complete(
-                    analyze_style_reference_v2(img_paths[:2])  # type: ignore[arg-type]
+                    analyze_style_reference_v3(img_paths[:2])  # type: ignore[arg-type]
                 )
             except RuntimeError:
-                analysis = asyncio.run(analyze_style_reference_v2(img_paths[:2]))  # type: ignore[arg-type]
+                analysis = asyncio.run(analyze_style_reference_v3(img_paths[:2]))  # type: ignore[arg-type]
             if not analysis:
                 return bridge_error("Analysis failed - check Gemini API key")
             sr.analysis = analysis

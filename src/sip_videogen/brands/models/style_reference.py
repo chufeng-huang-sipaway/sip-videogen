@@ -288,7 +288,8 @@ class StyleReferenceConstraintsSpec(BaseModel):
 class StyleReferenceAnalysisV2(BaseModel):
     """Semantic style reference analysis (V2) - focuses on meaning, not geometry.
     Captures prose layout descriptions, visual treatments, and scene elements
-    instead of pixel coordinates."""
+    instead of pixel coordinates.
+    DEPRECATED: Use StyleReferenceAnalysisV3 for new style references."""
 
     version: str = Field(default="2.0", description="Analysis schema version")
     canvas: CanvasSpec = Field(description="Canvas spec (aspect_ratio, background)")
@@ -302,6 +303,97 @@ class StyleReferenceAnalysisV2(BaseModel):
     constraints: StyleReferenceConstraintsSpec = Field(
         default_factory=StyleReferenceConstraintsSpec, description="What can/cannot change"
     )
+
+
+# V3 Style Reference Analysis - Color Grading DNA focused
+class ColorGradingSpec(BaseModel):
+    """Color grading DNA - the photographer's signature that makes images recognizable."""
+
+    color_temperature: str = Field(
+        default="", description="Warm/neutral/cool shift, e.g., 'warm golden', 'cool blue-tinted'"
+    )
+    shadow_tint: str = Field(
+        default="",
+        description="Color cast in shadows, e.g., 'warm brown', 'blue-shifted', 'neutral'",
+    )
+    black_point: str = Field(
+        default="", description="Darkest tones: 'lifted/milky', 'crushed/deep', 'natural'"
+    )
+    highlight_rolloff: str = Field(
+        default="",
+        description="How highlights transition: 'soft film-like', 'harsh digital', 'natural'",
+    )
+    highlight_tint: str = Field(
+        default="",
+        description="Color cast in highlights, e.g., 'warm cream', 'cool white', 'neutral'",
+    )
+    saturation_level: str = Field(
+        default="", description="Color intensity: 'desaturated/muted', 'vibrant/punchy', 'natural'"
+    )
+    contrast_character: str = Field(
+        default="", description="Tonal range: 'low/flat', 'high/punchy', 'balanced'"
+    )
+    film_stock_reference: str = Field(
+        default="",
+        description="Closest film stock: 'Kodak Portra 400', 'Fuji Velvia', 'digital clean'",
+    )
+    signature_elements: List[str] = Field(
+        default_factory=list,
+        description="Key visual signatures, e.g., 'lifted blacks', 'warm skin tones'",
+    )
+
+    @field_validator(
+        "color_temperature",
+        "shadow_tint",
+        "black_point",
+        "highlight_rolloff",
+        "highlight_tint",
+        "saturation_level",
+        "contrast_character",
+        "film_stock_reference",
+        mode="before",
+    )
+    @classmethod
+    def _norm_str(cls, v):
+        return "" if v is None else v
+
+    @field_validator("signature_elements", mode="before")
+    @classmethod
+    def _norm_list(cls, v):
+        return [] if v is None else ([v] if isinstance(v, str) else v)
+
+
+class StyleSuggestionsSpec(BaseModel):
+    """Optional style suggestions - secondary to color grading."""
+
+    environment_tendency: str = Field(
+        default="", description="Common environment: 'urban', 'studio', 'outdoor', 'industrial'"
+    )
+    mood: str = Field(
+        default="", description="Overall mood: 'energetic', 'calm', 'premium', 'authentic'"
+    )
+    lighting_setup: str = Field(
+        default="", description="Lighting style: 'natural diffused', 'studio', 'golden hour'"
+    )
+
+    @field_validator("environment_tendency", "mood", "lighting_setup", mode="before")
+    @classmethod
+    def _norm_str(cls, v):
+        return "" if v is None else v
+
+
+class StyleReferenceAnalysisV3(BaseModel):
+    """Color grading focused analysis (V3) - captures photographer's signature.
+    Prioritizes color DNA over layout/composition for style consistency."""
+
+    version: str = Field(default="3.0", description="Analysis schema version")
+    color_grading: ColorGradingSpec = Field(
+        default_factory=ColorGradingSpec, description="Color grading DNA"
+    )
+    style_suggestions: StyleSuggestionsSpec = Field(
+        default_factory=StyleSuggestionsSpec, description="Optional style hints"
+    )
+    canvas: CanvasSpec = Field(description="Canvas spec (aspect_ratio)")
 
 
 class StyleReferenceSummary(BaseModel):
@@ -327,9 +419,9 @@ class StyleReferenceFull(BaseModel):
     images: List[str] = Field(default_factory=list, description="Style reference image paths")
     primary_image: str = Field(default="", description="Primary image path")
     default_strict: bool = Field(default=True, description="Default strict toggle state")
-    analysis: StyleReferenceAnalysis | StyleReferenceAnalysisV2 | None = Field(
-        default=None, description="Gemini analysis (V1 or V2)"
-    )
+    analysis: (
+        StyleReferenceAnalysis | StyleReferenceAnalysisV2 | StyleReferenceAnalysisV3 | None
+    ) = Field(default=None, description="Gemini analysis (V1, V2, or V3)")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Created at")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Updated at")
 

@@ -51,6 +51,24 @@ def _resolve_brand_path(relative_path: str) -> Path | None:
     return resolved
 
 
+def _build_style_reference_image_label(style_ref_name: str, num_images: int) -> str:
+    """Build explicit scoping label for style reference images.
+    This tells Gemini to use these images ONLY for color grading, not content."""
+    s = "s" if num_images > 1 else ""
+    are = "s are" if num_images > 1 else " is"
+    return (
+        f"\n[STYLE REFERENCE IMAGES - COLOR GRADING ONLY ({num_images} image{s})]\n"
+        f"The following image{are} from style reference '{style_ref_name}'.\n"
+        f"CRITICAL INSTRUCTIONS:\n"
+        f"- Match ONLY the color grading, tonal treatment, and visual mood\n"
+        f"- DO NOT copy subjects, objects, people, or content from these images\n"
+        f"- DO NOT add elements that appear in these images unless they're in the product reference\n"
+        f"- Use these ONLY for: color temperature, shadow tint, highlight rolloff, saturation, contrast\n"
+        f"- The PRODUCT reference images define WHAT to generate\n"
+        f"- These style reference images define HOW it should look (color/mood only):"
+    )
+
+
 async def _impl_generate_image(
     prompt: str,
     aspect_ratio: str = "1:1",
@@ -110,8 +128,19 @@ async def _impl_generate_image(
             return f"Error: Style reference not found: {template_slug}"
         if style_ref.analysis is None:
             return f"Error: Style reference '{template_slug}' has no analysis"
-        is_v2 = getattr(style_ref.analysis, "version", "1.0") == "2.0"
-        if is_v2:
+        analysis_version = getattr(style_ref.analysis, "version", "1.0")
+        if analysis_version == "3.0":
+            from sip_videogen.advisor.style_reference_prompt import (
+                build_style_reference_constraints_v3,
+            )
+            from sip_videogen.brands.models import StyleReferenceAnalysisV3
+
+            analysis_v3 = style_ref.analysis
+            assert isinstance(analysis_v3, StyleReferenceAnalysisV3)
+            template_constraints = build_style_reference_constraints_v3(
+                analysis_v3, strict=strict, include_usage=False
+            )
+        elif analysis_version == "2.0":
             from sip_videogen.advisor.style_reference_prompt import (
                 build_style_reference_constraints_v2,
             )
@@ -141,6 +170,30 @@ async def _impl_generate_image(
                     "Template aspect ratio override: %s -> %s", aspect_ratio, template_aspect_ratio
                 )
             aspect_ratio = template_aspect_ratio
+    # Load style reference images for strict mode (color grading visual reference)
+    style_ref_images_bytes: list[bytes] = []
+    style_ref_image_paths: list[str] = []
+    style_ref_name: str = ""
+    if template_slug and strict and brand_slug:
+        # Re-use style_ref if already loaded above, otherwise load it
+        if "style_ref" not in dir() or style_ref is None:
+            style_ref = _common.load_style_reference(brand_slug, template_slug)
+        if style_ref and style_ref.images:
+            style_ref_name = style_ref.name
+            brand_dir = _common.get_brand_dir(brand_slug)
+            for img_path in style_ref.images[:2]:  # Max 2 style ref images
+                full_path = brand_dir / img_path
+                if full_path.exists():
+                    try:
+                        style_ref_images_bytes.append(full_path.read_bytes())
+                        style_ref_image_paths.append(img_path)
+                        logger.info(f"Loaded style reference image: {img_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to load style ref image {img_path}: {e}")
+            if style_ref_images_bytes:
+                logger.info(
+                    f"Loaded {len(style_ref_images_bytes)} style reference images for strict mode"
+                )
 
     def _apply_template_constraints(base_prompt: str) -> str:
         if not template_constraints:
@@ -270,6 +323,8 @@ async def _impl_generate_image(
                 aspect_ratio=aspect_ratio,
                 max_retries=max_retries,
                 product_slugs=product_slugs,
+                style_ref_images_bytes=style_ref_images_bytes or None,
+                style_ref_name=style_ref_name,
             )
             if isinstance(result, str):
                 return result
@@ -499,6 +554,8 @@ async def _impl_generate_image(
                 filename=filename,
                 aspect_ratio=aspect_ratio,
                 max_retries=max_retries,
+                style_ref_images_bytes=style_ref_images_bytes or None,
+                style_ref_name=style_ref_name,
             )
             if isinstance(val_result, str):
                 return val_result
@@ -570,7 +627,18 @@ async def _impl_generate_image(
             ref_pils = [
                 PILImage.open(io.BytesIO(ref_bytes)) for ref_bytes in reference_images_bytes
             ]
-            contents = [generation_prompt, *ref_pils]
+            contents: list = [generation_prompt, *ref_pils]
+            # Add style reference images with scoping label (strict mode only)
+            if style_ref_images_bytes:
+                style_label = _build_style_reference_image_label(
+                    style_ref_name, len(style_ref_images_bytes)
+                )
+                contents.append(style_label)
+                for sr_bytes in style_ref_images_bytes:
+                    contents.append(PILImage.open(io.BytesIO(sr_bytes)))
+                logger.info(
+                    f"Added {len(style_ref_images_bytes)} style reference images for color grading"
+                )
             logger.info(
                 f"Generating image with {len(reference_images_bytes)} reference image(s): {generation_prompt[:100]}..."
             )

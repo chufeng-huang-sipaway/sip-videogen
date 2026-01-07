@@ -54,10 +54,20 @@ def _impl_get_style_reference_detail(style_ref_slug: str) -> str:
         lines.append(f"**Primary Image:** {sr.primary_image}")
     if sr.analysis:
         lines.append("\n## Analysis")
-        if hasattr(sr.analysis, "visual_scene"):
+        version = getattr(sr.analysis, "version", "1.0")
+        if version == "3.0":
+            lines.append("**V3 Color Grading DNA Available**")
+            cg = getattr(sr.analysis, "color_grading", None)
+            if cg and cg.film_stock_reference:
+                lines.append(f'- Film Look: "{cg.film_stock_reference}"')
+            ss = getattr(sr.analysis, "style_suggestions", None)
+            if ss and ss.mood:
+                lines.append(f'- Mood: "{ss.mood}"')
+        elif hasattr(sr.analysis, "visual_scene"):
             lines.append("**V2 Semantic Analysis Available**")
-            if sr.analysis.style and sr.analysis.style.mood:
-                lines.append(f'- Mood: "{sr.analysis.style.mood}"')
+            style = getattr(sr.analysis, "style", None)
+            if style and style.mood:
+                lines.append(f'- Mood: "{style.mood}"')
             if sr.analysis.visual_scene and sr.analysis.visual_scene.photography_style:
                 lines.append(f'- Photography: "{sr.analysis.visual_scene.photography_style}"')
         else:

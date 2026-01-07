@@ -50,7 +50,7 @@ export function AttachedProducts({ products, attachedSlugs, onDetach }: Attached
     <div className="px-4 py-2 border-t border-border/40 bg-muted/40 backdrop-blur-sm">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
         <Package className="h-3 w-3" />
-        <span>Products attached to chat</span>
+        <span>Products</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {attachedProducts.map((product) => (

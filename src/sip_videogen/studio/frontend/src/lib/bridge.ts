@@ -215,11 +215,37 @@ export interface StyleReferenceAnalysisV2 {
   visual_scene: VisualSceneSpec
   constraints: StyleReferenceConstraintsSpec
 }
-//Union type for both versions
-export type StyleReferenceAnalysis = StyleReferenceAnalysisV1 | StyleReferenceAnalysisV2
-//Type guard to check if analysis is V2
+//V3 Style Reference Analysis (color grading focused)
+export interface ColorGradingSpec {
+  color_temperature: string
+  shadow_tint: string
+  black_point: string
+  highlight_rolloff: string
+  highlight_tint: string
+  saturation_level: string
+  contrast_character: string
+  film_stock_reference: string
+  signature_elements: string[]
+}
+export interface StyleSuggestionsSpec {
+  environment_tendency: string
+  mood: string
+  lighting_setup: string
+}
+export interface StyleReferenceAnalysisV3 {
+  version: string
+  canvas: CanvasSpec
+  color_grading: ColorGradingSpec
+  style_suggestions: StyleSuggestionsSpec
+}
+//Union type for all versions
+export type StyleReferenceAnalysis = StyleReferenceAnalysisV1 | StyleReferenceAnalysisV2 | StyleReferenceAnalysisV3
+//Type guards
 export function isV2StyleReferenceAnalysis(analysis: StyleReferenceAnalysis): analysis is StyleReferenceAnalysisV2 {
   return analysis.version === '2.0'
+}
+export function isV3StyleReferenceAnalysis(analysis: StyleReferenceAnalysis): analysis is StyleReferenceAnalysisV3 {
+  return analysis.version === '3.0'
 }
 export interface StyleReferenceSummary {
   slug: string

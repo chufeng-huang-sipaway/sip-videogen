@@ -1,16 +1,16 @@
 //UnifiedStyleReferenceModal - Combined view/edit modal with inline editing
 import{useState,useEffect,useCallback,useMemo}from'react'
-import{Layout,Loader2,Check,Circle,Lock,Unlock,Pencil,Trash2,X,Star,RefreshCw,Save,ImagePlus}from'lucide-react'
+import{Layout,Loader2,Check,Circle,Pencil,Trash2,X,Star,RefreshCw,Save,ImagePlus}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{Input}from'@/components/ui/input'
 import{Dialog,DialogContent,DialogHeader,DialogTitle}from'@/components/ui/dialog'
 import{Dropzone,DropzoneEmptyState}from'@/components/ui/dropzone'
 import{useStyleReferences}from'@/context/StyleReferenceContext'
-import{bridge,isPyWebView,isV2StyleReferenceAnalysis}from'@/lib/bridge'
+import{bridge,isPyWebView,isV2StyleReferenceAnalysis,isV3StyleReferenceAnalysis}from'@/lib/bridge'
 import{processImageFiles}from'@/lib/file-utils'
 import{getAllowedImageExts}from'@/lib/constants'
 import{toast}from'@/components/ui/toaster'
-import type{StyleReferenceFull,StyleReferenceAnalysisV2}from'@/lib/bridge'
+import type{StyleReferenceFull,StyleReferenceAnalysisV2,StyleReferenceAnalysisV3}from'@/lib/bridge'
 import type{ProcessedFile}from'@/lib/file-utils'
 interface ExistingImage{path:string;filename:string;thumbnailUrl:string|null;isPrimary:boolean}
 interface UnifiedStyleReferenceModalProps{open:boolean;onOpenChange:(open:boolean)=>void;styleRefSlug:string;initialMode?:'view'|'edit';onDelete?:(slug:string)=>void}
@@ -23,7 +23,7 @@ function Section({title,children}:{title:string;children:React.ReactNode}){retur
 //Card wrapper for info content
 function InfoCard({children}:{children:React.ReactNode}){return(<div className="bg-neutral-100 dark:bg-neutral-800 rounded-md p-3 space-y-1.5">{children}</div>)}
 export function UnifiedStyleReferenceModal({open,onOpenChange,styleRefSlug,initialMode='view',onDelete}:UnifiedStyleReferenceModalProps){
-const{getStyleReference,getStyleReferenceImages,updateStyleReference,uploadStyleReferenceImage,deleteStyleReferenceImage,setPrimaryStyleReferenceImage,reanalyzeStyleReference,attachStyleReference,detachStyleReference,setStyleReferenceStrictness,attachedStyleReferences,refresh}=useStyleReferences()
+const{getStyleReference,getStyleReferenceImages,updateStyleReference,uploadStyleReferenceImage,deleteStyleReferenceImage,setPrimaryStyleReferenceImage,reanalyzeStyleReference,attachStyleReference,attachedStyleReferences,refresh}=useStyleReferences()
 //Core state
 const[mode,setMode]=useState<'view'|'edit'>(initialMode)
 const[styleRef,setStyleRef]=useState<StyleReferenceFull|null>(null)
@@ -41,9 +41,7 @@ const[isSaving,setIsSaving]=useState(false)
 const[isReanalyzing,setIsReanalyzing]=useState(false)
 const[uploadError,setUploadError]=useState<string|null>(null)
 //Check attachment status
-const attached=attachedStyleReferences.find(a=>a.style_reference_slug===styleRefSlug)
-const isAttached=!!attached
-const isStrict=attached?.strict??false
+const isAttached=attachedStyleReferences.some(a=>a.style_reference_slug===styleRefSlug)
 //Compute hasChanges
 const hasChanges=useMemo(()=>{if(!styleRef)return false;return editName.trim()!==styleRef.name||editDescription.trim()!==styleRef.description||editDefaultStrict!==styleRef.default_strict||newImages.length>0||imagesToDelete.length>0||existingImages.some(img=>img.isPrimary&&img.path!==styleRef.primary_image)},[styleRef,editName,editDescription,editDefaultStrict,newImages,imagesToDelete,existingImages])
 //Load style reference data
@@ -70,8 +68,6 @@ useEffect(()=>{if(open){setMode(initialMode);setNewImages([]);setImagesToDelete(
 //Handlers
 const handleClose=useCallback(()=>{if(isSaving||isReanalyzing)return;if(mode==='edit'&&hasChanges){if(!confirm('Discard unsaved changes?'))return};onOpenChange(false)},[isSaving,isReanalyzing,mode,hasChanges,onOpenChange])
 const handleAttach=()=>attachStyleReference(styleRefSlug)
-const handleDetach=()=>detachStyleReference(styleRefSlug)
-const handleToggleStrict=()=>setStyleReferenceStrictness(styleRefSlug,!isStrict)
 const handleDelete=()=>{if(confirm(`Delete style reference "${styleRef?.name}"? This cannot be undone.`)){handleClose();onDelete?.(styleRefSlug)}}
 const handleEnterEdit=()=>{setMode('edit');setUploadError(null)}
 const handleCancelEdit=()=>{if(hasChanges&&!confirm('Discard unsaved changes?'))return;setMode('view');setEditName(styleRef?.name||'');setEditDescription(styleRef?.description||'');setEditDefaultStrict(styleRef?.default_strict??true);setNewImages([]);setImagesToDelete([]);setExistingImages(prev=>prev.map(img=>({...img,isPrimary:img.path===styleRef?.primary_image})).sort((a,b)=>(b.isPrimary?1:0)-(a.isPrimary?1:0)));setUploadError(null)}
@@ -108,9 +104,10 @@ const handleReanalyze=async()=>{if(isReanalyzing)return;setIsReanalyzing(true)
 try{const analysis=await reanalyzeStyleReference(styleRefSlug);setStyleRef(prev=>prev?{...prev,analysis}:prev);toast.success('Reanalyzed successfully')}
 catch(err){toast.error(err instanceof Error?err.message:'Reanalyze failed')}
 finally{setIsReanalyzing(false)}}
-//Get V2 analysis
+//Get analysis version
 const analysis=styleRef?.analysis
 const v2=analysis&&isV2StyleReferenceAnalysis(analysis)?analysis as StyleReferenceAnalysisV2:null
+const v3=analysis&&isV3StyleReferenceAnalysis(analysis)?analysis as StyleReferenceAnalysisV3:null
 const visibleExistingImages=existingImages.filter(img=>!imagesToDelete.includes(img.path))
 const canAddImages=visibleExistingImages.length+newImages.length<2
 const isWorking=isSaving||isReanalyzing
@@ -165,10 +162,8 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {imageSrc?(<img src={imageSrc} alt={styleRef?.name} className="w-full h-full object-cover"/>):(<div className="w-full h-full flex items-center justify-center"><Layout className="h-12 w-12 text-neutral-400"/></div>)}</div>
 {/*Aspect Ratio Badge*/}
 {analysis?.canvas?.aspect_ratio&&(<div className="flex items-center gap-2"><span className="text-xs text-neutral-500 dark:text-neutral-400">Aspect Ratio:</span><span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{analysis.canvas.aspect_ratio}</span></div>)}
-{/*Attach Controls*/}
-<div className="space-y-2">
-{isAttached?(<><Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleToggleStrict}>{isStrict?<><Lock className="h-4 w-4 text-brand-500"/>Strictly Following</>:<><Unlock className="h-4 w-4"/>Allow Variation</>}</Button>
-<Button variant="ghost" size="sm" className="w-full justify-start text-neutral-500" onClick={handleDetach}>Detach from Chat</Button></>):(<Button variant="default" size="sm" className="w-full bg-brand-500 hover:bg-brand-600" onClick={handleAttach}>Attach to Chat</Button>)}</div>
+{/*Attach Control*/}
+{!isAttached&&(<Button variant="default" size="sm" className="w-full bg-brand-500 hover:bg-brand-600" onClick={handleAttach}>Attach to Chat</Button>)}
 {/*Action Buttons*/}
 <div className="flex gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
 <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleEnterEdit}><Pencil className="h-3.5 w-3.5"/>Edit</Button>
@@ -187,23 +182,39 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {/*Description*/}
 <div className="space-y-2"><label className="text-sm font-medium">Description</label>
 <textarea value={editDescription} onChange={e=>setEditDescription(e.target.value)} placeholder="Describe the visual style and key elements" rows={4} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y min-h-[80px]"/></div>
-{/*Default Strict Toggle*/}
-<div className="flex items-center justify-between py-3 px-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
-<div className="space-y-0.5"><label className="text-sm font-medium">Strictly Follow by Default</label><p className="text-xs text-muted-foreground">New generations preserve exact style</p></div>
-<button type="button" role="switch" aria-checked={editDefaultStrict} onClick={()=>setEditDefaultStrict(!editDefaultStrict)} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${editDefaultStrict?'bg-brand-500':'bg-neutral-300 dark:bg-neutral-600'}`}><span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform ${editDefaultStrict?'translate-x-5':'translate-x-0'}`}/></button></div>
 {/*Analysis Summary Card*/}
 {styleRef?.analysis&&(<div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-4 space-y-3">
 <div className="flex items-center justify-between">
 <span className="text-sm font-medium">Style Analysis</span>
 <Button variant="outline" size="sm" onClick={handleReanalyze} disabled={isWorking} className="h-7 text-xs gap-1.5">{isReanalyzing?<Loader2 className="h-3 w-3 animate-spin"/>:<RefreshCw className="h-3 w-3"/>}Reanalyze</Button></div>
 <div className="text-xs text-muted-foreground space-y-1">
-{v2?(<><div><span className="font-medium">Version:</span> V2 Semantic</div><div><span className="font-medium">Mood:</span> {v2.style?.mood||'N/A'}</div>{v2.style?.lighting&&<div><span className="font-medium">Lighting:</span> {v2.style.lighting}</div>}</>):(<><div><span className="font-medium">Version:</span> V1 Legacy</div><div><span className="font-medium">Elements:</span> {(analysis as any).elements?.length||0}</div></>)}
+{v3?(<><div><span className="font-medium">Version:</span> V3 Color Grading DNA</div><div><span className="font-medium">Film Look:</span> {v3.color_grading?.film_stock_reference||'N/A'}</div>{v3.color_grading?.color_temperature&&<div><span className="font-medium">Temperature:</span> {v3.color_grading.color_temperature}</div>}</>):v2?(<><div><span className="font-medium">Version:</span> V2 Semantic</div><div><span className="font-medium">Mood:</span> {v2.style?.mood||'N/A'}</div>{v2.style?.lighting&&<div><span className="font-medium">Lighting:</span> {v2.style.lighting}</div>}</>):(<><div><span className="font-medium">Version:</span> V1 Legacy</div><div><span className="font-medium">Elements:</span> {(analysis as any).elements?.length||0}</div></>)}
 </div>
 <p className="text-[10px] text-muted-foreground/70">Click Reanalyze to refresh AI analysis</p></div>)}
 </>
 ):(
 //View Mode: Full Analysis Display
-<>{v2?(<>
+<>{v3?(<>
+{/*Color Grading DNA - PRIMARY section*/}
+<Section title="Color Grading DNA"><InfoCard>
+{v3.color_grading?.film_stock_reference&&<InfoRow label="Film Look" value={v3.color_grading.film_stock_reference}/>}
+<InfoRow label="Temperature" value={v3.color_grading?.color_temperature}/>
+<InfoRow label="Shadows" value={v3.color_grading?.shadow_tint}/>
+<InfoRow label="Black Point" value={v3.color_grading?.black_point}/>
+<InfoRow label="Highlights" value={v3.color_grading?.highlight_rolloff}/>
+<InfoRow label="Highlight Tint" value={v3.color_grading?.highlight_tint}/>
+<InfoRow label="Saturation" value={v3.color_grading?.saturation_level}/>
+<InfoRow label="Contrast" value={v3.color_grading?.contrast_character}/>
+{v3.color_grading?.signature_elements?.length>0&&(<div className="pt-1"><span className="text-xs text-neutral-500 dark:text-neutral-400">Signature Elements:</span><p className="text-sm text-neutral-900 dark:text-neutral-100 mt-0.5">{v3.color_grading.signature_elements.join(' • ')}</p></div>)}
+</InfoCard></Section>
+{/*Style Suggestions - secondary*/}
+{(v3.style_suggestions?.mood||v3.style_suggestions?.environment_tendency||v3.style_suggestions?.lighting_setup)&&(
+<Section title="Style Suggestions"><InfoCard>
+<InfoRow label="Mood" value={v3.style_suggestions?.mood}/>
+<InfoRow label="Environment" value={v3.style_suggestions?.environment_tendency}/>
+<InfoRow label="Lighting" value={v3.style_suggestions?.lighting_setup}/>
+</InfoCard></Section>)}
+</>):v2?(<>
 {/*Visual Style*/}
 <Section title="Visual Style"><InfoCard>
 <InfoRow label="Mood" value={v2.style?.mood}/>
@@ -238,7 +249,7 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 <InfoRow label="Version" value="1.0 (Legacy)"/>
 <InfoRow label="Aspect Ratio" value={analysis.canvas?.aspect_ratio}/>
 <InfoRow label="Background" value={analysis.canvas?.background}/>
-{analysis.style&&(<><InfoRow label="Mood" value={analysis.style.mood}/><InfoRow label="Lighting" value={analysis.style.lighting}/></>)}
+{'style' in analysis&&analysis.style&&(<><InfoRow label="Mood" value={(analysis as any).style.mood}/><InfoRow label="Lighting" value={(analysis as any).style.lighting}/></>)}
 {'elements' in analysis&&(<InfoRow label="Elements" value={`${(analysis as any).elements?.length||0} defined`}/>)}
 {'product_slot' in analysis&&(<InfoRow label="Product Slot" value={(analysis as any).product_slot?'Yes':'No'}/>)}
 </InfoCard></Section>):(<div className="text-sm text-neutral-500 py-4">No analysis data. Click Edit to add images.</div>)}</>)}

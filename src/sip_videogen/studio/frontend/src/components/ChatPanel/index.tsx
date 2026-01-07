@@ -59,7 +59,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     attachedStyleReferences,
     attachStyleReference,
     detachStyleReference,
-    setStyleReferenceStrictness,
     clearStyleReferenceAttachments,
     refresh: refreshStyleRefs,
   } = useStyleReferences()
@@ -421,7 +420,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           styleReferences={styleReferences}
           attachedStyleReferences={combinedAttachments.styleReferences}
           onDetach={detachStyleReference}
-          onToggleStrict={setStyleReferenceStrictness}
         />
 
         {attachments.length > 0 && (

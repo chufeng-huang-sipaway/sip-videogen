@@ -421,9 +421,11 @@ class StyleReferenceContextBuilder:
 **Mode**: {"Strict" if self.strict else "Loose"}
 *Analysis pending - style reference not yet analyzed.*
 """
-        # Detect V2 vs V1 analysis
-        is_v2 = getattr(analysis, "version", "1.0") == "2.0"
-        if is_v2:
+        # Detect V3 vs V2 vs V1 analysis
+        version = getattr(analysis, "version", "1.0")
+        if version == "3.0":
+            return self._build_v3_context(sr.name, sr.slug, sr.description or "", analysis)
+        elif version == "2.0":
             return self._build_v2_context(sr.name, sr.slug, sr.description or "", analysis)
         return self._build_v1_context(sr.name, sr.slug, sr.description or "", analysis)
 
@@ -459,6 +461,39 @@ class StyleReferenceContextBuilder:
 {layout_info}
 {mood_info}
 {treatments_info}
+
+{constraints}
+"""
+
+    def _build_v3_context(self, name: str, slug: str, description: str, analysis) -> str:
+        """Build context from V3 color grading DNA analysis."""
+        mode_label = "Strict" if self.strict else "Loose"
+        cg = analysis.color_grading
+        canvas = analysis.canvas
+        # Summary info - emphasize color grading
+        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect"
+        film_info = f"**Film Look**: {cg.film_stock_reference}" if cg.film_stock_reference else ""
+        temp_info = f"**Temperature**: {cg.color_temperature}" if cg.color_temperature else ""
+        sig_info = (
+            f"**Signature**: {', '.join(cg.signature_elements[:3])}"
+            if cg.signature_elements
+            else ""
+        )
+        # Build constraints using V3 builder
+        from sip_videogen.advisor.style_reference_prompt import build_style_reference_constraints_v3
+
+        constraints = build_style_reference_constraints_v3(analysis, strict=self.strict)
+        tool_usage = f'**IMPORTANT**: When generating images, you MUST pass `template_slug="{slug}"` to the generate_image tool to apply color grading.'
+        return f"""### Style Reference: {name}
+**Slug**: `{slug}`
+**Description**: {description}
+**Mode**: {mode_label}
+{tool_usage}
+
+{canvas_info}
+{film_info}
+{temp_info}
+{sig_info}
 
 {constraints}
 """
