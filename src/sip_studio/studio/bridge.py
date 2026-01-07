@@ -341,7 +341,7 @@ class StudioBridge:
         return self._project.get_general_assets(brand_slug)
 
     # ===========================================================================
-    # Chat
+    # Chat (Background Execution - Phase 1 Production Refactor)
     # ===========================================================================
     def chat(
         self,
@@ -353,6 +353,7 @@ class StudioBridge:
         aspect_ratio: str | None = None,
         generation_mode: str | None = None,
     ) -> dict:
+        """Start chat in background. Returns immediately with runId."""
         logger.info("[Bridge.chat] attached_style_references=%s", attached_style_references)
         return self._chat.chat(
             message,
@@ -363,6 +364,54 @@ class StudioBridge:
             aspect_ratio,
             generation_mode,
         )
+
+    def chat_sync(
+        self,
+        message: str,
+        attachments: list[dict] | None = None,
+        project_slug: str | None = None,
+        attached_products: list[str] | None = None,
+        attached_style_references: list[dict] | None = None,
+        aspect_ratio: str | None = None,
+        generation_mode: str | None = None,
+    ) -> dict:
+        """Synchronous chat for backward compatibility. Blocks until complete."""
+        logger.info("[Bridge.chat_sync] attached_style_references=%s", attached_style_references)
+        return self._chat.chat_sync(
+            message,
+            attachments,
+            project_slug,
+            attached_products,
+            attached_style_references,
+            aspect_ratio,
+            generation_mode,
+        )
+
+    def interrupt_task(self, action: str, message: str | None = None) -> dict:
+        """Interrupt current chat task. Actions: pause, stop, new_direction."""
+        return self._chat.interrupt_task(action, message)
+
+    def resume_task(self) -> dict:
+        """Resume a paused chat task."""
+        return self._chat.resume_task()
+
+    def respond_to_approval(
+        self, request_id: str, action: str, modified_prompt: str | None = None
+    ) -> dict:
+        """Submit user response to an approval request."""
+        ok = self._state.submit_approval_response(request_id, action, modified_prompt)
+        if not ok:
+            return bridge_error("Request expired or invalid")
+        return bridge_ok({"success": True, "action": action})
+
+    def set_autonomy_mode(self, enabled: bool) -> dict:
+        """Enable or disable autonomy mode (auto-approve all actions)."""
+        self._state.set_autonomy_mode(enabled)
+        return bridge_ok({"autonomyMode": enabled})
+
+    def get_session_state(self) -> dict:
+        """Get full session state for frontend hydration."""
+        return bridge_ok(self._state.get_session_state())
 
     def clear_chat(self) -> dict:
         return self._chat.clear_chat()

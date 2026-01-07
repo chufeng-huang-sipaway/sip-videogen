@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 __all__ = [
     "AssetService",
     "BrandService",
+    "ChatJob",
     "ChatService",
     "DocumentService",
     "ImageStatusService",
@@ -23,6 +24,7 @@ __all__ = [
 if TYPE_CHECKING:
     from .asset_service import AssetService as AssetService
     from .brand_service import BrandService as BrandService
+    from .chat_job import ChatJob as ChatJob
     from .chat_service import ChatService as ChatService
     from .document_service import DocumentService as DocumentService
     from .image_status import ImageStatusService as ImageStatusService
@@ -41,6 +43,10 @@ def __getattr__(name: str):
         from .brand_service import BrandService
 
         return BrandService
+    if name == "ChatJob":
+        from .chat_job import ChatJob
+
+        return ChatJob
     if name == "ChatService":
         from .chat_service import ChatService
 
