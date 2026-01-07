@@ -6,11 +6,11 @@ import{Input}from'@/components/ui/input'
 import{Dialog,DialogContent,DialogHeader,DialogTitle}from'@/components/ui/dialog'
 import{Dropzone,DropzoneEmptyState}from'@/components/ui/dropzone'
 import{useStyleReferences}from'@/context/StyleReferenceContext'
-import{bridge,isPyWebView,isV2StyleReferenceAnalysis}from'@/lib/bridge'
+import{bridge,isPyWebView,isV2StyleReferenceAnalysis,isV3StyleReferenceAnalysis}from'@/lib/bridge'
 import{processImageFiles}from'@/lib/file-utils'
 import{getAllowedImageExts}from'@/lib/constants'
 import{toast}from'@/components/ui/toaster'
-import type{StyleReferenceFull,StyleReferenceAnalysisV2}from'@/lib/bridge'
+import type{StyleReferenceFull,StyleReferenceAnalysisV2,StyleReferenceAnalysisV3}from'@/lib/bridge'
 import type{ProcessedFile}from'@/lib/file-utils'
 interface ExistingImage{path:string;filename:string;thumbnailUrl:string|null;isPrimary:boolean}
 interface UnifiedStyleReferenceModalProps{open:boolean;onOpenChange:(open:boolean)=>void;styleRefSlug:string;initialMode?:'view'|'edit';onDelete?:(slug:string)=>void}
@@ -108,9 +108,10 @@ const handleReanalyze=async()=>{if(isReanalyzing)return;setIsReanalyzing(true)
 try{const analysis=await reanalyzeStyleReference(styleRefSlug);setStyleRef(prev=>prev?{...prev,analysis}:prev);toast.success('Reanalyzed successfully')}
 catch(err){toast.error(err instanceof Error?err.message:'Reanalyze failed')}
 finally{setIsReanalyzing(false)}}
-//Get V2 analysis
+//Get analysis version
 const analysis=styleRef?.analysis
 const v2=analysis&&isV2StyleReferenceAnalysis(analysis)?analysis as StyleReferenceAnalysisV2:null
+const v3=analysis&&isV3StyleReferenceAnalysis(analysis)?analysis as StyleReferenceAnalysisV3:null
 const visibleExistingImages=existingImages.filter(img=>!imagesToDelete.includes(img.path))
 const canAddImages=visibleExistingImages.length+newImages.length<2
 const isWorking=isSaving||isReanalyzing
@@ -197,13 +198,33 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 <span className="text-sm font-medium">Style Analysis</span>
 <Button variant="outline" size="sm" onClick={handleReanalyze} disabled={isWorking} className="h-7 text-xs gap-1.5">{isReanalyzing?<Loader2 className="h-3 w-3 animate-spin"/>:<RefreshCw className="h-3 w-3"/>}Reanalyze</Button></div>
 <div className="text-xs text-muted-foreground space-y-1">
-{v2?(<><div><span className="font-medium">Version:</span> V2 Semantic</div><div><span className="font-medium">Mood:</span> {v2.style?.mood||'N/A'}</div>{v2.style?.lighting&&<div><span className="font-medium">Lighting:</span> {v2.style.lighting}</div>}</>):(<><div><span className="font-medium">Version:</span> V1 Legacy</div><div><span className="font-medium">Elements:</span> {(analysis as any).elements?.length||0}</div></>)}
+{v3?(<><div><span className="font-medium">Version:</span> V3 Color Grading DNA</div><div><span className="font-medium">Film Look:</span> {v3.color_grading?.film_stock_reference||'N/A'}</div>{v3.color_grading?.color_temperature&&<div><span className="font-medium">Temperature:</span> {v3.color_grading.color_temperature}</div>}</>):v2?(<><div><span className="font-medium">Version:</span> V2 Semantic</div><div><span className="font-medium">Mood:</span> {v2.style?.mood||'N/A'}</div>{v2.style?.lighting&&<div><span className="font-medium">Lighting:</span> {v2.style.lighting}</div>}</>):(<><div><span className="font-medium">Version:</span> V1 Legacy</div><div><span className="font-medium">Elements:</span> {(analysis as any).elements?.length||0}</div></>)}
 </div>
 <p className="text-[10px] text-muted-foreground/70">Click Reanalyze to refresh AI analysis</p></div>)}
 </>
 ):(
 //View Mode: Full Analysis Display
-<>{v2?(<>
+<>{v3?(<>
+{/*Color Grading DNA - PRIMARY section*/}
+<Section title="Color Grading DNA"><InfoCard>
+{v3.color_grading?.film_stock_reference&&<InfoRow label="Film Look" value={v3.color_grading.film_stock_reference}/>}
+<InfoRow label="Temperature" value={v3.color_grading?.color_temperature}/>
+<InfoRow label="Shadows" value={v3.color_grading?.shadow_tint}/>
+<InfoRow label="Black Point" value={v3.color_grading?.black_point}/>
+<InfoRow label="Highlights" value={v3.color_grading?.highlight_rolloff}/>
+<InfoRow label="Highlight Tint" value={v3.color_grading?.highlight_tint}/>
+<InfoRow label="Saturation" value={v3.color_grading?.saturation_level}/>
+<InfoRow label="Contrast" value={v3.color_grading?.contrast_character}/>
+{v3.color_grading?.signature_elements?.length>0&&(<div className="pt-1"><span className="text-xs text-neutral-500 dark:text-neutral-400">Signature Elements:</span><p className="text-sm text-neutral-900 dark:text-neutral-100 mt-0.5">{v3.color_grading.signature_elements.join(' • ')}</p></div>)}
+</InfoCard></Section>
+{/*Style Suggestions - secondary*/}
+{(v3.style_suggestions?.mood||v3.style_suggestions?.environment_tendency||v3.style_suggestions?.lighting_setup)&&(
+<Section title="Style Suggestions"><InfoCard>
+<InfoRow label="Mood" value={v3.style_suggestions?.mood}/>
+<InfoRow label="Environment" value={v3.style_suggestions?.environment_tendency}/>
+<InfoRow label="Lighting" value={v3.style_suggestions?.lighting_setup}/>
+</InfoCard></Section>)}
+</>):v2?(<>
 {/*Visual Style*/}
 <Section title="Visual Style"><InfoCard>
 <InfoRow label="Mood" value={v2.style?.mood}/>
@@ -238,7 +259,7 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 <InfoRow label="Version" value="1.0 (Legacy)"/>
 <InfoRow label="Aspect Ratio" value={analysis.canvas?.aspect_ratio}/>
 <InfoRow label="Background" value={analysis.canvas?.background}/>
-{analysis.style&&(<><InfoRow label="Mood" value={analysis.style.mood}/><InfoRow label="Lighting" value={analysis.style.lighting}/></>)}
+{'style' in analysis&&analysis.style&&(<><InfoRow label="Mood" value={(analysis as any).style.mood}/><InfoRow label="Lighting" value={(analysis as any).style.lighting}/></>)}
 {'elements' in analysis&&(<InfoRow label="Elements" value={`${(analysis as any).elements?.length||0} defined`}/>)}
 {'product_slot' in analysis&&(<InfoRow label="Product Slot" value={(analysis as any).product_slot?'Yes':'No'}/>)}
 </InfoCard></Section>):(<div className="text-sm text-neutral-500 py-4">No analysis data. Click Edit to add images.</div>)}</>)}

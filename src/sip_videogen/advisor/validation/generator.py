@@ -43,6 +43,8 @@ async def generate_with_validation(
     aspect_ratio: str = "1:1",
     max_retries: int = 3,
     reference_images_bytes: list[bytes] | None = None,
+    style_ref_images_bytes: list[bytes] | None = None,
+    style_ref_name: str = "",
 ) -> ValidationGenerationResult | str:
     """Generate image with reference and validate for identity preservation.
     This function implements a retry loop that:
@@ -79,7 +81,27 @@ async def generate_with_validation(
             if reference_image_bytes not in ibl:
                 ibl = [reference_image_bytes, *ibl]
             rpils = [PILImage.open(io.BytesIO(ib)) for ib in ibl]
-            contents = [cp, *rpils]
+            contents: list = [cp, *rpils]
+            # Add style reference images with scoping label (for color grading only)
+            if style_ref_images_bytes and style_ref_name:
+                ni = len(style_ref_images_bytes)
+                s = "s" if ni > 1 else ""
+                are = "s are" if ni > 1 else " is"
+                slbl = (
+                    f"\n[STYLE REFERENCE IMAGES - COLOR GRADING ONLY ({ni} image{s})]\n"
+                    f"The following image{are} from style reference '{style_ref_name}'.\n"
+                    f"CRITICAL INSTRUCTIONS:\n"
+                    f"- Match ONLY the color grading, tonal treatment, and visual mood\n"
+                    f"- DO NOT copy subjects, objects, people, or content from these images\n"
+                    f"- DO NOT add elements that appear in these images unless in the product reference\n"
+                    f"- Use these ONLY for: color temperature, shadow tint, highlight rolloff, saturation, contrast\n"
+                    f"- The PRODUCT reference images define WHAT to generate\n"
+                    f"- These style reference images define HOW it should look (color/mood only):"
+                )
+                contents.append(slbl)
+                for srb in style_ref_images_bytes:
+                    contents.append(PILImage.open(io.BytesIO(srb)))
+                logger.info(f"Added {ni} style reference images for color grading")
             # Emit baby steps to show sophisticated prompt engineering
             emit_tool_thinking(
                 "I'm crafting the perfect prompt...",
@@ -229,6 +251,8 @@ async def generate_with_multi_validation(
     max_retries: int = 3,
     product_slugs: list[str] | None = None,
     grouped_generation_images: list[tuple[str, list[bytes]]] | None = None,
+    style_ref_images_bytes: list[bytes] | None = None,
+    style_ref_name: str = "",
 ) -> MultiValidationGenerationResult | str:
     """Generate image with multiple products and validate each one.
     This function implements a retry loop that:
@@ -297,6 +321,26 @@ async def generate_with_multi_validation(
                 for rb in pimgs:
                     rp = PILImage.open(io.BytesIO(rb))
                     contents.append(rp)
+            # Add style reference images with scoping label (for color grading only)
+            if style_ref_images_bytes and style_ref_name:
+                ni = len(style_ref_images_bytes)
+                s = "s" if ni > 1 else ""
+                are = "s are" if ni > 1 else " is"
+                slbl = (
+                    f"\n[STYLE REFERENCE IMAGES - COLOR GRADING ONLY ({ni} image{s})]\n"
+                    f"The following image{are} from style reference '{style_ref_name}'.\n"
+                    f"CRITICAL INSTRUCTIONS:\n"
+                    f"- Match ONLY the color grading, tonal treatment, and visual mood\n"
+                    f"- DO NOT copy subjects, objects, people, or content from these images\n"
+                    f"- DO NOT add elements that appear in these images unless in the product reference\n"
+                    f"- Use these ONLY for: color temperature, shadow tint, highlight rolloff, saturation, contrast\n"
+                    f"- The PRODUCT reference images define WHAT to generate\n"
+                    f"- These style reference images define HOW it should look (color/mood only):"
+                )
+                contents.append(slbl)
+                for srb in style_ref_images_bytes:
+                    contents.append(PILImage.open(io.BytesIO(srb)))
+                logger.info(f"Added {ni} style reference images for color grading")
             # Emit baby steps to show sophisticated prompt engineering
             emit_tool_thinking(
                 "I'm crafting the perfect prompt...",

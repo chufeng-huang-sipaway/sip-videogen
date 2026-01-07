@@ -1,6 +1,7 @@
 """Style reference prompt helper for building layout constraints.
 V1: Geometry-focused constraints (deprecated)
 V2: Semantic constraints - prose layout, visual treatments, scene elements
+V3: Color grading DNA - photographic signature for style consistency
 """
 
 from __future__ import annotations
@@ -8,7 +9,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sip_videogen.brands.models import StyleReferenceAnalysis, StyleReferenceAnalysisV2
+    from sip_videogen.brands.models import (
+        ColorGradingSpec,
+        StyleReferenceAnalysis,
+        StyleReferenceAnalysisV2,
+        StyleReferenceAnalysisV3,
+    )
 
 
 def build_style_reference_constraints(
@@ -316,3 +322,141 @@ def format_v2_summary(analysis: "StyleReferenceAnalysisV2") -> str:
     treatments = len(analysis.visual_scene.visual_treatments)
     mood = analysis.style.mood[:20] if analysis.style.mood else "no mood"
     return f"V2: {analysis.layout.structure[:40]}..., {mood}, {treatments} treatments"
+
+
+# V3 Color Grading DNA Constraint Builder
+def _build_color_grading_constraints(cg: "ColorGradingSpec") -> str:
+    """Build color grading constraint block - HIGHEST PRIORITY for style matching."""
+    lines = ["**COLOR GRADING DNA** (HIGHEST PRIORITY - match this exactly):"]
+    if cg.film_stock_reference:
+        lines.append(f"  Film Look: {cg.film_stock_reference}")
+    if cg.color_temperature:
+        lines.append(f"  Temperature: {cg.color_temperature}")
+    shadow_parts = []
+    if cg.black_point:
+        shadow_parts.append(cg.black_point)
+    if cg.shadow_tint:
+        shadow_parts.append(f"with {cg.shadow_tint}")
+    if shadow_parts:
+        lines.append(f"  Shadows: {' '.join(shadow_parts)}")
+    highlight_parts = []
+    if cg.highlight_rolloff:
+        highlight_parts.append(f"{cg.highlight_rolloff} rolloff")
+    if cg.highlight_tint:
+        highlight_parts.append(cg.highlight_tint)
+    if highlight_parts:
+        lines.append(f"  Highlights: {', '.join(highlight_parts)}")
+    if cg.saturation_level:
+        lines.append(f"  Saturation: {cg.saturation_level}")
+    if cg.contrast_character:
+        lines.append(f"  Contrast: {cg.contrast_character}")
+    if cg.signature_elements:
+        lines.append(f"  Signature: {', '.join(cg.signature_elements[:4])}")
+    return "\n".join(lines)
+
+
+def _build_style_suggestions(suggestions, mood_fallback: str = "") -> str:
+    """Build style suggestions block - secondary to color grading."""
+    lines = ["**STYLE SUGGESTIONS** (secondary - can vary):"]
+    if suggestions.environment_tendency:
+        lines.append(f"  Environment: {suggestions.environment_tendency}")
+    if suggestions.mood:
+        lines.append(f"  Mood: {suggestions.mood}")
+    elif mood_fallback:
+        lines.append(f"  Mood: {mood_fallback}")
+    if suggestions.lighting_setup:
+        lines.append(f"  Lighting: {suggestions.lighting_setup}")
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+def build_style_reference_constraints_v3(
+    analysis: "StyleReferenceAnalysisV3", strict: bool, include_usage: bool = True
+) -> str:
+    """Build color grading DNA constraints for agent prompts (V3).
+    Args:
+        analysis: StyleReferenceAnalysisV3 containing color grading DNA.
+        strict: True for exact color matching, False for color family matching.
+        include_usage: When True, include tool usage hints.
+    Returns:
+        Formatted constraint string prioritizing color grading over layout.
+    """
+    if strict:
+        return _build_strict_v3(analysis, include_usage)
+    return _build_loose_v3(analysis, include_usage)
+
+
+def _build_strict_v3(analysis: "StyleReferenceAnalysisV3", include_usage: bool) -> str:
+    """Build strict V3 constraints - exact color grading reproduction."""
+    cg = analysis.color_grading
+    suggestions = analysis.style_suggestions
+    canvas = analysis.canvas
+    color_block = _build_color_grading_constraints(cg)
+    suggestions_block = _build_style_suggestions(suggestions)
+    usage_block = ""
+    if include_usage:
+        usage_block = """
+
+**HOW TO USE**:
+Call `generate_image(style_ref_slug="...", prompt="...")`
+Color grading constraints are auto-applied."""
+    return f"""**STRICT MODE - EXACT COLOR GRADING MATCH**
+
+**Canvas**: {canvas.aspect_ratio} aspect ratio
+
+{color_block}
+
+{suggestions_block}
+
+**CRITICAL RULES**:
+1. MATCH the color grading DNA exactly - this is the photographer's signature
+2. Temperature, shadow treatment, and highlight rolloff MUST be preserved
+3. Saturation and contrast character define the look - do not deviate
+4. Film stock reference is your guide - emulate that aesthetic
+5. Layout and composition CAN vary - color treatment CANNOT
+{usage_block}"""
+
+
+def _build_loose_v3(analysis: "StyleReferenceAnalysisV3", include_usage: bool) -> str:
+    """Build loose V3 constraints - color family matching with flexibility."""
+    cg = analysis.color_grading
+    suggestions = analysis.style_suggestions
+    canvas = analysis.canvas
+    color_block = _build_color_grading_constraints(cg)
+    suggestions_block = _build_style_suggestions(suggestions)
+    usage_block = ""
+    if include_usage:
+        usage_block = """
+
+**HOW TO USE**:
+Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
+    return f"""**LOOSE MODE - COLOR FAMILY MATCHING**
+
+**Canvas**: {canvas.aspect_ratio} (preserve aspect ratio)
+
+{color_block}
+
+{suggestions_block}
+
+**VARIATION RULES**:
+✓ Exact color values can shift within the same family
+✓ Contrast can vary slightly while maintaining character
+✓ Environment and composition are completely flexible
+✓ Lighting setup can adapt to scene
+
+✗ Do NOT change temperature direction (warm stays warm)
+✗ Do NOT change shadow treatment dramatically
+✗ Do NOT flip saturation (muted stays muted)
+✗ Do NOT abandon the film stock aesthetic
+{usage_block}"""
+
+
+def format_v3_summary(analysis: "StyleReferenceAnalysisV3") -> str:
+    """Format a brief V3 analysis summary for context display."""
+    film = analysis.color_grading.film_stock_reference or "no film ref"
+    sigs = len(analysis.color_grading.signature_elements)
+    temp = (
+        analysis.color_grading.color_temperature[:15]
+        if analysis.color_grading.color_temperature
+        else "unknown"
+    )
+    return f"V3: {film}, {temp}, {sigs} signatures"

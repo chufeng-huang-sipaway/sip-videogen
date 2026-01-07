@@ -25,6 +25,7 @@ from .project import ProjectFull, ProjectIndex, ProjectStatus, ProjectSummary
 from .style_reference import (
     AppearanceSpec,
     CanvasSpec,
+    ColorGradingSpec,
     ConstraintSpec,
     ContentSpec,
     GeometrySpec,
@@ -35,11 +36,13 @@ from .style_reference import (
     ProductSlot,
     StyleReferenceAnalysis,
     StyleReferenceAnalysisV2,
+    StyleReferenceAnalysisV3,
     StyleReferenceConstraintsSpec,
     StyleReferenceFull,
     StyleReferenceIndex,
     StyleReferenceSummary,
     StyleSpec,
+    StyleSuggestionsSpec,
     VisualSceneSpec,
 )
 
@@ -68,9 +71,10 @@ __all__ = [
     "ProjectIndex",
     "ProjectStatus",
     "ProjectSummary",
-    # StyleReference models (18)
+    # StyleReference models (21)
     "AppearanceSpec",
     "CanvasSpec",
+    "ColorGradingSpec",
     "ConstraintSpec",
     "ContentSpec",
     "GeometrySpec",
@@ -81,10 +85,12 @@ __all__ = [
     "ProductSlot",
     "StyleReferenceAnalysis",
     "StyleReferenceAnalysisV2",
+    "StyleReferenceAnalysisV3",
     "StyleReferenceConstraintsSpec",
     "StyleReferenceFull",
     "StyleReferenceIndex",
     "StyleReferenceSummary",
     "StyleSpec",
+    "StyleSuggestionsSpec",
     "VisualSceneSpec",
 ]
