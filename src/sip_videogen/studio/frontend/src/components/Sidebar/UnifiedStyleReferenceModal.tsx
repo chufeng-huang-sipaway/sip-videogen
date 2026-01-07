@@ -1,6 +1,6 @@
 //UnifiedStyleReferenceModal - Combined view/edit modal with inline editing
 import{useState,useEffect,useCallback,useMemo}from'react'
-import{Layout,Loader2,Check,Circle,Lock,Unlock,Pencil,Trash2,X,Star,RefreshCw,Save,ImagePlus}from'lucide-react'
+import{Layout,Loader2,Check,Circle,Pencil,Trash2,X,Star,RefreshCw,Save,ImagePlus}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{Input}from'@/components/ui/input'
 import{Dialog,DialogContent,DialogHeader,DialogTitle}from'@/components/ui/dialog'
@@ -23,7 +23,7 @@ function Section({title,children}:{title:string;children:React.ReactNode}){retur
 //Card wrapper for info content
 function InfoCard({children}:{children:React.ReactNode}){return(<div className="bg-neutral-100 dark:bg-neutral-800 rounded-md p-3 space-y-1.5">{children}</div>)}
 export function UnifiedStyleReferenceModal({open,onOpenChange,styleRefSlug,initialMode='view',onDelete}:UnifiedStyleReferenceModalProps){
-const{getStyleReference,getStyleReferenceImages,updateStyleReference,uploadStyleReferenceImage,deleteStyleReferenceImage,setPrimaryStyleReferenceImage,reanalyzeStyleReference,attachStyleReference,detachStyleReference,setStyleReferenceStrictness,attachedStyleReferences,refresh}=useStyleReferences()
+const{getStyleReference,getStyleReferenceImages,updateStyleReference,uploadStyleReferenceImage,deleteStyleReferenceImage,setPrimaryStyleReferenceImage,reanalyzeStyleReference,attachStyleReference,attachedStyleReferences,refresh}=useStyleReferences()
 //Core state
 const[mode,setMode]=useState<'view'|'edit'>(initialMode)
 const[styleRef,setStyleRef]=useState<StyleReferenceFull|null>(null)
@@ -41,9 +41,7 @@ const[isSaving,setIsSaving]=useState(false)
 const[isReanalyzing,setIsReanalyzing]=useState(false)
 const[uploadError,setUploadError]=useState<string|null>(null)
 //Check attachment status
-const attached=attachedStyleReferences.find(a=>a.style_reference_slug===styleRefSlug)
-const isAttached=!!attached
-const isStrict=attached?.strict??false
+const isAttached=attachedStyleReferences.some(a=>a.style_reference_slug===styleRefSlug)
 //Compute hasChanges
 const hasChanges=useMemo(()=>{if(!styleRef)return false;return editName.trim()!==styleRef.name||editDescription.trim()!==styleRef.description||editDefaultStrict!==styleRef.default_strict||newImages.length>0||imagesToDelete.length>0||existingImages.some(img=>img.isPrimary&&img.path!==styleRef.primary_image)},[styleRef,editName,editDescription,editDefaultStrict,newImages,imagesToDelete,existingImages])
 //Load style reference data
@@ -70,8 +68,6 @@ useEffect(()=>{if(open){setMode(initialMode);setNewImages([]);setImagesToDelete(
 //Handlers
 const handleClose=useCallback(()=>{if(isSaving||isReanalyzing)return;if(mode==='edit'&&hasChanges){if(!confirm('Discard unsaved changes?'))return};onOpenChange(false)},[isSaving,isReanalyzing,mode,hasChanges,onOpenChange])
 const handleAttach=()=>attachStyleReference(styleRefSlug)
-const handleDetach=()=>detachStyleReference(styleRefSlug)
-const handleToggleStrict=()=>setStyleReferenceStrictness(styleRefSlug,!isStrict)
 const handleDelete=()=>{if(confirm(`Delete style reference "${styleRef?.name}"? This cannot be undone.`)){handleClose();onDelete?.(styleRefSlug)}}
 const handleEnterEdit=()=>{setMode('edit');setUploadError(null)}
 const handleCancelEdit=()=>{if(hasChanges&&!confirm('Discard unsaved changes?'))return;setMode('view');setEditName(styleRef?.name||'');setEditDescription(styleRef?.description||'');setEditDefaultStrict(styleRef?.default_strict??true);setNewImages([]);setImagesToDelete([]);setExistingImages(prev=>prev.map(img=>({...img,isPrimary:img.path===styleRef?.primary_image})).sort((a,b)=>(b.isPrimary?1:0)-(a.isPrimary?1:0)));setUploadError(null)}
@@ -166,10 +162,8 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {imageSrc?(<img src={imageSrc} alt={styleRef?.name} className="w-full h-full object-cover"/>):(<div className="w-full h-full flex items-center justify-center"><Layout className="h-12 w-12 text-neutral-400"/></div>)}</div>
 {/*Aspect Ratio Badge*/}
 {analysis?.canvas?.aspect_ratio&&(<div className="flex items-center gap-2"><span className="text-xs text-neutral-500 dark:text-neutral-400">Aspect Ratio:</span><span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{analysis.canvas.aspect_ratio}</span></div>)}
-{/*Attach Controls*/}
-<div className="space-y-2">
-{isAttached?(<><Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleToggleStrict}>{isStrict?<><Lock className="h-4 w-4 text-brand-500"/>Strictly Following</>:<><Unlock className="h-4 w-4"/>Allow Variation</>}</Button>
-<Button variant="ghost" size="sm" className="w-full justify-start text-neutral-500" onClick={handleDetach}>Detach from Chat</Button></>):(<Button variant="default" size="sm" className="w-full bg-brand-500 hover:bg-brand-600" onClick={handleAttach}>Attach to Chat</Button>)}</div>
+{/*Attach Control*/}
+{!isAttached&&(<Button variant="default" size="sm" className="w-full bg-brand-500 hover:bg-brand-600" onClick={handleAttach}>Attach to Chat</Button>)}
 {/*Action Buttons*/}
 <div className="flex gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
 <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleEnterEdit}><Pencil className="h-3.5 w-3.5"/>Edit</Button>
@@ -188,10 +182,6 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {/*Description*/}
 <div className="space-y-2"><label className="text-sm font-medium">Description</label>
 <textarea value={editDescription} onChange={e=>setEditDescription(e.target.value)} placeholder="Describe the visual style and key elements" rows={4} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y min-h-[80px]"/></div>
-{/*Default Strict Toggle*/}
-<div className="flex items-center justify-between py-3 px-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
-<div className="space-y-0.5"><label className="text-sm font-medium">Strictly Follow by Default</label><p className="text-xs text-muted-foreground">New generations preserve exact style</p></div>
-<button type="button" role="switch" aria-checked={editDefaultStrict} onClick={()=>setEditDefaultStrict(!editDefaultStrict)} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${editDefaultStrict?'bg-brand-500':'bg-neutral-300 dark:bg-neutral-600'}`}><span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform ${editDefaultStrict?'translate-x-5':'translate-x-0'}`}/></button></div>
 {/*Analysis Summary Card*/}
 {styleRef?.analysis&&(<div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-4 space-y-3">
 <div className="flex items-center justify-between">
