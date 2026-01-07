@@ -100,7 +100,7 @@ def sample_scene_action() -> SceneAction:
         scene_number=1,
         duration_seconds=6,
         setting_description="Inside a spacecraft cockpit",
-        action_description="A cat astronaut sits at the controls, looking at a view screen showing Mars.",
+        action_description="A cat astronaut at controls, looking at view screen showing Mars.",
         dialogue="Mission Control, we're approaching Mars orbit.",
         camera_direction="Close-up on cat's face, then pan to view screen",
         shared_element_ids=["char_protagonist"],
@@ -111,7 +111,7 @@ def sample_scene_action() -> SceneAction:
 def sample_music_brief() -> MusicBrief:
     """Create a sample MusicBrief for testing."""
     return MusicBrief(
-        prompt="Epic orchestral music with sweeping strings and brass, adventurous and inspiring mood, moderate tempo around 100 BPM, suitable for space exploration scenes",
+        prompt="Epic orchestral music with strings and brass, adventurous mood, 100 BPM",
         negative_prompt="vocals, singing, lyrics, heavy metal",
         mood=MusicMood.DRAMATIC,
         genre=MusicGenre.CINEMATIC,
@@ -279,7 +279,9 @@ def isolated_home(tmp_path: Path, monkeypatch) -> Path:
     (fake_sip_dir / "brands").mkdir()
     monkeypatch.setenv("HOME", str(fake_home))
     # Patch storage.get_brands_dir() to return fake brands dir
-    monkeypatch.setattr("sip_studio.brands.storage.get_brands_dir", lambda: fake_sip_dir / "brands")
+    monkeypatch.setattr(
+        "sip_studio.brands.storage.base.get_brands_dir", lambda: fake_sip_dir / "brands"
+    )
     # Patch config store path
     try:
         monkeypatch.setattr(

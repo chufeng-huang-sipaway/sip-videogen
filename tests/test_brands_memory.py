@@ -64,7 +64,7 @@ def temp_brands_dir(tmp_path: Path):
     brands_dir = tmp_path / ".sip-videogen" / "brands"
     brands_dir.mkdir(parents=True)
 
-    with patch("sip_studio.brands.storage.get_brands_dir", return_value=brands_dir):
+    with patch("sip_studio.brands.storage.base.get_brands_dir", return_value=brands_dir):
         yield brands_dir
 
 

@@ -26,7 +26,7 @@ def temp_brands_dir(tmp_path: Path):
     (test_brand_dir / "assets" / "generated").mkdir(parents=True)
     (test_brand_dir / "assets" / "kept").mkdir(parents=True)
     (test_brand_dir / "assets" / "trash").mkdir(parents=True)
-    with patch("sip_studio.brands.storage.get_brands_dir", return_value=brands_dir):
+    with patch("sip_studio.brands.storage.base.get_brands_dir", return_value=brands_dir):
         with patch(
             "sip_studio.studio.services.image_status.get_brand_dir",
             lambda slug: brands_dir / slug,
@@ -66,12 +66,12 @@ class TestRegisterImage:
             "test-brand",
             "/path/to/image.png",
             prompt="A cat",
-            source_style_reference_path="/path/to/style_ref.png",
+            source_template_path="/path/to/style_ref.png",
         )
         assert result["success"] is True
         data = result["data"]
         assert data["prompt"] == "A cat"
-        assert data["sourceStyleReferencePath"] == "/path/to/style_ref.png"
+        assert data["sourceTemplatePath"] == "/path/to/style_ref.png"
 
     def test_register_generates_unique_ids(
         self, service: ImageStatusService, temp_brands_dir: Path
@@ -178,9 +178,17 @@ class TestListByStatus:
         self, service: ImageStatusService, temp_brands_dir: Path
     ) -> None:
         """Test that list_by_status filters by status."""
-        r1 = service.register_image("test-brand", "/path/to/image1.png")
-        r2 = service.register_image("test-brand", "/path/to/image2.png")
-        service.register_image("test-brand", "/path/to/image3.png")
+        # Create actual test files since list_by_status verifies files exist
+        gen_dir = temp_brands_dir / "test-brand" / "assets" / "generated"
+        img1 = gen_dir / "image1.png"
+        img2 = gen_dir / "image2.png"
+        img3 = gen_dir / "image3.png"
+        img1.write_bytes(b"fake")
+        img2.write_bytes(b"fake")
+        img3.write_bytes(b"fake")
+        r1 = service.register_image("test-brand", str(img1))
+        r2 = service.register_image("test-brand", str(img2))
+        service.register_image("test-brand", str(img3))
         service.set_status("test-brand", r1["data"]["id"], "kept")
         service.set_status("test-brand", r2["data"]["id"], "trashed")
         # r3 stays unsorted
@@ -189,13 +197,13 @@ class TestListByStatus:
         trashed = service.list_by_status("test-brand", "trashed")
         assert unsorted["success"] is True
         assert len(unsorted["data"]) == 1
-        assert unsorted["data"][0]["originalPath"] == "/path/to/image3.png"
+        assert unsorted["data"][0]["originalPath"] == str(img3)
         assert kept["success"] is True
         assert len(kept["data"]) == 1
-        assert kept["data"][0]["originalPath"] == "/path/to/image1.png"
+        assert kept["data"][0]["originalPath"] == str(img1)
         assert trashed["success"] is True
         assert len(trashed["data"]) == 1
-        assert trashed["data"][0]["originalPath"] == "/path/to/image2.png"
+        assert trashed["data"][0]["originalPath"] == str(img2)
 
     def test_list_by_status_empty(self, service: ImageStatusService, temp_brands_dir: Path) -> None:
         """Test list_by_status returns empty list when none match."""
@@ -266,8 +274,14 @@ class TestAtomicWrite:
         self, service: ImageStatusService, temp_brands_dir: Path
     ) -> None:
         """Test that file is readable immediately after write."""
-        service.register_image("test-brand", "/path/to/image1.png")
-        service.register_image("test-brand", "/path/to/image2.png")
+        # Create actual test files since list_by_status verifies files exist
+        gen_dir = temp_brands_dir / "test-brand" / "assets" / "generated"
+        img1 = gen_dir / "image1.png"
+        img2 = gen_dir / "image2.png"
+        img1.write_bytes(b"fake")
+        img2.write_bytes(b"fake")
+        service.register_image("test-brand", str(img1))
+        service.register_image("test-brand", str(img2))
         # Multiple reads should all succeed
         for _ in range(10):
             result = service.list_by_status("test-brand", "unsorted")

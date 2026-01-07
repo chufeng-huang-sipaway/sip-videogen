@@ -20,6 +20,12 @@ from sip_studio.studio.services.brand_service import BrandService
 from sip_studio.studio.state import BridgeState
 
 
+def set_state_slug(state: BridgeState, slug: str | None) -> None:
+    """Set state slug directly without storage validation (for tests only)."""
+    state._cached_slug = slug
+    state._cache_valid = True
+
+
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -69,7 +75,7 @@ def brands_dir(tmp_path, monkeypatch) -> Path:
     bd.mkdir()
     (bd / "index.json").write_text('{"brands":[],"active_brand":null}')
     # Patch the get_brands_dir function to return our temp dir
-    monkeypatch.setattr("sip_studio.brands.storage.get_brands_dir", lambda: bd)
+    monkeypatch.setattr("sip_studio.brands.storage.base.get_brands_dir", lambda: bd)
     monkeypatch.setattr("sip_studio.studio.services.brand_service.get_brand_dir", lambda s: bd / s)
     return bd
 
@@ -83,15 +89,12 @@ class TestGetBrands:
     def test_returns_empty_list_when_no_brands(self, service, brands_dir):
         """Should return empty list when no brands exist."""
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=[]):
-            with patch(
-                "sip_studio.studio.services.brand_service.get_active_brand", return_value=None
-            ):
-                result = service.get_brands()
-        assert result["success"] == True
+            result = service.get_brands()
+        assert result["success"]
         assert result["data"]["brands"] == []
-        assert result["data"]["active"] == None
+        assert result["data"]["active"] is None
 
-    def test_returns_brands_list(self, service, brands_dir):
+    def test_returns_brands_list(self, service, state, brands_dir):
         """Should return list of brands."""
         entries = [
             BrandIndexEntry(
@@ -109,13 +112,10 @@ class TestGetBrands:
                 updated_at=datetime.utcnow(),
             ),
         ]
+        set_state_slug(state, "brand-a")
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
-            with patch(
-                "sip_studio.studio.services.brand_service.get_active_brand",
-                return_value="brand-a",
-            ):
-                result = service.get_brands()
-        assert result["success"] == True
+            result = service.get_brands()
+        assert result["success"]
         assert len(result["data"]["brands"]) == 2
         assert result["data"]["brands"][0]["slug"] == "brand-a"
         assert result["data"]["active"] == "brand-a"
@@ -127,7 +127,7 @@ class TestGetBrands:
             side_effect=Exception("DB error"),
         ):
             result = service.get_brands()
-        assert result["success"] == False
+        assert not result["success"]
         assert "DB error" in result["error"]
 
 
@@ -149,18 +149,18 @@ class TestSetBrand:
             )
         ]
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
-            with patch("sip_studio.studio.services.brand_service.set_active_brand") as mock_set:
-                with patch("sip_studio.advisor.agent.BrandAdvisor") as mock_advisor:
+            with patch("sip_studio.brands.storage.set_active_brand"):
+                with patch("sip_studio.advisor.agent.BrandAdvisor"):
                     result = service.set_brand("my-brand")
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["slug"] == "my-brand"
-        mock_set.assert_called_once_with("my-brand")
+        assert state.get_active_slug() == "my-brand"
 
     def test_returns_error_for_nonexistent_brand(self, service):
         """Should return error if brand not found."""
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=[]):
             result = service.set_brand("nonexistent")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_preserves_existing_advisor(self, service, state):
@@ -177,8 +177,8 @@ class TestSetBrand:
             )
         ]
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
-            with patch("sip_studio.studio.services.brand_service.set_active_brand"):
-                result = service.set_brand("new-brand")
+            with patch("sip_studio.brands.storage.set_active_brand"):
+                service.set_brand("new-brand")
         mock_advisor.set_brand.assert_called_once_with("new-brand", preserve_history=False)
 
 
@@ -188,21 +188,19 @@ class TestSetBrand:
 class TestGetBrandInfo:
     """Tests for get_brand_info method."""
 
-    def test_returns_brand_info(self, service):
+    def test_returns_brand_info(self, service, state):
         """Should return brand summary info."""
         mock_summary = MagicMock()
         mock_summary.name = "Test Brand"
         mock_summary.tagline = "Great stuff"
         mock_summary.category = "Tech"
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.load_brand_summary",
+            return_value=mock_summary,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand_summary",
-                return_value=mock_summary,
-            ):
-                result = service.get_brand_info()
-        assert result["success"] == True
+            result = service.get_brand_info()
+        assert result["success"]
         assert result["data"]["name"] == "Test Brand"
         assert result["data"]["slug"] == "test"
 
@@ -219,23 +217,21 @@ class TestGetBrandInfo:
             result = service.get_brand_info("other-brand")
         assert result["data"]["slug"] == "other-brand"
 
-    def test_error_when_no_brand_selected(self, service):
+    def test_error_when_no_brand_selected(self, service, state):
         """Should return error when no brand selected."""
-        with patch("sip_studio.studio.services.brand_service.get_active_brand", return_value=None):
-            result = service.get_brand_info()
-        assert result["success"] == False
+        set_state_slug(state, None)  # Explicitly set no active brand
+        result = service.get_brand_info()
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
-    def test_error_when_brand_not_found(self, service):
+    def test_error_when_brand_not_found(self, service, state):
         """Should return error when brand not found."""
+        set_state_slug(state, "missing")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="missing"
+            "sip_studio.studio.services.brand_service.load_brand_summary", return_value=None
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand_summary", return_value=None
-            ):
-                result = service.get_brand_info()
-        assert result["success"] == False
+            result = service.get_brand_info()
+        assert not result["success"]
         assert "not found" in result["error"]
 
 
@@ -245,25 +241,23 @@ class TestGetBrandInfo:
 class TestGetBrandIdentity:
     """Tests for get_brand_identity method."""
 
-    def test_returns_full_identity(self, service, sample_identity):
+    def test_returns_full_identity(self, service, state, sample_identity):
         """Should return full brand identity."""
+        set_state_slug(state, "test-brand")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test-brand"
+            "sip_studio.studio.services.brand_service.load_brand",
+            return_value=sample_identity,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand",
-                return_value=sample_identity,
-            ):
-                result = service.get_brand_identity()
-        assert result["success"] == True
+            result = service.get_brand_identity()
+        assert result["success"]
         assert result["data"]["slug"] == "test-brand"
         assert result["data"]["core"]["name"] == "Test Brand"
 
-    def test_error_when_no_brand_selected(self, service):
+    def test_error_when_no_brand_selected(self, service, state):
         """Should return error when no brand selected."""
-        with patch("sip_studio.studio.services.brand_service.get_active_brand", return_value=None):
-            result = service.get_brand_identity()
-        assert result["success"] == False
+        set_state_slug(state, None)  # Explicitly set no active brand
+        result = service.get_brand_identity()
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
 
@@ -275,97 +269,85 @@ class TestUpdateBrandIdentitySection:
 
     def test_updates_core_section(self, service, sample_identity, state):
         """Should update core section."""
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.load_brand",
+            return_value=sample_identity,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand",
-                return_value=sample_identity,
-            ):
-                with patch("sip_studio.studio.services.brand_service.save_brand") as mock_save:
-                    result = service.update_brand_identity_section(
-                        "core",
-                        {
-                            "name": "New Name",
-                            "tagline": "New tag",
-                            "mission": "New mission",
-                            "values": ["New value"],
-                        },
-                    )
-        assert result["success"] == True
+            with patch("sip_studio.studio.services.brand_service.save_brand") as mock_save:
+                result = service.update_brand_identity_section(
+                    "core",
+                    {
+                        "name": "New Name",
+                        "tagline": "New tag",
+                        "mission": "New mission",
+                        "values": ["New value"],
+                    },
+                )
+        assert result["success"]
         mock_save.assert_called_once()
         saved = mock_save.call_args[0][0]
         assert saved.core.name == "New Name"
 
-    def test_updates_visual_section(self, service, sample_identity):
+    def test_updates_visual_section(self, service, state, sample_identity):
         """Should update visual section."""
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.load_brand",
+            return_value=sample_identity,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand",
-                return_value=sample_identity,
-            ):
-                with patch("sip_studio.studio.services.brand_service.save_brand"):
-                    result = service.update_brand_identity_section(
-                        "visual",
-                        {
-                            "primary_colors": [
-                                {"hex": "#FF0000", "name": "Red", "usage": "Primary"}
-                            ],
-                            "typography_style": "Bold",
-                            "image_style": "Vibrant",
-                        },
-                    )
-        assert result["success"] == True
+            with patch("sip_studio.studio.services.brand_service.save_brand"):
+                result = service.update_brand_identity_section(
+                    "visual",
+                    {
+                        "primary_colors": [{"hex": "#FF0000", "name": "Red", "usage": "Primary"}],
+                        "typography_style": "Bold",
+                        "image_style": "Vibrant",
+                    },
+                )
+        assert result["success"]
 
-    def test_updates_constraints_avoid(self, service, sample_identity):
+    def test_updates_constraints_avoid(self, service, state, sample_identity):
         """Should update constraints and avoid lists."""
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.load_brand",
+            return_value=sample_identity,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand",
-                return_value=sample_identity,
-            ):
-                with patch("sip_studio.studio.services.brand_service.save_brand") as mock_save:
-                    result = service.update_brand_identity_section(
-                        "constraints_avoid",
-                        {"constraints": ["Must be blue"], "avoid": ["Red colors"]},
-                    )
-        assert result["success"] == True
+            with patch("sip_studio.studio.services.brand_service.save_brand") as mock_save:
+                result = service.update_brand_identity_section(
+                    "constraints_avoid",
+                    {"constraints": ["Must be blue"], "avoid": ["Red colors"]},
+                )
+        assert result["success"]
         saved = mock_save.call_args[0][0]
         assert saved.constraints == ["Must be blue"]
         assert saved.avoid == ["Red colors"]
 
-    def test_error_for_invalid_section(self, service, sample_identity):
+    def test_error_for_invalid_section(self, service, state, sample_identity):
         """Should return error for invalid section name."""
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.load_brand",
+            return_value=sample_identity,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand",
-                return_value=sample_identity,
-            ):
-                result = service.update_brand_identity_section("invalid_section", {})
-        assert result["success"] == False
+            result = service.update_brand_identity_section("invalid_section", {})
+        assert not result["success"]
         assert "Invalid section" in result["error"]
 
     def test_refreshes_advisor_after_update(self, service, sample_identity, state):
         """Should refresh advisor after identity update."""
         mock_advisor = MagicMock()
         state.advisor = mock_advisor
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.load_brand",
+            return_value=sample_identity,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.load_brand",
-                return_value=sample_identity,
-            ):
-                with patch("sip_studio.studio.services.brand_service.save_brand"):
-                    service.update_brand_identity_section(
-                        "core", {"name": "Updated", "tagline": "t", "mission": "m", "values": []}
-                    )
+            with patch("sip_studio.studio.services.brand_service.save_brand"):
+                service.update_brand_identity_section(
+                    "core", {"name": "Updated", "tagline": "t", "mission": "m", "values": []}
+                )
         mock_advisor.set_brand.assert_called_once_with("test", preserve_history=True)
 
 
@@ -388,25 +370,23 @@ class TestDeleteBrand:
         ]
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
             with patch(
-                "sip_studio.studio.services.brand_service.get_active_brand", return_value=None
+                "sip_studio.studio.services.brand_service.storage_delete_brand",
+                return_value=True,
             ):
-                with patch(
-                    "sip_studio.studio.services.brand_service.storage_delete_brand",
-                    return_value=True,
-                ):
-                    result = service.delete_brand("to-delete")
-        assert result["success"] == True
+                result = service.delete_brand("to-delete")
+        assert result["success"]
 
     def test_error_for_nonexistent_brand(self, service):
         """Should return error if brand not found."""
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=[]):
             result = service.delete_brand("nonexistent")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_clears_advisor_when_deleting_active(self, service, state):
         """Should clear advisor when deleting active brand."""
         state.advisor = MagicMock()
+        set_state_slug(state, "active-brand")
         entries = [
             BrandIndexEntry(
                 slug="active-brand",
@@ -418,17 +398,11 @@ class TestDeleteBrand:
         ]
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
             with patch(
-                "sip_studio.studio.services.brand_service.get_active_brand",
-                return_value="active-brand",
+                "sip_studio.studio.services.brand_service.storage_delete_brand",
+                return_value=True,
             ):
-                with patch("sip_studio.studio.services.brand_service.set_active_brand"):
-                    with patch(
-                        "sip_studio.studio.services.brand_service.storage_delete_brand",
-                        return_value=True,
-                    ):
-                        with patch.object(state, "get_active_slug", return_value="active-brand"):
-                            result = service.delete_brand("active-brand")
-        assert result["success"] == True
+                result = service.delete_brand("active-brand")
+        assert result["success"]
         assert state.advisor is None
 
 
@@ -438,25 +412,23 @@ class TestDeleteBrand:
 class TestListIdentityBackups:
     """Tests for list_identity_backups method."""
 
-    def test_returns_backup_list(self, service):
+    def test_returns_backup_list(self, service, state):
         """Should return list of backups."""
         backups = ["2024-01-01T12-00-00.json", "2024-01-02T12-00-00.json"]
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.list_brand_backups",
+            return_value=backups,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.list_brand_backups",
-                return_value=backups,
-            ):
-                result = service.list_identity_backups()
-        assert result["success"] == True
+            result = service.list_identity_backups()
+        assert result["success"]
         assert result["data"]["backups"] == backups
 
-    def test_error_when_no_brand_selected(self, service):
+    def test_error_when_no_brand_selected(self, service, state):
         """Should return error when no brand selected."""
-        with patch("sip_studio.studio.services.brand_service.get_active_brand", return_value=None):
-            result = service.list_identity_backups()
-        assert result["success"] == False
+        set_state_slug(state, None)  # Explicitly set no active brand
+        result = service.list_identity_backups()
+        assert not result["success"]
 
 
 # =============================================================================
@@ -467,35 +439,29 @@ class TestRestoreIdentityBackup:
 
     def test_restores_backup(self, service, sample_identity, state):
         """Should restore backup successfully."""
+        set_state_slug(state, "test")
         with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.restore_brand_backup",
+            return_value=sample_identity,
         ):
-            with patch(
-                "sip_studio.studio.services.brand_service.restore_brand_backup",
-                return_value=sample_identity,
-            ):
-                with patch("sip_studio.studio.services.brand_service.save_brand"):
-                    result = service.restore_identity_backup("2024-01-01.json")
-        assert result["success"] == True
+            with patch("sip_studio.studio.services.brand_service.save_brand"):
+                result = service.restore_identity_backup("2024-01-01.json")
+        assert result["success"]
         # slug is set to active brand, not the restored identity's original slug
         assert result["data"]["slug"] == "test"
 
-    def test_rejects_path_traversal(self, service):
+    def test_rejects_path_traversal(self, service, state):
         """Should reject filenames with path separators."""
-        with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
-        ):
-            result = service.restore_identity_backup("../etc/passwd")
-        assert result["success"] == False
+        set_state_slug(state, "test")
+        result = service.restore_identity_backup("../etc/passwd")
+        assert not result["success"]
         assert "path separators" in result["error"]
 
-    def test_rejects_non_json_files(self, service):
+    def test_rejects_non_json_files(self, service, state):
         """Should reject non-JSON filenames."""
-        with patch(
-            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
-        ):
-            result = service.restore_identity_backup("backup.txt")
-        assert result["success"] == False
+        set_state_slug(state, "test")
+        result = service.restore_identity_backup("backup.txt")
+        assert not result["success"]
         assert ".json" in result["error"]
 
 
