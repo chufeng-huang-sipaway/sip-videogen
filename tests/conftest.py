@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sip_videogen.models.assets import AssetType, GeneratedAsset, ProductionPackage
-from sip_videogen.models.music import MusicBrief, MusicGenre, MusicMood
-from sip_videogen.models.script import (
+from sip_studio.models.assets import AssetType, GeneratedAsset, ProductionPackage
+from sip_studio.models.music import MusicBrief, MusicGenre, MusicMood
+from sip_studio.models.script import (
     ElementType,
     SceneAction,
     SharedElement,
@@ -37,7 +37,7 @@ def mock_env_vars() -> Generator[None, None, None]:
     }
     with patch.dict(os.environ, env_vars):
         # Clear cached settings
-        from sip_videogen.config.settings import get_settings
+        from sip_studio.config.settings import get_settings
 
         get_settings.cache_clear()
         yield
@@ -274,18 +274,16 @@ def isolated_home(tmp_path: Path, monkeypatch) -> Path:
     """
     fake_home = tmp_path / "home"
     fake_home.mkdir()
-    fake_sip_dir = fake_home / ".sip-videogen"
+    fake_sip_dir = fake_home / ".sip-studio"
     fake_sip_dir.mkdir()
     (fake_sip_dir / "brands").mkdir()
     monkeypatch.setenv("HOME", str(fake_home))
     # Patch storage.get_brands_dir() to return fake brands dir
-    monkeypatch.setattr(
-        "sip_videogen.brands.storage.get_brands_dir", lambda: fake_sip_dir / "brands"
-    )
+    monkeypatch.setattr("sip_studio.brands.storage.get_brands_dir", lambda: fake_sip_dir / "brands")
     # Patch config store path
     try:
         monkeypatch.setattr(
-            "sip_videogen.studio.utils.config_store.CONFIG_PATH", fake_sip_dir / "config.json"
+            "sip_studio.studio.utils.config_store.CONFIG_PATH", fake_sip_dir / "config.json"
         )
     except AttributeError:
         pass
@@ -297,13 +295,13 @@ def mock_os_actions(monkeypatch) -> None:
     """Stub out OS-specific actions (Finder, trash) for deterministic offline tests."""
     # Stub open_in_finder to no-op
     try:
-        monkeypatch.setattr("sip_videogen.studio.utils.os_utils.open_in_finder", lambda p: None)
+        monkeypatch.setattr("sip_studio.studio.utils.os_utils.open_in_finder", lambda p: None)
     except AttributeError:
         pass
     # Stub move_to_trash to just delete the file
     try:
         monkeypatch.setattr(
-            "sip_videogen.studio.utils.os_utils.move_to_trash",
+            "sip_studio.studio.utils.os_utils.move_to_trash",
             lambda p: Path(p).unlink(missing_ok=True),
         )
     except AttributeError:

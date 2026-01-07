@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sip_videogen.brands.models import (
+from sip_studio.brands.models import (
     BrandCoreIdentity,
     BrandIdentityFull,
     BrandIndex,
@@ -19,7 +19,7 @@ from sip_videogen.brands.models import (
     VisualIdentity,
     VoiceGuidelines,
 )
-from sip_videogen.brands.storage import (
+from sip_studio.brands.storage import (
     add_product_image,
     count_project_assets,
     create_brand,
@@ -71,7 +71,7 @@ def temp_brands_dir(tmp_path: Path):
     brands_dir = tmp_path / ".sip-videogen" / "brands"
     brands_dir.mkdir(parents=True)
     # Patch the base module where get_brands_dir is defined
-    with patch("sip_videogen.brands.storage.base.get_brands_dir", return_value=brands_dir):
+    with patch("sip_studio.brands.storage.base.get_brands_dir", return_value=brands_dir):
         yield brands_dir
 
 
@@ -602,7 +602,7 @@ class TestProductIndexManagement:
         """Test saving and loading a product index."""
         create_brand(sample_brand_identity)
 
-        from sip_videogen.brands.models import ProductIndex, ProductSummary
+        from sip_studio.brands.models import ProductIndex, ProductSummary
 
         summary = ProductSummary(slug="test-product", name="Test Product", description="Test")
         index = ProductIndex(products=[summary])
@@ -932,7 +932,7 @@ class TestPackagingTextModels:
 
     def test_packaging_text_element_minimal(self) -> None:
         """Test PackagingTextElement with only required field."""
-        from sip_videogen.brands.models import PackagingTextElement
+        from sip_studio.brands.models import PackagingTextElement
 
         elem = PackagingTextElement(text="SUMMIT")
         assert elem.text == "SUMMIT"
@@ -946,7 +946,7 @@ class TestPackagingTextModels:
 
     def test_packaging_text_element_full(self) -> None:
         """Test PackagingTextElement with all fields populated."""
-        from sip_videogen.brands.models import PackagingTextElement
+        from sip_studio.brands.models import PackagingTextElement
 
         elem = PackagingTextElement(
             text="SUMMIT COFFEE",
@@ -969,7 +969,7 @@ class TestPackagingTextModels:
 
     def test_packaging_text_description_empty(self) -> None:
         """Test PackagingTextDescription with no elements (analyzed, no text found)."""
-        from sip_videogen.brands.models import PackagingTextDescription
+        from sip_studio.brands.models import PackagingTextDescription
 
         desc = PackagingTextDescription()
         assert desc.summary == ""
@@ -984,7 +984,7 @@ class TestPackagingTextModels:
         """Test PackagingTextDescription with elements."""
         from datetime import datetime
 
-        from sip_videogen.brands.models import PackagingTextDescription, PackagingTextElement
+        from sip_studio.brands.models import PackagingTextDescription, PackagingTextElement
 
         now = datetime.utcnow()
         desc = PackagingTextDescription(
@@ -1032,7 +1032,7 @@ class TestPackagingTextModels:
 
     def test_to_summary_sets_has_packaging_text_true(self) -> None:
         """Test to_summary() sets has_packaging_text=True when packaging_text exists."""
-        from sip_videogen.brands.models import PackagingTextDescription, PackagingTextElement
+        from sip_studio.brands.models import PackagingTextDescription, PackagingTextElement
 
         product = ProductFull(
             slug="test-product",
@@ -1120,7 +1120,7 @@ class TestProjectIndexManagement:
         """Test saving and loading a project index."""
         create_brand(sample_brand_identity)
 
-        from sip_videogen.brands.models import ProjectIndex, ProjectSummary
+        from sip_studio.brands.models import ProjectIndex, ProjectSummary
 
         summary = ProjectSummary(
             slug="test-project", name="Test Project", status=ProjectStatus.ACTIVE

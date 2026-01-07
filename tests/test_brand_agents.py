@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.brands.models import (
+from sip_studio.brands.models import (
     AudienceProfile,
     BrandCoreIdentity,
     BrandIdentityFull,
@@ -22,7 +22,7 @@ from sip_videogen.brands.models import (
     VisualIdentity,
     VoiceGuidelines,
 )
-from sip_videogen.models.brand_agent_outputs import (
+from sip_studio.models.brand_agent_outputs import (
     BrandDirectorOutput,
     BrandGuardianOutput,
     BrandStrategyOutput,
@@ -343,7 +343,7 @@ class TestBrandStrategistAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_strategist import develop_brand_strategy
+            from sip_studio.agents.brand_strategist import develop_brand_strategy
 
             result = await develop_brand_strategy(
                 concept="A premium coffee brand for outdoor enthusiasts",
@@ -362,12 +362,12 @@ class TestBrandStrategistAgent:
         with (
             patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
             patch(
-                "sip_videogen.brands.context.build_brand_context",
+                "sip_studio.brands.context.build_brand_context",
                 return_value="## Brand Context\nExisting brand info...",
             ),
-            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
+            patch("sip_studio.brands.storage.set_active_brand") as mock_set_active,
         ):
-            from sip_videogen.agents.brand_strategist import develop_brand_strategy
+            from sip_studio.agents.brand_strategist import develop_brand_strategy
 
             result = await develop_brand_strategy(
                 concept="Evolve the brand to target younger audience",
@@ -398,7 +398,7 @@ class TestVisualDesignerAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.visual_designer import develop_visual_identity
+            from sip_studio.agents.visual_designer import develop_visual_identity
 
             result = await develop_visual_identity(
                 brand_strategy="Summit Coffee Co. targets active professionals...",
@@ -417,12 +417,12 @@ class TestVisualDesignerAgent:
         with (
             patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
             patch(
-                "sip_videogen.brands.context.build_brand_context",
+                "sip_studio.brands.context.build_brand_context",
                 return_value="## Brand Context\nExisting brand info...",
             ),
-            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
+            patch("sip_studio.brands.storage.set_active_brand") as mock_set_active,
         ):
-            from sip_videogen.agents.visual_designer import develop_visual_identity
+            from sip_studio.agents.visual_designer import develop_visual_identity
 
             result = await develop_visual_identity(
                 brand_strategy="Update visual identity for summer campaign",
@@ -453,7 +453,7 @@ class TestBrandVoiceAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_voice import develop_brand_voice
+            from sip_studio.agents.brand_voice import develop_brand_voice
 
             result = await develop_brand_voice(
                 brand_strategy="Summit Coffee Co. is an adventure-inspired brand...",
@@ -472,12 +472,12 @@ class TestBrandVoiceAgent:
         with (
             patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
             patch(
-                "sip_videogen.brands.context.build_brand_context",
+                "sip_studio.brands.context.build_brand_context",
                 return_value="## Brand Context\nExisting brand info...",
             ),
-            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
+            patch("sip_studio.brands.storage.set_active_brand") as mock_set_active,
         ):
-            from sip_videogen.agents.brand_voice import develop_brand_voice
+            from sip_studio.agents.brand_voice import develop_brand_voice
 
             result = await develop_brand_voice(
                 brand_strategy="Refine voice for social media campaigns",
@@ -508,7 +508,7 @@ class TestBrandGuardianAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_guardian import validate_brand_identity
+            from sip_studio.agents.brand_guardian import validate_brand_identity
 
             result = await validate_brand_identity(
                 brand_identity_json='{"slug": "test-brand", "core": {...}}',
@@ -530,7 +530,7 @@ class TestBrandGuardianAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_guardian import validate_brand_identity
+            from sip_studio.agents.brand_guardian import validate_brand_identity
 
             result = await validate_brand_identity(
                 brand_identity_json='{"slug": "test-brand"}',
@@ -553,7 +553,7 @@ class TestBrandGuardianAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_guardian import validate_brand_work
+            from sip_studio.agents.brand_guardian import validate_brand_work
 
             result = await validate_brand_work(
                 strategy_output='{"core_identity": {...}}',
@@ -567,7 +567,7 @@ class TestBrandGuardianAgent:
     @pytest.mark.asyncio
     async def test_validate_brand_work_no_inputs(self) -> None:
         """Test validation with no specialist work returns error."""
-        from sip_videogen.agents.brand_guardian import validate_brand_work
+        from sip_studio.agents.brand_guardian import validate_brand_work
 
         result = await validate_brand_work()
 
@@ -598,7 +598,7 @@ class TestBrandDirectorAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_director import develop_brand
+            from sip_studio.agents.brand_director import develop_brand
 
             result = await develop_brand(
                 concept="A premium coffee brand for outdoor enthusiasts",
@@ -620,7 +620,7 @@ class TestBrandDirectorAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_director import develop_brand_with_output
+            from sip_studio.agents.brand_director import develop_brand_with_output
 
             result = await develop_brand_with_output(
                 concept="A premium coffee brand for outdoor enthusiasts",
@@ -633,7 +633,7 @@ class TestBrandDirectorAgent:
     @pytest.mark.asyncio
     async def test_develop_brand_empty_concept_raises_error(self) -> None:
         """Test that empty concept raises ValueError."""
-        from sip_videogen.agents.brand_director import develop_brand
+        from sip_studio.agents.brand_director import develop_brand
 
         with pytest.raises(ValueError) as exc_info:
             await develop_brand(concept="")
@@ -643,7 +643,7 @@ class TestBrandDirectorAgent:
     @pytest.mark.asyncio
     async def test_develop_brand_whitespace_concept_raises_error(self) -> None:
         """Test that whitespace-only concept raises ValueError."""
-        from sip_videogen.agents.brand_director import develop_brand
+        from sip_studio.agents.brand_director import develop_brand
 
         with pytest.raises(ValueError) as exc_info:
             await develop_brand(concept="   ")
@@ -653,7 +653,7 @@ class TestBrandDirectorAgent:
     @pytest.mark.asyncio
     async def test_develop_brand_too_long_concept_raises_error(self) -> None:
         """Test that too long concept raises ValueError."""
-        from sip_videogen.agents.brand_director import develop_brand
+        from sip_studio.agents.brand_director import develop_brand
 
         long_concept = "A" * 5001
         with pytest.raises(ValueError) as exc_info:
@@ -679,7 +679,7 @@ class TestBrandDirectorAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.brand_director import develop_brand
+            from sip_studio.agents.brand_director import develop_brand
 
             result = await develop_brand(
                 concept="A premium coffee brand",
@@ -700,12 +700,12 @@ class TestBrandDirectorAgent:
         with (
             patch("agents.Runner.run", new_callable=AsyncMock, return_value=mock_result),
             patch(
-                "sip_videogen.brands.context.build_brand_context",
+                "sip_studio.brands.context.build_brand_context",
                 return_value="## Brand Context\nExisting brand info...",
             ),
-            patch("sip_videogen.brands.storage.set_active_brand") as mock_set_active,
+            patch("sip_studio.brands.storage.set_active_brand") as mock_set_active,
         ):
-            from sip_videogen.agents.brand_director import develop_brand
+            from sip_studio.agents.brand_director import develop_brand
 
             result = await develop_brand(
                 concept="Evolve the brand for younger audience", existing_brand_slug="test-brand"
@@ -724,14 +724,14 @@ class TestBrandDevelopmentError:
 
     def test_error_message(self) -> None:
         """Test error message is preserved."""
-        from sip_videogen.agents.brand_director import BrandDevelopmentError
+        from sip_studio.agents.brand_director import BrandDevelopmentError
 
         error = BrandDevelopmentError("Test error message")
         assert str(error) == "Test error message"
 
     def test_error_inherits_from_exception(self) -> None:
         """Test error inherits from Exception."""
-        from sip_videogen.agents.brand_director import BrandDevelopmentError
+        from sip_studio.agents.brand_director import BrandDevelopmentError
 
         assert issubclass(BrandDevelopmentError, Exception)
 
@@ -741,7 +741,7 @@ class TestBrandAgentProgress:
 
     def test_progress_creation(self) -> None:
         """Test progress dataclass creation."""
-        from sip_videogen.agents.brand_director import BrandAgentProgress
+        from sip_studio.agents.brand_director import BrandAgentProgress
 
         progress = BrandAgentProgress(
             event_type="agent_start",
@@ -756,7 +756,7 @@ class TestBrandAgentProgress:
 
     def test_progress_with_detail(self) -> None:
         """Test progress dataclass with detail."""
-        from sip_videogen.agents.brand_director import BrandAgentProgress
+        from sip_studio.agents.brand_director import BrandAgentProgress
 
         progress = BrandAgentProgress(
             event_type="tool_end",
@@ -778,14 +778,14 @@ class TestBrandProgressTrackingHooks:
 
     def test_hooks_creation_without_callback(self) -> None:
         """Test hooks creation without callback."""
-        from sip_videogen.agents.brand_director import BrandProgressTrackingHooks
+        from sip_studio.agents.brand_director import BrandProgressTrackingHooks
 
         hooks = BrandProgressTrackingHooks()
         assert hooks.callback is None
 
     def test_hooks_creation_with_callback(self) -> None:
         """Test hooks creation with callback."""
-        from sip_videogen.agents.brand_director import BrandProgressTrackingHooks
+        from sip_studio.agents.brand_director import BrandProgressTrackingHooks
 
         callback = MagicMock()
         hooks = BrandProgressTrackingHooks(callback=callback)
@@ -794,7 +794,7 @@ class TestBrandProgressTrackingHooks:
     @pytest.mark.asyncio
     async def test_on_agent_start(self) -> None:
         """Test on_agent_start hook."""
-        from sip_videogen.agents.brand_director import BrandProgressTrackingHooks
+        from sip_studio.agents.brand_director import BrandProgressTrackingHooks
 
         callback = MagicMock()
         hooks = BrandProgressTrackingHooks(callback=callback)
@@ -813,7 +813,7 @@ class TestBrandProgressTrackingHooks:
     @pytest.mark.asyncio
     async def test_on_agent_end(self) -> None:
         """Test on_agent_end hook."""
-        from sip_videogen.agents.brand_director import BrandProgressTrackingHooks
+        from sip_studio.agents.brand_director import BrandProgressTrackingHooks
 
         callback = MagicMock()
         hooks = BrandProgressTrackingHooks(callback=callback)
@@ -831,7 +831,7 @@ class TestBrandProgressTrackingHooks:
     @pytest.mark.asyncio
     async def test_on_tool_start(self) -> None:
         """Test on_tool_start hook."""
-        from sip_videogen.agents.brand_director import BrandProgressTrackingHooks
+        from sip_studio.agents.brand_director import BrandProgressTrackingHooks
 
         callback = MagicMock()
         hooks = BrandProgressTrackingHooks(callback=callback)
@@ -852,7 +852,7 @@ class TestBrandProgressTrackingHooks:
     @pytest.mark.asyncio
     async def test_on_llm_start(self) -> None:
         """Test on_llm_start hook."""
-        from sip_videogen.agents.brand_director import BrandProgressTrackingHooks
+        from sip_studio.agents.brand_director import BrandProgressTrackingHooks
 
         callback = MagicMock()
         hooks = BrandProgressTrackingHooks(callback=callback)
@@ -879,35 +879,33 @@ class TestBrandAgentPrompts:
     def test_brand_strategist_prompt_exists(self) -> None:
         """Test brand strategist prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_strategist.md"
+            Path(__file__).parent.parent / "src/sip_studio/agents/prompts/brand_strategist.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_visual_designer_prompt_exists(self) -> None:
         """Test visual designer prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/visual_designer.md"
+            Path(__file__).parent.parent / "src/sip_studio/agents/prompts/visual_designer.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_brand_voice_prompt_exists(self) -> None:
         """Test brand voice prompt file exists."""
-        prompt_path = (
-            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_voice.md"
-        )
+        prompt_path = Path(__file__).parent.parent / "src/sip_studio/agents/prompts/brand_voice.md"
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_brand_guardian_prompt_exists(self) -> None:
         """Test brand guardian prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_guardian.md"
+            Path(__file__).parent.parent / "src/sip_studio/agents/prompts/brand_guardian.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_brand_director_prompt_exists(self) -> None:
         """Test brand director prompt file exists."""
         prompt_path = (
-            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/brand_director.md"
+            Path(__file__).parent.parent / "src/sip_studio/agents/prompts/brand_director.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
@@ -922,37 +920,37 @@ class TestAgentDefinitions:
 
     def test_brand_strategist_agent_has_output_type(self) -> None:
         """Test brand strategist agent has correct output type."""
-        from sip_videogen.agents.brand_strategist import brand_strategist_agent
+        from sip_studio.agents.brand_strategist import brand_strategist_agent
 
         assert brand_strategist_agent.output_type == BrandStrategyOutput
 
     def test_visual_designer_agent_has_output_type(self) -> None:
         """Test visual designer agent has correct output type."""
-        from sip_videogen.agents.visual_designer import visual_designer_agent
+        from sip_studio.agents.visual_designer import visual_designer_agent
 
         assert visual_designer_agent.output_type == VisualIdentityOutput
 
     def test_brand_voice_agent_has_output_type(self) -> None:
         """Test brand voice agent has correct output type."""
-        from sip_videogen.agents.brand_voice import brand_voice_agent
+        from sip_studio.agents.brand_voice import brand_voice_agent
 
         assert brand_voice_agent.output_type == BrandVoiceOutput
 
     def test_brand_guardian_agent_has_output_type(self) -> None:
         """Test brand guardian agent has correct output type."""
-        from sip_videogen.agents.brand_guardian import brand_guardian_agent
+        from sip_studio.agents.brand_guardian import brand_guardian_agent
 
         assert brand_guardian_agent.output_type == BrandGuardianOutput
 
     def test_brand_director_agent_has_output_type(self) -> None:
         """Test brand director agent has correct output type."""
-        from sip_videogen.agents.brand_director import brand_director_agent
+        from sip_studio.agents.brand_director import brand_director_agent
 
         assert brand_director_agent.output_type == BrandDirectorOutput
 
     def test_brand_strategist_agent_has_tools(self) -> None:
         """Test brand strategist agent has memory tools."""
-        from sip_videogen.agents.brand_strategist import brand_strategist_agent
+        from sip_studio.agents.brand_strategist import brand_strategist_agent
 
         # Tools can be functions (use __name__) or FunctionTool objects (use .name)
         tool_names = [
@@ -963,7 +961,7 @@ class TestAgentDefinitions:
 
     def test_brand_director_agent_has_specialist_tools(self) -> None:
         """Test brand director agent has specialist agents as tools."""
-        from sip_videogen.agents.brand_director import brand_director_agent
+        from sip_studio.agents.brand_director import brand_director_agent
 
         # Tools can be functions (use __name__) or FunctionTool objects (use .name)
         tool_names = [

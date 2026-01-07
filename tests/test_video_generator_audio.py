@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from sip_videogen.generators import VideoGenerator
-from sip_videogen.models.script import SceneAction
+from sip_studio.generators import VideoGenerator
+from sip_studio.models.script import SceneAction
 
 
 class TestAudioInstructionGeneration:
@@ -18,7 +18,7 @@ class TestAudioInstructionGeneration:
     @pytest.fixture
     def generator(self):
         """Create a VideoGenerator with mocked client."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             return VideoGenerator(project="test", location="us-central1")
 
     def test_audio_instruction_with_dialogue(self, generator):
@@ -79,7 +79,7 @@ class TestInferAmbientSounds:
     @pytest.fixture
     def generator(self):
         """Create a VideoGenerator with mocked client."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             return VideoGenerator(project="test", location="us-central1")
 
     def test_beach_setting(self, generator):
@@ -175,7 +175,7 @@ class TestInferActionSounds:
     @pytest.fixture
     def generator(self):
         """Create a VideoGenerator with mocked client."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             return VideoGenerator(project="test", location="us-central1")
 
     def test_walking_action(self, generator):
@@ -268,7 +268,7 @@ class TestBuildPromptWithAudio:
     @pytest.fixture
     def generator(self):
         """Create a VideoGenerator with mocked client."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             return VideoGenerator(project="test", location="us-central1")
 
     def test_build_prompt_includes_audio_instruction_by_default(self, generator):
@@ -355,7 +355,7 @@ class TestAudioInstructionEdgeCases:
     @pytest.fixture
     def generator(self):
         """Create a VideoGenerator with mocked client."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             return VideoGenerator(project="test", location="us-central1")
 
     def test_multiple_environment_matches(self, generator):

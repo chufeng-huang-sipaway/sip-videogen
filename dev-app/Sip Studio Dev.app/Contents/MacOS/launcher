@@ -1,0 +1,14 @@
+#!/bin/bash
+# Sip Studio Dev Launcher - runs Python in the context of this .app bundle
+# Go up 4 levels: MacOS -> Contents -> Sip Studio Dev.app -> dev-app -> project root
+DIR="$(cd "$(dirname "$0")/../../../.." && pwd)"
+cd "$DIR"
+if [ ! -f ".venv/bin/python" ]; then
+    python3 -m venv .venv
+    .venv/bin/pip install -e ".[dev]" -q
+fi
+# Build frontend if needed
+if [ ! -f "src/sip_studio/studio/frontend/dist/index.html" ]; then
+    (cd src/sip_studio/studio/frontend && npm run build)
+fi
+exec .venv/bin/python -m sip_studio.studio

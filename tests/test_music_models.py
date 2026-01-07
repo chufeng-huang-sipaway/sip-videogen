@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from sip_videogen.models.music import (
+from sip_studio.models.music import (
     GeneratedMusic,
     MusicBrief,
     MusicGenre,

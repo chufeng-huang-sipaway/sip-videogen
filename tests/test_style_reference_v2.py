@@ -2,13 +2,13 @@
 
 import pytest
 
-from sip_videogen.advisor.style_reference_prompt import (
+from sip_studio.advisor.style_reference_prompt import (
     build_style_reference_constraints_v2,
     build_style_reference_constraints_v3,
     format_v2_summary,
     format_v3_summary,
 )
-from sip_videogen.brands.models import (
+from sip_studio.brands.models import (
     CanvasSpec,
     ColorGradingSpec,
     LayoutStructureSpec,

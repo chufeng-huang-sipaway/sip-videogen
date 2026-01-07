@@ -6,7 +6,7 @@
 #   ./scripts/publish.sh test    # Publish to Test PyPI first
 #
 # Note: The CLI has been removed. This package is now a library
-# for programmatic video generation via sip_videogen.video module.
+# for programmatic video generation via sip_studio.video module.
 
 set -e
 

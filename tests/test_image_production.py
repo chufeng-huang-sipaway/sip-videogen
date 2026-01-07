@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.agents.tools.image_production import ImageProductionManager
-from sip_videogen.generators.image_generator import ImageGenerationError
-from sip_videogen.models.assets import AssetType, GeneratedAsset
-from sip_videogen.models.image_review import ImageGenerationResult
-from sip_videogen.models.script import SharedElement
+from sip_studio.agents.tools.image_production import ImageProductionManager
+from sip_studio.generators.image_generator import ImageGenerationError
+from sip_studio.models.assets import AssetType, GeneratedAsset
+from sip_studio.models.image_review import ImageGenerationResult
+from sip_studio.models.script import SharedElement
 
 
 class TestSkipReview:
@@ -23,7 +23,7 @@ class TestSkipReview:
             element_id="test_element",
             local_path="/tmp/test.png",
         )
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
             instance = MockGen.return_value
             instance.generate_reference_image = AsyncMock(return_value=mock_asset)
             instance._get_aspect_ratio_for_element = MagicMock(return_value="1:1")
@@ -50,7 +50,7 @@ class TestSkipReview:
         """Test that skip_review=True does not call review_image."""
         manager = ImageProductionManager(gemini_api_key="test-key", output_dir=tmp_path)
         manager.generator = mock_generator
-        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
+        with patch("sip_studio.agents.tools.image_production.review_image") as mock_review:
             await manager.generate_with_review(sample_shared_element, skip_review=True)
             mock_review.assert_not_called()
 
@@ -59,7 +59,7 @@ class TestSkipReview:
         self, sample_shared_element: SharedElement, tmp_path: Path
     ):
         """Test that skip_review mode handles generation errors gracefully."""
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
             instance = MockGen.return_value
             instance.generate_reference_image = AsyncMock(
                 side_effect=ImageGenerationError("API Error")
@@ -83,7 +83,7 @@ class TestSkipReview:
         tmp_path: Path,
     ):
         """Test that parallel generation with skip_review works correctly."""
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
             call_count = 0
 
             async def mock_gen(element, output_dir, aspect_ratio=None):
@@ -120,12 +120,12 @@ class TestSkipReview:
             element_id="test_element",
             local_path=str(test_img),
         )
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
             instance = MockGen.return_value
             instance.generate_reference_image = AsyncMock(return_value=mock_asset)
             instance._get_aspect_ratio_for_element = MagicMock(return_value="1:1")
-            with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
-                from sip_videogen.models.image_review import ImageReviewResult, ReviewDecision
+            with patch("sip_studio.agents.tools.image_production.review_image") as mock_review:
+                from sip_studio.models.image_review import ImageReviewResult, ReviewDecision
 
                 mock_review.return_value = ImageReviewResult(
                     decision=ReviewDecision.ACCEPT, element_id="test", reasoning="Looks good"
@@ -171,7 +171,7 @@ class TestVariantsGeneration:
     @pytest.fixture
     def mock_generator_variants(self, tmp_path: Path):
         """Create mock ImageGenerator with variant support."""
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
             instance = MockGen.return_value
 
             async def mock_variants(elem, out_dir, num_variants, aspect_ratio=None):
@@ -191,8 +191,8 @@ class TestVariantsGeneration:
         self, sample_shared_element: SharedElement, tmp_path: Path, mock_generator_variants
     ):
         """Test that early-exit review accepts first passing variant."""
-        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
-            from sip_videogen.models.image_review import ImageReviewResult, ReviewDecision
+        with patch("sip_studio.agents.tools.image_production.review_image") as mock_review:
+            from sip_studio.models.image_review import ImageReviewResult, ReviewDecision
 
             mock_review.return_value = ImageReviewResult(
                 decision=ReviewDecision.ACCEPT, element_id="test", reasoning="Good"
@@ -209,8 +209,8 @@ class TestVariantsGeneration:
         self, sample_shared_element: SharedElement, tmp_path: Path, mock_generator_variants
     ):
         """Test that variant review continues until acceptance."""
-        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
-            from sip_videogen.models.image_review import ImageReviewResult, ReviewDecision
+        with patch("sip_studio.agents.tools.image_production.review_image") as mock_review:
+            from sip_studio.models.image_review import ImageReviewResult, ReviewDecision
 
             call_count = 0
 
@@ -243,8 +243,8 @@ class TestVariantsGeneration:
         self, sample_shared_element: SharedElement, tmp_path: Path, mock_generator_variants
     ):
         """Test fallback behavior when all variants are rejected."""
-        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
-            from sip_videogen.models.image_review import ImageReviewResult, ReviewDecision
+        with patch("sip_studio.agents.tools.image_production.review_image") as mock_review:
+            from sip_studio.models.image_review import ImageReviewResult, ReviewDecision
 
             mock_review.return_value = ImageReviewResult(
                 decision=ReviewDecision.REJECT,
@@ -263,8 +263,8 @@ class TestVariantsGeneration:
         self, sample_shared_element: SharedElement, tmp_path: Path, mock_generator_variants
     ):
         """Test that unused variants are cleaned up after acceptance."""
-        with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
-            from sip_videogen.models.image_review import ImageReviewResult, ReviewDecision
+        with patch("sip_studio.agents.tools.image_production.review_image") as mock_review:
+            from sip_studio.models.image_review import ImageReviewResult, ReviewDecision
 
             mock_review.return_value = ImageReviewResult(
                 decision=ReviewDecision.ACCEPT, element_id="test", reasoning="Good"
@@ -281,7 +281,7 @@ class TestVariantsGeneration:
         self, sample_shared_element: SharedElement, tmp_path: Path
     ):
         """Test that skip_review + num_variants returns first variant."""
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
             mock_asset = GeneratedAsset(
                 asset_type=AssetType.REFERENCE_IMAGE,
                 element_id="test",
@@ -317,12 +317,12 @@ class TestVariantsGeneration:
                 paths.append(str(p))
             return paths
 
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
             instance = MockGen.return_value
             instance.generate_reference_image_variants = mock_variants
             instance._get_aspect_ratio_for_element = MagicMock(return_value="1:1")
-            with patch("sip_videogen.agents.tools.image_production.review_image") as mock_review:
-                from sip_videogen.models.image_review import ImageReviewResult, ReviewDecision
+            with patch("sip_studio.agents.tools.image_production.review_image") as mock_review:
+                from sip_studio.models.image_review import ImageReviewResult, ReviewDecision
 
                 mock_review.return_value = ImageReviewResult(
                     decision=ReviewDecision.ACCEPT, element_id="test", reasoning="Good"
@@ -339,7 +339,7 @@ class TestVariantsGeneration:
         self, sample_shared_element: SharedElement, tmp_path: Path
     ):
         """Test that variant generation failure is handled gracefully."""
-        with patch("sip_videogen.agents.tools.image_production.ImageGenerator") as MockGen:
+        with patch("sip_studio.agents.tools.image_production.ImageGenerator") as MockGen:
 
             async def mock_variants_fail(*args, **kwargs):
                 return []  # No variants generated

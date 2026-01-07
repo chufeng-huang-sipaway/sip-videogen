@@ -4,14 +4,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.advisor.agent import AdvisorHooks, AdvisorProgress, BrandAdvisor
-from sip_videogen.advisor.prompt_builder import (
+from sip_studio.advisor.agent import AdvisorHooks, AdvisorProgress, BrandAdvisor
+from sip_studio.advisor.prompt_builder import (
     _group_assets,
 )
-from sip_videogen.advisor.prompt_builder import (
+from sip_studio.advisor.prompt_builder import (
     build_system_prompt as _build_system_prompt,
 )
-from sip_videogen.advisor.prompt_builder import (
+from sip_studio.advisor.prompt_builder import (
     format_brand_context as _format_brand_context,
 )
 
@@ -79,7 +79,7 @@ class TestSystemPromptBuilder:
 
     def test_build_system_prompt_no_brand(self) -> None:
         """Test building system prompt without a brand."""
-        with patch("sip_videogen.advisor.prompt_builder.get_skills_registry") as mock_registry:
+        with patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry:
             mock_registry.return_value.format_for_prompt.return_value = (
                 "## Available Skills\n- skill1"
             )
@@ -103,9 +103,9 @@ class TestSystemPromptBuilder:
         mock_identity.audience.primary_summary = "Test audience"
 
         with (
-            patch("sip_videogen.advisor.prompt_builder.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.prompt_builder.load_brand", return_value=mock_identity),
-            patch("sip_videogen.advisor.prompt_builder.list_brand_assets", return_value=[]),
+            patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.prompt_builder.load_brand", return_value=mock_identity),
+            patch("sip_studio.advisor.prompt_builder.list_brand_assets", return_value=[]),
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Available Skills"
 
@@ -130,7 +130,7 @@ class TestFormatBrandContext:
         mock_identity.voice.tone_attributes = []
         mock_identity.audience.primary_summary = "Urban professionals"
 
-        with patch("sip_videogen.advisor.prompt_builder.list_brand_assets", return_value=[]):
+        with patch("sip_studio.advisor.prompt_builder.list_brand_assets", return_value=[]):
             context = _format_brand_context("summit-coffee", mock_identity)
 
         assert "## Current Brand Context" in context
@@ -155,7 +155,7 @@ class TestFormatBrandContext:
         mock_identity.visual.style_keywords = ["modern", "clean"]
         mock_identity.voice.tone_attributes = ["friendly", "professional"]
 
-        with patch("sip_videogen.advisor.prompt_builder.list_brand_assets", return_value=[]):
+        with patch("sip_studio.advisor.prompt_builder.list_brand_assets", return_value=[]):
             context = _format_brand_context("test", mock_identity)
 
         assert "Forest Green (#228B22)" in context
@@ -201,8 +201,8 @@ class TestBrandAdvisor:
     def test_init_no_brand(self) -> None:
         """Test initializing advisor without a brand."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
@@ -214,9 +214,9 @@ class TestBrandAdvisor:
     def test_init_with_brand(self) -> None:
         """Test initializing advisor with a brand."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand") as mock_get,
-            patch("sip_videogen.advisor.prompt_builder.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.prompt_builder.load_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_active_brand") as mock_get,
+            patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.prompt_builder.load_brand", return_value=None),
         ):
             mock_get.return_value = None  # Not called since we provide slug
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
@@ -228,10 +228,10 @@ class TestBrandAdvisor:
     def test_set_brand(self) -> None:
         """Test switching brands."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.set_active_brand") as mock_set,
-            patch("sip_videogen.advisor.prompt_builder.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.prompt_builder.load_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.set_active_brand") as mock_set,
+            patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.prompt_builder.load_brand", return_value=None),
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
@@ -244,8 +244,8 @@ class TestBrandAdvisor:
     def test_clear_history(self) -> None:
         """Test clearing conversation history."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
@@ -259,8 +259,8 @@ class TestBrandAdvisor:
     def test_format_history(self) -> None:
         """Test formatting conversation history."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
@@ -280,9 +280,9 @@ class TestBrandAdvisor:
         mock_result.final_output = "I'm here to help with your brand!"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_runner.run = AsyncMock(return_value=mock_result)
@@ -298,8 +298,8 @@ class TestBrandAdvisor:
     def test_agent_property(self) -> None:
         """Test accessing the underlying agent."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
@@ -311,10 +311,10 @@ class TestBrandAdvisor:
     def test_set_brand_clears_history(self) -> None:
         """Test that switching brands clears conversation history by default."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.set_active_brand"),
-            patch("sip_videogen.advisor.prompt_builder.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.prompt_builder.load_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.set_active_brand"),
+            patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.prompt_builder.load_brand", return_value=None),
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
@@ -330,10 +330,10 @@ class TestBrandAdvisor:
     def test_set_brand_preserve_history(self) -> None:
         """Test that preserve_history=True keeps conversation history."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.set_active_brand"),
-            patch("sip_videogen.advisor.prompt_builder.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.prompt_builder.load_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.set_active_brand"),
+            patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.prompt_builder.load_brand", return_value=None),
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
 
@@ -347,7 +347,7 @@ class TestBrandAdvisor:
     @pytest.mark.asyncio
     async def test_chat_injects_skill_instructions(self) -> None:
         """Test that chat() injects relevant skill instructions into prompt."""
-        from sip_videogen.advisor.skills.registry import Skill
+        from sip_studio.advisor.skills.registry import Skill
 
         mock_result = MagicMock()
         mock_result.final_output = "Here's your logo!"
@@ -360,9 +360,9 @@ class TestBrandAdvisor:
         )
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = [mock_skill]
@@ -380,7 +380,7 @@ class TestBrandAdvisor:
 
     def test_get_relevant_skills_context(self) -> None:
         """Test that _get_relevant_skills_context returns formatted skill instructions."""
-        from sip_videogen.advisor.skills.registry import Skill
+        from sip_studio.advisor.skills.registry import Skill
 
         mock_skill = Skill(
             name="mascot-generation",
@@ -390,8 +390,8 @@ class TestBrandAdvisor:
         )
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = [mock_skill]
@@ -408,8 +408,8 @@ class TestBrandAdvisor:
     def test_get_relevant_skills_context_no_matches(self) -> None:
         """Test that _get_relevant_skills_context returns empty tuple when no skills match."""
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []
@@ -431,10 +431,10 @@ class TestPerTurnContextInjection:
         mock_result.final_output = "Using project context!"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []
@@ -476,10 +476,10 @@ class TestPerTurnContextInjection:
         mock_result.final_output = "Using product context!"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []
@@ -521,10 +521,10 @@ class TestPerTurnContextInjection:
         mock_result.final_output = "Using all context!"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []
@@ -560,10 +560,10 @@ class TestPerTurnContextInjection:
         mock_result.final_output = "No context needed!"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []
@@ -584,7 +584,7 @@ class TestPerTurnContextInjection:
     @pytest.mark.asyncio
     async def test_skill_matching_uses_raw_message(self) -> None:
         """Test that skill matching uses the raw user message, not augmented."""
-        from sip_videogen.advisor.skills.registry import Skill
+        from sip_studio.advisor.skills.registry import Skill
 
         mock_result = MagicMock()
         mock_result.final_output = "Response"
@@ -597,10 +597,10 @@ class TestPerTurnContextInjection:
         )
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = [mock_skill]
@@ -626,10 +626,10 @@ class TestPerTurnContextInjection:
         mock_result.final_output = "Response to raw message"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []
@@ -660,10 +660,10 @@ class TestPerTurnContextInjection:
         mock_result.final_output = "Response with metadata"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []
@@ -699,10 +699,10 @@ class TestPerTurnContextInjection:
         mock_result.final_output = "Response"
 
         with (
-            patch("sip_videogen.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_videogen.advisor.agent.get_skills_registry") as mock_registry,
-            patch("sip_videogen.advisor.agent.Runner") as mock_runner,
-            patch("sip_videogen.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
+            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_skills_registry") as mock_registry,
+            patch("sip_studio.advisor.agent.Runner") as mock_runner,
+            patch("sip_studio.advisor.agent.HierarchicalContextBuilder") as mock_builder_class,
         ):
             mock_registry.return_value.format_for_prompt.return_value = "## Skills"
             mock_registry.return_value.find_relevant_skills.return_value = []

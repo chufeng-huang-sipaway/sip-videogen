@@ -1,6 +1,6 @@
 """Tests for context budget management module."""
 
-from sip_videogen.advisor.context_budget import (
+from sip_studio.advisor.context_budget import (
     BudgetCheckResult,
     ContextBudget,
     ContextBudgetManager,

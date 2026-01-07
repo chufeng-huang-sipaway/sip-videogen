@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sip_videogen.utils.file_utils import write_atomically
+from sip_studio.utils.file_utils import write_atomically
 
 
 class TestWriteAtomically:

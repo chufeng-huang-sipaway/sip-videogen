@@ -1,7 +1,5 @@
 #!/bin/bash
-#
-# Build and prepare a new Brand Studio release
-#
+# Build and prepare a new Sip Studio release
 # This script:
 #   1. Updates version numbers in all relevant files
 #   2. Builds the frontend (React)
@@ -9,17 +7,12 @@
 #   4. Runs a smoke test to verify the app launches
 #   5. Creates the DMG installer
 #   6. Validates DMG size to catch bloat
-#
-# Usage:
-#   ./scripts/build-release.sh [version]
-#
-# Examples:
-#   ./scripts/build-release.sh 0.2.0
-#   ./scripts/build-release.sh        # Uses current version from studio/__init__.py
+# Usage: ./scripts/build-release.sh [version]
+# Examples: ./scripts/build-release.sh 0.9.0
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-APP_NAME="Brand Studio"
+APP_NAME="Sip Studio"
 VENV_DIR="$PROJECT_ROOT/.venv"
 VENV_PYTHON="$VENV_DIR/bin/python"
 VENV_PYINSTALLER="$VENV_DIR/bin/pyinstaller"
@@ -76,25 +69,25 @@ check_prerequisites(){
 }
 #Get current version from studio/__init__.py
 get_current_version(){
-    grep -o '__version__ = "[^"]*"' "$PROJECT_ROOT/src/sip_videogen/studio/__init__.py" | cut -d'"' -f2 || echo "0.1.0"
+    grep -o '__version__ = "[^"]*"' "$PROJECT_ROOT/src/sip_studio/studio/__init__.py" | cut -d'"' -f2 || echo "0.1.0"
 }
 #Update version in all relevant files
 update_version(){
     local version="$1"
     echo_step "Updating version to $version..."
     sed -i.bak "s/__version__[[:space:]]*=[[:space:]]*\"[^\"]*\"/__version__ = \"$version\"/" \
-        "$PROJECT_ROOT/src/sip_videogen/studio/__init__.py"
-    rm -f "$PROJECT_ROOT/src/sip_videogen/studio/__init__.py.bak"
-    echo_success "Updated src/sip_videogen/studio/__init__.py"
-    sed -i.bak "s/'CFBundleVersion': '[^']*'/'CFBundleVersion': '$version'/" "$PROJECT_ROOT/BrandStudio.spec"
-    sed -i.bak "s/'CFBundleShortVersionString': '[^']*'/'CFBundleShortVersionString': '$version'/" "$PROJECT_ROOT/BrandStudio.spec"
-    rm -f "$PROJECT_ROOT/BrandStudio.spec.bak"
-    echo_success "Updated BrandStudio.spec"
+        "$PROJECT_ROOT/src/sip_studio/studio/__init__.py"
+    rm -f "$PROJECT_ROOT/src/sip_studio/studio/__init__.py.bak"
+    echo_success "Updated src/sip_studio/studio/__init__.py"
+    sed -i.bak "s/'CFBundleVersion': '[^']*'/'CFBundleVersion': '$version'/" "$PROJECT_ROOT/SipStudio.spec"
+    sed -i.bak "s/'CFBundleShortVersionString': '[^']*'/'CFBundleShortVersionString': '$version'/" "$PROJECT_ROOT/SipStudio.spec"
+    rm -f "$PROJECT_ROOT/SipStudio.spec.bak"
+    echo_success "Updated SipStudio.spec"
 }
 #Build frontend
 build_frontend(){
     echo_step "Building frontend..."
-    cd "$PROJECT_ROOT/src/sip_videogen/studio/frontend"
+    cd "$PROJECT_ROOT/src/sip_studio/studio/frontend"
     if [ ! -d "node_modules" ];then
         echo "Installing npm dependencies..."
         npm install
@@ -109,7 +102,7 @@ build_app(){
     cd "$PROJECT_ROOT"
     rm -rf dist build
     #CRITICAL: Use venv's pyinstaller to ensure correct dependencies
-    "$VENV_PYINSTALLER" BrandStudio.spec --clean --noconfirm
+    "$VENV_PYINSTALLER" SipStudio.spec --clean --noconfirm
     if [ ! -d "dist/$APP_NAME.app" ];then
         echo_error "Failed to build $APP_NAME.app"
         exit 1
@@ -159,8 +152,8 @@ build_dmg(){
     mkdir -p dist/dmg-staging
     cp -R "dist/$APP_NAME.app" dist/dmg-staging/
     ln -s /Applications dist/dmg-staging/Applications
-    local dmg_path="dist/Brand-Studio-${version}.dmg"
-    hdiutil create -volname "Brand Studio" -srcfolder dist/dmg-staging -ov -format UDZO "$dmg_path"
+    local dmg_path="dist/Sip-Studio-${version}.dmg"
+    hdiutil create -volname "Sip Studio" -srcfolder dist/dmg-staging -ov -format UDZO "$dmg_path"
     rm -rf dist/dmg-staging
     if [ ! -f "$dmg_path" ];then
         echo_error "Failed to create DMG"
@@ -171,7 +164,7 @@ build_dmg(){
 #Validate DMG size to catch bloat
 validate_dmg_size(){
     local version="$1"
-    local dmg_path="$PROJECT_ROOT/dist/Brand-Studio-${version}.dmg"
+    local dmg_path="$PROJECT_ROOT/dist/Sip-Studio-${version}.dmg"
     echo_step "Validating DMG size..."
     #Get size in MB
     local size_bytes=$(stat -f%z "$dmg_path" 2>/dev/null || stat --printf="%s" "$dmg_path" 2>/dev/null)
@@ -198,7 +191,7 @@ validate_dmg_size(){
 main(){
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║           Brand Studio Release Builder                     ║"
+    echo "║             Sip Studio Release Builder                     ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
     check_prerequisites
@@ -219,7 +212,7 @@ main(){
     smoke_test
     build_dmg "$version"
     validate_dmg_size "$version"
-    local dmg_file="Brand-Studio-${version}.dmg"
+    local dmg_file="Sip-Studio-${version}.dmg"
     local dmg_path="$PROJECT_ROOT/dist/$dmg_file"
     local dmg_size=$(du -h "$dmg_path" | cut -f1)
     echo ""
@@ -245,7 +238,7 @@ main(){
     echo ""
     echo "  4. Create a GitHub Release:"
     echo "     gh release create v$version dist/$dmg_file \\"
-    echo "       --title \"Brand Studio $version\" \\"
+    echo "       --title \"Sip Studio $version\" \\"
     echo "       --notes \"Release notes here\""
     echo ""
     echo "─────────────────────────────────────────────────────────────"

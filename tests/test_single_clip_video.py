@@ -10,7 +10,7 @@ class TestImageMetadataPersistence:
 
     def test_store_image_metadata_writes_json(self, tmp_path: Path) -> None:
         """Test that store_image_metadata writes a .meta.json file."""
-        from sip_videogen.advisor.tools import ImageGenerationMetadata, store_image_metadata
+        from sip_studio.advisor.tools import ImageGenerationMetadata, store_image_metadata
 
         img_path = tmp_path / "test_image.png"
         img_path.write_bytes(b"fake png")
@@ -44,7 +44,7 @@ class TestImageMetadataPersistence:
 
     def test_load_image_metadata_reads_json(self, tmp_path: Path) -> None:
         """Test that load_image_metadata reads from .meta.json file."""
-        from sip_videogen.advisor.tools import load_image_metadata
+        from sip_studio.advisor.tools import load_image_metadata
 
         img_path = tmp_path / "test_image.png"
         meta_path = tmp_path / "test_image.meta.json"
@@ -57,7 +57,7 @@ class TestImageMetadataPersistence:
 
     def test_load_image_metadata_returns_none_if_missing(self, tmp_path: Path) -> None:
         """Test that load_image_metadata returns None if .meta.json doesn't exist."""
-        from sip_videogen.advisor.tools import load_image_metadata
+        from sip_studio.advisor.tools import load_image_metadata
 
         img_path = tmp_path / "no_meta.png"
         img_path.write_bytes(b"fake png")
@@ -70,7 +70,7 @@ class TestVideoMetadataPersistence:
 
     def test_store_video_metadata_writes_json(self, tmp_path: Path) -> None:
         """Test that store_video_metadata writes a .meta.json file."""
-        from sip_videogen.advisor.tools import store_video_metadata
+        from sip_studio.advisor.tools import store_video_metadata
 
         vid_path = tmp_path / "test_video.mp4"
         vid_path.write_bytes(b"fake mp4")
@@ -84,7 +84,7 @@ class TestVideoMetadataPersistence:
 
     def test_load_video_metadata_reads_json(self, tmp_path: Path) -> None:
         """Test that load_video_metadata reads from .meta.json file."""
-        from sip_videogen.advisor.tools import load_video_metadata
+        from sip_studio.advisor.tools import load_video_metadata
 
         vid_path = tmp_path / "test_video.mp4"
         meta_path = tmp_path / "test_video.meta.json"
@@ -97,7 +97,7 @@ class TestVideoMetadataPersistence:
 
     def test_load_video_metadata_returns_none_if_missing(self, tmp_path: Path) -> None:
         """Test that load_video_metadata returns None if .meta.json doesn't exist."""
-        from sip_videogen.advisor.tools import load_video_metadata
+        from sip_studio.advisor.tools import load_video_metadata
 
         vid_path = tmp_path / "no_meta.mp4"
         vid_path.write_bytes(b"fake mp4")
@@ -112,9 +112,9 @@ class TestGenerateVideoClip:
         """Test that generating video with no active brand returns error."""
         import asyncio
 
-        from sip_videogen.advisor.tools import _impl_generate_video_clip
+        from sip_studio.advisor.tools import _impl_generate_video_clip
 
-        with patch("sip_videogen.advisor.tools.get_active_brand", return_value=None):
+        with patch("sip_studio.advisor.tools.get_active_brand", return_value=None):
             result = asyncio.run(_impl_generate_video_clip(prompt="Test prompt"))
         assert "No active brand selected" in result
 
@@ -122,19 +122,19 @@ class TestGenerateVideoClip:
         """Test that unsupported provider returns error."""
         import asyncio
 
-        from sip_videogen.advisor.tools import _impl_generate_video_clip
+        from sip_studio.advisor.tools import _impl_generate_video_clip
 
         with (
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_active_brand",
+                "sip_studio.advisor.tools.video_tools._common.get_active_brand",
                 return_value="test-brand",
             ),
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_brand_dir",
+                "sip_studio.advisor.tools.video_tools._common.get_brand_dir",
                 return_value=tmp_path,
             ),
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_settings",
+                "sip_studio.advisor.tools.video_tools._common.get_settings",
                 return_value=MagicMock(gemini_api_key="fake"),
             ),
         ):
@@ -145,19 +145,19 @@ class TestGenerateVideoClip:
         """Test that calling without prompt or concept_image_path returns error."""
         import asyncio
 
-        from sip_videogen.advisor.tools import _impl_generate_video_clip
+        from sip_studio.advisor.tools import _impl_generate_video_clip
 
         with (
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_active_brand",
+                "sip_studio.advisor.tools.video_tools._common.get_active_brand",
                 return_value="test-brand",
             ),
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_brand_dir",
+                "sip_studio.advisor.tools.video_tools._common.get_brand_dir",
                 return_value=tmp_path,
             ),
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_settings",
+                "sip_studio.advisor.tools.video_tools._common.get_settings",
                 return_value=MagicMock(gemini_api_key="fake"),
             ),
         ):
@@ -168,19 +168,19 @@ class TestGenerateVideoClip:
         """Test that non-existent concept image returns error."""
         import asyncio
 
-        from sip_videogen.advisor.tools import _impl_generate_video_clip
+        from sip_studio.advisor.tools import _impl_generate_video_clip
 
         with (
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_active_brand",
+                "sip_studio.advisor.tools.video_tools._common.get_active_brand",
                 return_value="test-brand",
             ),
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_brand_dir",
+                "sip_studio.advisor.tools.video_tools._common.get_brand_dir",
                 return_value=tmp_path,
             ),
             patch(
-                "sip_videogen.advisor.tools.video_tools._common.get_settings",
+                "sip_studio.advisor.tools.video_tools._common.get_settings",
                 return_value=MagicMock(gemini_api_key="fake"),
             ),
         ):
@@ -193,7 +193,7 @@ class TestVideoConstants:
 
     def test_allowed_video_exts_defined(self) -> None:
         """Test that ALLOWED_VIDEO_EXTS is defined and contains expected extensions."""
-        from sip_videogen.constants import ALLOWED_VIDEO_EXTS
+        from sip_studio.constants import ALLOWED_VIDEO_EXTS
 
         assert ".mp4" in ALLOWED_VIDEO_EXTS
         assert ".mov" in ALLOWED_VIDEO_EXTS
@@ -201,7 +201,7 @@ class TestVideoConstants:
 
     def test_video_mime_types_defined(self) -> None:
         """Test that VIDEO_MIME_TYPES is defined."""
-        from sip_videogen.constants import VIDEO_MIME_TYPES
+        from sip_studio.constants import VIDEO_MIME_TYPES
 
         assert VIDEO_MIME_TYPES[".mp4"] == "video/mp4"
         assert VIDEO_MIME_TYPES[".mov"] == "video/quicktime"
@@ -209,7 +209,7 @@ class TestVideoConstants:
 
     def test_video_category_in_asset_categories(self) -> None:
         """Test that 'video' is in ASSET_CATEGORIES."""
-        from sip_videogen.constants import ASSET_CATEGORIES
+        from sip_studio.constants import ASSET_CATEGORIES
 
         assert "video" in ASSET_CATEGORIES
 
@@ -219,7 +219,7 @@ class TestBrandMemoryVideoListing:
 
     def test_list_brand_assets_includes_videos(self, tmp_path: Path) -> None:
         """Test that list_brand_assets includes video files."""
-        from sip_videogen.brands.memory import list_brand_assets
+        from sip_studio.brands.memory import list_brand_assets
 
         # Set up brand directory with video
         brand_dir = tmp_path / "test-brand"
@@ -228,7 +228,7 @@ class TestBrandMemoryVideoListing:
         vid_file = video_dir / "clip.mp4"
         vid_file.write_bytes(b"fake mp4")
         with (
-            patch("sip_videogen.brands.memory.get_brand_dir", return_value=brand_dir),
+            patch("sip_studio.brands.memory.get_brand_dir", return_value=brand_dir),
         ):
             assets = list_brand_assets("test-brand", category="video")
         assert len(assets) == 1
@@ -237,7 +237,7 @@ class TestBrandMemoryVideoListing:
 
     def test_list_brand_videos_filters_only_videos(self, tmp_path: Path) -> None:
         """Test that list_brand_videos returns only video assets."""
-        from sip_videogen.brands.memory import list_brand_videos
+        from sip_studio.brands.memory import list_brand_videos
 
         # Set up brand directory with video
         brand_dir = tmp_path / "test-brand"
@@ -246,7 +246,7 @@ class TestBrandMemoryVideoListing:
         vid_file = video_dir / "clip.mp4"
         vid_file.write_bytes(b"fake mp4")
         with (
-            patch("sip_videogen.brands.memory.get_brand_dir", return_value=brand_dir),
+            patch("sip_studio.brands.memory.get_brand_dir", return_value=brand_dir),
         ):
             videos = list_brand_videos("test-brand")
         assert len(videos) == 1
@@ -263,7 +263,7 @@ class TestVideoPromptEngineeringSkill:
         skill_path = (
             Path(__file__).parent.parent
             / "src"
-            / "sip_videogen"
+            / "sip_studio"
             / "advisor"
             / "skills"
             / "video_prompt_engineering"
@@ -278,7 +278,7 @@ class TestVideoPromptEngineeringSkill:
         skill_path = (
             Path(__file__).parent.parent
             / "src"
-            / "sip_videogen"
+            / "sip_studio"
             / "advisor"
             / "skills"
             / "video_prompt_engineering"

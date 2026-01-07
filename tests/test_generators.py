@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.generators import VideoGenerator
-from sip_videogen.generators.image_generator import (
+from sip_studio.generators import VideoGenerator
+from sip_studio.generators.image_generator import (
     ImageGenerationError,
     ImageGenerator,
 )
-from sip_videogen.models.assets import AssetType
-from sip_videogen.models.script import SceneAction, SharedElement
+from sip_studio.models.assets import AssetType
+from sip_studio.models.script import SceneAction, SharedElement
 
 
 class TestImageGenerator:
@@ -19,19 +19,19 @@ class TestImageGenerator:
 
     def test_init_default_model(self) -> None:
         """Test ImageGenerator initializes with default model."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             assert generator.model == "gemini-3-pro-image-preview"
 
     def test_init_custom_model(self) -> None:
         """Test ImageGenerator with custom model."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key", model="gemini-3-pro-image-preview")
             assert generator.model == "gemini-3-pro-image-preview"
 
     def test_build_prompt_character(self, sample_shared_element: SharedElement) -> None:
         """Test prompt building for character elements."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             prompt = generator._build_prompt(sample_shared_element)
 
@@ -41,7 +41,7 @@ class TestImageGenerator:
 
     def test_build_prompt_environment(self, sample_environment_element: SharedElement) -> None:
         """Test prompt building for environment elements."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             prompt = generator._build_prompt(sample_environment_element)
 
@@ -50,7 +50,7 @@ class TestImageGenerator:
 
     def test_build_prompt_prop(self, sample_prop_element: SharedElement) -> None:
         """Test prompt building for prop elements."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             prompt = generator._build_prompt(sample_prop_element)
 
@@ -59,21 +59,21 @@ class TestImageGenerator:
 
     def test_get_aspect_ratio_character(self, sample_shared_element: SharedElement) -> None:
         """Test aspect ratio for character elements is 1:1."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             ratio = generator._get_aspect_ratio_for_element(sample_shared_element)
             assert ratio == "1:1"
 
     def test_get_aspect_ratio_environment(self, sample_environment_element: SharedElement) -> None:
         """Test aspect ratio for environment elements is 16:9."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             ratio = generator._get_aspect_ratio_for_element(sample_environment_element)
             assert ratio == "16:9"
 
     def test_get_aspect_ratio_prop(self, sample_prop_element: SharedElement) -> None:
         """Test aspect ratio for prop elements is 1:1."""
-        with patch("sip_videogen.generators.image_generator.genai.Client"):
+        with patch("sip_studio.generators.image_generator.genai.Client"):
             generator = ImageGenerator(api_key="test-key")
             ratio = generator._get_aspect_ratio_for_element(sample_prop_element)
             assert ratio == "1:1"
@@ -96,7 +96,7 @@ class TestImageGenerator:
         mock_client.models.generate_content.return_value = mock_response
 
         with patch(
-            "sip_videogen.generators.image_generator.genai.Client",
+            "sip_studio.generators.image_generator.genai.Client",
             return_value=mock_client,
         ):
             generator = ImageGenerator(api_key="test-key")
@@ -122,7 +122,7 @@ class TestImageGenerator:
         mock_client.models.generate_content.return_value = mock_response
 
         with patch(
-            "sip_videogen.generators.image_generator.genai.Client",
+            "sip_studio.generators.image_generator.genai.Client",
             return_value=mock_client,
         ):
             generator = ImageGenerator(api_key="test-key")
@@ -144,7 +144,7 @@ class TestImageGenerator:
         mock_client.models.generate_content.side_effect = Exception("API Error")
 
         with patch(
-            "sip_videogen.generators.image_generator.genai.Client",
+            "sip_studio.generators.image_generator.genai.Client",
             return_value=mock_client,
         ):
             generator = ImageGenerator(api_key="test-key")
@@ -181,7 +181,7 @@ class TestImageGenerator:
         mock_client.models.generate_content.return_value = mock_response
 
         with patch(
-            "sip_videogen.generators.image_generator.genai.Client",
+            "sip_studio.generators.image_generator.genai.Client",
             return_value=mock_client,
         ):
             generator = ImageGenerator(api_key="test-key")
@@ -220,7 +220,7 @@ class TestImageGenerator:
         ]
 
         with patch(
-            "sip_videogen.generators.image_generator.genai.Client",
+            "sip_studio.generators.image_generator.genai.Client",
             return_value=mock_client,
         ):
             generator = ImageGenerator(api_key="test-key")
@@ -265,7 +265,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_flow_context_first_scene(self) -> None:
         """Test flow context for first scene includes opening guidance."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=1,
@@ -282,7 +282,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_flow_context_middle_scene(self) -> None:
         """Test flow context for middle scene requires seamless flow."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=2,
@@ -300,7 +300,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_flow_context_last_scene(self) -> None:
         """Test flow context for last scene allows conclusion."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=3,
@@ -317,7 +317,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_flow_context_single_scene_returns_none(self) -> None:
         """Test flow context returns None for single-scene videos."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=1,
@@ -330,7 +330,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_flow_context_none_total_scenes(self) -> None:
         """Test flow context returns None when total_scenes is None."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=1,
@@ -343,7 +343,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_prompt_includes_flow_context(self) -> None:
         """Test that _build_prompt includes flow context when total_scenes provided."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=2,
@@ -358,7 +358,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_prompt_without_flow_context(self) -> None:
         """Test that _build_prompt works without total_scenes (backward compat)."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=1,
@@ -375,7 +375,7 @@ class TestVideoGeneratorSceneFlow:
 
     def test_build_prompt_includes_all_scene_fields(self) -> None:
         """Test that _build_prompt includes all scene fields with flow context."""
-        with patch("sip_videogen.generators.video_generator.genai.Client"):
+        with patch("sip_studio.generators.video_generator.genai.Client"):
             generator = VideoGenerator(project="test", location="us-central1")
             scene = SceneAction(
                 scene_number=2,

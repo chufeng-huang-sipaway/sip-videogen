@@ -3,14 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from sip_videogen.models.agent_outputs import (
+from sip_studio.models.agent_outputs import (
     ContinuityIssue,
     ContinuitySupervisorOutput,
     ProductionDesignerOutput,
     ScreenwriterOutput,
     ShowrunnerOutput,
 )
-from sip_videogen.models.aspect_ratio import (
+from sip_studio.models.aspect_ratio import (
     DEFAULT_ASPECT_RATIO,
     PROVIDER_SUPPORTED_RATIOS,
     AspectRatio,
@@ -18,8 +18,8 @@ from sip_videogen.models.aspect_ratio import (
     parse_ratio,
     validate_aspect_ratio,
 )
-from sip_videogen.models.assets import AssetType, GeneratedAsset, ProductionPackage
-from sip_videogen.models.script import (
+from sip_studio.models.assets import AssetType, GeneratedAsset, ProductionPackage
+from sip_studio.models.script import (
     VALID_CLIP_PATTERNS,
     ElementType,
     SceneAction,

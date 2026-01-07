@@ -7,11 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from sip_videogen.generators.music_generator import (
+from sip_studio.generators.music_generator import (
     MusicGenerationError,
     MusicGenerator,
 )
-from sip_videogen.models.music import (
+from sip_studio.models.music import (
     GeneratedMusic,
     MusicBrief,
     MusicGenre,
@@ -101,7 +101,7 @@ class TestMusicGeneratorGenerate:
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -139,7 +139,7 @@ class TestMusicGeneratorGenerate:
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -169,7 +169,7 @@ class TestMusicGeneratorGenerate:
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -195,7 +195,7 @@ class TestMusicGeneratorGenerate:
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -219,7 +219,7 @@ class TestMusicGeneratorGenerate:
         """Test handling of HTTP error from API."""
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -244,7 +244,7 @@ class TestMusicGeneratorGenerate:
         """Test handling of network error."""
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -270,7 +270,7 @@ class TestMusicGeneratorGenerate:
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -295,7 +295,7 @@ class TestMusicGeneratorAuth:
         """Test successful authentication header retrieval."""
         generator = MusicGenerator(project_id="test-project")
 
-        with patch("sip_videogen.generators.music_generator.google.auth.default") as mock_default:
+        with patch("sip_studio.generators.music_generator.google.auth.default") as mock_default:
             mock_creds = MagicMock()
             mock_creds.token = "test-token"
             mock_default.return_value = (mock_creds, "test-project")
@@ -309,7 +309,7 @@ class TestMusicGeneratorAuth:
         """Test authentication failure handling."""
         generator = MusicGenerator(project_id="test-project")
 
-        with patch("sip_videogen.generators.music_generator.google.auth.default") as mock_default:
+        with patch("sip_studio.generators.music_generator.google.auth.default") as mock_default:
             mock_default.side_effect = Exception("Auth failed")
 
             with pytest.raises(MusicGenerationError, match="Authentication failed"):
@@ -341,7 +341,7 @@ class TestMusicGeneratorRequestBody:
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",
@@ -380,7 +380,7 @@ class TestMusicGeneratorRequestBody:
 
         with (
             patch.object(music_generator, "_get_auth_headers") as mock_auth,
-            patch("sip_videogen.generators.music_generator.requests.post") as mock_post,
+            patch("sip_studio.generators.music_generator.requests.post") as mock_post,
         ):
             mock_auth.return_value = {
                 "Authorization": "Bearer token",

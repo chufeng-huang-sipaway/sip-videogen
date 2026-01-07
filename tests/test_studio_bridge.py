@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sip_videogen.constants import (
+from sip_studio.constants import (
     ASSET_CATEGORIES,
 )
-from sip_videogen.studio.bridge import StudioBridge
+from sip_studio.studio.bridge import StudioBridge
 
 
 # =============================================================================
@@ -16,7 +16,7 @@ from sip_videogen.studio.bridge import StudioBridge
 @pytest.fixture
 def bridge():
     """Create StudioBridge instance with mocked services."""
-    with patch("sip_videogen.studio.bridge.load_api_keys_from_config"):
+    with patch("sip_studio.studio.bridge.load_api_keys_from_config"):
         return StudioBridge()
 
 
@@ -77,7 +77,7 @@ class TestCheckApiKeys:
     def test_returns_key_status(self, bridge):
         """Should return API key status."""
         with patch(
-            "sip_videogen.studio.bridge.do_check_api_keys",
+            "sip_studio.studio.bridge.do_check_api_keys",
             return_value={"openai": True, "gemini": False},
         ):
             result = bridge.check_api_keys()
@@ -94,7 +94,7 @@ class TestSaveApiKeys:
 
     def test_saves_keys_successfully(self, bridge):
         """Should save keys and return success."""
-        with patch("sip_videogen.studio.bridge.do_save_api_keys") as mock_save:
+        with patch("sip_studio.studio.bridge.do_save_api_keys") as mock_save:
             result = bridge.save_api_keys("openai-key", "gemini-key", "firecrawl-key")
         assert result["success"]
         mock_save.assert_called_once_with("openai-key", "gemini-key", "firecrawl-key")
@@ -102,7 +102,7 @@ class TestSaveApiKeys:
     def test_returns_error_on_failure(self, bridge):
         """Should return error if save fails."""
         with patch(
-            "sip_videogen.studio.bridge.do_save_api_keys", side_effect=Exception("Write error")
+            "sip_studio.studio.bridge.do_save_api_keys", side_effect=Exception("Write error")
         ):
             result = bridge.save_api_keys("key1", "key2")
         assert not result["success"]

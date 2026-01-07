@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sip_videogen.studio.services.document_service import DocumentService
-from sip_videogen.studio.state import BridgeState
+from sip_studio.studio.services.document_service import DocumentService
+from sip_studio.studio.state import BridgeState
 
 
 # =============================================================================
@@ -44,11 +44,11 @@ class TestGetDocuments:
     def test_returns_documents_list(self, service):
         """Should return list of documents."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             with patch(
-                "sip_videogen.studio.services.document_service.storage.list_documents",
+                "sip_studio.studio.services.document_service.storage.list_documents",
                 return_value=["doc1.txt", "doc2.md"],
             ):
                 result = service.get_documents()
@@ -58,7 +58,7 @@ class TestGetDocuments:
     def test_uses_provided_slug(self, service):
         """Should use provided slug instead of active brand."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.list_documents", return_value=[]
+            "sip_studio.studio.services.document_service.storage.list_documents", return_value=[]
         ) as mock_list:
             service.get_documents("custom-brand")
         mock_list.assert_called_once_with("custom-brand")
@@ -66,7 +66,7 @@ class TestGetDocuments:
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value=None,
         ):
             result = service.get_documents()
@@ -76,7 +76,7 @@ class TestGetDocuments:
     def test_handles_exception(self, service):
         """Should return error on exception."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             side_effect=Exception("Storage error"),
         ):
             result = service.get_documents()
@@ -149,18 +149,18 @@ class TestUploadDocument:
         """Should upload document successfully."""
         content = base64.b64encode(b"test content").decode()
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             with patch(
-                "sip_videogen.studio.services.document_service.storage.get_docs_dir"
+                "sip_studio.studio.services.document_service.storage.get_docs_dir"
             ) as mock_docs:
                 mock_docs.return_value = MagicMock(
                     exists=MagicMock(return_value=False),
                     __truediv__=lambda s, f: MagicMock(exists=MagicMock(return_value=False)),
                 )
                 with patch(
-                    "sip_videogen.studio.services.document_service.storage.save_document",
+                    "sip_studio.studio.services.document_service.storage.save_document",
                     return_value=("docs/test.txt", None),
                 ):
                     result = service.upload_document("test.txt", content)
@@ -170,7 +170,7 @@ class TestUploadDocument:
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value=None,
         ):
             result = service.upload_document("test.txt", "base64data")
@@ -180,7 +180,7 @@ class TestUploadDocument:
     def test_rejects_path_in_filename(self, service):
         """Should reject filenames with path separators."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             result = service.upload_document("../test.txt", "data")
@@ -190,7 +190,7 @@ class TestUploadDocument:
     def test_rejects_unsupported_extension(self, service):
         """Should reject unsupported file types."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             result = service.upload_document("test.exe", "data")
@@ -207,11 +207,11 @@ class TestDeleteDocument:
     def test_deletes_document(self, service):
         """Should delete document successfully."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             with patch(
-                "sip_videogen.studio.services.document_service.storage.delete_document",
+                "sip_studio.studio.services.document_service.storage.delete_document",
                 return_value=(True, None),
             ):
                 result = service.delete_document("docs/test.txt")
@@ -220,7 +220,7 @@ class TestDeleteDocument:
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value=None,
         ):
             result = service.delete_document("docs/test.txt")
@@ -230,11 +230,11 @@ class TestDeleteDocument:
     def test_returns_storage_error(self, service):
         """Should return storage error message."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             with patch(
-                "sip_videogen.studio.services.document_service.storage.delete_document",
+                "sip_studio.studio.services.document_service.storage.delete_document",
                 return_value=(False, "File not found"),
             ):
                 result = service.delete_document("docs/missing.txt")
@@ -251,11 +251,11 @@ class TestRenameDocument:
     def test_renames_document(self, service):
         """Should rename document successfully."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             with patch(
-                "sip_videogen.studio.services.document_service.storage.rename_document",
+                "sip_studio.studio.services.document_service.storage.rename_document",
                 return_value=("docs/new.txt", None),
             ):
                 result = service.rename_document("docs/old.txt", "new.txt")
@@ -265,7 +265,7 @@ class TestRenameDocument:
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value=None,
         ):
             result = service.rename_document("docs/old.txt", "new.txt")
@@ -275,7 +275,7 @@ class TestRenameDocument:
     def test_rejects_unsupported_new_extension(self, service):
         """Should reject rename to unsupported extension."""
         with patch(
-            "sip_videogen.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.get_active_brand",
             return_value="test",
         ):
             result = service.rename_document("docs/old.txt", "new.exe")
@@ -295,7 +295,7 @@ class TestOpenDocumentInFinder:
         doc_path.write_text("content")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         with patch(
-            "sip_videogen.studio.services.document_service.reveal_in_file_manager"
+            "sip_studio.studio.services.document_service.reveal_in_file_manager"
         ) as mock_reveal:
             result = service.open_document_in_finder("test.txt")
         assert result["success"] == True

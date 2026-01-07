@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sip_videogen.studio.services.asset_service import AssetService
-from sip_videogen.studio.state import BridgeState
+from sip_studio.studio.services.asset_service import AssetService
+from sip_studio.studio.state import BridgeState
 
 
 # =============================================================================
@@ -47,10 +47,10 @@ class TestGetAssets:
         """Should return asset tree for brand."""
         mock_assets = [{"filename": "logo.png", "path": "/tmp/test.png", "type": "image"}]
         with patch(
-            "sip_videogen.studio.services.asset_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.asset_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.asset_service.list_brand_assets",
+                "sip_studio.studio.services.asset_service.list_brand_assets",
                 return_value=mock_assets,
             ):
                 with patch("pathlib.Path.stat", return_value=MagicMock(st_size=1024)):
@@ -62,17 +62,15 @@ class TestGetAssets:
     def test_uses_provided_slug(self, service):
         """Should use provided slug instead of active brand."""
         with patch(
-            "sip_videogen.studio.services.asset_service.list_brand_assets", return_value=[]
+            "sip_studio.studio.services.asset_service.list_brand_assets", return_value=[]
         ) as mock_list:
-            with patch("sip_videogen.studio.services.asset_service.ASSET_CATEGORIES", ["logo"]):
+            with patch("sip_studio.studio.services.asset_service.ASSET_CATEGORIES", ["logo"]):
                 service.get_assets("custom-brand")
         mock_list.assert_called_with("custom-brand", category="logo")
 
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
-        with patch(
-            "sip_videogen.studio.services.asset_service.get_active_brand", return_value=None
-        ):
+        with patch("sip_studio.studio.services.asset_service.get_active_brand", return_value=None):
             result = service.get_assets()
         assert result["success"] == False
         assert "No brand selected" in result["error"]
@@ -154,10 +152,10 @@ class TestUploadAsset:
         """Should upload asset successfully."""
         content = base64.b64encode(b"test content").decode()
         with patch(
-            "sip_videogen.studio.services.asset_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.asset_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.asset_service.storage_save_asset",
+                "sip_studio.studio.services.asset_service.storage_save_asset",
                 return_value=("generated/test.png", None),
             ):
                 result = service.upload_asset("test.png", content, "generated")
@@ -166,9 +164,7 @@ class TestUploadAsset:
 
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
-        with patch(
-            "sip_videogen.studio.services.asset_service.get_active_brand", return_value=None
-        ):
+        with patch("sip_studio.studio.services.asset_service.get_active_brand", return_value=None):
             result = service.upload_asset("test.png", "base64data", "logo")
         assert result["success"] == False
         assert "No brand selected" in result["error"]
@@ -176,10 +172,10 @@ class TestUploadAsset:
     def test_returns_storage_error(self, service):
         """Should return storage error message."""
         with patch(
-            "sip_videogen.studio.services.asset_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.asset_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.asset_service.storage_save_asset",
+                "sip_studio.studio.services.asset_service.storage_save_asset",
                 return_value=(None, "Write failed"),
             ):
                 result = service.upload_asset("test.png", base64.b64encode(b"x").decode(), "logo")
@@ -198,7 +194,7 @@ class TestDeleteAsset:
         png_path = mock_brand_dir / "assets" / "generated" / "test.png"
         png_path.write_bytes(b"test")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
-        with patch("sip_videogen.studio.services.asset_service._move_to_trash", return_value=True):
+        with patch("sip_studio.studio.services.asset_service._move_to_trash", return_value=True):
             result = service.delete_asset("generated/test.png")
         assert result["success"] == True
 
@@ -302,7 +298,7 @@ class TestOpenAssetInFinder:
         png_path.write_bytes(b"test")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         with patch(
-            "sip_videogen.studio.services.asset_service.reveal_in_file_manager"
+            "sip_studio.studio.services.asset_service.reveal_in_file_manager"
         ) as mock_reveal:
             result = service.open_asset_in_finder("logo/test.png")
         assert result["success"] == True
@@ -379,8 +375,8 @@ class TestGetVideoData:
 import sys
 from types import ModuleType
 
-# Create mock for sip_videogen.advisor.tools to avoid import chain issues
-_mock_tools = ModuleType("sip_videogen.advisor.tools")
+# Create mock for sip_studio.advisor.tools to avoid import chain issues
+_mock_tools = ModuleType("sip_studio.advisor.tools")
 _mock_tools.load_image_metadata = MagicMock()
 
 
@@ -390,12 +386,12 @@ class TestGetImageMetadata:
     @pytest.fixture(autouse=True)
     def mock_tools_module(self):
         """Mock the tools module to avoid PIL import chain."""
-        sys.modules["sip_videogen.advisor.tools"] = _mock_tools
+        sys.modules["sip_studio.advisor.tools"] = _mock_tools
         yield
         # Cleanup after test
-        if "sip_videogen.advisor.tools" in sys.modules:
-            if sys.modules["sip_videogen.advisor.tools"] is _mock_tools:
-                del sys.modules["sip_videogen.advisor.tools"]
+        if "sip_studio.advisor.tools" in sys.modules:
+            if sys.modules["sip_studio.advisor.tools"] is _mock_tools:
+                del sys.modules["sip_studio.advisor.tools"]
 
     def test_returns_metadata_when_exists(self, service, state, mock_brand_dir):
         """Metadata file exists with product_slugs → returns dict."""

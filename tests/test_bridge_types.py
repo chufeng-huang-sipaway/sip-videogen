@@ -1,6 +1,6 @@
 """Tests for bridge response types and helpers."""
 
-from sip_videogen.studio.utils.bridge_types import BridgeResponse, bridge_error, bridge_ok
+from sip_studio.studio.utils.bridge_types import BridgeResponse, bridge_error, bridge_ok
 
 
 class TestBridgeResponse:

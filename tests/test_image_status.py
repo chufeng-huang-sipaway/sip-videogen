@@ -7,12 +7,12 @@ from unittest.mock import patch
 
 import pytest
 
-from sip_videogen.studio.services.image_status import (
+from sip_studio.studio.services.image_status import (
     CURRENT_VERSION,
     STATUS_FILE_NAME,
     ImageStatusService,
 )
-from sip_videogen.studio.state import BridgeState
+from sip_studio.studio.state import BridgeState
 
 
 @pytest.fixture
@@ -26,9 +26,9 @@ def temp_brands_dir(tmp_path: Path):
     (test_brand_dir / "assets" / "generated").mkdir(parents=True)
     (test_brand_dir / "assets" / "kept").mkdir(parents=True)
     (test_brand_dir / "assets" / "trash").mkdir(parents=True)
-    with patch("sip_videogen.brands.storage.get_brands_dir", return_value=brands_dir):
+    with patch("sip_studio.brands.storage.get_brands_dir", return_value=brands_dir):
         with patch(
-            "sip_videogen.studio.services.image_status.get_brand_dir",
+            "sip_studio.studio.services.image_status.get_brand_dir",
             lambda slug: brands_dir / slug,
         ):
             yield brands_dir

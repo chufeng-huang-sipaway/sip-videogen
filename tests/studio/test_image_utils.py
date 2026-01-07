@@ -4,7 +4,7 @@ import base64
 
 import pytest
 
-from sip_videogen.studio.utils.image_utils import get_image_full, get_image_thumbnail
+from sip_studio.studio.utils.image_utils import get_image_full, get_image_thumbnail
 
 
 # =============================================================================

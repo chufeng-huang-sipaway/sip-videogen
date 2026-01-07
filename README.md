@@ -8,12 +8,12 @@ AI-powered video generation and brand identity management platform.
 
 SIP VideoGen has two main components:
 
-1. **Brand Studio** - macOS desktop app for creating and managing brand identities with AI assistance
+1. **Sip Studio** - macOS desktop app for creating and managing brand identities with AI assistance
 2. **Video Generation API** - Programmatic video generation using AI agents
 
 ## Table of Contents
 
-- [Brand Studio](#brand-studio)
+- [Sip Studio](#sip-studio)
 - [Video Generation API](#video-generation-api)
 - [Installation](#installation)
 - [Configuration](#configuration)
@@ -22,7 +22,7 @@ SIP VideoGen has two main components:
 
 ---
 
-## Brand Studio
+## Sip Studio
 
 A macOS desktop app for creating and managing brand identities with AI assistance.
 
@@ -40,17 +40,17 @@ A macOS desktop app for creating and managing brand identities with AI assistanc
 
 1. Go to [GitHub Releases](https://github.com/chufeng-huang-sipaway/sip-videogen/releases)
 2. Download `Brand-Studio-X.Y.Z.dmg`
-3. Open the DMG and drag Brand Studio to Applications
+3. Open the DMG and drag Sip Studio to Applications
 
 #### Option 2: Terminal Install
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/chufeng-huang-sipaway/sip-videogen/main/scripts/install-brand-studio.sh | bash
+curl -sSL https://raw.githubusercontent.com/chufeng-huang-sipaway/sip-videogen/main/scripts/install-sip-studio.sh | bash
 ```
 
 ### First-Time Setup
 
-1. Launch Brand Studio from Applications
+1. Launch Sip Studio from Applications
 2. Enter your API keys when prompted:
    - **OpenAI API Key** - [Get one here](https://platform.openai.com/api-keys)
    - **Gemini API Key** - [Get one here](https://aistudio.google.com/apikey)
@@ -106,14 +106,14 @@ Store brand-related documents (`.md`, `.txt`, `.json`, `.yaml`).
 
 ### Auto-Updates
 
-Brand Studio checks for updates on launch. When a new version is available, click **Update Now** to download and install automatically.
+Sip Studio checks for updates on launch. When a new version is available, click **Update Now** to download and install automatically.
 
 ### Data Storage
 
-All brand data is stored locally at `~/.sip-videogen/brands/`:
+All brand data is stored locally at `~/.sip-studio/brands/`:
 
 ```
-~/.sip-videogen/brands/
+~/.sip-studio/brands/
 ├── index.json              # Brand registry
 ├── my-brand/
 │   ├── identity.json       # Brand summary (fast loading)
@@ -142,8 +142,8 @@ User Idea → Showrunner Agent Team → VideoScript
 
 ```python
 import asyncio
-from sip_videogen.generators.base import VideoProvider
-from sip_videogen.video import PipelineConfig, VideoPipeline
+from sip_studio.generators.base import VideoProvider
+from sip_studio.video import PipelineConfig, VideoPipeline
 
 async def main():
     config = PipelineConfig(
@@ -185,11 +185,11 @@ for scene in result.script.scenes:
 
 | Module | Purpose |
 |--------|---------|
-| `sip_videogen.video.VideoPipeline` | Full video generation pipeline |
-| `sip_videogen.video.PipelineConfig` | Pipeline configuration |
-| `sip_videogen.generators.VideoGeneratorFactory` | Provider selection |
-| `sip_videogen.assembler.FFmpegAssembler` | Video clip assembly |
-| `sip_videogen.models.*` | Script, asset, and scene models |
+| `sip_studio.video.VideoPipeline` | Full video generation pipeline |
+| `sip_studio.video.PipelineConfig` | Pipeline configuration |
+| `sip_studio.generators.VideoGeneratorFactory` | Provider selection |
+| `sip_studio.assembler.FFmpegAssembler` | Video clip assembly |
+| `sip_studio.models.*` | Script, asset, and scene models |
 
 ### Agent Architecture
 
@@ -229,7 +229,7 @@ gsutil mb -l us-central1 gs://YOUR_BUCKET_NAME
 
 ## Configuration
 
-Settings are loaded from environment variables. Create `.env` file or set them in `~/.sip-videogen/.env`:
+Settings are loaded from environment variables. Create `.env` file or set them in `~/.sip-studio/.env`:
 
 ### Required
 
@@ -258,14 +258,14 @@ Settings are loaded from environment variables. Create `.env` file or set them i
 
 ## Development
 
-### Running Brand Studio
+### Running Sip Studio
 
 ```bash
 # Production mode
-python -m sip_videogen.studio
+python -m sip_studio.studio
 
 # Development mode (with hot reload)
-STUDIO_DEV=1 python -m sip_videogen.studio
+STUDIO_DEV=1 python -m sip_studio.studio
 
 # Or use the demo script
 ./scripts/studio-demo.sh
@@ -274,7 +274,7 @@ STUDIO_DEV=1 python -m sip_videogen.studio
 ### Frontend Development
 
 ```bash
-cd src/sip_videogen/studio/frontend
+cd src/sip_studio/studio/frontend
 npm install
 npm run dev      # Dev server on localhost:5173
 npm run build    # Production build
@@ -296,7 +296,7 @@ mypy src/                      # Type check
 ```bash
 ./scripts/build-release.sh 0.7.0    # Build DMG
 gh release create v0.7.0 dist/Brand-Studio-0.7.0.dmg \
-  --title "Brand Studio v0.7.0" \
+  --title "Sip Studio v0.7.0" \
   --notes "Release notes here"
 ```
 
@@ -304,10 +304,10 @@ gh release create v0.7.0 dist/Brand-Studio-0.7.0.dmg \
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/studio-demo.sh` | Launch Brand Studio with auto-rebuild |
+| `scripts/studio-demo.sh` | Launch Sip Studio with auto-rebuild |
 | `scripts/build-release.sh {ver}` | Build DMG release |
 | `scripts/build-dmg.sh` | Create disk image installer |
-| `scripts/install-brand-studio.sh` | Terminal installation |
+| `scripts/install-sip-studio.sh` | Terminal installation |
 | `scripts/publish.sh` | GitHub release publishing |
 
 ---
@@ -316,7 +316,7 @@ gh release create v0.7.0 dist/Brand-Studio-0.7.0.dmg \
 
 ```
 sip-videogen/
-├── src/sip_videogen/
+├── src/sip_studio/
 │   ├── video/              # Video generation pipeline
 │   ├── generators/         # Provider implementations (VEO, Kling, Sora)
 │   ├── agents/             # AI agents (Showrunner, Screenwriter, etc.)

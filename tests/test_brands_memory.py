@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 import pytest
 
-from sip_videogen.advisor.tools import (
+from sip_studio.advisor.tools import (
     _impl_browse_brand_assets as browse_brand_assets,
 )
-from sip_videogen.advisor.tools import (
+from sip_studio.advisor.tools import (
     _impl_fetch_brand_detail as fetch_brand_detail,
 )
-from sip_videogen.brands.context import (
+from sip_studio.brands.context import (
     DETAIL_DESCRIPTIONS,
     BrandContextBuilder,
     HierarchicalContextBuilder,
@@ -23,7 +23,7 @@ from sip_videogen.brands.context import (
     build_project_context,
     build_turn_context,
 )
-from sip_videogen.brands.memory import (
+from sip_studio.brands.memory import (
     get_brand_detail,
     get_brand_summary,
     get_product_detail,
@@ -36,7 +36,7 @@ from sip_videogen.brands.memory import (
     get_project_summary,
     list_brand_assets,
 )
-from sip_videogen.brands.models import (
+from sip_studio.brands.models import (
     AudienceProfile,
     BrandCoreIdentity,
     BrandIdentityFull,
@@ -49,7 +49,7 @@ from sip_videogen.brands.models import (
     VisualIdentity,
     VoiceGuidelines,
 )
-from sip_videogen.brands.storage import (
+from sip_studio.brands.storage import (
     create_brand,
     create_product,
     create_project,
@@ -64,7 +64,7 @@ def temp_brands_dir(tmp_path: Path):
     brands_dir = tmp_path / ".sip-videogen" / "brands"
     brands_dir.mkdir(parents=True)
 
-    with patch("sip_videogen.brands.storage.get_brands_dir", return_value=brands_dir):
+    with patch("sip_studio.brands.storage.get_brands_dir", return_value=brands_dir):
         yield brands_dir
 
 

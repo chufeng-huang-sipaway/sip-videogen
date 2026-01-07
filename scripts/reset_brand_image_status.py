@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Reset (and optionally rebuild) Brand Studio image read/unread state for a brand.
+Reset (and optionally rebuild) Sip Studio image read/unread state for a brand.
 
 Default behavior:
 - Backs up `~/.sip-videogen/brands/<slug>/image_status.json` (if present)
@@ -17,7 +17,7 @@ Then, unless --no-backfill is provided, it will scan:
 and repopulate `images` entries. Files that existed before the baseline are marked
 as viewed (read) so only newly generated images will show as unread going forward.
 
-This script is intentionally self-contained (no sip_videogen imports) so you can
+This script is intentionally self-contained (no sip_studio imports) so you can
 run it even if your venv isn't active.
 """
 
@@ -130,9 +130,7 @@ def build_entry(
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(
-        description="Reset Brand Studio image_status.json for a brand."
-    )
+    parser = argparse.ArgumentParser(description="Reset Sip Studio image_status.json for a brand.")
     parser.add_argument("slug", help="Brand slug (e.g. activatedyou)")
     parser.add_argument(
         "--no-backfill",

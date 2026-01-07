@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sip_videogen.brands.models import (
+from sip_studio.brands.models import (
     AudienceProfile,
     BrandCoreIdentity,
     BrandIdentityFull,
@@ -16,8 +16,8 @@ from sip_videogen.brands.models import (
     VisualIdentity,
     VoiceGuidelines,
 )
-from sip_videogen.studio.services.brand_service import BrandService
-from sip_videogen.studio.state import BridgeState
+from sip_studio.studio.services.brand_service import BrandService
+from sip_studio.studio.state import BridgeState
 
 
 # =============================================================================
@@ -69,10 +69,8 @@ def brands_dir(tmp_path, monkeypatch) -> Path:
     bd.mkdir()
     (bd / "index.json").write_text('{"brands":[],"active_brand":null}')
     # Patch the get_brands_dir function to return our temp dir
-    monkeypatch.setattr("sip_videogen.brands.storage.get_brands_dir", lambda: bd)
-    monkeypatch.setattr(
-        "sip_videogen.studio.services.brand_service.get_brand_dir", lambda s: bd / s
-    )
+    monkeypatch.setattr("sip_studio.brands.storage.get_brands_dir", lambda: bd)
+    monkeypatch.setattr("sip_studio.studio.services.brand_service.get_brand_dir", lambda s: bd / s)
     return bd
 
 
@@ -84,9 +82,9 @@ class TestGetBrands:
 
     def test_returns_empty_list_when_no_brands(self, service, brands_dir):
         """Should return empty list when no brands exist."""
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=[]):
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=[]):
             with patch(
-                "sip_videogen.studio.services.brand_service.get_active_brand", return_value=None
+                "sip_studio.studio.services.brand_service.get_active_brand", return_value=None
             ):
                 result = service.get_brands()
         assert result["success"] == True
@@ -111,9 +109,9 @@ class TestGetBrands:
                 updated_at=datetime.utcnow(),
             ),
         ]
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=entries):
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
             with patch(
-                "sip_videogen.studio.services.brand_service.get_active_brand",
+                "sip_studio.studio.services.brand_service.get_active_brand",
                 return_value="brand-a",
             ):
                 result = service.get_brands()
@@ -125,7 +123,7 @@ class TestGetBrands:
     def test_handles_exception(self, service):
         """Should return error on exception."""
         with patch(
-            "sip_videogen.studio.services.brand_service.list_brands",
+            "sip_studio.studio.services.brand_service.list_brands",
             side_effect=Exception("DB error"),
         ):
             result = service.get_brands()
@@ -150,9 +148,9 @@ class TestSetBrand:
                 updated_at=datetime.utcnow(),
             )
         ]
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=entries):
-            with patch("sip_videogen.studio.services.brand_service.set_active_brand") as mock_set:
-                with patch("sip_videogen.advisor.agent.BrandAdvisor") as mock_advisor:
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
+            with patch("sip_studio.studio.services.brand_service.set_active_brand") as mock_set:
+                with patch("sip_studio.advisor.agent.BrandAdvisor") as mock_advisor:
                     result = service.set_brand("my-brand")
         assert result["success"] == True
         assert result["data"]["slug"] == "my-brand"
@@ -160,7 +158,7 @@ class TestSetBrand:
 
     def test_returns_error_for_nonexistent_brand(self, service):
         """Should return error if brand not found."""
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=[]):
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=[]):
             result = service.set_brand("nonexistent")
         assert result["success"] == False
         assert "not found" in result["error"]
@@ -178,8 +176,8 @@ class TestSetBrand:
                 updated_at=datetime.utcnow(),
             )
         ]
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=entries):
-            with patch("sip_videogen.studio.services.brand_service.set_active_brand"):
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
+            with patch("sip_studio.studio.services.brand_service.set_active_brand"):
                 result = service.set_brand("new-brand")
         mock_advisor.set_brand.assert_called_once_with("new-brand", preserve_history=False)
 
@@ -197,10 +195,10 @@ class TestGetBrandInfo:
         mock_summary.tagline = "Great stuff"
         mock_summary.category = "Tech"
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand_summary",
+                "sip_studio.studio.services.brand_service.load_brand_summary",
                 return_value=mock_summary,
             ):
                 result = service.get_brand_info()
@@ -215,7 +213,7 @@ class TestGetBrandInfo:
         mock_summary.tagline = "Tag"
         mock_summary.category = "Food"
         with patch(
-            "sip_videogen.studio.services.brand_service.load_brand_summary",
+            "sip_studio.studio.services.brand_service.load_brand_summary",
             return_value=mock_summary,
         ):
             result = service.get_brand_info("other-brand")
@@ -223,9 +221,7 @@ class TestGetBrandInfo:
 
     def test_error_when_no_brand_selected(self, service):
         """Should return error when no brand selected."""
-        with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value=None
-        ):
+        with patch("sip_studio.studio.services.brand_service.get_active_brand", return_value=None):
             result = service.get_brand_info()
         assert result["success"] == False
         assert "No brand selected" in result["error"]
@@ -233,10 +229,10 @@ class TestGetBrandInfo:
     def test_error_when_brand_not_found(self, service):
         """Should return error when brand not found."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="missing"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="missing"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand_summary", return_value=None
+                "sip_studio.studio.services.brand_service.load_brand_summary", return_value=None
             ):
                 result = service.get_brand_info()
         assert result["success"] == False
@@ -252,10 +248,10 @@ class TestGetBrandIdentity:
     def test_returns_full_identity(self, service, sample_identity):
         """Should return full brand identity."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test-brand"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test-brand"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand",
+                "sip_studio.studio.services.brand_service.load_brand",
                 return_value=sample_identity,
             ):
                 result = service.get_brand_identity()
@@ -265,9 +261,7 @@ class TestGetBrandIdentity:
 
     def test_error_when_no_brand_selected(self, service):
         """Should return error when no brand selected."""
-        with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value=None
-        ):
+        with patch("sip_studio.studio.services.brand_service.get_active_brand", return_value=None):
             result = service.get_brand_identity()
         assert result["success"] == False
         assert "No brand selected" in result["error"]
@@ -282,13 +276,13 @@ class TestUpdateBrandIdentitySection:
     def test_updates_core_section(self, service, sample_identity, state):
         """Should update core section."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand",
+                "sip_studio.studio.services.brand_service.load_brand",
                 return_value=sample_identity,
             ):
-                with patch("sip_videogen.studio.services.brand_service.save_brand") as mock_save:
+                with patch("sip_studio.studio.services.brand_service.save_brand") as mock_save:
                     result = service.update_brand_identity_section(
                         "core",
                         {
@@ -306,13 +300,13 @@ class TestUpdateBrandIdentitySection:
     def test_updates_visual_section(self, service, sample_identity):
         """Should update visual section."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand",
+                "sip_studio.studio.services.brand_service.load_brand",
                 return_value=sample_identity,
             ):
-                with patch("sip_videogen.studio.services.brand_service.save_brand"):
+                with patch("sip_studio.studio.services.brand_service.save_brand"):
                     result = service.update_brand_identity_section(
                         "visual",
                         {
@@ -328,13 +322,13 @@ class TestUpdateBrandIdentitySection:
     def test_updates_constraints_avoid(self, service, sample_identity):
         """Should update constraints and avoid lists."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand",
+                "sip_studio.studio.services.brand_service.load_brand",
                 return_value=sample_identity,
             ):
-                with patch("sip_videogen.studio.services.brand_service.save_brand") as mock_save:
+                with patch("sip_studio.studio.services.brand_service.save_brand") as mock_save:
                     result = service.update_brand_identity_section(
                         "constraints_avoid",
                         {"constraints": ["Must be blue"], "avoid": ["Red colors"]},
@@ -347,10 +341,10 @@ class TestUpdateBrandIdentitySection:
     def test_error_for_invalid_section(self, service, sample_identity):
         """Should return error for invalid section name."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand",
+                "sip_studio.studio.services.brand_service.load_brand",
                 return_value=sample_identity,
             ):
                 result = service.update_brand_identity_section("invalid_section", {})
@@ -362,13 +356,13 @@ class TestUpdateBrandIdentitySection:
         mock_advisor = MagicMock()
         state.advisor = mock_advisor
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.load_brand",
+                "sip_studio.studio.services.brand_service.load_brand",
                 return_value=sample_identity,
             ):
-                with patch("sip_videogen.studio.services.brand_service.save_brand"):
+                with patch("sip_studio.studio.services.brand_service.save_brand"):
                     service.update_brand_identity_section(
                         "core", {"name": "Updated", "tagline": "t", "mission": "m", "values": []}
                     )
@@ -392,12 +386,12 @@ class TestDeleteBrand:
                 updated_at=datetime.utcnow(),
             )
         ]
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=entries):
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
             with patch(
-                "sip_videogen.studio.services.brand_service.get_active_brand", return_value=None
+                "sip_studio.studio.services.brand_service.get_active_brand", return_value=None
             ):
                 with patch(
-                    "sip_videogen.studio.services.brand_service.storage_delete_brand",
+                    "sip_studio.studio.services.brand_service.storage_delete_brand",
                     return_value=True,
                 ):
                     result = service.delete_brand("to-delete")
@@ -405,7 +399,7 @@ class TestDeleteBrand:
 
     def test_error_for_nonexistent_brand(self, service):
         """Should return error if brand not found."""
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=[]):
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=[]):
             result = service.delete_brand("nonexistent")
         assert result["success"] == False
         assert "not found" in result["error"]
@@ -422,14 +416,14 @@ class TestDeleteBrand:
                 updated_at=datetime.utcnow(),
             )
         ]
-        with patch("sip_videogen.studio.services.brand_service.list_brands", return_value=entries):
+        with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
             with patch(
-                "sip_videogen.studio.services.brand_service.get_active_brand",
+                "sip_studio.studio.services.brand_service.get_active_brand",
                 return_value="active-brand",
             ):
-                with patch("sip_videogen.studio.services.brand_service.set_active_brand"):
+                with patch("sip_studio.studio.services.brand_service.set_active_brand"):
                     with patch(
-                        "sip_videogen.studio.services.brand_service.storage_delete_brand",
+                        "sip_studio.studio.services.brand_service.storage_delete_brand",
                         return_value=True,
                     ):
                         with patch.object(state, "get_active_slug", return_value="active-brand"):
@@ -448,10 +442,10 @@ class TestListIdentityBackups:
         """Should return list of backups."""
         backups = ["2024-01-01T12-00-00.json", "2024-01-02T12-00-00.json"]
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.list_brand_backups",
+                "sip_studio.studio.services.brand_service.list_brand_backups",
                 return_value=backups,
             ):
                 result = service.list_identity_backups()
@@ -460,9 +454,7 @@ class TestListIdentityBackups:
 
     def test_error_when_no_brand_selected(self, service):
         """Should return error when no brand selected."""
-        with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value=None
-        ):
+        with patch("sip_studio.studio.services.brand_service.get_active_brand", return_value=None):
             result = service.list_identity_backups()
         assert result["success"] == False
 
@@ -476,13 +468,13 @@ class TestRestoreIdentityBackup:
     def test_restores_backup(self, service, sample_identity, state):
         """Should restore backup successfully."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             with patch(
-                "sip_videogen.studio.services.brand_service.restore_brand_backup",
+                "sip_studio.studio.services.brand_service.restore_brand_backup",
                 return_value=sample_identity,
             ):
-                with patch("sip_videogen.studio.services.brand_service.save_brand"):
+                with patch("sip_studio.studio.services.brand_service.save_brand"):
                     result = service.restore_identity_backup("2024-01-01.json")
         assert result["success"] == True
         # slug is set to active brand, not the restored identity's original slug
@@ -491,7 +483,7 @@ class TestRestoreIdentityBackup:
     def test_rejects_path_traversal(self, service):
         """Should reject filenames with path separators."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             result = service.restore_identity_backup("../etc/passwd")
         assert result["success"] == False
@@ -500,7 +492,7 @@ class TestRestoreIdentityBackup:
     def test_rejects_non_json_files(self, service):
         """Should reject non-JSON filenames."""
         with patch(
-            "sip_videogen.studio.services.brand_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.brand_service.get_active_brand", return_value="test"
         ):
             result = service.restore_identity_backup("backup.txt")
         assert result["success"] == False

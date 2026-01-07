@@ -2,13 +2,13 @@
 
 import pytest
 
-from sip_videogen.advisor.product_specs import (
+from sip_studio.advisor.product_specs import (
     ProductSpecs,
     build_product_specs,
     extract_dimensions_from_text,
     parse_measurement_to_mm,
 )
-from sip_videogen.brands.models import (
+from sip_studio.brands.models import (
     PackagingTextDescription,
     PackagingTextElement,
     ProductAttribute,
