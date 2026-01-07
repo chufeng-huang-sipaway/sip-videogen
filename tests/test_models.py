@@ -3,14 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from sip_videogen.models.agent_outputs import (
+from sip_studio.models.agent_outputs import (
     ContinuityIssue,
     ContinuitySupervisorOutput,
     ProductionDesignerOutput,
     ScreenwriterOutput,
     ShowrunnerOutput,
 )
-from sip_videogen.models.aspect_ratio import (
+from sip_studio.models.aspect_ratio import (
     DEFAULT_ASPECT_RATIO,
     PROVIDER_SUPPORTED_RATIOS,
     AspectRatio,
@@ -18,8 +18,8 @@ from sip_videogen.models.aspect_ratio import (
     parse_ratio,
     validate_aspect_ratio,
 )
-from sip_videogen.models.assets import AssetType, GeneratedAsset, ProductionPackage
-from sip_videogen.models.script import (
+from sip_studio.models.assets import AssetType, GeneratedAsset, ProductionPackage
+from sip_studio.models.script import (
     VALID_CLIP_PATTERNS,
     ElementType,
     SceneAction,
@@ -365,7 +365,7 @@ class TestClipPatterns:
         assert scene.clip_pattern == [8]
 
     def test_multi_shot_pattern_without_sub_shots_is_valid(self) -> None:
-        """Test that multi-shot pattern without sub_shots is valid (validation passes, generator warns)."""
+        """Test multi-shot pattern without sub_shots is valid (generator warns)."""
         # The model validation allows empty sub_shots even for multi-shot patterns
         # because the screenwriter might set pattern first, then add sub_shots
         # The video generator has a safety check that falls back to standard prompt
@@ -648,8 +648,8 @@ class TestAspectRatio:
         assert AspectRatio.PORTRAIT_PHOTO_2_3.value == "2:3"
 
     def test_default_aspect_ratio(self) -> None:
-        """Test DEFAULT_ASPECT_RATIO is SQUARE."""
-        assert DEFAULT_ASPECT_RATIO == AspectRatio.SQUARE
+        """Test DEFAULT_ASPECT_RATIO is LANDSCAPE_16_9."""
+        assert DEFAULT_ASPECT_RATIO == AspectRatio.LANDSCAPE_16_9
 
     def test_parse_ratio_valid(self) -> None:
         """Test parse_ratio with valid inputs."""
@@ -681,13 +681,13 @@ class TestAspectRatio:
 
     def test_validate_aspect_ratio_none(self) -> None:
         """Test validate_aspect_ratio returns default for None."""
-        assert validate_aspect_ratio(None) == AspectRatio.SQUARE
+        assert validate_aspect_ratio(None) == AspectRatio.LANDSCAPE_16_9
 
     def test_validate_aspect_ratio_invalid(self) -> None:
         """Test validate_aspect_ratio returns default for invalid inputs."""
-        assert validate_aspect_ratio("invalid") == AspectRatio.SQUARE
-        assert validate_aspect_ratio("2:1") == AspectRatio.SQUARE
-        assert validate_aspect_ratio("") == AspectRatio.SQUARE
+        assert validate_aspect_ratio("invalid") == AspectRatio.LANDSCAPE_16_9
+        assert validate_aspect_ratio("2:1") == AspectRatio.LANDSCAPE_16_9
+        assert validate_aspect_ratio("") == AspectRatio.LANDSCAPE_16_9
 
     def test_provider_supported_ratios_defined(self) -> None:
         """Test all providers have supported ratios defined."""
@@ -697,12 +697,12 @@ class TestAspectRatio:
 
     def test_get_supported_ratio_exact_match(self) -> None:
         """Test get_supported_ratio returns exact match when supported."""
-        # VEO supports all ratios
-        ratio, fallback = get_supported_ratio(AspectRatio.SQUARE, "veo")
-        assert ratio == AspectRatio.SQUARE
+        # VEO only supports 16:9 and 9:16
+        ratio, fallback = get_supported_ratio(AspectRatio.LANDSCAPE_16_9, "veo")
+        assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is False
-        ratio, fallback = get_supported_ratio(AspectRatio.CLASSIC_4_3, "veo")
-        assert ratio == AspectRatio.CLASSIC_4_3
+        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_9_16, "veo")
+        assert ratio == AspectRatio.PORTRAIT_9_16
         assert fallback is False
 
     def test_get_supported_ratio_fallback_portrait(self) -> None:
@@ -744,13 +744,15 @@ class TestAspectRatio:
         assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
 
-    def test_veo_supports_new_ratios(self) -> None:
-        """Test VEO supports all new cinematic and photo ratios."""
-        for r in ["5:3", "3:5", "3:2", "2:3"]:
-            ar = AspectRatio(r)
-            ratio, fallback = get_supported_ratio(ar, "veo")
-            assert ratio == ar
-            assert fallback is False
+    def test_veo_fallback_for_unsupported_ratios(self) -> None:
+        """Test VEO falls back for unsupported ratios (only 16:9/9:16 supported)."""
+        # Cinematic ratios should fall back
+        ratio, fallback = get_supported_ratio(AspectRatio.CINEMATIC_5_3, "veo")
+        assert ratio == AspectRatio.LANDSCAPE_16_9
+        assert fallback is True
+        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_CINEMATIC_3_5, "veo")
+        assert ratio == AspectRatio.PORTRAIT_9_16
+        assert fallback is True
 
     def test_cinematic_fallback_on_kling(self) -> None:
         """Test 5:3 and 3:5 fallback on Kling."""

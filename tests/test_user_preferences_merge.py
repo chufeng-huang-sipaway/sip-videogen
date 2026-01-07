@@ -11,8 +11,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from sip_videogen.config.user_preferences import UserPreferences
-from sip_videogen.generators.base import VideoProvider
+from sip_studio.config.user_preferences import UserPreferences
+from sip_studio.generators.base import VideoProvider
 
 
 def test_user_preferences_save_merges_existing_config(tmp_path: Path) -> None:

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sip_videogen.advisor.skills.registry import Skill, SkillsRegistry
+from sip_studio.advisor.skills.registry import Skill, SkillsRegistry
 
 
 class TestSkill:
@@ -351,7 +351,7 @@ class TestBundledSkills:
 
     def test_bundled_skills_load(self) -> None:
         """Test that bundled skills load correctly."""
-        from sip_videogen.advisor.skills.registry import get_skills_registry
+        from sip_studio.advisor.skills.registry import get_skills_registry
 
         registry = get_skills_registry()
 
@@ -376,7 +376,7 @@ class TestBundledSkills:
 
     def test_bundled_skills_format(self) -> None:
         """Test that bundled skills format correctly for prompt."""
-        from sip_videogen.advisor.skills.registry import get_skills_registry
+        from sip_studio.advisor.skills.registry import get_skills_registry
 
         registry = get_skills_registry()
         prompt = registry.format_for_prompt()

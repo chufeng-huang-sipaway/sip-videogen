@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sip_videogen.assembler.ffmpeg import FFmpegAssembler, FFmpegError
-from sip_videogen.models.music import (
+from sip_studio.assembler.ffmpeg import FFmpegAssembler, FFmpegError
+from sip_studio.models.music import (
     GeneratedMusic,
     MusicBrief,
     MusicGenre,

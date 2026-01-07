@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.generators import VideoProvider
-from sip_videogen.models.assets import AssetType, GeneratedAsset
-from sip_videogen.models.music import GeneratedMusic
-from sip_videogen.models.script import VideoScript
-from sip_videogen.video import (
+from sip_studio.generators import VideoProvider
+from sip_studio.models.assets import AssetType, GeneratedAsset
+from sip_studio.models.music import GeneratedMusic
+from sip_studio.models.script import VideoScript
+from sip_studio.video import (
     PipelineConfig,
     PipelineError,
     PipelineResult,
@@ -229,7 +229,7 @@ class TestVideoPipeline:
         pipeline = VideoPipeline(config)
 
         with patch(
-            "sip_videogen.video.pipeline.develop_script",
+            "sip_studio.video.pipeline.develop_script",
             new_callable=AsyncMock,
         ) as mock_develop:
             mock_develop.side_effect = Exception("Script development failed")
@@ -351,7 +351,7 @@ class TestVideoGeneratorFactoryIntegration:
 
         with (
             patch(
-                "sip_videogen.video.pipeline.VideoGeneratorFactory.create",
+                "sip_studio.video.pipeline.VideoGeneratorFactory.create",
                 return_value=mock_generator,
             ) as mock_factory,
             patch.object(
@@ -361,7 +361,7 @@ class TestVideoGeneratorFactoryIntegration:
             ) as mock_assemble,
         ):
             # VideoGenerationError when no clips generated
-            from sip_videogen.generators import VideoGenerationError
+            from sip_studio.generators import VideoGenerationError
 
             mock_generator.generate_all_video_clips.side_effect = VideoGenerationError("Test error")
 
@@ -394,14 +394,14 @@ class TestVideoGeneratorFactoryIntegration:
 
         with (
             patch(
-                "sip_videogen.video.pipeline.VideoGeneratorFactory.create",
+                "sip_studio.video.pipeline.VideoGeneratorFactory.create",
                 return_value=mock_generator,
             ) as mock_factory,
             patch(
-                "sip_videogen.video.pipeline.UserPreferences.load",
+                "sip_studio.video.pipeline.UserPreferences.load",
             ),
         ):
-            from sip_videogen.generators import VideoGenerationError
+            from sip_studio.generators import VideoGenerationError
 
             mock_generator.generate_all_video_clips.side_effect = VideoGenerationError("Test error")
 
@@ -436,15 +436,15 @@ class TestVideoGeneratorFactoryIntegration:
 
         with (
             patch(
-                "sip_videogen.video.pipeline.VideoGeneratorFactory.create",
+                "sip_studio.video.pipeline.VideoGeneratorFactory.create",
                 return_value=mock_generator,
             ) as mock_factory,
             patch(
-                "sip_videogen.video.pipeline.UserPreferences.load",
+                "sip_studio.video.pipeline.UserPreferences.load",
                 return_value=mock_prefs,
             ),
         ):
-            from sip_videogen.generators import VideoGenerationError
+            from sip_studio.generators import VideoGenerationError
 
             mock_generator.generate_all_video_clips.side_effect = VideoGenerationError("Test error")
 
@@ -465,7 +465,7 @@ class TestGenerateVideoConvenience:
         tmp_path: Path,
     ) -> None:
         """Test generate_video convenience function."""
-        with patch("sip_videogen.video.pipeline.VideoPipeline") as mock_pipeline_class:
+        with patch("sip_studio.video.pipeline.VideoPipeline") as mock_pipeline_class:
             mock_pipeline = MagicMock()
             mock_pipeline.run = AsyncMock(
                 return_value=PipelineResult(

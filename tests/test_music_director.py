@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.agents.music_director import (
+from sip_studio.agents.music_director import (
     _MUSIC_DIRECTOR_PROMPT_PATH,
     _load_prompt,
     analyze_script_for_music,
     music_director_agent,
 )
-from sip_videogen.models.music import MusicBrief, MusicGenre, MusicMood
+from sip_studio.models.music import MusicBrief, MusicGenre, MusicMood
 
 
 class TestMusicDirectorAgent:

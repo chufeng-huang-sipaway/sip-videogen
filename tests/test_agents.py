@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.models.agent_outputs import (
+from sip_studio.models.agent_outputs import (
     ContinuitySupervisorOutput,
     ProductionDesignerOutput,
     ScreenwriterOutput,
     ShowrunnerOutput,
 )
-from sip_videogen.models.script import (
+from sip_studio.models.script import (
     ElementType,
     SceneAction,
     SharedElement,
@@ -38,7 +38,7 @@ class TestScreenwriterAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.screenwriter import develop_scenes
+            from sip_studio.agents.screenwriter import develop_scenes
 
             result = await develop_scenes(
                 idea="A cat astronaut explores Mars",
@@ -73,7 +73,7 @@ class TestProductionDesignerAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.production_designer import (
+            from sip_studio.agents.production_designer import (
                 identify_shared_elements,
             )
 
@@ -108,7 +108,7 @@ class TestContinuitySupervisorAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.continuity_supervisor import validate_and_optimize
+            from sip_studio.agents.continuity_supervisor import validate_and_optimize
 
             result = await validate_and_optimize(
                 scenes=sample_video_script.scenes,
@@ -144,7 +144,7 @@ class TestShowrunnerAgent:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            from sip_videogen.agents.showrunner import develop_script
+            from sip_studio.agents.showrunner import develop_script
 
             result = await develop_script(
                 idea="A cat astronaut explores Mars",
@@ -157,7 +157,7 @@ class TestShowrunnerAgent:
     @pytest.mark.asyncio
     async def test_develop_script_empty_idea_raises_error(self) -> None:
         """Test that empty idea raises ValueError."""
-        from sip_videogen.agents.showrunner import develop_script
+        from sip_studio.agents.showrunner import develop_script
 
         with pytest.raises(ValueError) as exc_info:
             await develop_script(idea="", num_scenes=3)
@@ -167,7 +167,7 @@ class TestShowrunnerAgent:
     @pytest.mark.asyncio
     async def test_develop_script_whitespace_idea_raises_error(self) -> None:
         """Test that whitespace-only idea raises ValueError."""
-        from sip_videogen.agents.showrunner import develop_script
+        from sip_studio.agents.showrunner import develop_script
 
         with pytest.raises(ValueError) as exc_info:
             await develop_script(idea="   ", num_scenes=3)
@@ -177,7 +177,7 @@ class TestShowrunnerAgent:
     @pytest.mark.asyncio
     async def test_develop_script_too_long_idea_raises_error(self) -> None:
         """Test that too long idea raises ValueError."""
-        from sip_videogen.agents.showrunner import develop_script
+        from sip_studio.agents.showrunner import develop_script
 
         long_idea = "A" * 2001
         with pytest.raises(ValueError) as exc_info:
@@ -188,7 +188,7 @@ class TestShowrunnerAgent:
     @pytest.mark.asyncio
     async def test_develop_script_invalid_num_scenes_raises_error(self) -> None:
         """Test that invalid num_scenes raises ValueError."""
-        from sip_videogen.agents.showrunner import develop_script
+        from sip_studio.agents.showrunner import develop_script
 
         with pytest.raises(ValueError):
             await develop_script(idea="A cat astronaut", num_scenes=0)
@@ -204,9 +204,7 @@ class TestAgentPrompts:
         """Test screenwriter prompt file exists."""
         from pathlib import Path
 
-        prompt_path = (
-            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/screenwriter.md"
-        )
+        prompt_path = Path(__file__).parent.parent / "src/sip_studio/agents/prompts/screenwriter.md"
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
     def test_production_designer_prompt_exists(self) -> None:
@@ -214,7 +212,7 @@ class TestAgentPrompts:
         from pathlib import Path
 
         prompt_path = (
-            Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/production_designer.md"
+            Path(__file__).parent.parent / "src/sip_studio/agents/prompts/production_designer.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
@@ -223,8 +221,7 @@ class TestAgentPrompts:
         from pathlib import Path
 
         prompt_path = (
-            Path(__file__).parent.parent
-            / "src/sip_videogen/agents/prompts/continuity_supervisor.md"
+            Path(__file__).parent.parent / "src/sip_studio/agents/prompts/continuity_supervisor.md"
         )
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
@@ -232,7 +229,7 @@ class TestAgentPrompts:
         """Test showrunner prompt file exists."""
         from pathlib import Path
 
-        prompt_path = Path(__file__).parent.parent / "src/sip_videogen/agents/prompts/showrunner.md"
+        prompt_path = Path(__file__).parent.parent / "src/sip_studio/agents/prompts/showrunner.md"
         assert prompt_path.exists(), f"Prompt file not found: {prompt_path}"
 
 
@@ -241,13 +238,13 @@ class TestScriptDevelopmentError:
 
     def test_error_message(self) -> None:
         """Test error message is preserved."""
-        from sip_videogen.agents.showrunner import ScriptDevelopmentError
+        from sip_studio.agents.showrunner import ScriptDevelopmentError
 
         error = ScriptDevelopmentError("Test error message")
         assert str(error) == "Test error message"
 
     def test_error_inherits_from_exception(self) -> None:
         """Test error inherits from Exception."""
-        from sip_videogen.agents.showrunner import ScriptDevelopmentError
+        from sip_studio.agents.showrunner import ScriptDevelopmentError
 
         assert issubclass(ScriptDevelopmentError, Exception)

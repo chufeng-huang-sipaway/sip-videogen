@@ -1,6 +1,6 @@
 """Tests for the conversation history manager."""
 
-from sip_videogen.advisor.history_manager import ConversationHistoryManager
+from sip_studio.advisor.history_manager import ConversationHistoryManager
 
 
 def test_add_messages():

@@ -2,7 +2,7 @@
 
 import pytest
 
-from sip_videogen.studio.utils.decorators import require_brand
+from sip_studio.studio.utils.decorators import require_brand
 
 
 # =============================================================================

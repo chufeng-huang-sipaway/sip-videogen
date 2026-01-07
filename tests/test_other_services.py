@@ -6,17 +6,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sip_videogen.brands.models import (
+from sip_studio.brands.models import (
     ProductFull,
     ProductSummary,
     ProjectFull,
     ProjectStatus,
     StyleReferenceFull,
 )
-from sip_videogen.studio.services.product_service import ProductService
-from sip_videogen.studio.services.project_service import ProjectService
-from sip_videogen.studio.services.style_reference_service import StyleReferenceService
-from sip_videogen.studio.state import BridgeState
+from sip_studio.studio.services.product_service import ProductService
+from sip_studio.studio.services.project_service import ProjectService
+from sip_studio.studio.services.style_reference_service import StyleReferenceService
+from sip_studio.studio.state import BridgeState
 
 
 # =============================================================================
@@ -63,7 +63,7 @@ class TestProductService:
             )
         ]
         with patch(
-            "sip_videogen.studio.services.product_service.list_products", return_value=mock_products
+            "sip_studio.studio.services.product_service.list_products", return_value=mock_products
         ):
             result = service.get_products()
         assert result["success"]
@@ -89,7 +89,7 @@ class TestProductService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.product_service.load_product", return_value=mock_product
+            "sip_studio.studio.services.product_service.load_product", return_value=mock_product
         ):
             result = service.get_product("prod-1")
         assert result["success"]
@@ -97,15 +97,15 @@ class TestProductService:
 
     def test_get_product_not_found(self, service):
         """Should error when product not found."""
-        with patch("sip_videogen.studio.services.product_service.load_product", return_value=None):
+        with patch("sip_studio.studio.services.product_service.load_product", return_value=None):
             result = service.get_product("missing")
         assert not result["success"]
         assert "not found" in result["error"]
 
     def test_create_product_success(self, service):
         """Should create product successfully."""
-        with patch("sip_videogen.studio.services.product_service.load_product", return_value=None):
-            with patch("sip_videogen.studio.services.product_service.create_product"):
+        with patch("sip_studio.studio.services.product_service.load_product", return_value=None):
+            with patch("sip_studio.studio.services.product_service.create_product"):
                 result = service.create_product("New Product", "Description")
         assert result["success"]
         assert "slug" in result["data"]
@@ -129,7 +129,7 @@ class TestProductService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.product_service.load_product", return_value=mock_product
+            "sip_studio.studio.services.product_service.load_product", return_value=mock_product
         ):
             result = service.create_product("Existing", "Description")
         assert not result["success"]
@@ -137,17 +137,13 @@ class TestProductService:
 
     def test_delete_product_success(self, service):
         """Should delete product."""
-        with patch(
-            "sip_videogen.studio.services.product_service.delete_product", return_value=True
-        ):
+        with patch("sip_studio.studio.services.product_service.delete_product", return_value=True):
             result = service.delete_product("prod-1")
         assert result["success"]
 
     def test_delete_product_not_found(self, service):
         """Should error when product not found."""
-        with patch(
-            "sip_videogen.studio.services.product_service.delete_product", return_value=False
-        ):
+        with patch("sip_studio.studio.services.product_service.delete_product", return_value=False):
             result = service.delete_product("missing")
         assert not result["success"]
         assert "not found" in result["error"]
@@ -156,7 +152,7 @@ class TestProductService:
     async def test_analyze_all_packaging_text_success(self, service):
         """Should analyze all products packaging text."""
         with patch(
-            "sip_videogen.advisor.tools._impl_analyze_all_product_packaging",
+            "sip_studio.advisor.tools._impl_analyze_all_product_packaging",
             return_value="Analyzed 3 products, 0 skipped, 0 failed",
         ) as mock_impl:
             result = await service.analyze_all_packaging_text()
@@ -178,7 +174,7 @@ class TestProductService:
     async def test_analyze_all_packaging_text_skip_existing_false(self, service):
         """Should pass skip_existing parameter."""
         with patch(
-            "sip_videogen.advisor.tools._impl_analyze_all_product_packaging",
+            "sip_studio.advisor.tools._impl_analyze_all_product_packaging",
             return_value="Analyzed 5 products",
         ) as mock_impl:
             result = await service.analyze_all_packaging_text(skip_existing=False)
@@ -210,13 +206,13 @@ class TestProjectService:
             )
         ]
         with patch(
-            "sip_videogen.studio.services.project_service.list_projects", return_value=mock_projects
+            "sip_studio.studio.services.project_service.list_projects", return_value=mock_projects
         ):
             with patch(
-                "sip_videogen.studio.services.project_service.get_active_project", return_value=None
+                "sip_studio.studio.services.project_service.get_active_project", return_value=None
             ):
                 with patch(
-                    "sip_videogen.studio.services.project_service.count_project_assets",
+                    "sip_studio.studio.services.project_service.count_project_assets",
                     return_value=5,
                 ):
                     result = service.get_projects()
@@ -241,10 +237,10 @@ class TestProjectService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.project_service.load_project", return_value=mock_project
+            "sip_studio.studio.services.project_service.load_project", return_value=mock_project
         ):
             with patch(
-                "sip_videogen.studio.services.project_service.list_project_assets", return_value=[]
+                "sip_studio.studio.services.project_service.list_project_assets", return_value=[]
             ):
                 result = service.get_project("proj-1")
         assert result["success"]
@@ -252,15 +248,15 @@ class TestProjectService:
 
     def test_get_project_not_found(self, service):
         """Should error when project not found."""
-        with patch("sip_videogen.studio.services.project_service.load_project", return_value=None):
+        with patch("sip_studio.studio.services.project_service.load_project", return_value=None):
             result = service.get_project("missing")
         assert not result["success"]
         assert "not found" in result["error"]
 
     def test_create_project_success(self, service):
         """Should create project successfully."""
-        with patch("sip_videogen.studio.services.project_service.load_project", return_value=None):
-            with patch("sip_videogen.studio.services.project_service.create_project"):
+        with patch("sip_studio.studio.services.project_service.load_project", return_value=None):
+            with patch("sip_studio.studio.services.project_service.create_project"):
                 result = service.create_project("New Project", "Instructions here")
         assert result["success"]
         assert "slug" in result["data"]
@@ -282,9 +278,9 @@ class TestProjectService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.project_service.load_project", return_value=mock_project
+            "sip_studio.studio.services.project_service.load_project", return_value=mock_project
         ):
-            with patch("sip_videogen.studio.services.project_service.save_project"):
+            with patch("sip_studio.studio.services.project_service.save_project"):
                 result = service.update_project("proj-1", name="New Name")
         assert result["success"]
         assert result["data"]["name"] == "New Name"
@@ -300,9 +296,9 @@ class TestProjectService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.project_service.load_project", return_value=mock_project
+            "sip_studio.studio.services.project_service.load_project", return_value=mock_project
         ):
-            with patch("sip_videogen.studio.services.project_service.save_project"):
+            with patch("sip_studio.studio.services.project_service.save_project"):
                 result = service.update_project("proj-1", status="archived")
         assert result["success"]
         assert result["data"]["status"] == "archived"
@@ -318,7 +314,7 @@ class TestProjectService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.project_service.load_project", return_value=mock_project
+            "sip_studio.studio.services.project_service.load_project", return_value=mock_project
         ):
             result = service.update_project("proj-1", status="invalid")
         assert not result["success"]
@@ -327,10 +323,10 @@ class TestProjectService:
     def test_delete_project_success(self, service):
         """Should delete project."""
         with patch(
-            "sip_videogen.studio.services.project_service.get_active_project", return_value=None
+            "sip_studio.studio.services.project_service.get_active_project", return_value=None
         ):
             with patch(
-                "sip_videogen.studio.services.project_service.delete_project", return_value=True
+                "sip_studio.studio.services.project_service.delete_project", return_value=True
             ):
                 result = service.delete_project("proj-1")
         assert result["success"]
@@ -346,16 +342,16 @@ class TestProjectService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.project_service.load_project", return_value=mock_project
+            "sip_studio.studio.services.project_service.load_project", return_value=mock_project
         ):
-            with patch("sip_videogen.studio.services.project_service.set_active_project"):
+            with patch("sip_studio.studio.services.project_service.set_active_project"):
                 result = service.set_active_project("proj-1")
         assert result["success"]
         assert result["data"]["active_project"] == "proj-1"
 
     def test_set_active_project_none(self, service):
         """Should clear active project when None."""
-        with patch("sip_videogen.studio.services.project_service.set_active_project"):
+        with patch("sip_studio.studio.services.project_service.set_active_project"):
             result = service.set_active_project(None)
         assert result["success"]
         assert result["data"]["active_project"] is None
@@ -385,7 +381,7 @@ class TestStyleReferenceService:
             )
         ]
         with patch(
-            "sip_videogen.studio.services.style_reference_service.list_style_references",
+            "sip_studio.studio.services.style_reference_service.list_style_references",
             return_value=mock_refs,
         ):
             result = service.get_style_references()
@@ -413,7 +409,7 @@ class TestStyleReferenceService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.style_reference_service.load_style_reference",
+            "sip_studio.studio.services.style_reference_service.load_style_reference",
             return_value=mock_ref,
         ):
             result = service.get_style_reference("sr-1")
@@ -423,7 +419,7 @@ class TestStyleReferenceService:
     def test_get_style_reference_not_found(self, service):
         """Should error when style reference not found."""
         with patch(
-            "sip_videogen.studio.services.style_reference_service.load_style_reference",
+            "sip_studio.studio.services.style_reference_service.load_style_reference",
             return_value=None,
         ):
             result = service.get_style_reference("missing")
@@ -433,12 +429,10 @@ class TestStyleReferenceService:
     def test_create_style_reference_success(self, service):
         """Should create style reference successfully."""
         with patch(
-            "sip_videogen.studio.services.style_reference_service.load_style_reference",
+            "sip_studio.studio.services.style_reference_service.load_style_reference",
             return_value=None,
         ):
-            with patch(
-                "sip_videogen.studio.services.style_reference_service.create_style_reference"
-            ):
+            with patch("sip_studio.studio.services.style_reference_service.create_style_reference"):
                 result = service.create_style_reference("New Style Ref", "Description")
         assert result["success"]
         assert "slug" in result["data"]
@@ -463,10 +457,10 @@ class TestStyleReferenceService:
             updated_at=datetime.utcnow(),
         )
         with patch(
-            "sip_videogen.studio.services.style_reference_service.load_style_reference",
+            "sip_studio.studio.services.style_reference_service.load_style_reference",
             return_value=mock_ref,
         ):
-            with patch("sip_videogen.studio.services.style_reference_service.save_style_reference"):
+            with patch("sip_studio.studio.services.style_reference_service.save_style_reference"):
                 result = service.update_style_reference("sr-1", name="New Name")
         assert result["success"]
         assert result["data"]["name"] == "New Name"
@@ -474,7 +468,7 @@ class TestStyleReferenceService:
     def test_delete_style_reference_success(self, service):
         """Should delete style reference."""
         with patch(
-            "sip_videogen.studio.services.style_reference_service.delete_style_reference",
+            "sip_studio.studio.services.style_reference_service.delete_style_reference",
             return_value=True,
         ):
             result = service.delete_style_reference("sr-1")
@@ -483,7 +477,7 @@ class TestStyleReferenceService:
     def test_delete_style_reference_not_found(self, service):
         """Should error when style reference not found."""
         with patch(
-            "sip_videogen.studio.services.style_reference_service.delete_style_reference",
+            "sip_studio.studio.services.style_reference_service.delete_style_reference",
             return_value=False,
         ):
             result = service.delete_style_reference("missing")
@@ -493,7 +487,7 @@ class TestStyleReferenceService:
     def test_get_style_reference_images(self, service):
         """Should return style reference images."""
         with patch(
-            "sip_videogen.studio.services.style_reference_service.list_style_reference_images",
+            "sip_studio.studio.services.style_reference_service.list_style_reference_images",
             return_value=["img1.png", "img2.png"],
         ):
             result = service.get_style_reference_images("sr-1")

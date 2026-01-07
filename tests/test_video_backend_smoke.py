@@ -12,15 +12,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from sip_videogen.generators import VideoProvider
+from sip_studio.generators import VideoProvider
 
 
 class TestVideoBackendImports:
     """Verify all video backend modules are importable."""
 
     def test_import_video_pipeline_module(self) -> None:
-        """Test sip_videogen.video.pipeline is importable."""
-        from sip_videogen.video import pipeline
+        """Test sip_studio.video.pipeline is importable."""
+        from sip_studio.video import pipeline
 
         assert hasattr(pipeline, "VideoPipeline")
         assert hasattr(pipeline, "PipelineConfig")
@@ -29,8 +29,8 @@ class TestVideoBackendImports:
         assert hasattr(pipeline, "generate_video")
 
     def test_import_video_package_exports(self) -> None:
-        """Test sip_videogen.video package exports all expected classes."""
-        from sip_videogen.video import (
+        """Test sip_studio.video package exports all expected classes."""
+        from sip_studio.video import (
             PipelineConfig,
             PipelineError,
             PipelineResult,
@@ -45,8 +45,8 @@ class TestVideoBackendImports:
         assert generate_video is not None
 
     def test_import_generators_module(self) -> None:
-        """Test sip_videogen.generators is importable with all providers."""
-        from sip_videogen.generators import (
+        """Test sip_studio.generators is importable with all providers."""
+        from sip_studio.generators import (
             BaseVideoGenerator,
             KlingVideoGenerator,
             SoraVideoGenerator,
@@ -63,15 +63,15 @@ class TestVideoBackendImports:
         assert SoraVideoGenerator is not None
 
     def test_import_assembler_module(self) -> None:
-        """Test sip_videogen.assembler is importable."""
-        from sip_videogen.assembler import FFmpegAssembler, FFmpegError
+        """Test sip_studio.assembler is importable."""
+        from sip_studio.assembler import FFmpegAssembler, FFmpegError
 
         assert FFmpegAssembler is not None
         assert FFmpegError is not None
 
     def test_import_models_module(self) -> None:
         """Test video-related models are importable."""
-        from sip_videogen.models import (
+        from sip_studio.models import (
             AssetType,
             GeneratedAsset,
             GeneratedMusic,
@@ -94,14 +94,14 @@ class TestVideoGeneratorFactorySmoke:
 
         with (
             patch(
-                "sip_videogen.generators.factory.get_settings",
+                "sip_studio.generators.factory.get_settings",
                 return_value=mock_settings,
             ),
             patch(
-                "sip_videogen.config.user_preferences.UserPreferences.load",
+                "sip_studio.config.user_preferences.UserPreferences.load",
             ),
         ):
-            from sip_videogen.generators import VideoGeneratorFactory
+            from sip_studio.generators import VideoGeneratorFactory
 
             generator = VideoGeneratorFactory.create(VideoProvider.VEO)
 
@@ -120,15 +120,15 @@ class TestVideoGeneratorFactorySmoke:
 
         with (
             patch(
-                "sip_videogen.generators.factory.get_settings",
+                "sip_studio.generators.factory.get_settings",
                 return_value=mock_settings,
             ),
             patch(
-                "sip_videogen.config.user_preferences.UserPreferences.load",
+                "sip_studio.config.user_preferences.UserPreferences.load",
                 return_value=mock_prefs,
             ),
         ):
-            from sip_videogen.generators import VideoGeneratorFactory
+            from sip_studio.generators import VideoGeneratorFactory
 
             generator = VideoGeneratorFactory.create(VideoProvider.KLING)
 
@@ -146,15 +146,15 @@ class TestVideoGeneratorFactorySmoke:
 
         with (
             patch(
-                "sip_videogen.generators.factory.get_settings",
+                "sip_studio.generators.factory.get_settings",
                 return_value=mock_settings,
             ),
             patch(
-                "sip_videogen.config.user_preferences.UserPreferences.load",
+                "sip_studio.config.user_preferences.UserPreferences.load",
                 return_value=mock_prefs,
             ),
         ):
-            from sip_videogen.generators import VideoGeneratorFactory
+            from sip_studio.generators import VideoGeneratorFactory
 
             generator = VideoGeneratorFactory.create(VideoProvider.SORA)
 
@@ -163,14 +163,14 @@ class TestVideoGeneratorFactorySmoke:
 
     def test_get_available_providers_method_exists(self) -> None:
         """Test that get_available_providers method is available."""
-        from sip_videogen.generators import VideoGeneratorFactory
+        from sip_studio.generators import VideoGeneratorFactory
 
         assert hasattr(VideoGeneratorFactory, "get_available_providers")
         assert callable(VideoGeneratorFactory.get_available_providers)
 
     def test_is_provider_available_method_exists(self) -> None:
         """Test that is_provider_available method is available."""
-        from sip_videogen.generators import VideoGeneratorFactory
+        from sip_studio.generators import VideoGeneratorFactory
 
         assert hasattr(VideoGeneratorFactory, "is_provider_available")
         assert callable(VideoGeneratorFactory.is_provider_available)
@@ -181,7 +181,7 @@ class TestVideoPipelineSmoke:
 
     def test_pipeline_instantiation(self) -> None:
         """Test VideoPipeline can be instantiated."""
-        from sip_videogen.video import PipelineConfig, VideoPipeline
+        from sip_studio.video import PipelineConfig, VideoPipeline
 
         config = PipelineConfig(idea="Test video idea")
         pipeline = VideoPipeline(config)
@@ -192,7 +192,7 @@ class TestVideoPipelineSmoke:
 
     def test_pipeline_config_dataclass(self) -> None:
         """Test PipelineConfig accepts all expected parameters."""
-        from sip_videogen.video import PipelineConfig
+        from sip_studio.video import PipelineConfig
 
         config = PipelineConfig(
             idea="A cat playing piano",
@@ -210,8 +210,8 @@ class TestVideoPipelineSmoke:
 
     def test_pipeline_result_dataclass(self, tmp_path) -> None:
         """Test PipelineResult can be constructed."""
-        from sip_videogen.models import VideoScript
-        from sip_videogen.video import PipelineResult
+        from sip_studio.models import VideoScript
+        from sip_studio.video import PipelineResult
 
         # Minimal script for testing
         mock_script = MagicMock(spec=VideoScript)

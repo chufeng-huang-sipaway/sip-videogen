@@ -5,14 +5,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sip_videogen.generators.base import PromptSafetyError, VideoGenerationError
-from sip_videogen.generators.sora_generator import (
+from sip_studio.generators.base import PromptSafetyError, VideoGenerationError
+from sip_studio.generators.sora_generator import (
     SoraConfig,
     SoraGenerationResult,
     SoraVideoGenerator,
 )
-from sip_videogen.models.assets import AssetType, GeneratedAsset
-from sip_videogen.models.script import SceneAction, VideoScript
+from sip_studio.models.assets import AssetType, GeneratedAsset
+from sip_studio.models.script import SceneAction, VideoScript
 
 
 class TestSoraConfig:
@@ -295,7 +295,7 @@ class TestSoraVideoGenerator:
         mock_client.videos.download_content = AsyncMock(return_value=mock_download_response)
 
         with patch(
-            "sip_videogen.generators.sora_generator.AsyncOpenAI",
+            "sip_studio.generators.sora_generator.AsyncOpenAI",
             return_value=mock_client,
         ):
             generator = SoraVideoGenerator(api_key="test-key")
@@ -331,7 +331,7 @@ class TestSoraVideoGenerator:
         )
 
         with patch(
-            "sip_videogen.generators.sora_generator.AsyncOpenAI",
+            "sip_studio.generators.sora_generator.AsyncOpenAI",
             return_value=mock_client,
         ):
             generator = SoraVideoGenerator(api_key="test-key")
@@ -362,7 +362,7 @@ class TestSoraVideoGenerator:
         )
 
         with patch(
-            "sip_videogen.generators.sora_generator.AsyncOpenAI",
+            "sip_studio.generators.sora_generator.AsyncOpenAI",
             return_value=mock_client,
         ):
             generator = SoraVideoGenerator(api_key="test-key")
@@ -401,7 +401,7 @@ class TestSoraVideoGenerator:
         mock_client.videos.create_and_poll = AsyncMock(return_value=mock_video)
 
         with patch(
-            "sip_videogen.generators.sora_generator.AsyncOpenAI",
+            "sip_studio.generators.sora_generator.AsyncOpenAI",
             return_value=mock_client,
         ):
             generator = SoraVideoGenerator(api_key="test-key")

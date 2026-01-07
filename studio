@@ -1,37 +1,42 @@
 #!/bin/bash
-# Brand Studio - Quick launcher for development
-#
+# Sip Studio - Quick launcher for development
 # Usage:
-#   ./studio        Run the app (uses built frontend)
+#   ./studio        Run via dev app (proper dock icon/name)
 #   ./studio dev    Run with hot-reload (frontend dev server)
-#   ./studio build  Build frontend then run
-
+#   ./studio build  Build frontend then run via dev app
+#   ./studio raw    Run Python directly (dock shows "Python")
 cd "$(dirname "$0")"
-
 if [ ! -f ".venv/bin/python" ]; then
     echo "Setting up virtual environment..."
     python3 -m venv .venv
     .venv/bin/pip install -e ".[dev]" -q
 fi
-
 case "${1:-}" in
     dev)
-        echo "Starting Brand Studio (dev mode)..."
-        STUDIO_DEV=1 .venv/bin/python -m sip_videogen.studio
+        echo "Starting Sip Studio (dev mode)..."
+        STUDIO_DEV=1 .venv/bin/python -m sip_studio.studio
         ;;
     build)
         echo "Building frontend..."
-        (cd src/sip_videogen/studio/frontend && npm run build)
-        echo "Starting Brand Studio..."
-        STUDIO_DEV=0 .venv/bin/python -m sip_videogen.studio
+        (cd src/sip_studio/studio/frontend && npm run build)
+        echo "Starting Sip Studio..."
+        open "dev-app/Sip Studio Dev.app"
         ;;
     debug)
         echo "Building frontend..."
-        (cd src/sip_videogen/studio/frontend && npm run build)
-        echo "Starting Brand Studio (debug mode - right-click for dev tools)..."
-        STUDIO_DEBUG=1 .venv/bin/python -m sip_videogen.studio
+        (cd src/sip_studio/studio/frontend && npm run build)
+        echo "Starting Sip Studio (debug mode - right-click for dev tools)..."
+        STUDIO_DEBUG=1 .venv/bin/python -m sip_studio.studio
+        ;;
+    raw)
+        STUDIO_DEV=0 .venv/bin/python -m sip_studio.studio
         ;;
     *)
-        STUDIO_DEV=0 .venv/bin/python -m sip_videogen.studio
+        # Default: use dev app wrapper for proper dock icon/name
+        if [ ! -f "src/sip_studio/studio/frontend/dist/index.html" ]; then
+            echo "Building frontend..."
+            (cd src/sip_studio/studio/frontend && npm run build)
+        fi
+        open "dev-app/Sip Studio Dev.app"
         ;;
 esac

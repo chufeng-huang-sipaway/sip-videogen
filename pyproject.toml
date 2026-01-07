@@ -1,7 +1,7 @@
 [project]
-name = "sip-videogen"
-version = "0.8.8"
-description = "Transform video ideas into complete videos using AI agent teams"
+name = "sip-studio"
+version = "0.9.0"
+description = "Sip Studio - AI-powered brand management and video generation"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -55,7 +55,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sip_videogen"]
+packages = ["src/sip_studio"]
 
 [tool.ruff]
 line-length = 100
@@ -66,12 +66,12 @@ select = ["E", "F", "I", "N", "W"]
 
 [tool.ruff.lint.per-file-ignores]
 # Long prompt strings and log messages
-"src/sip_videogen/advisor/tools/*.py" = ["E501"]
-"src/sip_videogen/advisor/*_analyzer.py" = ["E501"]
-"src/sip_videogen/advisor/*_prompt.py" = ["E501"]
-"src/sip_videogen/brands/context.py" = ["E501"]
-"src/sip_videogen/brands/models/*.py" = ["E501"]
-"src/sip_videogen/advisor/validation/*.py" = ["E501"]
+"src/sip_studio/advisor/tools/*.py" = ["E501"]
+"src/sip_studio/advisor/*_analyzer.py" = ["E501"]
+"src/sip_studio/advisor/*_prompt.py" = ["E501"]
+"src/sip_studio/brands/context.py" = ["E501"]
+"src/sip_studio/brands/models/*.py" = ["E501"]
+"src/sip_studio/advisor/validation/*.py" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
