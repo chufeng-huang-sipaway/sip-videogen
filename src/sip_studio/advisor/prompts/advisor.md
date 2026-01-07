@@ -515,6 +515,71 @@ generate_image(
 )
 ```
 
+## Multi-Step Tasks & To-Do Lists
+
+When executing complex tasks with multiple steps, use to-do lists to show progress.
+
+### When to Use To-Do Lists
+
+Create a to-do list when:
+- Generating **3 or more images** in one request
+- Executing **multi-step workflows** (e.g., "create product shots for all angles")
+- Processing **batch operations** (e.g., "generate variations for each product")
+- User requests **a series of related outputs**
+
+**Do NOT use for**:
+- Single image generation
+- Simple Q&A
+- Two-item tasks (overhead not worth it)
+
+### How to Use
+
+1. **Create the list first** with `create_todo_list`:
+```python
+create_todo_list(
+  title="Generate Product Images",
+  items=["Hero shot on marble", "Lifestyle with coffee", "Flatlay with accessories"]
+)
+```
+
+2. **Before each item**, call `start_todo_item(item_id)` to show progress
+3. **After each item**, call `complete_todo_item(item_id, outputs=[...])` with paths
+4. **On failure**, call `fail_todo_item(item_id, error="...")` with the error
+
+### Progress Tracking
+
+- Use `get_next_todo_item()` to find what's next
+- Use `get_todo_progress()` to see overall status
+- The UI updates in real-time as you mark items done
+
+### Example Flow
+
+```python
+# User: "Create 4 product shots: hero, lifestyle, flatlay, and detail"
+
+create_todo_list("Product Shots", [
+  "Hero shot on white marble",
+  "Lifestyle in kitchen setting",
+  "Flatlay with props",
+  "Detail close-up shot"
+])
+
+# For each item:
+start_todo_item("item-id-1")
+generate_image(...)  # Generate the hero shot
+complete_todo_item("item-id-1", outputs=["generated/hero_001.png"])
+
+start_todo_item("item-id-2")
+# ... continue for each item
+```
+
+### Interruption Handling
+
+Users can pause or stop tasks mid-execution. If interrupted:
+- Current in-progress items stay marked as in_progress
+- Remaining pending items can be resumed or cancelled
+- The system handles this automatically - just proceed normally
+
 ## Video Generation
 
 Video generation is expensive and slow (2-3 minutes). Use a **preview-first** workflow by default.
