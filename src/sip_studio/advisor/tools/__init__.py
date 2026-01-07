@@ -105,6 +105,13 @@ __all__ = [
     "fail_todo_item",
     "get_next_todo_item",
     "get_todo_progress",
+    # approval_tools
+    "request_approval",
+    "approval_required",
+    "check_approval_status",
+    "get_autonomy_status",
+    "DEFAULT_APPROVAL_TIMEOUT_SEC",
+    "APPROVAL_POLL_INTERVAL_SEC",
     # utility_tools
     "fetch_url_content",
     "report_thinking",
@@ -167,6 +174,14 @@ from sip_studio.brands.storage import (
 )
 from sip_studio.config.settings import get_settings
 
+from .approval_tools import (
+    APPROVAL_POLL_INTERVAL_SEC,
+    DEFAULT_APPROVAL_TIMEOUT_SEC,
+    approval_required,
+    check_approval_status,
+    get_autonomy_status,
+    request_approval,
+)
 from .brand_tools import (
     _impl_browse_brand_assets,
     _impl_fetch_brand_detail,
@@ -312,4 +327,7 @@ ADVISOR_TOOLS = [
     fail_todo_item,
     get_next_todo_item,
     get_todo_progress,
+    # approval_tools
+    check_approval_status,
+    get_autonomy_status,
 ]
