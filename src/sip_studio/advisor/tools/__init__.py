@@ -98,6 +98,13 @@ __all__ = [
     "get_pending_interaction",
     "set_tool_progress_callback",
     "emit_tool_thinking",
+    # todo_tools
+    "create_todo_list",
+    "start_todo_item",
+    "complete_todo_item",
+    "fail_todo_item",
+    "get_next_todo_item",
+    "get_todo_progress",
     # utility_tools
     "fetch_url_content",
     "report_thinking",
@@ -244,6 +251,14 @@ from .style_reference_tools import (
     reanalyze_style_reference,
     update_style_reference,
 )
+from .todo_tools import (
+    complete_todo_item,
+    create_todo_list,
+    fail_todo_item,
+    get_next_todo_item,
+    get_todo_progress,
+    start_todo_item,
+)
 from .utility_tools import (
     _MAX_DETAIL_LEN,
     _MAX_STEP_LEN,
@@ -290,4 +305,11 @@ ADVISOR_TOOLS = [
     browse_brand_assets,
     fetch_url_content,
     report_thinking,
+    # todo_tools
+    create_todo_list,
+    start_todo_item,
+    complete_todo_item,
+    fail_todo_item,
+    get_next_todo_item,
+    get_todo_progress,
 ]
