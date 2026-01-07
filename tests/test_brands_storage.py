@@ -68,7 +68,7 @@ from sip_studio.brands.storage import (
 @pytest.fixture
 def temp_brands_dir(tmp_path: Path):
     """Create a temporary brands directory for testing."""
-    brands_dir = tmp_path / ".sip-videogen" / "brands"
+    brands_dir = tmp_path / ".sip-studio" / "brands"
     brands_dir.mkdir(parents=True)
     # Patch the base module where get_brands_dir is defined
     with patch("sip_studio.brands.storage.base.get_brands_dir", return_value=brands_dir):
@@ -162,17 +162,17 @@ class TestPathHelpers:
     def test_get_brands_dir(self) -> None:
         """Test get_brands_dir returns correct path."""
         brands_dir = get_brands_dir()
-        assert brands_dir == Path.home() / ".sip-videogen" / "brands"
+        assert brands_dir == Path.home() / ".sip-studio" / "brands"
 
     def test_get_brand_dir(self) -> None:
         """Test get_brand_dir returns correct path for a brand."""
         brand_dir = get_brand_dir("test-brand")
-        assert brand_dir == Path.home() / ".sip-videogen" / "brands" / "test-brand"
+        assert brand_dir == Path.home() / ".sip-studio" / "brands" / "test-brand"
 
     def test_get_index_path(self) -> None:
         """Test get_index_path returns correct path."""
         index_path = get_index_path()
-        assert index_path == Path.home() / ".sip-videogen" / "brands" / "index.json"
+        assert index_path == Path.home() / ".sip-studio" / "brands" / "index.json"
 
 
 class TestIndexManagement:
@@ -573,14 +573,14 @@ class TestProductPathHelpers:
     def test_get_products_dir(self) -> None:
         """Test get_products_dir returns correct path."""
         products_dir = get_products_dir("test-brand")
-        expected = Path.home() / ".sip-videogen" / "brands" / "test-brand" / "products"
+        expected = Path.home() / ".sip-studio" / "brands" / "test-brand" / "products"
         assert products_dir == expected
 
     def test_get_product_dir(self) -> None:
         """Test get_product_dir returns correct path."""
         product_dir = get_product_dir("test-brand", "night-cream")
         expected = (
-            Path.home() / ".sip-videogen" / "brands" / "test-brand" / "products" / "night-cream"
+            Path.home() / ".sip-studio" / "brands" / "test-brand" / "products" / "night-cream"
         )
         assert product_dir == expected
 
@@ -1085,7 +1085,7 @@ class TestProjectPathHelpers:
     def test_get_projects_dir(self) -> None:
         """Test get_projects_dir returns correct path."""
         projects_dir = get_projects_dir("test-brand")
-        expected = Path.home() / ".sip-videogen" / "brands" / "test-brand" / "projects"
+        expected = Path.home() / ".sip-studio" / "brands" / "test-brand" / "projects"
         assert projects_dir == expected
 
     def test_get_project_dir(self) -> None:
@@ -1093,7 +1093,7 @@ class TestProjectPathHelpers:
         project_dir = get_project_dir("test-brand", "christmas-campaign")
         expected = (
             Path.home()
-            / ".sip-videogen"
+            / ".sip-studio"
             / "brands"
             / "test-brand"
             / "projects"

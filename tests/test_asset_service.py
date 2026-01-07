@@ -1,7 +1,9 @@
 """Tests for AssetService."""
 
 import base64
+import sys
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -47,16 +49,13 @@ class TestGetAssets:
         """Should return asset tree for brand."""
         mock_assets = [{"filename": "logo.png", "path": "/tmp/test.png", "type": "image"}]
         with patch(
-            "sip_studio.studio.services.asset_service.get_active_brand", return_value="test"
+            "sip_studio.studio.services.asset_service.list_brand_assets",
+            return_value=mock_assets,
         ):
-            with patch(
-                "sip_studio.studio.services.asset_service.list_brand_assets",
-                return_value=mock_assets,
-            ):
-                with patch("pathlib.Path.stat", return_value=MagicMock(st_size=1024)):
-                    with patch("pathlib.Path.exists", return_value=True):
-                        result = service.get_assets()
-        assert result["success"] == True
+            with patch("pathlib.Path.stat", return_value=MagicMock(st_size=1024)):
+                with patch("pathlib.Path.exists", return_value=True):
+                    result = service.get_assets("test")
+        assert result["success"]
         assert "tree" in result["data"]
 
     def test_uses_provided_slug(self, service):
@@ -72,7 +71,7 @@ class TestGetAssets:
         """Should return error when no brand selected."""
         with patch("sip_studio.studio.services.asset_service.get_active_brand", return_value=None):
             result = service.get_assets()
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
 
@@ -88,7 +87,7 @@ class TestGetAssetThumbnail:
         svg_path.write_text("<svg></svg>")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_asset_thumbnail("logo/icon.svg")
-        assert result["success"] == True
+        assert result["success"]
         assert "dataUrl" in result["data"]
         assert "image/svg+xml" in result["data"]["dataUrl"]
 
@@ -96,14 +95,14 @@ class TestGetAssetThumbnail:
         """Should return error when no brand dir."""
         state.get_brand_dir = MagicMock(return_value=(None, "No brand selected"))
         result = service.get_asset_thumbnail("logo/test.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_error_for_missing_file(self, service, state, mock_brand_dir):
         """Should return error when file doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_asset_thumbnail("logo/missing.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_error_for_unsupported_type(self, service, state, mock_brand_dir):
@@ -112,7 +111,7 @@ class TestGetAssetThumbnail:
         bad_file.write_text("binary")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_asset_thumbnail("logo/test.exe")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Unsupported" in result["error"]
 
 
@@ -124,13 +123,17 @@ class TestGetAssetFull:
 
     def test_returns_full_image(self, service, state, mock_brand_dir):
         """Should return base64-encoded full image."""
-        # Create a minimal valid PNG
-        png_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        # Create a minimal valid PNG (1x1 pixel)
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00"
+            b"\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
         png_path = mock_brand_dir / "assets" / "logo" / "test.png"
         png_path.write_bytes(png_data)
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_asset_full("logo/test.png")
-        assert result["success"] == True
+        assert result["success"]
         assert "dataUrl" in result["data"]
         assert "image/png" in result["data"]["dataUrl"]
 
@@ -138,7 +141,7 @@ class TestGetAssetFull:
         """Should return error when file doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_asset_full("logo/missing.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
 
@@ -159,14 +162,14 @@ class TestUploadAsset:
                 return_value=("generated/test.png", None),
             ):
                 result = service.upload_asset("test.png", content, "generated")
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["path"] == "generated/test.png"
 
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
         with patch("sip_studio.studio.services.asset_service.get_active_brand", return_value=None):
             result = service.upload_asset("test.png", "base64data", "logo")
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_returns_storage_error(self, service):
@@ -179,7 +182,7 @@ class TestUploadAsset:
                 return_value=(None, "Write failed"),
             ):
                 result = service.upload_asset("test.png", base64.b64encode(b"x").decode(), "logo")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Write failed" in result["error"]
 
 
@@ -196,26 +199,26 @@ class TestDeleteAsset:
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         with patch("sip_studio.studio.services.asset_service._move_to_trash", return_value=True):
             result = service.delete_asset("generated/test.png")
-        assert result["success"] == True
+        assert result["success"]
 
     def test_error_when_no_brand(self, service, state):
         """Should return error when no brand dir."""
         state.get_brand_dir = MagicMock(return_value=(None, "No brand selected"))
         result = service.delete_asset("logo/test.png")
-        assert result["success"] == False
+        assert not result["success"]
 
     def test_error_for_missing_file(self, service, state, mock_brand_dir):
         """Should return error when file doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.delete_asset("logo/missing.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_error_for_folders(self, service, state, mock_brand_dir):
         """Should reject folder deletion."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.delete_asset("logo")
-        assert result["success"] == False
+        assert not result["success"]
         assert "folder" in result["error"].lower()
 
     def test_error_for_unsupported_type(self, service, state, mock_brand_dir):
@@ -224,7 +227,7 @@ class TestDeleteAsset:
         bad_file.write_text("binary")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.delete_asset("logo/test.exe")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Unsupported" in result["error"]
 
 
@@ -240,20 +243,20 @@ class TestRenameAsset:
         old_path.write_bytes(b"test")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.rename_asset("logo/old.png", "new.png")
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["newPath"] == "logo/new.png"
 
     def test_error_when_no_brand(self, service, state):
         """Should return error when no brand dir."""
         state.get_brand_dir = MagicMock(return_value=(None, "No brand selected"))
         result = service.rename_asset("logo/old.png", "new.png")
-        assert result["success"] == False
+        assert not result["success"]
 
     def test_error_for_missing_file(self, service, state, mock_brand_dir):
         """Should return error when file doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.rename_asset("logo/missing.png", "new.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_rejects_path_in_filename(self, service, state, mock_brand_dir):
@@ -262,7 +265,7 @@ class TestRenameAsset:
         old_path.write_bytes(b"test")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.rename_asset("logo/old.png", "../new.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Invalid filename" in result["error"]
 
     def test_rejects_unsupported_extension(self, service, state, mock_brand_dir):
@@ -271,7 +274,7 @@ class TestRenameAsset:
         old_path.write_bytes(b"test")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.rename_asset("logo/old.png", "new.exe")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Unsupported" in result["error"]
 
     def test_error_when_target_exists(self, service, state, mock_brand_dir):
@@ -282,7 +285,7 @@ class TestRenameAsset:
         new_path.write_bytes(b"test2")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.rename_asset("logo/old.png", "new.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "already exists" in result["error"]
 
 
@@ -301,14 +304,14 @@ class TestOpenAssetInFinder:
             "sip_studio.studio.services.asset_service.reveal_in_file_manager"
         ) as mock_reveal:
             result = service.open_asset_in_finder("logo/test.png")
-        assert result["success"] == True
+        assert result["success"]
         mock_reveal.assert_called_once()
 
     def test_error_for_missing_file(self, service, state, mock_brand_dir):
         """Should return error when file doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.open_asset_in_finder("logo/missing.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
 
@@ -324,7 +327,7 @@ class TestGetVideoPath:
         video_path.write_bytes(b"fake video")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_video_path("video/test.mp4")
-        assert result["success"] == True
+        assert result["success"]
         assert "path" in result["data"]
         assert "test.mp4" in result["data"]["path"]
 
@@ -332,7 +335,7 @@ class TestGetVideoPath:
         """Should return error when video doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_video_path("video/missing.mp4")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_error_for_wrong_type(self, service, state, mock_brand_dir):
@@ -341,7 +344,7 @@ class TestGetVideoPath:
         png_path.write_bytes(b"image")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_video_path("video/test.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Unsupported" in result["error"]
 
 
@@ -357,7 +360,7 @@ class TestGetVideoData:
         video_path.write_bytes(b"fake video content")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_video_data("video/test.mp4")
-        assert result["success"] == True
+        assert result["success"]
         assert "dataUrl" in result["data"]
         assert "video/mp4" in result["data"]["dataUrl"]
 
@@ -365,16 +368,13 @@ class TestGetVideoData:
         """Should return error when video doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.get_video_data("video/missing.mp4")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
 
 # =============================================================================
 # get_image_metadata tests
 # =============================================================================
-import sys
-from types import ModuleType
-
 # Create mock for sip_studio.advisor.tools to avoid import chain issues
 _mock_tools = ModuleType("sip_studio.advisor.tools")
 _mock_tools.load_image_metadata = MagicMock()
@@ -402,7 +402,7 @@ class TestGetImageMetadata:
         mock_meta = {"product_slugs": ["product-a"], "prompt": "test"}
         _mock_tools.load_image_metadata.return_value = mock_meta
         result = service.get_image_metadata(str(img))
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["product_slugs"] == ["product-a"]
 
     def test_returns_none_when_no_metadata(self, service, state, mock_brand_dir):
@@ -413,7 +413,7 @@ class TestGetImageMetadata:
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         _mock_tools.load_image_metadata.return_value = None
         result = service.get_image_metadata(str(img))
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"] is None
 
     def test_returns_none_for_corrupt_metadata(self, service, state, mock_brand_dir):
@@ -425,14 +425,14 @@ class TestGetImageMetadata:
         # load_image_metadata handles corrupt JSON by returning None
         _mock_tools.load_image_metadata.return_value = None
         result = service.get_image_metadata(str(img))
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"] is None
 
     def test_returns_error_for_path_resolution_failure(self, service, state):
         """Path resolution fails → returns error."""
         state.get_brand_dir = MagicMock(return_value=(None, "No brand selected"))
         result = service.get_image_metadata("/some/path.png")
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_returns_error_for_nonexistent_image(self, service, state, mock_brand_dir):
@@ -441,5 +441,5 @@ class TestGetImageMetadata:
         result = service.get_image_metadata(
             str(mock_brand_dir / "assets" / "generated" / "nonexistent.png")
         )
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"].lower()

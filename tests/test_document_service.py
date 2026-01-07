@@ -52,7 +52,7 @@ class TestGetDocuments:
                 return_value=["doc1.txt", "doc2.md"],
             ):
                 result = service.get_documents()
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["documents"] == ["doc1.txt", "doc2.md"]
 
     def test_uses_provided_slug(self, service):
@@ -70,17 +70,17 @@ class TestGetDocuments:
             return_value=None,
         ):
             result = service.get_documents()
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_handles_exception(self, service):
         """Should return error on exception."""
         with patch(
-            "sip_studio.studio.services.document_service.storage.get_active_brand",
+            "sip_studio.studio.services.document_service.storage.list_documents",
             side_effect=Exception("Storage error"),
         ):
-            result = service.get_documents()
-        assert result["success"] == False
+            result = service.get_documents("test-brand")
+        assert not result["success"]
         assert "Storage error" in result["error"]
 
 
@@ -97,21 +97,21 @@ class TestReadDocument:
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         # relative path is within docs/, not including docs/ prefix
         result = service.read_document("test.txt")
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["content"] == "Hello World"
 
     def test_error_when_no_brand(self, service, state):
         """Should return error when no brand dir."""
         state.get_brand_dir = MagicMock(return_value=(None, "No brand selected"))
         result = service.read_document("docs/test.txt")
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_error_for_missing_file(self, service, state, mock_brand_dir):
         """Should return error when file doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.read_document("missing.txt")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_error_for_unsupported_type(self, service, state, mock_brand_dir):
@@ -120,7 +120,7 @@ class TestReadDocument:
         bad_file.write_text("binary")
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.read_document("test.exe")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Unsupported" in result["error"]
 
     def test_error_for_large_file(self, service, state, mock_brand_dir):
@@ -129,14 +129,14 @@ class TestReadDocument:
         large_file.write_text("x" * (513 * 1024))
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.read_document("large.txt")
-        assert result["success"] == False
+        assert not result["success"]
         assert "too large" in result["error"]
 
     def test_rejects_path_traversal(self, service, state, mock_brand_dir):
         """Should reject path traversal attempts."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.read_document("../../../etc/passwd")
-        assert result["success"] == False
+        assert not result["success"]
 
 
 # =============================================================================
@@ -164,7 +164,7 @@ class TestUploadDocument:
                     return_value=("docs/test.txt", None),
                 ):
                     result = service.upload_document("test.txt", content)
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["path"] == "docs/test.txt"
 
     def test_error_when_no_brand(self, service):
@@ -174,7 +174,7 @@ class TestUploadDocument:
             return_value=None,
         ):
             result = service.upload_document("test.txt", "base64data")
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_rejects_path_in_filename(self, service):
@@ -184,7 +184,7 @@ class TestUploadDocument:
             return_value="test",
         ):
             result = service.upload_document("../test.txt", "data")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Invalid filename" in result["error"]
 
     def test_rejects_unsupported_extension(self, service):
@@ -194,7 +194,7 @@ class TestUploadDocument:
             return_value="test",
         ):
             result = service.upload_document("test.exe", "data")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Unsupported" in result["error"]
 
 
@@ -215,7 +215,7 @@ class TestDeleteDocument:
                 return_value=(True, None),
             ):
                 result = service.delete_document("docs/test.txt")
-        assert result["success"] == True
+        assert result["success"]
 
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
@@ -224,7 +224,7 @@ class TestDeleteDocument:
             return_value=None,
         ):
             result = service.delete_document("docs/test.txt")
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_returns_storage_error(self, service):
@@ -238,7 +238,7 @@ class TestDeleteDocument:
                 return_value=(False, "File not found"),
             ):
                 result = service.delete_document("docs/missing.txt")
-        assert result["success"] == False
+        assert not result["success"]
         assert "File not found" in result["error"]
 
 
@@ -259,7 +259,7 @@ class TestRenameDocument:
                 return_value=("docs/new.txt", None),
             ):
                 result = service.rename_document("docs/old.txt", "new.txt")
-        assert result["success"] == True
+        assert result["success"]
         assert result["data"]["newPath"] == "docs/new.txt"
 
     def test_error_when_no_brand(self, service):
@@ -269,7 +269,7 @@ class TestRenameDocument:
             return_value=None,
         ):
             result = service.rename_document("docs/old.txt", "new.txt")
-        assert result["success"] == False
+        assert not result["success"]
         assert "No brand selected" in result["error"]
 
     def test_rejects_unsupported_new_extension(self, service):
@@ -279,7 +279,7 @@ class TestRenameDocument:
             return_value="test",
         ):
             result = service.rename_document("docs/old.txt", "new.exe")
-        assert result["success"] == False
+        assert not result["success"]
         assert "Unsupported" in result["error"]
 
 
@@ -298,18 +298,18 @@ class TestOpenDocumentInFinder:
             "sip_studio.studio.services.document_service.reveal_in_file_manager"
         ) as mock_reveal:
             result = service.open_document_in_finder("test.txt")
-        assert result["success"] == True
+        assert result["success"]
         mock_reveal.assert_called_once()
 
     def test_error_when_no_brand(self, service, state):
         """Should return error when no brand dir."""
         state.get_brand_dir = MagicMock(return_value=(None, "No brand selected"))
         result = service.open_document_in_finder("test.txt")
-        assert result["success"] == False
+        assert not result["success"]
 
     def test_error_for_missing_file(self, service, state, mock_brand_dir):
         """Should return error when file doesn't exist."""
         state.get_brand_dir = MagicMock(return_value=(mock_brand_dir, None))
         result = service.open_document_in_finder("missing.txt")
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]

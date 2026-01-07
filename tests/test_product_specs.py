@@ -306,8 +306,8 @@ class TestPackagingTextSpecs:
         assert "SHORT" in specs.packaging_text
         assert long_text not in specs.packaging_text
 
-    def test_packaging_text_caps_at_five(self):
-        """Test only first 5 valid elements are included."""
+    def test_packaging_text_includes_all_elements(self):
+        """Test all valid elements are included (text fidelity is critical)."""
         product = ProductFull(
             slug="box",
             name="Box",
@@ -319,8 +319,8 @@ class TestPackagingTextSpecs:
         specs = build_product_specs(product)
         assert '"TEXT0"' in specs.packaging_text
         assert '"TEXT4"' in specs.packaging_text
-        assert '"TEXT5"' not in specs.packaging_text
-        assert '"TEXT6"' not in specs.packaging_text
+        assert '"TEXT5"' in specs.packaging_text
+        assert '"TEXT6"' in specs.packaging_text
 
     def test_packaging_text_none_unchanged(self):
         """Test products without packaging_text don't have it in specs."""
