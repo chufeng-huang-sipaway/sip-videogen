@@ -10,6 +10,8 @@ import{useProjects}from'@/context/ProjectContext'
 import{useStyleReferences}from'@/context/StyleReferenceContext'
 import{useWorkstation}from'@/context/WorkstationContext'
 import{useDrag}from'@/context/DragContext'
+import{useTodo}from'@/hooks/useTodo'
+import{useActiveJob}from'@/hooks/useActiveJob'
 import{MessageInput}from'./MessageInput'
 import{MessageList}from'./MessageList'
 import{AttachedProducts}from'./AttachedProducts'
@@ -17,6 +19,7 @@ import{AttachedStyleReferences}from'./AttachedStyleReferences'
 import{ProjectSelector}from'./ProjectSelector'
 import{AspectRatioSelector}from'./AspectRatioSelector'
 import{ModeToggle}from'./ModeToggle'
+import{TodoListPanel}from'./TodoList'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
 import{getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
@@ -65,6 +68,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
+  //Active job + todo list for Phase 1 Production Refactor
+  const{activeJob,isPaused,isGenerating:jobActive,pause,resume,stop}=useActiveJob()
+  const{todoList}=useTodo(activeJob?.runId??null)
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
@@ -393,6 +399,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       <ScrollArea className="flex-1">
         <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
+          {/*Todo List Panel - shows during active jobs with todo lists*/}
+          <TodoListPanel todoList={todoList} isPaused={isPaused} isGenerating={jobActive||isLoading} onPause={pause} onResume={resume} onStop={stop} className="mb-4"/>
           <MessageList
             messages={messages}
             loadedSkills={loadedSkills}
