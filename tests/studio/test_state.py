@@ -175,11 +175,12 @@ def test_push_todo_completed():
 # =========================================================================
 def test_autonomy_mode():
     state = BridgeState()
-    assert not state.is_autonomy_mode()
-    state.set_autonomy_mode(True)
+    # Default is True (to avoid blocking when UI not ready)
     assert state.is_autonomy_mode()
     state.set_autonomy_mode(False)
     assert not state.is_autonomy_mode()
+    state.set_autonomy_mode(True)
+    assert state.is_autonomy_mode()
 
 
 def test_approval_request_to_dict():
@@ -238,6 +239,8 @@ def test_wait_for_approval_timeout():
 def test_wait_for_approval_approve_all_enables_autonomy():
     state = BridgeState()
     state.APPROVAL_TIMEOUT_SEC = 1.0
+    # Start in supervised mode to test that approve_all enables autonomy
+    state.set_autonomy_mode(False)
     req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
     assert not state.is_autonomy_mode()
 

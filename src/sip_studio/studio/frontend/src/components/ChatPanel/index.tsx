@@ -17,6 +17,9 @@ import{AttachedStyleReferences}from'./AttachedStyleReferences'
 import{ProjectSelector}from'./ProjectSelector'
 import{AspectRatioSelector}from'./AspectRatioSelector'
 import{ModeToggle}from'./ModeToggle'
+import{TodoList}from'./TodoList'
+import{AutonomyToggle}from'./AutonomyToggle'
+import{ApprovalPrompt}from'./ApprovalPrompt'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
 import{getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
@@ -116,6 +119,19 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setAttachmentError,
     setAspectRatio,
     setGenerationMode,
+    todoList,
+    isPaused,
+    pendingApproval,
+    autonomyMode,
+    handlePause,
+    handleResume,
+    handleStop,
+    handleNewDirection,
+    handleApprove,
+    handleApproveAll,
+    handleModifyApproval,
+    handleSkipApproval,
+    handleSetAutonomyMode,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
 
 
@@ -351,7 +367,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             disabled={isLoading || !brandSlug}
           />
         </div>
-
+        <div className="flex items-center gap-3">
+          <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading || !brandSlug} />
         <Button
           variant="ghost"
           size="sm"
@@ -367,6 +384,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
         </Button>
+        </div>
       </div>
 
       {
@@ -393,6 +411,16 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       <ScrollArea className="flex-1">
         <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
+          {todoList && (
+            <TodoList
+              todoList={todoList}
+              isPaused={isPaused}
+              onPause={handlePause}
+              onResume={handleResume}
+              onStop={handleStop}
+              onNewDirection={handleNewDirection}
+            />
+          )}
           <MessageList
             messages={messages}
             loadedSkills={loadedSkills}
@@ -484,7 +512,15 @@ await refreshProducts()}}
           hasStyleReferences={styleReferences.length > 0}
         />
       </div>
-
+      {pendingApproval && (
+        <ApprovalPrompt
+          request={pendingApproval}
+          onApprove={handleApprove}
+          onApproveAll={handleApproveAll}
+          onModify={handleModifyApproval}
+          onSkip={handleSkipApproval}
+        />
+      )}
     </main >
   )
 }

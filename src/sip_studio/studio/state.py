@@ -159,8 +159,8 @@ class BridgeState:
     # TodoList state
     _active_todo_list: TodoList | None = field(default=None, repr=False)
     _todo_seq: int = field(default=0, repr=False)
-    # Autonomy and approval state
-    _autonomy_mode: bool = field(default=False, repr=False)
+    # Autonomy and approval state (default True to avoid blocking when UI not ready)
+    _autonomy_mode: bool = field(default=True, repr=False)
     _pending_approval: ApprovalRequest | None = field(default=None, repr=False)
     _approval_response: dict[str, Any] | None = field(default=None, repr=False)
     _approval_event: threading.Event = field(default_factory=threading.Event, repr=False)

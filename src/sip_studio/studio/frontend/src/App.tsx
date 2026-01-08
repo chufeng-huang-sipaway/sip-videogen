@@ -5,6 +5,7 @@ import { ChatPanel } from '@/components/ChatPanel'
 import { ApiKeySetup } from '@/components/Setup/ApiKeySetup'
 import { UpdateModal } from '@/components/Update'
 import { BrandMemory } from '@/components/BrandMemory'
+import { QuickGenerator, QuickGeneratorFAB } from '@/components/QuickGenerator'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useBrand } from '@/context/BrandContext'
@@ -22,6 +23,7 @@ function App() {
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
   const [brandMemoryOpen, setBrandMemoryOpen] = useState(false)
+  const [quickGenOpen, setQuickGenOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
     return saved === 'true'
@@ -106,6 +108,8 @@ function App() {
       <div className="w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
       {updateInfo && (<UpdateModal updateInfo={updateInfo} onClose={() => setUpdateInfo(null)} onSkipVersion={handleSkipVersion} />)}
+      {activeBrand && <QuickGeneratorFAB onClick={() => setQuickGenOpen(true)} disabled={!activeBrand} />}
+      {quickGenOpen && activeBrand && (<QuickGenerator brandSlug={activeBrand} onClose={() => setQuickGenOpen(false)} />)}
       <Toaster />
     </div></ViewerProvider></DragProvider></TooltipProvider>)
 }
