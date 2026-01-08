@@ -576,6 +576,17 @@ interface PyWebViewAPI {
   //Todo list interrupt/resume methods
   interrupt_task(action: string, new_message?: string): Promise<BridgeResponse<{ interrupted: boolean; action: string; note: string }>>
   resume_task(): Promise<BridgeResponse<{ resumed: boolean }>>
+  //Quick generator method
+  quick_generate(prompt:string,product_slug?:string,style_reference_slug?:string,aspect_ratio?:string,count?:number):Promise<BridgeResponse<QuickGenerateResult>>
+}
+//Quick generate result type
+export interface QuickGenerateResult {
+  success:boolean
+  images:Array<{path:string;data?:string;prompt:string}>
+  errors?:Array<{index:number;error:string}>
+  generated:number
+  requested:number
+  error?:string
 }
 
 declare global {
@@ -790,4 +801,6 @@ export const bridge = {
   //Todo list interrupt/resume
   interruptTask: (action:'pause'|'stop'|'new_direction',newMessage?:string)=>callBridge(()=>window.pywebview!.api.interrupt_task(action,newMessage)),
   resumeTask: ()=>callBridge(()=>window.pywebview!.api.resume_task()),
+  //Quick generator
+  quickGenerate: (prompt:string,productSlug?:string,styleReferenceSlug?:string,aspectRatio:string='1:1',count:number=1)=>callBridge(()=>window.pywebview!.api.quick_generate(prompt,productSlug,styleReferenceSlug,aspectRatio,count)),
 }
