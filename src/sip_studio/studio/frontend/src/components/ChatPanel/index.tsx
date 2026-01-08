@@ -366,7 +366,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           {panelMode==='assistant'&&<ProjectSelector projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>}
         </div>
         <div className="flex items-center gap-3">
-          {panelMode==='assistant'&&<AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading || !brandSlug}/>}
         <Button
           variant="ghost"
           size="sm"
@@ -421,10 +420,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           <AttachedStyleReferences styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetach={detachStyleReference}/>
           {attachments.length>0&&(<div className="flex flex-wrap gap-2 px-2">{attachments.map((att)=>(<div key={att.id} className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 dark:bg-white/10 backdrop-blur-sm px-3 py-1 shadow-sm">{att.preview?(<img src={att.preview} alt={att.name} className="h-4 w-4 rounded object-cover"/>):(<Paperclip className="h-3 w-3 text-muted-foreground"/>)}<span className="text-xs max-w-[120px] truncate font-medium text-foreground/80">{att.name}</span><button type="button" className="text-muted-foreground/60 hover:text-destructive ml-1" onClick={()=>removeAttachment(att.id)}><X className="h-3 w-3"/></button></div>))}</div>)}
         </div>
-        {/* Mode Toggle + Aspect Ratio Selector */}
+        {/* Mode Toggle + Aspect Ratio Selector + Autonomy Toggle */}
         <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
           <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{setGenerationMode(m);const valid=getValidRatioForMode(aspectRatio,m);if(valid!==aspectRatio)setAspectRatio(valid)}} disabled={isLoading||!brandSlug}/>
           <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug} generationMode={generationMode}/>
+          <div className="flex-1"/>
+          <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading||!brandSlug}/>
         </div>
         {/* Input Area - Clean, no gradient background */}
         <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
