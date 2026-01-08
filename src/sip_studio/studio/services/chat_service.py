@@ -7,7 +7,12 @@ import time
 from datetime import datetime, timezone
 
 from sip_studio.advisor.agent import BrandAdvisor
-from sip_studio.advisor.tools import get_image_metadata, get_video_metadata
+from sip_studio.advisor.tools import (
+    clear_tool_context,
+    get_image_metadata,
+    get_video_metadata,
+    set_tool_context,
+)
 from sip_studio.brands.memory import list_brand_assets, list_brand_videos
 from sip_studio.brands.storage import (
     get_active_brand,
@@ -182,6 +187,8 @@ class ChatService:
             before_images = {a["path"] for a in list_brand_assets(slug, category="generated")}
             before_videos = {a["path"] for a in list_brand_videos(slug)}
             before_style_refs = {t.slug for t in storage_list_style_references(slug)}
+            # Set tool context for todo tools (uses contextvars for thread safety)
+            set_tool_context(self._state)
             # Run advisor
             validated_ratio = validate_aspect_ratio(aspect_ratio)
             mode = generation_mode if generation_mode in ("image", "video") else "image"
@@ -225,6 +232,7 @@ class ChatService:
         except Exception as e:
             return bridge_error(str(e))
         finally:
+            clear_tool_context()
             self._state.current_progress = ""
 
     def clear_chat(self) -> dict:
