@@ -510,3 +510,46 @@ class StudioBridge:
             return bridge_ok({"shared": True, "path": str(path)})
         except Exception as e:
             return bridge_error(str(e))
+
+    # ===========================================================================
+    # Quick Image Generation
+    # ===========================================================================
+    def quick_generate(
+        self,
+        prompt: str,
+        product_slug: str | None = None,
+        style_reference_slug: str | None = None,
+        aspect_ratio: str = "1:1",
+        count: int = 1,
+    ) -> dict:
+        """Quick image generation without chat.
+        Args:
+            prompt: Image generation prompt
+            product_slug: Optional product to include
+            style_reference_slug: Optional style reference
+            aspect_ratio: Image aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
+            count: Number of images to generate (1-10)
+        Returns:
+            Dict with success status and generated images list"""
+        # Validate aspect ratio
+        valid_ratios = {"1:1", "16:9", "9:16", "4:3", "3:4", "2:3", "3:2", "4:5", "5:4"}
+        if aspect_ratio not in valid_ratios:
+            return bridge_error(f"Invalid aspect ratio. Must be one of: {valid_ratios}")
+        from .services.quick_generator_service import QuickGeneratorService
+
+        service = QuickGeneratorService(self._state)
+        result = service.generate(prompt, product_slug, style_reference_slug, aspect_ratio, count)
+        if result.get("success"):
+            return bridge_ok(result)
+        else:
+            # Include structured errors in response, not just error message
+            return bridge_ok(
+                {
+                    "success": False,
+                    "error": result.get("error", "Unknown error"),
+                    "errors": result.get("errors"),
+                    "images": [],
+                    "generated": 0,
+                    "requested": count,
+                }
+            )
