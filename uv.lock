@@ -2086,8 +2086,8 @@ wheels = [
 ]
 
 [[package]]
-name = "sip-videogen"
-version = "0.7.0"
+name = "sip-studio"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "firecrawl-py" },

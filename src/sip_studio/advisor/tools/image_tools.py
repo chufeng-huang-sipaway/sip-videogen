@@ -10,6 +10,7 @@ from typing import Literal
 from agents import function_tool
 
 from sip_studio.advisor.context import get_active_context
+from sip_studio.advisor.tools.approval_tools import request_approval
 from sip_studio.config.logging import get_logger
 from sip_studio.models.aspect_ratio import validate_aspect_ratio
 from sip_studio.studio.job_state import InterruptedError
@@ -792,6 +793,25 @@ async def generate_image(
     Returns:
         Path to the saved image file, or error message.
     """
+    # Approval check: request user approval when not in autonomy mode
+    ctx = get_active_context()
+    if ctx and ctx.bridge_state and not ctx.bridge_state.autonomy_mode:
+        preview = (
+            f"Generate image: {prompt[:100]}..."
+            if len(prompt) > 100
+            else f"Generate image: {prompt}"
+        )
+        try:
+            result = await request_approval("generate_image", preview)
+            if result.action == "skip":
+                return "Skipped: User skipped this generation"
+            if result.action == "reject":
+                return "Rejected: User rejected this generation"
+            if result.action == "edit" and result.modified_prompt:
+                prompt = result.modified_prompt
+                logger.info("Prompt modified via approval: %s", prompt[:100])
+        except TimeoutError:
+            return "Error: Approval timed out - generation cancelled"
     # Session aspect ratio is source of truth (set by UI before agent runs)
     session_ratio = get_active_aspect_ratio()
     validated = validate_aspect_ratio(session_ratio)

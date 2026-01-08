@@ -158,7 +158,7 @@ class ApprovalRequest(BaseModel):
 
 
 # Approval action types
-ApprovalAction = Literal["approve", "reject", "edit", "approve_all", "auto_approved"]
+ApprovalAction = Literal["approve", "reject", "edit", "approve_all", "auto_approved", "skip"]
 
 
 class ApprovalResult(BaseModel):

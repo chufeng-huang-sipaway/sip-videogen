@@ -1,5 +1,5 @@
 //ResultsGrid - grid of generated images with download/send actions
-import{useState,useEffect}from'react'
+import{useState,useEffect,useCallback}from'react'
 import{Download,Send,AlertCircle,Image as ImageIcon}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{ScrollArea}from'@/components/ui/scroll-area'
@@ -25,6 +25,12 @@ const toggleSelect=(path:string)=>{
 setSelectedPaths(prev=>prev.includes(path)?prev.filter(p=>p!==path):[...prev,path])}
 const selectAll=()=>{setSelectedPaths(images.map(i=>i.path))}
 const deselectAll=()=>{setSelectedPaths([])}
+//Download single image
+const downloadSingle=useCallback(async(path:string,e:React.MouseEvent)=>{
+e.stopPropagation()//Prevent selection toggle
+if(!isPyWebView())return
+await bridge.openAssetInFinder(path)
+},[])
 const handleSend=()=>{
 if(selectedPaths.length===0)return
 onSendToChat(selectedPaths)
@@ -51,13 +57,17 @@ return(<div className="flex flex-col gap-3 mt-4">
 {images.map((img)=>{
 const thumb=thumbnails[img.path]
 const selected=selectedPaths.includes(img.path)
-return(<div key={img.path} onClick={()=>toggleSelect(img.path)} className={`relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${selected?'border-primary ring-2 ring-primary/20':'border-border hover:border-primary/50'}`}>
+return(<div key={img.path} onClick={()=>toggleSelect(img.path)} className={`group relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${selected?'border-primary ring-2 ring-primary/20':'border-border hover:border-primary/50'}`}>
 {thumb?(<img src={thumb} alt="" className="w-full h-full object-cover"/>):(<div className="w-full h-full flex items-center justify-center bg-muted">
 <ImageIcon className="h-6 w-6 text-muted-foreground/50"/>
 </div>)}
 {selected&&(<div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
 <span className="text-xs text-primary-foreground font-medium">✓</span>
 </div>)}
+{/*Download button on hover*/}
+<button type="button" onClick={(e)=>downloadSingle(img.path,e)} className="absolute bottom-1 right-1 w-6 h-6 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<Download className="h-3 w-3 text-white"/>
+</button>
 </div>)})}
 </div>
 </ScrollArea>

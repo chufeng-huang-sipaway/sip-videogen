@@ -19,14 +19,13 @@ import{MessageList}from'./MessageList'
 import{AttachedProducts}from'./AttachedProducts'
 import{AttachedStyleReferences}from'./AttachedStyleReferences'
 import{ProjectSelector}from'./ProjectSelector'
-import{AspectRatioSelector}from'./AspectRatioSelector'
 import{ModeToggle}from'./ModeToggle'
 import{TodoListPanel}from'./TodoList'
 import{ApprovalPrompt}from'./ApprovalPrompt'
 import{AutonomyToggle}from'./AutonomyToggle'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
-import{getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
+import type{GenerationMode}from'@/types/aspectRatio'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -73,9 +72,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
   //Active job + todo list + approval for Phase 1 Production Refactor
-  const{activeJob,isPaused,isGenerating:jobActive,pause,resume,stop}=useActiveJob()
+  const{activeJob,isPaused,isGenerating:jobActive,pause,resume,stop,stopWithNewDirection}=useActiveJob()
   const{todoList}=useTodo(activeJob?.runId??null)
-  const{pendingApproval,respondApprove,respondReject,respondEdit,respondApproveAll}=useApproval()
+  const{pendingApproval,respondApprove,respondReject,respondEdit,respondApproveAll,respondSkip}=useApproval()
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
@@ -114,7 +113,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     error,
     attachmentError,
     attachments,
-    aspectRatio,
     generationMode,
     sendMessage,
     clearMessages,
@@ -125,7 +123,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
-    setAspectRatio,
     setGenerationMode,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
 
@@ -414,7 +411,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       <ScrollArea className="flex-1">
         <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
           {/*Todo List Panel - shows during active jobs with todo lists*/}
-          <TodoListPanel todoList={todoList} isPaused={isPaused} isGenerating={jobActive||isLoading} onPause={pause} onResume={resume} onStop={stop} className="mb-4"/>
+          <TodoListPanel todoList={todoList} isPaused={isPaused} isGenerating={jobActive||isLoading} onPause={pause} onResume={resume} onStop={stop} onNewDirection={stopWithNewDirection} className="mb-4"/>
           <MessageList
             messages={messages}
             loadedSkills={loadedSkills}
@@ -423,7 +420,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             products={products}
             onInteractionSelect={async (messageId, selection) => {
               resolveInteraction(messageId)
-              await sendMessage(selection,{aspect_ratio:aspectRatio,generation_mode:generationMode})
+              await sendMessage(selection,{generation_mode:generationMode})
               await refreshProducts()
             }}
             onRegenerate={regenerateMessage}
@@ -470,14 +467,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         )}
       </div>
 
-      {/* Mode Toggle + Aspect Ratio Selector */}
+      {/* Mode Toggle */}
       <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
-        <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{
-setGenerationMode(m)
-//Auto-adjust aspect ratio if current is invalid for new mode
-const valid=getValidRatioForMode(aspectRatio,m)
-if(valid!==aspectRatio)setAspectRatio(valid)}} disabled={isLoading||!brandSlug}/>
-        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug} generationMode={generationMode}/>
+        <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{setGenerationMode(m)}} disabled={isLoading||!brandSlug}/>
       </div>
 
       {/* Input Area - Clean, no gradient background */}
@@ -498,7 +490,7 @@ const srMap=new Map<string,AttachedStyleReference>()
 for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t)
 for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t)
 const allStyleRefs=Array.from(srMap.values())
-await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,aspect_ratio:aspectRatio,generation_mode:generationMode})
+await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,generation_mode:generationMode})
 await refreshProducts()}}
           canSendWithoutText={attachments.length > 0}
           onSelectImages={handleSelectImages}
@@ -508,7 +500,7 @@ await refreshProducts()}}
       </div>
 
       {/*Approval Prompt Modal - shows when approval is pending*/}
-      <ApprovalPrompt approval={pendingApproval} onApprove={respondApprove} onReject={respondReject} onEdit={respondEdit} onApproveAll={respondApproveAll}/>
+      <ApprovalPrompt approval={pendingApproval} onApprove={respondApprove} onReject={respondReject} onEdit={respondEdit} onApproveAll={respondApproveAll} onSkip={respondSkip}/>
     </main >
   )
 }

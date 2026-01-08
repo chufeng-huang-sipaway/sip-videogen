@@ -1,19 +1,26 @@
 //QuickGeneratorPanel - main container for quick generator dialog
+import{useCallback}from'react'
 import{X}from'lucide-react'
 import{Dialog,DialogContent,DialogHeader,DialogTitle}from'@/components/ui/dialog'
 import{Button}from'@/components/ui/button'
 import{Progress}from'@/components/ui/progress'
-import{GeneratorForm}from'./GeneratorForm'
+import{GeneratorForm,type Product,type StyleReference}from'./GeneratorForm'
 import{ResultsGrid}from'./ResultsGrid'
 import type{UseQuickGeneratorResult}from'@/hooks/useQuickGenerator'
 interface QuickGeneratorPanelProps{
 generator:UseQuickGeneratorResult
 onSendToChat:(paths:string[])=>void
-disabled?:boolean}
-export function QuickGeneratorPanel({generator,onSendToChat,disabled}:QuickGeneratorPanelProps){
+disabled?:boolean
+products?:Array<{slug:string;name:string}>
+styleReferences?:Array<{slug:string;name:string}>}
+export function QuickGeneratorPanel({generator,onSendToChat,disabled,products=[],styleReferences=[]}:QuickGeneratorPanelProps){
 const{status,progress,generatedImages,errors,isOpen,close,generate,cancel,clear,downloadAll}=generator
 const isGenerating=status==='running'
 const progressPercent=progress?(progress.completed/progress.total)*100:0
+//Wrap generate to pass product/style ref from form
+const handleGenerate=useCallback(async(prompts:string[],aspectRatio:string,productSlug?:string,styleRefSlug?:string)=>{
+await generate(prompts,aspectRatio,productSlug,styleRefSlug)
+},[generate])
 return(<Dialog open={isOpen} onOpenChange={(open)=>{if(!open)close()}}>
 <DialogContent className="sm:max-w-md">
 <DialogHeader>
@@ -25,7 +32,7 @@ return(<Dialog open={isOpen} onOpenChange={(open)=>{if(!open)close()}}>
 </DialogTitle>
 </DialogHeader>
 <div className="py-2">
-<GeneratorForm onGenerate={generate} onCancel={cancel} isGenerating={isGenerating} disabled={disabled}/>
+<GeneratorForm onGenerate={handleGenerate} onCancel={cancel} isGenerating={isGenerating} disabled={disabled} products={products as Product[]} styleReferences={styleReferences as StyleReference[]}/>
 {isGenerating&&progress&&(<div className="mt-4 space-y-2">
 <div className="flex items-center justify-between text-xs text-muted-foreground">
 <span>Generating {progress.completed+1} of {progress.total}...</span>

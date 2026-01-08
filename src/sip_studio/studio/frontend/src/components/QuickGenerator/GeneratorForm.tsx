@@ -1,57 +1,77 @@
 //GeneratorForm - form for entering prompts and starting generation
 import{useState,useCallback}from'react'
-import{Plus,Trash2,Play,X}from'lucide-react'
+import{Play,X}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{Input}from'@/components/ui/input'
-import{ScrollArea}from'@/components/ui/scroll-area'
+export interface Product{slug:string;name:string}
+export interface StyleReference{slug:string;name:string}
 interface GeneratorFormProps{
-onGenerate:(prompts:string[],aspectRatio:string)=>Promise<void>
+onGenerate:(prompts:string[],aspectRatio:string,productSlug?:string,styleRefSlug?:string)=>Promise<void>
 onCancel:()=>Promise<void>
 isGenerating:boolean
-disabled?:boolean}
+disabled?:boolean
+products?:Product[]
+styleReferences?:StyleReference[]}
 const ASPECT_RATIOS=['1:1','16:9','9:16','4:3','3:4']
-export function GeneratorForm({onGenerate,onCancel,isGenerating,disabled}:GeneratorFormProps){
-const[prompts,setPrompts]=useState<string[]>([''])
+const COUNT_OPTIONS=[1,3,5,10]
+export function GeneratorForm({onGenerate,onCancel,isGenerating,disabled,products=[],styleReferences=[]}:GeneratorFormProps){
+const[prompt,setPrompt]=useState('')
+const[count,setCount]=useState(1)
 const[aspectRatio,setAspectRatio]=useState('1:1')
-const addPrompt=useCallback(()=>{setPrompts(p=>[...p,''])},[])
-const removePrompt=useCallback((idx:number)=>{setPrompts(p=>p.filter((_,i)=>i!==idx))},[])
-const updatePrompt=useCallback((idx:number,value:string)=>{setPrompts(p=>p.map((v,i)=>i===idx?value:v))},[])
+const[productSlug,setProductSlug]=useState<string|undefined>()
+const[styleRefSlug,setStyleRefSlug]=useState<string|undefined>()
 const handleSubmit=useCallback(async()=>{
-const valid=prompts.filter(p=>p.trim().length>0)
-if(valid.length===0)return
-await onGenerate(valid,aspectRatio)
-},[prompts,aspectRatio,onGenerate])
-const canSubmit=prompts.some(p=>p.trim().length>0)&&!isGenerating&&!disabled
+if(!prompt.trim())return
+//Generate count copies of the same prompt
+const prompts=Array(count).fill(prompt.trim())
+await onGenerate(prompts,aspectRatio,productSlug,styleRefSlug)
+},[prompt,count,aspectRatio,productSlug,styleRefSlug,onGenerate])
+const canSubmit=prompt.trim().length>0&&!isGenerating&&!disabled
 return(<div className="flex flex-col gap-4">
-<div className="flex items-center justify-between">
-<h3 className="text-sm font-medium">Prompts</h3>
-<Button variant="ghost" size="sm" onClick={addPrompt} disabled={isGenerating||disabled} className="gap-1.5 h-7">
-<Plus className="h-3.5 w-3.5"/>Add
-</Button>
+{/*Prompt input*/}
+<div className="flex flex-col gap-2">
+<h3 className="text-sm font-medium">Prompt</h3>
+<Input value={prompt} onChange={(e)=>setPrompt(e.target.value)} placeholder="Describe your image..." disabled={isGenerating||disabled} className="h-9 text-sm"/>
 </div>
-<ScrollArea className="max-h-48">
-<div className="flex flex-col gap-2 pr-2">
-{prompts.map((prompt,idx)=>(<div key={idx} className="flex items-center gap-2">
-<Input value={prompt} onChange={(e)=>updatePrompt(idx,e.target.value)} placeholder={`Prompt ${idx+1}...`} disabled={isGenerating||disabled} className="flex-1 h-9 text-sm"/>
-{prompts.length>1&&(<Button variant="ghost" size="icon" onClick={()=>removePrompt(idx)} disabled={isGenerating||disabled} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-<Trash2 className="h-3.5 w-3.5"/>
-</Button>)}
-</div>))}
-</div>
-</ScrollArea>
+{/*Product dropdown*/}
+{products.length>0&&(<div className="flex items-center gap-2">
+<span className="text-xs text-muted-foreground w-16">Product:</span>
+<select value={productSlug||''} onChange={(e)=>setProductSlug(e.target.value||undefined)} disabled={isGenerating||disabled} className="flex-1 h-8 text-xs px-2 rounded-md border border-input bg-background">
+<option value="">None</option>
+{products.map(p=>(<option key={p.slug} value={p.slug}>{p.name}</option>))}
+</select>
+</div>)}
+{/*Style Reference dropdown*/}
+{styleReferences.length>0&&(<div className="flex items-center gap-2">
+<span className="text-xs text-muted-foreground w-16">Style:</span>
+<select value={styleRefSlug||''} onChange={(e)=>setStyleRefSlug(e.target.value||undefined)} disabled={isGenerating||disabled} className="flex-1 h-8 text-xs px-2 rounded-md border border-input bg-background">
+<option value="">None</option>
+{styleReferences.map(s=>(<option key={s.slug} value={s.slug}>{s.name}</option>))}
+</select>
+</div>)}
+{/*Count selector*/}
 <div className="flex items-center gap-2">
-<span className="text-xs text-muted-foreground">Aspect:</span>
+<span className="text-xs text-muted-foreground w-16">Count:</span>
+<div className="flex gap-1">
+{COUNT_OPTIONS.map(c=>(<Button key={c} variant={count===c?'secondary':'ghost'} size="sm" onClick={()=>setCount(c)} disabled={isGenerating||disabled} className="h-7 w-8 px-0 text-xs">
+{c}
+</Button>))}
+</div>
+</div>
+{/*Aspect ratio selector*/}
+<div className="flex items-center gap-2">
+<span className="text-xs text-muted-foreground w-16">Aspect:</span>
 <div className="flex gap-1">
 {ASPECT_RATIOS.map(ar=>(<Button key={ar} variant={aspectRatio===ar?'secondary':'ghost'} size="sm" onClick={()=>setAspectRatio(ar)} disabled={isGenerating||disabled} className="h-7 px-2 text-xs">
 {ar}
 </Button>))}
 </div>
 </div>
+{/*Generate/Cancel button*/}
 <div className="flex items-center gap-2 pt-2">
 {isGenerating?(<Button variant="destructive" size="sm" onClick={onCancel} className="gap-1.5 flex-1">
 <X className="h-3.5 w-3.5"/>Cancel
 </Button>):(<Button size="sm" onClick={handleSubmit} disabled={!canSubmit} className="gap-1.5 flex-1">
-<Play className="h-3.5 w-3.5"/>Generate
-</Button>)}
+<Play className="h-3.5 w-3.5"/>Generate {count>1?`(${count})`:''}</Button>)}
 </div>
 </div>)}

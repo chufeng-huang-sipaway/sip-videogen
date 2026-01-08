@@ -10,7 +10,8 @@ isApprovalPending:boolean
 respondApprove:()=>Promise<void>
 respondReject:()=>Promise<void>
 respondEdit:(modifiedPrompt:string)=>Promise<void>
-respondApproveAll:()=>Promise<void>}
+respondApproveAll:()=>Promise<void>
+respondSkip:()=>Promise<void>}
 export function useApproval():UseApprovalResult{
 const[pendingApproval,setPendingApproval]=useState<ApprovalRequest|null>(null)
 //Hydrate on mount
@@ -38,7 +39,8 @@ const respondApprove=useCallback(()=>respond('approve'),[respond])
 const respondReject=useCallback(()=>respond('reject'),[respond])
 const respondEdit=useCallback((modifiedPrompt:string)=>respond('edit',modifiedPrompt),[respond])
 const respondApproveAll=useCallback(()=>respond('approve_all'),[respond])
+const respondSkip=useCallback(()=>respond('skip'),[respond])
 return{
 pendingApproval,
 isApprovalPending:!!pendingApproval,
-respondApprove,respondReject,respondEdit,respondApproveAll}}
+respondApprove,respondReject,respondEdit,respondApproveAll,respondSkip}}

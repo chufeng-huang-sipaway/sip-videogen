@@ -21,6 +21,12 @@ setActiveJob(state.activeJob)}).catch(()=>{})
 //Subscribe to job lifecycle events
 useEffect(()=>{
 const unsubs:Array<()=>void>=[]
+//Job started
+unsubs.push(eventBus.subscribe(EVENT_NAMES.onJobStarted,(data:{runId:string;jobType:'chat'|'quick_generate'})=>{
+setActiveJob({runId:data.runId,jobType:data.jobType,isPaused:false,todoList:null,createdAt:new Date().toISOString()})}))
+//Job completed
+unsubs.push(eventBus.subscribe(EVENT_NAMES.onJobCompleted,(data:{runId:string})=>{
+setActiveJob(prev=>prev&&prev.runId===data.runId?null:prev)}))
 //Job paused
 unsubs.push(eventBus.subscribe(EVENT_NAMES.onJobPaused,(data:{runId:string})=>{
 setActiveJob(prev=>prev&&prev.runId===data.runId?{...prev,isPaused:true}:prev)}))

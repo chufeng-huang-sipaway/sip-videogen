@@ -14,9 +14,10 @@ isGenerating:boolean
 onPause:()=>void
 onResume:()=>void
 onStop:()=>void
+onNewDirection?:(message:string)=>void
 onSkipItem?:(id:string)=>void
 className?:string}
-export function TodoListPanel({todoList,isPaused,isGenerating,onPause,onResume,onStop,onSkipItem,className}:TodoListPanelProps){
+export function TodoListPanel({todoList,isPaused,isGenerating,onPause,onResume,onStop,onNewDirection,onSkipItem,className}:TodoListPanelProps){
 const[expanded,setExpanded]=useState(true)
 if(!todoList||todoList.items.length===0)return null
 const{done,total}=getTodoProgress(todoList)
@@ -37,4 +38,4 @@ return(<div className={cn('border rounded-lg bg-card/50 backdrop-blur-sm overflo
 {todoList.items.map(item=><TodoItem key={item.id} item={item} onSkip={onSkipItem} disabled={allDone}/>)}</div>)}
 {/*Controls footer*/}
 {(isGenerating||isPaused)&&expanded&&(<div className="px-3 py-2 border-t border-border/50">
-<TodoControls isPaused={isPaused} isGenerating={isGenerating} onPause={onPause} onResume={onResume} onStop={onStop}/></div>)}</div>)}
+<TodoControls isPaused={isPaused} isGenerating={isGenerating} onPause={onPause} onResume={onResume} onStop={onStop} onNewDirection={onNewDirection}/></div>)}</div>)}

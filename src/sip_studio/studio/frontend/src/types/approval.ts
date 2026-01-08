@@ -1,5 +1,5 @@
 //Approval types matching backend job_state.py models (camelCase from serialization_alias)
-export type ApprovalAction='approve'|'reject'|'edit'|'approve_all'|'auto_approved'
+export type ApprovalAction='approve'|'reject'|'edit'|'approve_all'|'auto_approved'|'skip'
 export interface ApprovalRequest{
 id:string
 runId:string

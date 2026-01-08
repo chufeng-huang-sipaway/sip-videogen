@@ -1,6 +1,6 @@
 //ApprovalPrompt - modal dialog for user approval of sensitive operations
 import{useState,useEffect}from'react'
-import{Check,X,Edit2,CheckCheck,Clock}from'lucide-react'
+import{Check,X,Edit2,CheckCheck,Clock,SkipForward}from'lucide-react'
 import{Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter}from'@/components/ui/dialog'
 import{Button}from'@/components/ui/button'
 import type{ApprovalRequest}from'@/types/approval'
@@ -9,8 +9,9 @@ approval:ApprovalRequest|null
 onApprove:()=>void
 onReject:()=>void
 onEdit:(modifiedPrompt:string)=>void
-onApproveAll:()=>void}
-export function ApprovalPrompt({approval,onApprove,onReject,onEdit,onApproveAll}:ApprovalPromptProps){
+onApproveAll:()=>void
+onSkip?:()=>void}
+export function ApprovalPrompt({approval,onApprove,onReject,onEdit,onApproveAll,onSkip}:ApprovalPromptProps){
 const[editMode,setEditMode]=useState(false)
 const[editedPrompt,setEditedPrompt]=useState('')
 const[timeRemaining,setTimeRemaining]=useState<number|null>(null)
@@ -68,11 +69,14 @@ The agent wants to execute <span className="font-medium text-foreground">{approv
 <Button variant="ghost" size="sm" onClick={onReject} className="gap-1.5 text-destructive hover:text-destructive">
 <X className="h-3.5 w-3.5"/>Reject
 </Button>
+{onSkip&&(<Button variant="ghost" size="sm" onClick={onSkip} className="gap-1.5">
+<SkipForward className="h-3.5 w-3.5"/>Skip
+</Button>)}
 <Button variant="outline" size="sm" onClick={()=>setEditMode(true)} className="gap-1.5">
-<Edit2 className="h-3.5 w-3.5"/>Edit
+<Edit2 className="h-3.5 w-3.5"/>Modify
 </Button>
 <Button variant="outline" size="sm" onClick={onApproveAll} className="gap-1.5">
-<CheckCheck className="h-3.5 w-3.5"/>Approve All
+<CheckCheck className="h-3.5 w-3.5"/>Accept All Auto
 </Button>
 <Button size="sm" onClick={onApprove} className="gap-1.5">
 <Check className="h-3.5 w-3.5"/>Approve
