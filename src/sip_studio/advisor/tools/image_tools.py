@@ -129,8 +129,11 @@ async def _impl_generate_image(
     strict: bool = True,
     validate_identity: bool = False,
     max_retries: int = 3,
+    skip_project: bool = False,
 ) -> str:
-    """Implementation of generate_image tool with optional reference-based generation."""
+    """Implementation of generate_image tool with optional reference-based generation.
+    Args:
+        skip_project: If True, don't tag image with active project (for Playground mode)."""
     import io
     import time
 
@@ -156,7 +159,9 @@ async def _impl_generate_image(
     else:
         output_dir = _common.get_brands_dir() / "_temp"
     output_dir.mkdir(parents=True, exist_ok=True)
-    active_project = _common.get_active_project(brand_slug) if brand_slug else None
+    active_project = (
+        _common.get_active_project(brand_slug) if brand_slug and not skip_project else None
+    )
     if active_project:
         generated_filename = _generate_output_filename(active_project)
         if filename:

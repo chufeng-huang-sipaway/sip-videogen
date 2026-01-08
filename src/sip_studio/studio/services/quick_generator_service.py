@@ -131,6 +131,7 @@ class QuickGeneratorService:
             template_slug=style_reference_slug,
             strict=True,
             validate_identity=bool(product_slug),
+            skip_project=True,
         )
         # Result is either a path string or an error string
         if result.startswith("Error"):
