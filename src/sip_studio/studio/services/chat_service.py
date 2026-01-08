@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sip_studio.brands.storage import get_active_brand
 from sip_studio.config.logging import get_logger
-from sip_studio.studio.job_state import TodoItemStatus
+from sip_studio.studio.job_state import TodoItemStatus, TodoList
 
 from ..state import BridgeState
 from ..utils.bridge_types import bridge_error, bridge_ok
@@ -88,8 +88,12 @@ class ChatService:
         attached_style_references: list[dict] | None = None,
         aspect_ratio: str | None = None,
         generation_mode: str | None = None,
+        preserved_todo: TodoList | None = None,
     ) -> dict:
-        """Synchronous chat for backward compatibility. Blocks until complete."""
+        """Synchronous chat for backward compatibility. Blocks until complete.
+        Args:
+            preserved_todo: Optional todo list from paused job to preserve across resume.
+        """
         if not self._state.can_start_job():
             return {"success": False, "error": "A job is already running", "busy": True}
         run_id = str(uuid4())
@@ -97,6 +101,10 @@ class ChatService:
             job_state = self._state.create_job(run_id, "chat")
         except Exception as e:
             return bridge_error(str(e))
+        # Attach preserved todo list to new job (Fix: resume was losing todo list)
+        if preserved_todo:
+            preserved_todo.run_id = run_id
+            self._state.set_todo_list(run_id, preserved_todo)
         self._state.start_chat_turn()
         job = ChatJob(run_id, self._state, job_state)
         self._current_job = job
@@ -132,7 +140,9 @@ class ChatService:
         return bridge_ok({"interrupted": True, "action": action})
 
     def resume_task(self) -> dict:
-        """Resume a paused chat task (Fix #4)."""
+        """Resume a paused chat task (Fix #4).
+        Preserves todo list across resume by passing it to the new job.
+        """
         job = self._state.get_active_job()
         if not job:
             return bridge_error("No active job")
@@ -156,12 +166,13 @@ class ChatService:
             resume_msg = "Continue with remaining tasks: " + ", ".join(pending_items)
         else:
             resume_msg = "Continue with the task."
+        # Preserve todo list before cleanup
+        preserved_todo = job.todo_list
         # Cleanup old job state before starting new chat
-        old_run_id = job.run_id
-        self._state.cleanup_job(old_run_id)
+        self._state.cleanup_job(job.run_id)
         self._current_job = None
-        # Start new chat with resume message
-        return self.chat_sync(resume_msg)
+        # Start new chat with resume message and preserved todo list
+        return self.chat_sync(resume_msg, preserved_todo=preserved_todo)
 
     def clear_chat(self) -> dict:
         """Clear conversation history."""

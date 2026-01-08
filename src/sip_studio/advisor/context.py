@@ -6,6 +6,7 @@ approvals, and interruption handling.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -93,27 +94,27 @@ class RunContext:
         return cls(run_id=run_id)
 
 
-# Module-level context storage for tools that need access
-_active_context: RunContext | None = None
+# Thread-local context storage for tools that need access.
+# Using threading.local() ensures each thread (e.g., background chat job)
+# has its own context, preventing cross-contamination between jobs.
+_context_local = threading.local()
 
 
 def get_active_context() -> RunContext | None:
-    """Get the currently active run context.
+    """Get the currently active run context for the current thread.
     Tools can use this to access job state without explicit parameter passing.
     Returns None if no context is active.
     """
-    return _active_context
+    return getattr(_context_local, "context", None)
 
 
 def set_active_context(ctx: RunContext | None) -> None:
-    """Set the active run context for the current execution.
+    """Set the active run context for the current thread.
     Should be called at the start of agent execution and cleared at the end.
     """
-    global _active_context
-    _active_context = ctx
+    _context_local.context = ctx
 
 
 def clear_active_context() -> None:
-    """Clear the active run context."""
-    global _active_context
-    _active_context = None
+    """Clear the active run context for the current thread."""
+    _context_local.context = None
