@@ -22,6 +22,7 @@ from .metadata import (
     store_image_metadata,
 )
 from .session import get_active_aspect_ratio
+from .todo_tools import get_tool_state
 
 logger = get_logger(__name__)
 
@@ -67,6 +68,54 @@ def _build_style_reference_image_label(style_ref_name: str, num_images: int) -> 
         f"- The PRODUCT reference images define WHAT to generate\n"
         f"- These style reference images define HOW it should look (color/mood only):"
     )
+
+
+def _request_approval_if_supervised(
+    prompt: str, action_type: str = "generate_image"
+) -> tuple[str, bool]:
+    """Check if approval needed and wait for it. Returns (prompt, should_proceed).
+    CRITICAL: This is enforced at chokepoint, NOT reliant on agent behavior.
+    Args:
+        prompt: The generation prompt
+        action_type: Type of action for approval display
+    Returns:
+        (prompt, True) - Proceed with (possibly modified) prompt
+        (prompt, False) - User skipped, do not proceed
+    Raises:
+        RuntimeError: If state not initialized (fail-closed, NOT fail-open)
+    """
+    from sip_studio.studio.state import ApprovalRequest
+
+    state = get_tool_state()
+    if not state:
+        # In autonomy mode by default if no state (e.g., quick generator)
+        return (prompt, True)
+    # In autonomy mode, skip approval
+    if state.is_autonomy_mode():
+        return (prompt, True)
+    # Check for interrupt before requesting approval
+    interrupt = state.get_interrupt()
+    if interrupt:
+        logger.info(f"Skipping approval due to interrupt: {interrupt}")
+        return (prompt, False)
+    # Request approval
+    request = ApprovalRequest(
+        id=str(uuid.uuid4())[:8],
+        action_type=action_type,
+        description=f"Generate image with prompt: {prompt[:100]}{'...' if len(prompt) > 100 else ''}",
+        prompt=prompt,
+    )
+    response = state.wait_for_approval(request)
+    action = response.get("action", "skip")
+    if action in ("approve", "approve_all"):
+        return (prompt, True)
+    elif action == "modify":
+        modified = response.get("modified_prompt", prompt)
+        logger.info(f"Prompt modified by user: {modified[:100]}...")
+        return (modified, True)
+    else:  # skip or timeout
+        logger.info(f"Generation skipped by user (action={action})")
+        return (prompt, False)
 
 
 async def _impl_generate_image(
@@ -769,6 +818,10 @@ async def generate_image(
     Returns:
         Path to the saved image file, or error message.
     """
+    # APPROVAL CHOKEPOINT: Check if user approval is required before generation
+    final_prompt, should_proceed = _request_approval_if_supervised(prompt)
+    if not should_proceed:
+        return "Image generation skipped by user"
     # Session aspect ratio is source of truth (set by UI before agent runs)
     session_ratio = get_active_aspect_ratio()
     validated = validate_aspect_ratio(session_ratio)
@@ -776,7 +829,7 @@ async def generate_image(
     if aspect_ratio and aspect_ratio != effective_ratio:
         logger.debug(f"Using session aspect_ratio={effective_ratio} (LLM suggested {aspect_ratio})")
     return await _impl_generate_image(
-        prompt,
+        final_prompt,
         effective_ratio,
         filename,
         reference_image,
