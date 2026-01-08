@@ -359,29 +359,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         </div>
       )}
 
-      {/* Header - Minimalist */}
-      <div className="h-16 flex items-center justify-between px-6 pt-4 pb-2 bg-transparent z-10">
-        <div className="flex items-center gap-3">
-          <PanelModeToggle value={panelMode} onChange={setPanelMode} disabled={!brandSlug}/>
-          {panelMode==='assistant'&&<ProjectSelector projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>}
-        </div>
-        <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            clearMessages()
-            clearAttachments()
-            clearStyleReferenceAttachments()
-            setInputText('')
-          }}
-          disabled={isLoading || messages.length === 0}
-          className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New Chat</span>
-        </Button>
-        </div>
+      {/* Header - Mode tabs only (top level navigation) */}
+      <div className="flex items-center justify-center px-6 pt-4 pb-2 bg-transparent z-10">
+        <PanelModeToggle value={panelMode} onChange={setPanelMode} disabled={!brandSlug}/>
       </div>
 
       {
@@ -408,6 +388,11 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Assistant Mode - hidden when playground active (keeps state) */}
       <div className={panelMode==='assistant'?'flex flex-col flex-1 min-h-0':'hidden'}>
+        {/* Assistant subheader: Project selector + New Chat */}
+        <div className="flex items-center justify-between px-4 pb-2">
+          <ProjectSelector projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>
+          <Button variant="ghost" size="sm" onClick={()=>{clearMessages();clearAttachments();clearStyleReferenceAttachments();setInputText('')}} disabled={isLoading||messages.length===0} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5"/><span>New Chat</span></Button>
+        </div>
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
             {todoList&&(<TodoList todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>)}

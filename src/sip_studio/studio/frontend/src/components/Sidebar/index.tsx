@@ -55,7 +55,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   return (
     <TooltipProvider delayDuration={300}>
       <div className="relative flex-shrink-0 h-full" style={{width: SIDEBAR_COLLAPSED_WIDTH}} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col border-r border-border/20 transition-all duration-200 bg-background",isExpanded?"w-[280px] z-50 shadow-xl bg-sidebar/95 backdrop-blur-xl":"w-[72px] bg-sidebar/50 backdrop-blur-md")}>
+        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col border-r border-border/20 transition-all duration-200",isExpanded?"w-[280px] z-50 shadow-xl bg-background/95 backdrop-blur-xl":"w-[72px] bg-background/80 backdrop-blur-md")}>
           {isExpanded ? (
             <>
               {/* Header */}
