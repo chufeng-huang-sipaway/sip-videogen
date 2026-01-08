@@ -9,8 +9,10 @@ from typing import Literal
 
 from agents import function_tool
 
+from sip_studio.advisor.context import get_active_context
 from sip_studio.config.logging import get_logger
 from sip_studio.models.aspect_ratio import validate_aspect_ratio
+from sip_studio.studio.job_state import InterruptedError
 
 from . import _common
 from .memory_tools import emit_tool_thinking
@@ -24,6 +26,16 @@ from .metadata import (
 from .session import get_active_aspect_ratio
 
 logger = get_logger(__name__)
+
+
+def _check_interrupt() -> None:
+    """Check for interrupt request and raise InterruptedError if found.
+    Cooperative cancellation: tools should call this before and after long operations."""
+    ctx = get_active_context()
+    if ctx:
+        action = ctx.check_interrupt()
+        if action:
+            raise InterruptedError(action, ctx.get_interrupt_message())  # type: ignore[arg-type]
 
 
 def _generate_output_filename(project_slug: str | None = None) -> str:
@@ -89,6 +101,8 @@ async def _impl_generate_image(
     from google.genai import types
     from PIL import Image as PILImage
 
+    # Cooperative cancellation: check before starting
+    _check_interrupt()
     logger.info(
         "[generate_image] PARAMS: slug=%s, slugs=%s, ref_img=%s, template_slug=%s, strict=%s, validate=%s",
         product_slug,
@@ -312,6 +326,7 @@ async def _impl_generate_image(
             status="pending",
         )
         try:
+            _check_interrupt()  # Cooperative cancellation before multi-product generation
             client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
             result = await generate_with_multi_validation(
                 client=client,
@@ -326,6 +341,7 @@ async def _impl_generate_image(
                 style_ref_images_bytes=style_ref_images_bytes or None,
                 style_ref_name=style_ref_name,
             )
+            _check_interrupt()  # Cooperative cancellation after multi-product generation
             if isinstance(result, str):
                 return result
             actual_path = result.path
@@ -395,6 +411,8 @@ async def _impl_generate_image(
                 status="complete",
             )
             return return_value
+        except InterruptedError:
+            raise  # Re-raise interrupt to propagate to ChatJob handler
         except Exception as e:
             logger.error(f"Multi-product image generation failed: {e}")
             emit_tool_thinking(
@@ -540,6 +558,7 @@ async def _impl_generate_image(
         status="pending",
     )
     try:
+        _check_interrupt()  # Cooperative cancellation before generation
         client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
         if validate_identity and reference_image_bytes:
             from sip_studio.advisor.validation import generate_with_validation
@@ -557,6 +576,7 @@ async def _impl_generate_image(
                 style_ref_images_bytes=style_ref_images_bytes or None,
                 style_ref_name=style_ref_name,
             )
+            _check_interrupt()  # Cooperative cancellation after validation generation
             if isinstance(val_result, str):
                 return val_result
             actual_path = val_result.path
@@ -653,6 +673,7 @@ async def _impl_generate_image(
                 image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size),
             ),
         )
+        _check_interrupt()  # Cooperative cancellation after standard generation
         for part in response.parts or []:
             if part.inline_data:
                 image = part.as_image()
@@ -727,6 +748,8 @@ async def _impl_generate_image(
             step_id=step_id,
         )
         return "Error: No image generated in response"
+    except InterruptedError:
+        raise  # Re-raise interrupt to propagate to ChatJob handler
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         emit_tool_thinking(
