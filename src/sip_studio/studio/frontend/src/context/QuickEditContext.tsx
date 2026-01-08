@@ -44,7 +44,7 @@ const prods:string[]=Array.isArray(raw)?[...new Set(raw.filter((s):s is string=>
 //Extract aspect ratio from metadata to preserve original dimensions
 const aspectRatio=meta?.aspect_ratio as import('../types/aspectRatio').AspectRatio|undefined
 console.log('[QuickEdit] path=',path,'prods=',prods,'aspectRatio=',aspectRatio)
-const res=await bridge.chat(`Edit this image: ${prompt}`,[att],{project_slug:null,attached_products:prods.length>0?prods:undefined,aspect_ratio:aspectRatio})
+const res=await bridge.chat(`Edit this image: ${prompt}`,[att],{project_slug:null,attached_products:prods.length>0?prods:undefined,image_aspect_ratio:aspectRatio})
 if(!mountedRef.current||requestIdRef.current!==reqId)return
 const imgPath=res?.images?.[0]?.path
 if(!imgPath){setState(s=>({...s,isGenerating:false,error:'No image generated'}));return}

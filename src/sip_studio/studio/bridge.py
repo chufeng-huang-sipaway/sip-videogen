@@ -85,15 +85,18 @@ class StudioBridge:
             return bridge_error(str(e))
 
     def get_chat_prefs(self, brand_slug: str) -> dict:
-        """Get chat preferences (aspect_ratio, generation_mode) for a brand."""
+        """Get chat preferences (image_aspect_ratio, video_aspect_ratio) for a brand."""
         return bridge_ok(get_chat_preferences(brand_slug))
 
     def save_chat_prefs(
-        self, brand_slug: str, aspect_ratio: str | None = None, generation_mode: str | None = None
+        self,
+        brand_slug: str,
+        image_aspect_ratio: str | None = None,
+        video_aspect_ratio: str | None = None,
     ) -> dict:
         """Save chat preferences for a brand."""
         try:
-            save_chat_preferences(brand_slug, aspect_ratio, generation_mode)
+            save_chat_preferences(brand_slug, image_aspect_ratio, video_aspect_ratio)
             return bridge_ok()
         except Exception as e:
             return bridge_error(str(e))
@@ -350,8 +353,8 @@ class StudioBridge:
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
         attached_style_references: list[dict] | None = None,
-        aspect_ratio: str | None = None,
-        generation_mode: str | None = None,
+        image_aspect_ratio: str | None = None,
+        video_aspect_ratio: str | None = None,
     ) -> dict:
         logger.info("[Bridge.chat] attached_style_references=%s", attached_style_references)
         return self._chat.chat(
@@ -360,8 +363,8 @@ class StudioBridge:
             project_slug,
             attached_products,
             attached_style_references,
-            aspect_ratio,
-            generation_mode,
+            image_aspect_ratio,
+            video_aspect_ratio,
         )
 
     def clear_chat(self) -> dict:

@@ -3,7 +3,7 @@ import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Int
 import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
 import type{ApprovalRequestData}from'@/lib/types/approval'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
-import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
+import { DEFAULT_ASPECT_RATIO, DEFAULT_VIDEO_ASPECT_RATIO, type AspectRatio, type VideoAspectRatio } from '@/types/aspectRatio'
 import type { SetStateAction } from 'react'
 
 export interface Message {
@@ -70,8 +70,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [error, setError] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
-  const [generationMode, setGenerationMode] = useState<GenerationMode>(DEFAULT_GENERATION_MODE)
+  const [imageAspectRatio, setImageAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
+  const [videoAspectRatio, setVideoAspectRatio] = useState<VideoAspectRatio>(DEFAULT_VIDEO_ASPECT_RATIO)
   //Todo list state
   const [todoList,setTodoList]=useState<TodoListData|null>(null)
   const [isPaused,setIsPaused]=useState(false)
@@ -179,12 +179,13 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     //Load persisted preferences from backend config file
     if(brandSlug&&isPyWebView()){
       bridge.getChatPrefs(brandSlug).then(prefs=>{
-        if(prefs.aspect_ratio)setAspectRatio(prefs.aspect_ratio as AspectRatio)
-        else setAspectRatio(DEFAULT_ASPECT_RATIO)
-        if(prefs.generation_mode)setGenerationMode(prefs.generation_mode as GenerationMode)
-        else setGenerationMode(DEFAULT_GENERATION_MODE)
-      }).catch(()=>{setAspectRatio(DEFAULT_ASPECT_RATIO);setGenerationMode(DEFAULT_GENERATION_MODE)})
-    }else{setAspectRatio(DEFAULT_ASPECT_RATIO);setGenerationMode(DEFAULT_GENERATION_MODE)}
+        if(prefs.image_aspect_ratio)setImageAspectRatio(prefs.image_aspect_ratio as AspectRatio)
+        else if(prefs.aspect_ratio)setImageAspectRatio(prefs.aspect_ratio as AspectRatio)//Migration
+        else setImageAspectRatio(DEFAULT_ASPECT_RATIO)
+        if(prefs.video_aspect_ratio)setVideoAspectRatio(prefs.video_aspect_ratio as VideoAspectRatio)
+        else setVideoAspectRatio(DEFAULT_VIDEO_ASPECT_RATIO)
+      }).catch(()=>{setImageAspectRatio(DEFAULT_ASPECT_RATIO);setVideoAspectRatio(DEFAULT_VIDEO_ASPECT_RATIO)})
+    }else{setImageAspectRatio(DEFAULT_ASPECT_RATIO);setVideoAspectRatio(DEFAULT_VIDEO_ASPECT_RATIO)}
   }, [brandSlug])
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
@@ -464,15 +465,15 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   }, [brandSlug, isLoading])
 
 //Wrapper setters that persist to backend config file
-  const setAspectRatioWithPersist=useCallback((action:SetStateAction<AspectRatio>)=>{
-    setAspectRatio(prev=>{
+  const setImageAspectRatioWithPersist=useCallback((action:SetStateAction<AspectRatio>)=>{
+    setImageAspectRatio(prev=>{
       const next=typeof action==='function'?action(prev):action
       if(brandSlug&&isPyWebView())bridge.saveChatPrefs(brandSlug,next,undefined).catch(()=>{})
       return next
     })
   },[brandSlug])
-  const setGenerationModeWithPersist=useCallback((action:SetStateAction<GenerationMode>)=>{
-    setGenerationMode(prev=>{
+  const setVideoAspectRatioWithPersist=useCallback((action:SetStateAction<VideoAspectRatio>)=>{
+    setVideoAspectRatio(prev=>{
       const next=typeof action==='function'?action(prev):action
       if(brandSlug&&isPyWebView())bridge.saveChatPrefs(brandSlug,undefined,next).catch(()=>{})
       return next
@@ -531,10 +532,10 @@ const clearMessages = useCallback(() => {
     await sendMessage(userMessage.content, {
       attached_products: userMessage.attachedProductSlugs,
       attached_style_references: userMessage.attachedStyleReferences,
-      aspect_ratio: aspectRatio,
-      generation_mode: generationMode,
+      image_aspect_ratio: imageAspectRatio,
+      video_aspect_ratio: videoAspectRatio,
     })
-  }, [messages, isLoading, brandSlug, sendMessage, aspectRatio, generationMode])
+  }, [messages, isLoading, brandSlug, sendMessage, imageAspectRatio, videoAspectRatio])
   //Todo list control handlers
   const handlePause=useCallback(async()=>{
     await bridge.interruptTask('pause')
@@ -582,8 +583,8 @@ return {
     error,
     attachmentError,
     attachments,
-    aspectRatio,
-    generationMode,
+    imageAspectRatio,
+    videoAspectRatio,
     //Todo list state and handlers
     todoList,
     isPaused,
@@ -608,7 +609,7 @@ return {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
-    setAspectRatio: setAspectRatioWithPersist,
-    setGenerationMode: setGenerationModeWithPersist,
+    setImageAspectRatio: setImageAspectRatioWithPersist,
+    setVideoAspectRatio: setVideoAspectRatioWithPersist,
   }
 }

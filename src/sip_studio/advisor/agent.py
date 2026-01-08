@@ -143,9 +143,8 @@ class BrandAdvisor:
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
         attached_style_references: list[dict] | None = None,
-        aspect_ratio: str | None = None,
-        generation_mode: str | None = None,
-        inject_generation_mode: bool = False,
+        image_aspect_ratio: str | None = None,
+        video_aspect_ratio: str | None = None,
     ) -> ChatContext:
         """Prepare all context needed for a chat turn.
         Args:
@@ -153,9 +152,8 @@ class BrandAdvisor:
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
             attached_style_references: List of style reference dicts with style_ref_slug and strict.
-            aspect_ratio: Aspect ratio for video/image generation.
-            generation_mode: Generation mode ('image' or 'video').
-            inject_generation_mode: If True, always inject generation_mode context (defaults to 'image').
+            image_aspect_ratio: Default aspect ratio for image generation (passive, used by tools).
+            video_aspect_ratio: Default aspect ratio for video generation (passive, used by tools).
         Returns:
             ChatContext with prepared prompt and metadata.
         """
@@ -175,23 +173,20 @@ class BrandAdvisor:
             )
             turn_context = builder.build_turn_context()
             logger.info(
-                "_prepare_chat_context(): attached_products=%s, attached_style_refs=%s, turn_context_len=%d",
+                "_prepare_chat_context(): prods=%s, style_refs=%s, ctx_len=%d",
                 attached_products,
                 attached_style_references,
                 len(turn_context),
             )
-        # Generation mode injection - ALWAYS for chat_with_metadata (defaults to "image")
-        if inject_generation_mode:
-            mode = generation_mode if generation_mode in ("image", "video") else "image"
-            mode_ctx = f"**Generation Mode**: {mode.capitalize()} - {'Generate videos using generate_video tool.' if mode == 'video' else 'Generate images using generate_image tool.'}"
-            turn_context = f"{turn_context}\n\n{mode_ctx}" if turn_context else mode_ctx
-            if aspect_ratio:
-                set_active_aspect_ratio(aspect_ratio)
-                ar_ctx = f"**Aspect Ratio**: Use {aspect_ratio} for any image or video generation."
-                turn_context = f"{turn_context}\n\n{ar_ctx}"
+        # Set aspect ratios silently for tools to use (no injection into agent context)
+        if image_aspect_ratio:
+            set_active_aspect_ratio(image_aspect_ratio)
         # Build augmented message with turn context prepended
         if turn_context:
-            augmented_message = f"## Current Context\n\n{turn_context}\n\n---\n\n## User Request\n\n{raw_user_message}"
+            augmented_message = (
+                f"## Current Context\n\n{turn_context}\n\n---\n\n"
+                f"## User Request\n\n{raw_user_message}"
+            )
         else:
             augmented_message = raw_user_message
         # Check budget and trim if needed
@@ -244,7 +239,8 @@ class BrandAdvisor:
             )
         if ctx.system_prompt_trimmed:
             logger.error(
-                "System prompt was trimmed! This indicates the base prompt is too large. Consider reducing prompt size or brand context."
+                "System prompt was trimmed! Base prompt too large. "
+                "Consider reducing prompt size or brand context."
             )
 
     def _setup_tool_callback(self) -> None:
@@ -273,17 +269,17 @@ class BrandAdvisor:
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
         attached_style_references: list[dict] | None = None,
-        aspect_ratio: str | None = None,
-        generation_mode: str | None = None,
+        image_aspect_ratio: str | None = None,
+        video_aspect_ratio: str | None = None,
     ) -> dict:
         """Send a message and get a response plus UI metadata.
         Args:
             message: User message to process.
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
-            attached_style_references: List of style reference dicts with style_ref_slug and strict.
-            aspect_ratio: Aspect ratio for video/image generation (e.g., "1:1", "16:9").
-            generation_mode: Generation mode ('image' or 'video').
+            attached_style_references: Style reference dicts with style_ref_slug and strict.
+            image_aspect_ratio: Default image aspect ratio (passive, used by tools).
+            video_aspect_ratio: Default video aspect ratio (passive, used by tools).
         Returns:
             Dict with response, interaction, and memory_update.
         """
@@ -292,9 +288,8 @@ class BrandAdvisor:
             project_slug,
             attached_products,
             attached_style_references,
-            aspect_ratio,
-            generation_mode,
-            inject_generation_mode=True,
+            image_aspect_ratio,
+            video_aspect_ratio,
         )
         self._emit_skill_events(ctx.matched_skills)
         self._log_budget_warnings(ctx)
@@ -363,9 +358,6 @@ class BrandAdvisor:
             project_slug,
             attached_products,
             attached_style_references,
-            aspect_ratio=None,
-            generation_mode=None,
-            inject_generation_mode=False,
         )
         self._emit_skill_events(ctx.matched_skills)
         self._log_budget_warnings(ctx)

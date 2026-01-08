@@ -1,5 +1,8 @@
 //Aspect ratio type definitions - must match Gemini API supported ratios
 export type AspectRatio='1:1'|'16:9'|'9:16'|'4:3'|'3:4'|'3:2'|'2:3'|'4:5'|'5:4'
+//Video-only aspect ratios (VEO constraint)
+export type VideoAspectRatio='16:9'|'9:16'
+export const DEFAULT_VIDEO_ASPECT_RATIO:VideoAspectRatio='16:9'
 //Generation mode for image vs video
 export type GenerationMode='image'|'video'
 export const DEFAULT_GENERATION_MODE:GenerationMode='image'

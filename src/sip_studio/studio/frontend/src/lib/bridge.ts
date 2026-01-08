@@ -273,13 +273,13 @@ export interface AttachedStyleReference {
   strict: boolean
 }
 //Chat context types
-import type { AspectRatio,GenerationMode } from '../types/aspectRatio'
+import type { AspectRatio,VideoAspectRatio } from '../types/aspectRatio'
 export interface ChatContext {
   project_slug?: string | null
   attached_products?: string[]
   attached_style_references?: AttachedStyleReference[]
-  aspect_ratio?: AspectRatio
-  generation_mode?: GenerationMode
+  image_aspect_ratio?: AspectRatio
+  video_aspect_ratio?: VideoAspectRatio
 }
 
 interface ApiKeyStatus {
@@ -443,8 +443,8 @@ interface PyWebViewAPI {
   get_constants(): Promise<BridgeResponse<ConstantsPayload>>
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
   save_api_keys(openai: string, gemini: string, firecrawl?: string): Promise<BridgeResponse<void>>
-  get_chat_prefs(brand_slug: string): Promise<BridgeResponse<{ aspect_ratio?: string; generation_mode?: string }>>
-  save_chat_prefs(brand_slug: string, aspect_ratio?: string, generation_mode?: string): Promise<BridgeResponse<void>>
+  get_chat_prefs(brand_slug: string): Promise<BridgeResponse<{ image_aspect_ratio?: string; video_aspect_ratio?: string; aspect_ratio?: string }>>
+  save_chat_prefs(brand_slug: string, image_aspect_ratio?: string, video_aspect_ratio?: string): Promise<BridgeResponse<void>>
   get_brands(): Promise<BridgeResponse<{ brands: BrandEntry[]; active: string | null }>>
   set_brand(slug: string): Promise<BridgeResponse<{ slug: string }>>
   get_brand_info(slug?: string): Promise<BridgeResponse<{ slug: string; name: string; tagline: string; category: string }>>
@@ -484,8 +484,8 @@ interface PyWebViewAPI {
     project_slug?: string | null,
     attached_products?: string[],
     attached_style_references?: AttachedStyleReference[],
-    aspect_ratio?: string,
-    generation_mode?: string
+    image_aspect_ratio?: string,
+    video_aspect_ratio?: string
   ): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
@@ -647,7 +647,7 @@ export const bridge = {
   checkApiKeys: () => callBridge(() => window.pywebview!.api.check_api_keys()),
   saveApiKeys: (o: string, g: string, f?: string) => callBridge(() => window.pywebview!.api.save_api_keys(o, g, f || '')),
   getChatPrefs: (brandSlug: string) => callBridge(() => window.pywebview!.api.get_chat_prefs(brandSlug)),
-  saveChatPrefs: (brandSlug: string, aspectRatio?: string, generationMode?: string) => callBridge(() => window.pywebview!.api.save_chat_prefs(brandSlug, aspectRatio, generationMode)),
+  saveChatPrefs: (brandSlug: string, imageAspectRatio?: string, videoAspectRatio?: string) => callBridge(() => window.pywebview!.api.save_chat_prefs(brandSlug, imageAspectRatio, videoAspectRatio)),
   getBrands: () => callBridge(() => window.pywebview!.api.get_brands()),
   setBrand: (s: string) => callBridge(() => window.pywebview!.api.set_brand(s)),
   getBrandInfo: (s?: string) => callBridge(() => window.pywebview!.api.get_brand_info(s)),
@@ -691,8 +691,8 @@ export const bridge = {
         context?.project_slug,
         context?.attached_products,
         context?.attached_style_references,
-        context?.aspect_ratio || '16:9',
-        context?.generation_mode || 'image'
+        context?.image_aspect_ratio || '16:9',
+        context?.video_aspect_ratio || '16:9'
       )
     ),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),

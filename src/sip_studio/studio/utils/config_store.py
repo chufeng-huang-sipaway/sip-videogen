@@ -66,21 +66,21 @@ def check_api_keys() -> dict[str, bool]:
 
 
 def get_chat_preferences(brand_slug: str) -> dict:
-    """Get chat preferences for a brand (aspect_ratio, generation_mode)."""
+    """Get chat preferences for a brand (image_aspect_ratio, video_aspect_ratio)."""
     c = _load_config()
     prefs = c.get("chat_preferences", {})
     return prefs.get(brand_slug, {})
 
 
 def save_chat_preferences(
-    brand_slug: str, aspect_ratio: str | None = None, generation_mode: str | None = None
+    brand_slug: str, image_aspect_ratio: str | None = None, video_aspect_ratio: str | None = None
 ) -> None:
     """Save chat preferences for a brand."""
     c = _load_config()
     prefs = c.setdefault("chat_preferences", {})
     bp = prefs.setdefault(brand_slug, {})
-    if aspect_ratio is not None:
-        bp["aspect_ratio"] = aspect_ratio
-    if generation_mode is not None:
-        bp["generation_mode"] = generation_mode
+    if image_aspect_ratio is not None:
+        bp["image_aspect_ratio"] = image_aspect_ratio
+    if video_aspect_ratio is not None:
+        bp["video_aspect_ratio"] = video_aspect_ratio
     _save_config(c)
