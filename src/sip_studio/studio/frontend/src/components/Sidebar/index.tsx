@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { PanelLeftClose, Brain, Plus, Settings, Package, Palette, ChevronRight, ChevronDown } from 'lucide-react'
+import { Brain, Plus, Settings, Package, Palette, ChevronRight, ChevronDown } from 'lucide-react'
 import { BrandSelector } from './BrandSelector'
 import { ProjectsSection } from './sections/ProjectsSection'
 import { ProductsSection } from './sections/ProductsSection'
@@ -18,18 +18,33 @@ import { useProjects } from '@/context/ProjectContext'
 import { cn } from '@/lib/utils'
 
 const SIDEBAR_COLLAPSED_WIDTH = 72
+//Animation timing - content fades faster than width changes for sequenced effect
+const CONTENT_DURATION = 150 //ms - fast fade for content
+const WIDTH_DURATION = 250 //ms - smooth width change
+const CONTENT_DELAY_EXPAND = 100 //ms - delay content fade-in until width partially expanded
+const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)'
 
 interface SidebarProps { collapsed: boolean; onToggleCollapse: () => void; onOpenBrandMemory?: () => void }
 
-export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: SidebarProps) {
-  //Hover + focus state for floating sidebar behavior
+export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: SidebarProps) {
   const [isHovering, setIsHovering] = useState(false)
   const [isFocusWithin, setIsFocusWithin] = useState(false)
   const collapseTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-  //Expanded = not collapsed OR hovering OR focus-within (keyboard accessibility)
   const isExpanded = !collapsed || isHovering || isFocusWithin
+  //Delayed content visibility for sequenced animation
+  const [showContent, setShowContent] = useState(isExpanded)
+  useEffect(() => {
+    if (isExpanded) {
+      //Expanding: delay content appearance until width has started expanding
+      const t = setTimeout(() => setShowContent(true), CONTENT_DELAY_EXPAND)
+      return () => clearTimeout(t)
+    } else {
+      //Collapsing: hide content immediately (it will fade fast)
+      setShowContent(false)
+    }
+  }, [isExpanded])
   const handleMouseEnter = () => { if(collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current); setIsHovering(true) }
-  const handleMouseLeave = () => { collapseTimeoutRef.current = setTimeout(()=>setIsHovering(false), 200) }
+  const handleMouseLeave = () => { collapseTimeoutRef.current = setTimeout(()=>setIsHovering(false), 100) }
   const handleFocusIn = () => setIsFocusWithin(true)
   const handleFocusOut = (e: React.FocusEvent) => { if(!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget as Node)) setIsFocusWithin(false) }
   useEffect(() => () => { if(collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current) }, [])
@@ -37,84 +52,52 @@ export function Sidebar({ collapsed, onToggleCollapse, onOpenBrandMemory }: Side
   const { products } = useProducts()
   const { styleReferences } = useStyleReferences()
   const { projects } = useProjects()
-
-  // Independent states for sections
   const [projectsOpen, setProjectsOpen] = useState(true)
   const [libraryOpen, setLibraryOpen] = useState(true)
-
-  // Subsection states
   const [productsOpen, setProductsOpen] = useState(true)
   const [styleRefsOpen, setStyleRefsOpen] = useState(true)
-
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false)
   const [isCreateStyleRefOpen, setIsCreateStyleRefOpen] = useState(false)
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
-  //Wrapper approach: outer div fixed at 72px, inner aside absolute positioned for overlay
+  //Inline transition styles for precise control
+  const widthTransition = `width ${WIDTH_DURATION}ms ${EASING}, box-shadow ${WIDTH_DURATION}ms ${EASING}`
+  const contentTransition = `opacity ${CONTENT_DURATION}ms ${EASING}, visibility ${CONTENT_DURATION}ms ${EASING}, transform ${CONTENT_DURATION}ms ${EASING}`
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="relative flex-shrink-0 h-full" style={{width: SIDEBAR_COLLAPSED_WIDTH}} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col border-r border-border/20 transition-all duration-200",isExpanded?"w-[280px] z-50 shadow-xl bg-background/95 backdrop-blur-xl":"w-[72px] bg-background/80 backdrop-blur-md")}>
-          {isExpanded ? (
-            <>
-              {/* Header */}
-              <div className="px-3 pt-4 pb-2 space-y-2">
-                <BrandSelector />
-                <Button variant="ghost" className={cn("w-full justify-start gap-3 px-3 h-10 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl font-medium",!activeBrand&&"opacity-50 pointer-events-none")} onClick={onOpenBrandMemory}><Brain className="w-4 h-4"/><span className="text-sm">Brand Profile</span></Button>
-              </div>
-              <div className="px-4 py-2"><Separator className="opacity-50"/></div>
-              {/* Main Navigation */}
-              <ScrollArea className="flex-1 px-3">
-                <div className="space-y-6 py-2 pb-8">
-                  <SectionGroup title="PROJECTS" count={projects.length} isOpen={projectsOpen} onToggle={()=>setProjectsOpen(!projectsOpen)} onAdd={()=>setIsCreateProjectOpen(true)} activeBrand={!!activeBrand}><ProjectsSection/></SectionGroup>
-                  <SectionGroup title="LIBRARY" count={products.length+styleReferences.length} isOpen={libraryOpen} onToggle={()=>setLibraryOpen(!libraryOpen)} activeBrand={!!activeBrand} noAdd>
-                    <div className="space-y-4 pt-1 pl-1">
-                      <SubSectionGroup title="Products" icon={<Package className="w-3.5 h-3.5"/>} count={products.length} isOpen={productsOpen} onToggle={()=>setProductsOpen(!productsOpen)} onAdd={()=>setIsCreateProductOpen(true)} activeBrand={!!activeBrand}><ProductsSection/></SubSectionGroup>
-                      <SubSectionGroup title="Style References" icon={<Palette className="w-3.5 h-3.5"/>} count={styleReferences.length} isOpen={styleRefsOpen} onToggle={()=>setStyleRefsOpen(!styleRefsOpen)} onAdd={()=>setIsCreateStyleRefOpen(true)} activeBrand={!!activeBrand}><StyleReferencesSection createDialogOpen={isCreateStyleRefOpen} onCreateDialogChange={setIsCreateStyleRefOpen}/></SubSectionGroup>
-                    </div>
-                  </SectionGroup>
+        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col border-r border-border/20 overflow-hidden",isExpanded?"w-[280px] z-50 sidebar-float-shadow bg-background":"w-[72px] bg-background")} style={{transition: widthTransition, willChange: 'width'}}>
+          {/* Header - icons stay, labels fade */}
+          <div className="flex-shrink-0 pt-4 pb-2 px-3 space-y-2">
+            <BrandSelector compact={!isExpanded} showContent={showContent}/>
+            <Tooltip><TooltipTrigger asChild><Button variant="ghost" className={cn("w-full justify-start gap-3 h-10 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl font-medium overflow-hidden",!activeBrand&&"opacity-50 pointer-events-none",isExpanded?"px-3":"px-[14px]")} onClick={onOpenBrandMemory}><Brain className="w-5 h-5 flex-shrink-0" strokeWidth={1.5}/><span className="text-sm whitespace-nowrap" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden', transform: showContent?'translateX(0)':'translateX(-8px)'}}>Brand Profile</span></Button></TooltipTrigger>{!isExpanded&&<TooltipContent side="right">Brand Profile</TooltipContent>}</Tooltip>
+          </div>
+          {/* Separator - fades with content */}
+          <div className="px-4 py-2" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden'}}><Separator className="opacity-50"/></div>
+          {/* Main Navigation - fades completely before width collapse */}
+          <ScrollArea className="flex-1 px-3" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden', transform: showContent?'translateX(0)':'translateX(-12px)'}}>
+            <div className="space-y-6 py-2 pb-8">
+              <SectionGroup title="PROJECTS" count={projects.length} isOpen={projectsOpen} onToggle={()=>setProjectsOpen(!projectsOpen)} onAdd={()=>setIsCreateProjectOpen(true)} activeBrand={!!activeBrand}><ProjectsSection/></SectionGroup>
+              <SectionGroup title="LIBRARY" count={products.length+styleReferences.length} isOpen={libraryOpen} onToggle={()=>setLibraryOpen(!libraryOpen)} activeBrand={!!activeBrand} noAdd>
+                <div className="space-y-4 pt-1 pl-1">
+                  <SubSectionGroup title="Products" icon={<Package className="w-3.5 h-3.5"/>} count={products.length} isOpen={productsOpen} onToggle={()=>setProductsOpen(!productsOpen)} onAdd={()=>setIsCreateProductOpen(true)} activeBrand={!!activeBrand}><ProductsSection/></SubSectionGroup>
+                  <SubSectionGroup title="Style References" icon={<Palette className="w-3.5 h-3.5"/>} count={styleReferences.length} isOpen={styleRefsOpen} onToggle={()=>setStyleRefsOpen(!styleRefsOpen)} onAdd={()=>setIsCreateStyleRefOpen(true)} activeBrand={!!activeBrand}><StyleReferencesSection createDialogOpen={isCreateStyleRefOpen} onCreateDialogChange={setIsCreateStyleRefOpen}/></SubSectionGroup>
                 </div>
-              </ScrollArea>
-              {/* Footer */}
-              <div className="p-3 border-t border-border/30 flex items-center justify-between gap-1 bg-background/80 backdrop-blur-md"><Button variant="ghost" size="sm" className="flex-1 justify-start gap-2 h-9 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg font-medium text-xs transition-colors duration-150" onClick={()=>setIsSettingsOpen(true)}><Settings className="w-4 h-4"/>Settings</Button><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors duration-150" onClick={onToggleCollapse}><PanelLeftClose className="w-4 h-4"/></Button></TooltipTrigger><TooltipContent>Collapse Sidebar</TooltipContent></Tooltip></div>
-              <CreateProductDialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen}/>
-              <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}/>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center py-6 gap-4">
-              <BrandSelector compact/>
-              <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={onOpenBrandMemory} disabled={!activeBrand}><Brain className="w-5 h-5" strokeWidth={1.5}/></Button></TooltipTrigger><TooltipContent side="right">Brand Profile</TooltipContent></Tooltip>
-              <div className="flex-1"/>
-              <CollapsedNavIcon icon={<Settings className="w-5 h-5"/>} label="Settings" onClick={()=>setIsSettingsOpen(true)}/>
-              <CollapsedNavIcon icon={<PanelLeftClose className="w-5 h-5 rotate-180"/>} label="Expand" onClick={onToggleCollapse}/>
+              </SectionGroup>
             </div>
-          )}
+          </ScrollArea>
+          {/* Footer - icon stays centered, label fades */}
+          <div className={cn("p-3 border-t border-border/30 bg-background",isExpanded?"":"flex justify-center")}>
+            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size={isExpanded?"sm":"icon"} className={cn("justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg font-medium text-xs overflow-hidden",isExpanded?"h-9 px-2":"w-10 h-10")} style={{transition: `all ${CONTENT_DURATION}ms ${EASING}`}} onClick={()=>setIsSettingsOpen(true)}><Settings className="w-5 h-5 flex-shrink-0"/><span className="whitespace-nowrap" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden', transform: showContent?'translateX(0)':'translateX(-8px)', position: showContent?'relative':'absolute'}}>Settings</span></Button></TooltipTrigger>{!isExpanded&&<TooltipContent side="right">Settings</TooltipContent>}</Tooltip>
+          </div>
+          <CreateProductDialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen}/>
+          <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}/>
           <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}/>
         </aside>
       </div>
     </TooltipProvider>
-  )
-}
-
-function CollapsedNavIcon({ icon, label, onClick, disabled }: any) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-10 h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          onClick={onClick}
-          disabled={disabled}
-        >
-          {icon}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="right" sideOffset={10}>
-        <p>{label}</p>
-      </TooltipContent>
-    </Tooltip>
   )
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Plus, Check, Trash2, Building2, ChevronsUpDown } from 'lucide-react'
+import { Plus, Check, Trash2, Building2, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -12,20 +12,26 @@ import {
 import { useBrand } from '@/context/BrandContext'
 import { DeleteBrandDialog } from '@/components/Brand/DeleteBrandDialog'
 import { CreateBrandDialog } from '@/components/Brand/CreateBrandDialog'
+import { cn } from '@/lib/utils'
 
-interface BrandSelectorProps { compact?: boolean }
+const CONTENT_DURATION = 150
+const WIDTH_DURATION = 250
+const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)'
 
-export function BrandSelector({ compact }: BrandSelectorProps = {}) {
+interface BrandSelectorProps { compact?: boolean; showContent?: boolean }
+
+export function BrandSelector({ compact, showContent = true }: BrandSelectorProps) {
   const { brands, activeBrand, isLoading, selectBrand, refresh } = useBrand()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const currentBrand = brands.find(b => b.slug === activeBrand)
-  //Get initials from brand name (first letter of first two words, or first two letters)
   const getInitials = (name: string) => { const words = name.split(/\s+/); if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase(); return name.slice(0, 2).toUpperCase() }
 
+  const contentTransition = `opacity ${CONTENT_DURATION}ms ${EASING}, visibility ${CONTENT_DURATION}ms ${EASING}, transform ${CONTENT_DURATION}ms ${EASING}`
+  const sizeTransition = `width ${WIDTH_DURATION}ms ${EASING}, height ${WIDTH_DURATION}ms ${EASING}, padding ${WIDTH_DURATION}ms ${EASING}`
+
   if (isLoading) {
-    if (compact) return (<Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl" disabled><Building2 className="w-5 h-5 animate-pulse" /></Button>)
-    return (<div className="px-2"><Button variant="ghost" className="w-full justify-between h-12" disabled>Loading...<ChevronDown className="h-4 w-4" /></Button></div>)
+    return(<Button variant="ghost" className={cn("rounded-xl bg-primary/10",compact?"w-12 h-12 p-0":"w-full h-auto py-3 px-3")} style={{transition: sizeTransition}} disabled><Building2 className="w-5 h-5 animate-pulse"/></Button>)
   }
 
   const dropdownContent = (
@@ -48,10 +54,7 @@ export function BrandSelector({ compact }: BrandSelectorProps = {}) {
       {currentBrand && (
         <>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive py-2.5"
-            onClick={() => setDeleteDialogOpen(true)}
-          >
+          <DropdownMenuItem className="text-destructive focus:text-destructive py-2.5" onClick={() => setDeleteDialogOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Delete "{currentBrand.name}"
           </DropdownMenuItem>
@@ -67,7 +70,28 @@ export function BrandSelector({ compact }: BrandSelectorProps = {}) {
     </>
   )
 
-  //Compact mode: icon button with initials
-  if(compact){return(<DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/15 text-primary font-bold transition-colors duration-150">{currentBrand?getInitials(currentBrand.name):<Building2 className="w-5 h-5"/>}</Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent side="right" className="font-semibold">{currentBrand?.name||'Select Brand'}</TooltipContent></Tooltip>{dropdownContent}{dialogs}</DropdownMenu>)}
-  //Full mode: button with name
-  return(<DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="w-full justify-between h-auto py-3 px-3 hover:bg-muted/50 rounded-xl transition-colors duration-150"><div className="flex items-center gap-3 text-left"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">{currentBrand?getInitials(currentBrand.name):<Building2 className="w-4 h-4"/>}</div><div className="flex-1 min-w-0"><div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name||'Select Brand'}</div><div className="text-[10px] text-muted-foreground/70 font-medium">Brand Workspace</div></div></div><ChevronsUpDown className="h-4 w-4 text-muted-foreground/40"/></Button></DropdownMenuTrigger>{dropdownContent}{dialogs}</DropdownMenu>)}
+  //Unified structure - same DOM, CSS handles compact/expanded with sequenced timing
+  return(
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className={cn("justify-start rounded-xl bg-primary/10 hover:bg-primary/15 overflow-hidden",compact?"w-12 h-12 p-0":"w-full h-auto py-3 px-3")} style={{transition: sizeTransition}}>
+              <div className="flex items-center gap-3 text-left">
+                <div className={cn("rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0",compact?"w-12 h-12 text-base":"w-8 h-8 text-xs")} style={{transition: sizeTransition}}>{currentBrand?getInitials(currentBrand.name):<Building2 className="w-5 h-5"/>}</div>
+                <div className="flex-1 min-w-0" style={{transition: contentTransition, opacity: showContent&&!compact?1:0, visibility: showContent&&!compact?'visible':'hidden', transform: showContent&&!compact?'translateX(0)':'translateX(-8px)', position: showContent&&!compact?'relative':'absolute'}}>
+                  <div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name||'Select Brand'}</div>
+                  <div className="text-[10px] text-muted-foreground/70 font-medium">Brand Workspace</div>
+                </div>
+              </div>
+              <ChevronsUpDown className="h-4 w-4 text-muted-foreground/40" style={{transition: contentTransition, opacity: showContent&&!compact?1:0, visibility: showContent&&!compact?'visible':'hidden', position: showContent&&!compact?'relative':'absolute'}}/>
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        {compact&&<TooltipContent side="right" className="font-semibold">{currentBrand?.name||'Select Brand'}</TooltipContent>}
+      </Tooltip>
+      {dropdownContent}
+      {dialogs}
+    </DropdownMenu>
+  )
+}
