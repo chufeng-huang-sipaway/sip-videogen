@@ -573,6 +573,9 @@ interface PyWebViewAPI {
   backfill_images(brand_slug?: string): Promise<BridgeResponse<{ added: ImageStatusEntry[]; count: number }>>
   copy_image_to_clipboard(image_path: string): Promise<BridgeResponse<{ copied: boolean; path: string }>>
   share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
+  //Todo list interrupt/resume methods
+  interrupt_task(action: string, new_message?: string): Promise<BridgeResponse<{ interrupted: boolean; action: string; note: string }>>
+  resume_task(): Promise<BridgeResponse<{ resumed: boolean }>>
 }
 
 declare global {
@@ -784,4 +787,7 @@ export const bridge = {
   backfillImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.backfill_images(brandSlug)),
   copyImageToClipboard: (imagePath: string) => callBridge(() => window.pywebview!.api.copy_image_to_clipboard(imagePath)),
   shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
+  //Todo list interrupt/resume
+  interruptTask: (action:'pause'|'stop'|'new_direction',newMessage?:string)=>callBridge(()=>window.pywebview!.api.interrupt_task(action,newMessage)),
+  resumeTask: ()=>callBridge(()=>window.pywebview!.api.resume_task()),
 }

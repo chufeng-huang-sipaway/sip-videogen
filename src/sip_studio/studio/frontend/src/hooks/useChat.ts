@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
+import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
 import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
 import type { SetStateAction } from 'react'
@@ -70,6 +71,9 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const [generationMode, setGenerationMode] = useState<GenerationMode>(DEFAULT_GENERATION_MODE)
+  //Todo list state
+  const [todoList,setTodoList]=useState<TodoListData|null>(null)
+  const [isPaused,setIsPaused]=useState(false)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
@@ -93,6 +97,51 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     }
     ;(window as unknown as{__onThinkingStep?:(s:ThinkingStep)=>void}).__onThinkingStep=handler
     return()=>{(window as unknown as{__onThinkingStep?:unknown}).__onThinkingStep=undefined}
+  },[])
+  //Register todo list event handlers
+  useEffect(()=>{
+    const w=window as unknown as{
+      __onTodoList?:(d:TodoListData)=>void
+      __onTodoUpdate?:(d:TodoUpdateData)=>void
+      __onTodoCleared?:()=>void
+      __onTodoCompleted?:(d:{id:string})=>void
+      __onTodoInterrupted?:(d:{id:string;reason:string})=>void
+      __onInterruptStatus?:(d:{signal:string|null})=>void
+    }
+    //Full todo list created
+    w.__onTodoList=(d)=>setTodoList(d)
+    //Item update - handles status, outputs (delta), AND error
+    w.__onTodoUpdate=(u)=>{
+      setTodoList(prev=>{
+        if(!prev)return null
+        return{...prev,items:prev.items.map(item=>item.id===u.itemId?{
+          ...item,
+          status:u.status as TodoItemData['status'],
+          outputs:u.outputs?[...(item.outputs||[]),...u.outputs]:item.outputs,
+          error:u.error??item.error,
+        }:item)}
+      })
+    }
+    //Todo cleared
+    w.__onTodoCleared=()=>setTodoList(null)
+    //Todo completed
+    w.__onTodoCompleted=(d)=>{
+      setTodoList(prev=>prev?.id===d.id?{...prev,completedAt:new Date().toISOString()}:prev)
+    }
+    //Todo interrupted (only for stop/new_direction, NOT pause)
+    w.__onTodoInterrupted=(d)=>{
+      setTodoList(prev=>prev?.id===d.id?{...prev,interruptedAt:new Date().toISOString(),interruptReason:d.reason}:prev)
+    }
+    //Interrupt status (includes pause)
+    w.__onInterruptStatus=(d)=>{setIsPaused(d.signal==='pause')}
+    return()=>{
+      w.__onTodoList=undefined
+      w.__onTodoUpdate=undefined
+      w.__onTodoCleared=undefined
+      w.__onTodoCompleted=undefined
+      w.__onTodoInterrupted=undefined
+      w.__onInterruptStatus=undefined
+    }
   },[])
 
   useEffect(() => {
@@ -467,6 +516,20 @@ const clearMessages = useCallback(() => {
       generation_mode: generationMode,
     })
   }, [messages, isLoading, brandSlug, sendMessage, aspectRatio, generationMode])
+  //Todo list control handlers
+  const handlePause=useCallback(async()=>{
+    await bridge.interruptTask('pause')
+  },[])
+  const handleResume=useCallback(async()=>{
+    await bridge.resumeTask()
+    setIsPaused(false)
+  },[])
+  const handleStop=useCallback(async()=>{
+    await bridge.interruptTask('stop')
+  },[])
+  const handleNewDirection=useCallback(async(msg:string)=>{
+    await bridge.interruptTask('new_direction',msg)
+  },[])
 
 return {
     messages,
@@ -480,6 +543,13 @@ return {
     attachments,
     aspectRatio,
     generationMode,
+    //Todo list state and handlers
+    todoList,
+    isPaused,
+    handlePause,
+    handleResume,
+    handleStop,
+    handleNewDirection,
     sendMessage,
     clearMessages,
     cancelGeneration,
