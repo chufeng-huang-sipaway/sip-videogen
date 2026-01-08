@@ -13,7 +13,7 @@ import{type AspectRatio,isValidAspectRatio}from'@/types/aspectRatio'
 const STORAGE_KEY='playground-aspect-ratio'
 function getStoredAspectRatio():AspectRatio{
 try{const v=localStorage.getItem(STORAGE_KEY);return v&&isValidAspectRatio(v)?v:'1:1'}catch{return'1:1'}}
-function setStoredAspectRatio(v:AspectRatio):void{try{localStorage.setItem(STORAGE_KEY,v)}catch{}}
+function setStoredAspectRatio(v:AspectRatio):void{try{localStorage.setItem(STORAGE_KEY,v)}catch{/*ignore*/}}
 interface PlaygroundModeProps{brandSlug:string|null}
 export function PlaygroundMode({brandSlug}:PlaygroundModeProps){
 const[prompt,setPrompt]=useState('')
