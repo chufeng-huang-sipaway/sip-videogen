@@ -54,26 +54,27 @@ const styleItems=styleReferences.map(s=>({slug:s.slug,name:s.name,description:s.
 //No brand selected state
 if(!brandSlug)return(<div className="flex flex-col items-center justify-center h-full text-center p-8"><div className="text-muted-foreground text-sm">Select a brand to use Playground</div></div>)
 return(<div className="flex flex-col h-full">
-<div className="flex-1 flex items-center justify-center overflow-hidden">
-<PreviewCanvas aspectRatio={aspectRatio} isLoading={isGenerating} result={result} onStop={handleStop}/>
+<div className="flex-1 flex flex-col items-center justify-center overflow-hidden">
+<PreviewCanvas aspectRatio={aspectRatio} isLoading={isGenerating} result={result} onStop={handleStop} showSaved={!!result&&!isGenerating}/>
 </div>
 {error&&(<div className="px-4 pb-2"><Alert variant="destructive"><AlertCircle className="h-4 w-4"/><AlertDescription>{error}</AlertDescription></Alert></div>)}
 {isStopped&&!error&&(<div className="px-4 pb-2"><Alert><AlertDescription className="text-muted-foreground">Generation stopped</AlertDescription></Alert></div>)}
-{/* Controls */}
-<div className="p-4 space-y-3 border-t border-border/20">
-{/* Selectors row: Aspect Ratio + Product + Style */}
-<div className="flex items-center gap-2 flex-wrap">
-<AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} generationMode="image" disabled={isGenerating}/>
-<CapsuleSelector items={productItems} value={selectedProduct} onChange={setSelectedProduct} disabled={isGenerating} placeholder="Product" emptyLabel="No product" type="product"/>
-<CapsuleSelector items={styleItems} value={selectedStyleRef} onChange={setSelectedStyleRef} disabled={isGenerating} placeholder="Style" emptyLabel="No style" type="style"/>
-</div>
-{/* Prompt input + generate/stop */}
-<div className="flex items-end gap-2">
-<div className="relative flex-1">
-<textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Describe your image..." rows={2} disabled={isGenerating} className="w-full px-4 py-3 pr-10 rounded-xl border border-border/40 resize-none text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"/>
+{/* Unified input card */}
+<div className="p-4">
+<div className="rounded-2xl border border-border/40 bg-background overflow-hidden">
+{/* Textarea at top */}
+<div className="relative">
+<textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="What are we creating today..." rows={3} disabled={isGenerating} className="w-full px-4 py-3 pr-10 resize-none text-sm bg-transparent border-0 focus:outline-none focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed"/>
 {prompt&&!isGenerating&&(<button type="button" onClick={handleClearPrompt} className="absolute right-3 top-3 p-1 rounded-full hover:bg-muted transition-colors" title="Clear prompt"><X className="w-4 h-4 text-muted-foreground"/></button>)}
 </div>
-<Button onClick={handleGenerate} disabled={!prompt.trim()||isGenerating} className="px-6 h-[52px]"><Zap className="w-4 h-4"/></Button>
+{/* Bottom row: selectors left, aspect+button right */}
+<div className="flex items-center gap-2 px-3 py-2 border-t border-border/20">
+<CapsuleSelector items={productItems} value={selectedProduct} onChange={setSelectedProduct} disabled={isGenerating} placeholder="Product" emptyLabel="No product" type="product"/>
+<CapsuleSelector items={styleItems} value={selectedStyleRef} onChange={setSelectedStyleRef} disabled={isGenerating} placeholder="Style" emptyLabel="No style" type="style"/>
+<div className="flex-1"/>
+<AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} generationMode="image" disabled={isGenerating}/>
+<Button onClick={handleGenerate} disabled={!prompt.trim()||isGenerating} size="sm" className="rounded-lg px-4"><Zap className="w-4 h-4"/></Button>
+</div>
 </div>
 </div>
 </div>)}

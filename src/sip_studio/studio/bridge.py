@@ -602,8 +602,8 @@ class StudioBridge:
             count: Number of images to generate (1-10)
         Returns:
             Dict with success status and generated images list"""
-        # Validate aspect ratio
-        valid_ratios = {"1:1", "16:9", "9:16", "4:3", "3:4", "2:3", "3:2", "4:5", "5:4"}
+        # Validate aspect ratio (must match Gemini API supported ratios)
+        valid_ratios = {"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4"}
         if aspect_ratio not in valid_ratios:
             return bridge_error(f"Invalid aspect ratio. Must be one of: {valid_ratios}")
         from .services.quick_generator_service import QuickGeneratorService

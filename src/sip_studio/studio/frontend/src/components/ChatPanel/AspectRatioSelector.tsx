@@ -22,11 +22,11 @@ return(<button key={r} type="button" onClick={()=>onChange(r)} disabled={disable
 </button>)})}</div>)}
 //Dropdown for image mode (all ratios with platform hints)
 function ImageRatioDropdown({value,onChange,disabled,allowedRatios}:{value:AspectRatio,onChange:(r:AspectRatio)=>void,disabled:boolean,allowedRatios?:AspectRatio[]}){
-const ratios:AspectRatio[]=allowedRatios||(['16:9','4:3','3:2','5:3','1:1','9:16','3:4','2:3','3:5'] as AspectRatio[])
+const ratios:AspectRatio[]=allowedRatios||(['16:9','4:3','3:2','5:4','1:1','9:16','3:4','2:3','4:5'] as AspectRatio[])
 return(
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
-<button type="button" disabled={disabled} className={cn("flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium transition-all","bg-white/50 dark:bg-white/10 border border-border/40","hover:bg-white dark:hover:bg-white/20",disabled&&"opacity-50 cursor-not-allowed")}>
+<button type="button" disabled={disabled} className={cn("flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium transition-all","bg-white/50 dark:bg-white/10 border border-border/40","hover:bg-white dark:hover:bg-white/20 focus:outline-none",disabled&&"opacity-50 cursor-not-allowed")}>
 <RatioIcon ratio={value} size={12}/>
 <span>{value}</span>
 <ChevronDown className="h-3 w-3 opacity-50"/>
