@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
 import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
+import type{ApprovalRequestData}from'@/lib/types/approval'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
 import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
 import type { SetStateAction } from 'react'
@@ -74,6 +75,9 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   //Todo list state
   const [todoList,setTodoList]=useState<TodoListData|null>(null)
   const [isPaused,setIsPaused]=useState(false)
+  //Approval state
+  const [pendingApproval,setPendingApproval]=useState<ApprovalRequestData|null>(null)
+  const [autonomyMode,setAutonomyMode]=useState(false)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
@@ -141,6 +145,21 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       w.__onTodoCompleted=undefined
       w.__onTodoInterrupted=undefined
       w.__onInterruptStatus=undefined
+    }
+  },[])
+  //Register approval event handlers
+  useEffect(()=>{
+    const w=window as unknown as{
+      __onApprovalRequest?:(d:ApprovalRequestData)=>void
+      __onApprovalCleared?:()=>void
+    }
+    //Approval request - show prompt
+    w.__onApprovalRequest=(d)=>setPendingApproval(d)
+    //Approval cleared - hide prompt
+    w.__onApprovalCleared=()=>setPendingApproval(null)
+    return()=>{
+      w.__onApprovalRequest=undefined
+      w.__onApprovalCleared=undefined
     }
   },[])
 
@@ -530,6 +549,28 @@ const clearMessages = useCallback(() => {
   const handleNewDirection=useCallback(async(msg:string)=>{
     await bridge.interruptTask('new_direction',msg)
   },[])
+  //Approval handlers
+  const handleApprove=useCallback(async()=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'approve')
+  },[pendingApproval])
+  const handleApproveAll=useCallback(async()=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'approve_all')
+    setAutonomyMode(true)//UI reflects mode change
+  },[pendingApproval])
+  const handleModifyApproval=useCallback(async(newPrompt:string)=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'modify',newPrompt)
+  },[pendingApproval])
+  const handleSkipApproval=useCallback(async()=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'skip')
+  },[pendingApproval])
+  const handleSetAutonomyMode=useCallback(async(enabled:boolean)=>{
+    await bridge.setAutonomyMode(enabled)
+    setAutonomyMode(enabled)
+  },[])
 
 return {
     messages,
@@ -550,6 +591,14 @@ return {
     handleResume,
     handleStop,
     handleNewDirection,
+    //Approval state and handlers
+    pendingApproval,
+    autonomyMode,
+    handleApprove,
+    handleApproveAll,
+    handleModifyApproval,
+    handleSkipApproval,
+    handleSetAutonomyMode,
     sendMessage,
     clearMessages,
     cancelGeneration,
