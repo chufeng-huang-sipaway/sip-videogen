@@ -20,6 +20,8 @@ import{ModeToggle}from'./ModeToggle'
 import{TodoList}from'./TodoList'
 import{AutonomyToggle}from'./AutonomyToggle'
 import{ApprovalPrompt}from'./ApprovalPrompt'
+import{PanelModeToggle,type PanelMode}from'./PanelModeToggle'
+import{PlaygroundMode}from'./PlaygroundMode'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
 import{getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
@@ -71,6 +73,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
+  const [panelMode, setPanelMode] = useState<PanelMode>('assistant')
   //Compute combined attachments (Quick Insert + mentions) for display
   const combinedAttachments=useMemo(()=>{
     const mentionAtts=resolveMentions(inputText,products,styleReferences)
@@ -358,17 +361,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Header - Minimalist */}
       <div className="h-16 flex items-center justify-between px-6 pt-4 pb-2 bg-transparent z-10">
-        <div className="flex items-center gap-2">
-          {/* Project Selector acts as Breadcrumb now */}
-          <ProjectSelector
-            projects={projects}
-            activeProject={activeProject}
-            onSelect={setActiveProject}
-            disabled={isLoading || !brandSlug}
-          />
+        <div className="flex items-center gap-3">
+          <PanelModeToggle value={panelMode} onChange={setPanelMode} disabled={!brandSlug}/>
+          {panelMode==='assistant'&&<ProjectSelector projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>}
         </div>
         <div className="flex items-center gap-3">
-          <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading || !brandSlug} />
+          {panelMode==='assistant'&&<AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading || !brandSlug}/>}
         <Button
           variant="ghost"
           size="sm"
@@ -409,108 +407,33 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         )
       }
 
-      <ScrollArea className="flex-1">
-        <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
-          {todoList && (
-            <TodoList
-              todoList={todoList}
-              isPaused={isPaused}
-              onPause={handlePause}
-              onResume={handleResume}
-              onStop={handleStop}
-              onNewDirection={handleNewDirection}
-            />
-          )}
-          <MessageList
-            messages={messages}
-            loadedSkills={loadedSkills}
-            thinkingSteps={thinkingSteps}
-            isLoading={isLoading}
-            products={products}
-            onInteractionSelect={async (messageId, selection) => {
-              resolveInteraction(messageId)
-              await sendMessage(selection,{aspect_ratio:aspectRatio,generation_mode:generationMode})
-              await refreshProducts()
-            }}
-            onRegenerate={regenerateMessage}
-          />
-        </div>
-      </ScrollArea>
-
-      {/* Context Area (Attachments) - Floating above input */}
-      <div className="px-4 max-w-3xl mx-auto w-full flex flex-col gap-2 mb-2">
-        <AttachedProducts
-          products={products}
-          attachedSlugs={combinedAttachments.products}
-          onDetach={detachProduct}
-        />
-        <AttachedStyleReferences
-          styleReferences={styleReferences}
-          attachedStyleReferences={combinedAttachments.styleReferences}
-          onDetach={detachStyleReference}
-        />
-
-        {attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-2">
-            {attachments.map((att) => (
-              <div
-                key={att.id}
-                className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 dark:bg-white/10 backdrop-blur-sm px-3 py-1 shadow-sm"
-              >
-                {att.preview ? (
-                  <img src={att.preview} alt={att.name} className="h-4 w-4 rounded object-cover" />
-                ) : (
-                  <Paperclip className="h-3 w-3 text-muted-foreground" />
-                )}
-                <span className="text-xs max-w-[120px] truncate font-medium text-foreground/80">{att.name}</span>
-                <button
-                  type="button"
-                  className="text-muted-foreground/60 hover:text-destructive ml-1"
-                  onClick={() => removeAttachment(att.id)}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+      {/* Assistant Mode - hidden when playground active (keeps state) */}
+      <div className={panelMode==='assistant'?'flex flex-col flex-1 min-h-0':'hidden'}>
+        <ScrollArea className="flex-1">
+          <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
+            {todoList&&(<TodoList todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>)}
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{aspect_ratio:aspectRatio,generation_mode:generationMode});await refreshProducts()}} onRegenerate={regenerateMessage}/>
           </div>
-        )}
+        </ScrollArea>
+        {/* Context Area (Attachments) - Floating above input */}
+        <div className="px-4 max-w-3xl mx-auto w-full flex flex-col gap-2 mb-2">
+          <AttachedProducts products={products} attachedSlugs={combinedAttachments.products} onDetach={detachProduct}/>
+          <AttachedStyleReferences styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetach={detachStyleReference}/>
+          {attachments.length>0&&(<div className="flex flex-wrap gap-2 px-2">{attachments.map((att)=>(<div key={att.id} className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 dark:bg-white/10 backdrop-blur-sm px-3 py-1 shadow-sm">{att.preview?(<img src={att.preview} alt={att.name} className="h-4 w-4 rounded object-cover"/>):(<Paperclip className="h-3 w-3 text-muted-foreground"/>)}<span className="text-xs max-w-[120px] truncate font-medium text-foreground/80">{att.name}</span><button type="button" className="text-muted-foreground/60 hover:text-destructive ml-1" onClick={()=>removeAttachment(att.id)}><X className="h-3 w-3"/></button></div>))}</div>)}
+        </div>
+        {/* Mode Toggle + Aspect Ratio Selector */}
+        <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
+          <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{setGenerationMode(m);const valid=getValidRatioForMode(aspectRatio,m);if(valid!==aspectRatio)setAspectRatio(valid)}} disabled={isLoading||!brandSlug}/>
+          <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug} generationMode={generationMode}/>
+        </div>
+        {/* Input Area - Clean, no gradient background */}
+        <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
+          <MessageInput disabled={isLoading||!brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} onSend={async(text)=>{const mentionAtts=resolveMentions(text,products,styleReferences);const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])];const srMap=new Map<string,AttachedStyleReference>();for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t);for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t);const allStyleRefs=Array.from(srMap.values());await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,aspect_ratio:aspectRatio,generation_mode:generationMode});await refreshProducts()}} canSendWithoutText={attachments.length>0} onSelectImages={handleSelectImages} hasProducts={products.length>0} hasStyleReferences={styleReferences.length>0}/>
+        </div>
       </div>
-
-      {/* Mode Toggle + Aspect Ratio Selector */}
-      <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
-        <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{
-setGenerationMode(m)
-//Auto-adjust aspect ratio if current is invalid for new mode
-const valid=getValidRatioForMode(aspectRatio,m)
-if(valid!==aspectRatio)setAspectRatio(valid)}} disabled={isLoading||!brandSlug}/>
-        <AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isLoading||!brandSlug} generationMode={generationMode}/>
-      </div>
-
-      {/* Input Area - Clean, no gradient background */}
-      <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
-        <MessageInput
-          disabled={isLoading || !brandSlug}
-          isGenerating={isLoading}
-          onCancel={cancelGeneration}
-          placeholder=""
-          onMessageChange={setInputText}
-          onSend={async(text)=>{
-//Parse mentions from text and merge with Quick Insert attachments
-const mentionAtts=resolveMentions(text,products,styleReferences)
-//Merge products (dedupe)
-const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])]
-//Merge style references (Quick Insert wins for strictness)
-const srMap=new Map<string,AttachedStyleReference>()
-for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t)
-for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t)
-const allStyleRefs=Array.from(srMap.values())
-await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,aspect_ratio:aspectRatio,generation_mode:generationMode})
-await refreshProducts()}}
-          canSendWithoutText={attachments.length > 0}
-          onSelectImages={handleSelectImages}
-          hasProducts={products.length > 0}
-          hasStyleReferences={styleReferences.length > 0}
-        />
+      {/* Playground Mode - hidden when assistant active (keeps state) */}
+      <div className={panelMode==='playground'?'flex flex-col flex-1 min-h-0':'hidden'}>
+        <PlaygroundMode brandSlug={brandSlug}/>
       </div>
       {pendingApproval && (
         <ApprovalPrompt
