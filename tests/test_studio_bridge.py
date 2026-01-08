@@ -308,9 +308,9 @@ class TestChatDelegation:
     """Tests for chat method delegation."""
 
     def test_chat_delegates_all_params(self, bridge):
-        """Should delegate chat with all parameters."""
+        """Should delegate chat with all parameters (uses chat_sync per Fix #3)."""
         bridge._chat = MagicMock()
-        bridge._chat.chat.return_value = {"success": True, "data": {"response": "Hello"}}
+        bridge._chat.chat_sync.return_value = {"success": True, "data": {"response": "Hello"}}
         bridge.chat(
             "hi",
             [{"file": "a.png"}],
@@ -320,7 +320,7 @@ class TestChatDelegation:
             "16:9",
             "image",
         )
-        bridge._chat.chat.assert_called_once_with(
+        bridge._chat.chat_sync.assert_called_once_with(
             "hi",
             [{"file": "a.png"}],
             "project-1",

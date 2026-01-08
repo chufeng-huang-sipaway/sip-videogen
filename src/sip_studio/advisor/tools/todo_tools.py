@@ -61,9 +61,13 @@ def create_todo_list(title: str, items: list[str]) -> str:
     todo_list = TodoList.create(ctx.run_id, title)
     for desc in items:
         todo_list.add_item(desc)
-    job_state.todo_list = todo_list
-    if ctx.push_event:
-        ctx.push_event("__onTodoListCreated", todo_list.model_dump(by_alias=True))
+    # Fix #8: Use BridgeState for thread-safe todo management
+    if ctx.bridge_state:
+        ctx.bridge_state.set_todo_list(ctx.run_id, todo_list)
+    else:
+        job_state.todo_list = todo_list
+        if ctx.push_event:
+            ctx.push_event("__onTodoListCreated", todo_list.model_dump(by_alias=True))
     logger.info("Created todo list '%s' with %d items for run %s", title, len(items), ctx.run_id)
     return f"Created to-do list '{title}' with {len(items)} items. List ID: {todo_list.id}"
 
@@ -81,6 +85,18 @@ def start_todo_item(item_id: str) -> str:
     if err or ctx is None or job_state is None:
         return f"Error: {err}"
     _check_interrupt(ctx)
+    # Fix #8: Use BridgeState for thread-safe todo management
+    if ctx.bridge_state:
+        todo_list = ctx.bridge_state.get_todo_list(ctx.run_id)
+        if not todo_list:
+            return "Error: No to-do list exists"
+        item = todo_list.get_item(item_id)
+        if not item:
+            return f"Error: Item {item_id} not found"
+        if not ctx.bridge_state.update_todo_item(ctx.run_id, item_id, "in_progress"):
+            return f"Error: Cannot start item with status '{item.status.value}'"
+        return f"Started item: {item.description}"
+    # Fallback for tests
     if not job_state.todo_list:
         return "Error: No to-do list exists"
     item = job_state.todo_list.get_item(item_id)
@@ -114,6 +130,18 @@ def complete_todo_item(item_id: str, outputs: list[str] | None = None) -> str:
     if err or ctx is None or job_state is None:
         return f"Error: {err}"
     _check_interrupt(ctx)
+    # Fix #8: Use BridgeState for thread-safe todo management
+    if ctx.bridge_state:
+        todo_list = ctx.bridge_state.get_todo_list(ctx.run_id)
+        if not todo_list:
+            return "Error: No to-do list exists"
+        item = todo_list.get_item(item_id)
+        if not item:
+            return f"Error: Item {item_id} not found"
+        if not ctx.bridge_state.update_todo_item(ctx.run_id, item_id, "done", outputs):
+            return f"Error: Cannot complete item with status '{item.status.value}'"
+        return f"Completed item: {item.description}"
+    # Fallback for tests
     if not job_state.todo_list:
         return "Error: No to-do list exists"
     item = job_state.todo_list.get_item(item_id)
@@ -149,6 +177,19 @@ def fail_todo_item(item_id: str, error: str) -> str:
     ctx, job_state, err = _get_ctx_and_state()
     if err or ctx is None or job_state is None:
         return f"Error: {err}"
+    # Fix #8: Use BridgeState for thread-safe todo management
+    if ctx.bridge_state:
+        todo_list = ctx.bridge_state.get_todo_list(ctx.run_id)
+        if not todo_list:
+            return "Error: No to-do list exists"
+        item = todo_list.get_item(item_id)
+        if not item:
+            return f"Error: Item {item_id} not found"
+        if not ctx.bridge_state.update_todo_item(ctx.run_id, item_id, "error", error=error):
+            return f"Error: Cannot fail item with status '{item.status.value}'"
+        logger.warning("Todo item %s failed: %s", item_id, error)
+        return f"Marked item as failed: {item.description}"
+    # Fallback for tests
     if not job_state.todo_list:
         return "Error: No to-do list exists"
     item = job_state.todo_list.get_item(item_id)
@@ -182,11 +223,15 @@ def get_next_todo_item() -> str:
     if err or ctx is None or job_state is None:
         return f"Error: {err}"
     _check_interrupt(ctx)
-    if not job_state.todo_list:
+    # Fix #8: Use BridgeState for thread-safe todo access
+    todo_list = (
+        ctx.bridge_state.get_todo_list(ctx.run_id) if ctx.bridge_state else job_state.todo_list
+    )
+    if not todo_list:
         return "No to-do list exists"
-    item = job_state.todo_list.get_next_pending()
+    item = todo_list.get_next_pending()
     if not item:
-        progress = job_state.todo_list.progress
+        progress = todo_list.progress
         return f"All items complete ({progress['done']}/{progress['total']})"
     return f"Next item: {item.id} - {item.description}"
 
@@ -200,11 +245,15 @@ def get_todo_progress() -> str:
     ctx, job_state, err = _get_ctx_and_state()
     if err or ctx is None or job_state is None:
         return f"Error: {err}"
-    if not job_state.todo_list:
+    # Fix #8: Use BridgeState for thread-safe todo access
+    todo_list = (
+        ctx.bridge_state.get_todo_list(ctx.run_id) if ctx.bridge_state else job_state.todo_list
+    )
+    if not todo_list:
         return "No to-do list exists"
-    progress = job_state.todo_list.progress
+    progress = todo_list.progress
     items_summary = []
-    for item in job_state.todo_list.items:
+    for item in todo_list.items:
         status_icon = {
             "pending": "⏳",
             "in_progress": "🔄",

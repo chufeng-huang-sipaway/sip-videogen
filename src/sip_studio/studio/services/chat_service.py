@@ -99,6 +99,7 @@ class ChatService:
             return bridge_error(str(e))
         self._state.start_chat_turn()
         job = ChatJob(run_id, self._state, job_state)
+        self._current_job = job
         try:
             result = job.run(
                 message,
@@ -111,9 +112,15 @@ class ChatService:
             )
             if "error" in result:
                 return bridge_error(result["error"])
+            # Fix #4: Don't cleanup on pause - preserve job state for resume
+            if result.get("paused"):
+                return bridge_ok(result)
             return bridge_ok(result)
         finally:
-            self._state.cleanup_job(run_id)
+            # Fix #4: Only cleanup if not paused (job state needed for resume)
+            if not self._state.is_paused(run_id):
+                self._state.cleanup_job(run_id)
+                self._current_job = None
 
     def interrupt_task(self, action: str, message: str | None = None) -> dict:
         """Interrupt current chat task (pause/stop/new_direction)."""
@@ -125,18 +132,21 @@ class ChatService:
         return bridge_ok({"interrupted": True, "action": action})
 
     def resume_task(self) -> dict:
-        """Resume a paused chat task."""
+        """Resume a paused chat task (Fix #4)."""
         job = self._state.get_active_job()
         if not job:
             return bridge_error("No active job")
         if not job.is_paused:
             return bridge_error("Job is not paused")
+        # Mark paused todo items as pending (ready to restart)
         if job.todo_list:
             for item in job.todo_list.items:
                 if item.status == TodoItemStatus.PAUSED:
-                    self._state.update_todo_item(job.run_id, item.id, "in_progress")
+                    self._state.update_todo_item(job.run_id, item.id, "pending")
+        # Clear pause/interrupt state
         self._state.set_paused(job.run_id, False)
         self._state.clear_interrupt(job.run_id)
+        # Build resume prompt from pending items
         pending_items = []
         if job.todo_list:
             for item in job.todo_list.items:
@@ -146,7 +156,12 @@ class ChatService:
             resume_msg = "Continue with remaining tasks: " + ", ".join(pending_items)
         else:
             resume_msg = "Continue with the task."
-        return self.chat(resume_msg)
+        # Cleanup old job state before starting new chat
+        old_run_id = job.run_id
+        self._state.cleanup_job(old_run_id)
+        self._current_job = None
+        # Start new chat with resume message
+        return self.chat_sync(resume_msg)
 
     def clear_chat(self) -> dict:
         """Clear conversation history."""

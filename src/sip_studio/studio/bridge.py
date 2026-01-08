@@ -355,9 +355,9 @@ class StudioBridge:
         aspect_ratio: str | None = None,
         generation_mode: str | None = None,
     ) -> dict:
-        """Start chat in background. Returns immediately with runId."""
+        """Synchronous chat (Fix #3 - use chat_sync for backward compat with frontend)."""
         logger.info("[Bridge.chat] attached_style_references=%s", attached_style_references)
-        return self._chat.chat(
+        return self._chat.chat_sync(
             message,
             attachments,
             project_slug,

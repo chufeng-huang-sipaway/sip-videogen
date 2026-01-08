@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from sip_studio.studio.job_state import ApprovalRequest, ApprovalResult, JobState
+    from sip_studio.studio.state import BridgeState
 
 # Callback types for push events
 PushEventCallback = Callable[[str, dict[str, Any]], None]
@@ -27,12 +28,14 @@ class RunContext:
     Attributes:
         run_id: Unique identifier for this run
         job_state: Reference to mutable job state (shared with BridgeState)
+        bridge_state: Reference to BridgeState for thread-safe operations
         push_event: Callback to push events to frontend via PyWebView
         autonomy_mode: Whether to auto-approve sensitive operations
     """
 
     run_id: str
     job_state: "JobState|None" = None
+    bridge_state: "BridgeState|None" = None
     push_event: PushEventCallback | None = None
     autonomy_mode: bool = False
 

@@ -235,7 +235,9 @@ class BridgeState:
             job = JobState(run_id=run_id, job_type=jt)  # type: ignore[arg-type]
             self._jobs[run_id] = job
             self._active_job_run_id = run_id
-            return job
+        # Fix #7: Push job started event for frontend to track
+        self._push_event("__onJobStarted", {"runId": run_id, "jobType": jt})
+        return job
 
     def get_job(self, run_id: str) -> JobState | None:
         """Get a job by run_id."""
@@ -250,13 +252,20 @@ class BridgeState:
             return None
 
     def cleanup_job(self, run_id: str) -> None:
-        """Clean up a completed/cancelled job."""
-        with self._lock:
-            self._jobs.pop(run_id, None)
-            if self._active_job_run_id == run_id:
-                self._active_job_run_id = None
-            # Clean approval index entries for this job
-            self._approval_index = {k: v for k, v in self._approval_index.items() if v != run_id}
+        """Clean up a completed/cancelled job. Fix #9: Made resilient."""
+        try:
+            with self._lock:
+                self._jobs.pop(run_id, None)
+                if self._active_job_run_id == run_id:
+                    self._active_job_run_id = None
+                # Clean approval index entries for this job
+                self._approval_index = {
+                    k: v for k, v in self._approval_index.items() if v != run_id
+                }
+            # Fix #9: Notify frontend job ended
+            self._push_event("__onJobCompleted", {"runId": run_id})
+        except Exception:
+            pass  # Ensure cleanup never raises
 
     # === Approval Methods (A4, A10) ===
     def set_pending_approval(self, run_id: str, request: ApprovalRequest) -> None:

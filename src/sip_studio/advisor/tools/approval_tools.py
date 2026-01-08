@@ -83,12 +83,15 @@ async def request_approval(
         return ApprovalResult(action="auto_approved")
     # Create approval request
     request = ApprovalRequest.create(ctx.run_id, tool_name, prompt, preview_url, timeout_sec)
-    # Set pending approval on job state
-    job_state.pending_approval = request
-    job_state.approval_response = None
-    # Push to frontend
-    if ctx.push_event:
-        ctx.push_event("__onApprovalRequest", request.model_dump(by_alias=True))
+    # Fix #6: Use BridgeState for thread-safe approval management
+    if ctx.bridge_state:
+        ctx.bridge_state.set_pending_approval(ctx.run_id, request)
+    else:
+        # Fallback for tests without bridge_state
+        job_state.pending_approval = request
+        job_state.approval_response = None
+        if ctx.push_event:
+            ctx.push_event("__onApprovalRequest", request.model_dump(by_alias=True))
     logger.info("Approval requested: %s (timeout=%ds)", tool_name, int(timeout_sec))
     # Wait for response with monotonic timeout
     start_time = time.monotonic()
@@ -97,9 +100,13 @@ async def request_approval(
         while True:
             # Check for interrupt
             _check_interrupt(ctx)
-            # Check for response
-            if job_state.approval_response:
+            # Fix #6: Use BridgeState for thread-safe response check
+            response = None
+            if ctx.bridge_state:
+                response = ctx.bridge_state.get_approval_response(ctx.run_id)
+            else:
                 response = job_state.approval_response
+            if response:
                 logger.info("Approval response: %s for %s", response.action, tool_name)
                 return response
             # Check timeout
@@ -109,12 +116,16 @@ async def request_approval(
             # Poll sleep
             await asyncio.sleep(APPROVAL_POLL_INTERVAL_SEC)
     finally:
-        # Clear approval state
-        job_state.pending_approval = None
-        job_state.approval_response = None
-        # Push clear event
-        if ctx.push_event:
-            ctx.push_event("__onApprovalCleared", {"runId": ctx.run_id, "requestId": request.id})
+        # Fix #6: Use BridgeState for thread-safe cleanup
+        if ctx.bridge_state:
+            ctx.bridge_state.clear_approval(ctx.run_id, request.id)
+        else:
+            job_state.pending_approval = None
+            job_state.approval_response = None
+            if ctx.push_event:
+                ctx.push_event(
+                    "__onApprovalCleared", {"runId": ctx.run_id, "requestId": request.id}
+                )
 
 
 def approval_required(

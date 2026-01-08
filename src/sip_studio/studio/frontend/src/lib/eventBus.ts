@@ -31,9 +31,14 @@ onApprovalCleared:'onApprovalCleared',
 //Autonomy events
 onAutonomyChanged:'onAutonomyChanged',
 //Job lifecycle events
+onJobStarted:'onJobStarted',
+onJobCompleted:'onJobCompleted',
 onJobPaused:'onJobPaused',
 onJobResumed:'onJobResumed',
 onJobInterrupted:'onJobInterrupted',
+//Chat result events (Fix #2 - for background execution)
+onChatResult:'onChatResult',
+onChatError:'onChatError',
 //Thinking steps (existing)
 onThinkingStep:'onThinkingStep',
 //Quick generate events

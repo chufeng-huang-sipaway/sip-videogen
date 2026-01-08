@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable
 
 from sip_studio.advisor.agent import BrandAdvisor
+from sip_studio.advisor.context import RunContext, clear_active_context, set_active_context
 from sip_studio.advisor.tools import get_image_metadata, get_video_metadata
 from sip_studio.brands.memory import list_brand_assets, list_brand_videos
 from sip_studio.brands.storage import (
@@ -163,6 +164,15 @@ class ChatJob:
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
         self._state.add_thinking_step(initial_step)
+        # Set up RunContext for tools to access job state (Fix #1)
+        ctx = RunContext(
+            run_id=self._run_id,
+            job_state=self._job_state,
+            bridge_state=self._state,
+            push_event=self._state._push_event,
+            autonomy_mode=self._state.autonomy_mode,
+        )
+        set_active_context(ctx)
         try:
             self._check_interrupt()
             advisor, err = self._ensure_advisor()
@@ -250,6 +260,7 @@ class ChatJob:
             self._push_error(str(e))
             return {"error": str(e)}
         finally:
+            clear_active_context()
             self._state.current_progress = ""
 
     def _handle_interrupt(self, e: InterruptedError) -> dict[str, Any]:

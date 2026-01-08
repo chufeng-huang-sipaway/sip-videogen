@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
+from sip_studio.advisor.context import RunContext, clear_active_context, set_active_context
 from sip_studio.advisor.tools.image_tools import _impl_generate_image
 from sip_studio.brands.storage import get_active_brand
 from sip_studio.config.logging import get_logger
@@ -110,6 +111,15 @@ class QuickGenerateJob:
         slug = get_active_brand()
         if not slug:
             return {"error": "No brand selected"}
+        # Fix #5: Set up RunContext for interrupt checks in image generation
+        ctx = RunContext(
+            run_id=self._run_id,
+            job_state=self._job_state,
+            bridge_state=self._state,
+            push_event=self._state._push_event,
+            autonomy_mode=self._state.autonomy_mode,
+        )
+        set_active_context(ctx)
         self._progress.total = len(prompts)
         self._push_progress()
         try:
@@ -173,3 +183,5 @@ class QuickGenerateJob:
                 "total": self._progress.total,
                 "completed": self._progress.completed,
             }
+        finally:
+            clear_active_context()
