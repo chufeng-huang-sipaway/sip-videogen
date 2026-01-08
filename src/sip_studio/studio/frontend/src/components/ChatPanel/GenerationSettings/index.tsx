@@ -57,10 +57,13 @@ const[open,setOpen]=useState(false)
 return(
 <Popover open={open} onOpenChange={setOpen}>
 <PopoverTrigger asChild>
-<button type="button" disabled={disabled} className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all","bg-white/50 dark:bg-white/10 border border-border/40","hover:bg-white dark:hover:bg-white/20 focus:outline-none",disabled&&"opacity-50 cursor-not-allowed")} title="Generation defaults">
-<RatioIcon ratio={imageAspectRatio} size={14}/>
+<button type="button" disabled={disabled} className={cn("inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium transition-all","bg-white/50 dark:bg-white/10 border border-border/40","hover:bg-white dark:hover:bg-white/20 focus:outline-none",disabled&&"opacity-50 cursor-not-allowed")} title="Generation defaults">
+<RatioIcon ratio={imageAspectRatio} size={12}/>
 <span className="text-muted-foreground">{imageAspectRatio}</span>
-<ChevronDown className="h-3 w-3 opacity-50"/>
+<span className="text-muted-foreground/30 mx-0.5">/</span>
+<RatioIcon ratio={videoAspectRatio} size={12}/>
+<span className="text-muted-foreground">{videoAspectRatio}</span>
+<ChevronDown className="h-3 w-3 text-muted-foreground/50 ml-0.5"/>
 </button>
 </PopoverTrigger>
 <PopoverContent align="end" side="top" sideOffset={8} className="w-72 p-0">

@@ -3,7 +3,7 @@ import{useDropzone,type DropEvent,type FileRejection}from'react-dropzone'
 import{ScrollArea}from'@/components/ui/scroll-area'
 import{Alert,AlertDescription}from'@/components/ui/alert'
 import{Button}from'@/components/ui/button'
-import{AlertCircle,Paperclip,X,Upload,Plus}from'lucide-react'
+import{AlertCircle,Upload,Plus}from'lucide-react'
 import{useChat}from'@/hooks/useChat'
 import{useProducts}from'@/context/ProductContext'
 import{useProjects}from'@/context/ProjectContext'
@@ -12,8 +12,7 @@ import{useWorkstation}from'@/context/WorkstationContext'
 import{useDrag}from'@/context/DragContext'
 import{MessageInput,type MessageInputRef}from'./MessageInput'
 import{MessageList}from'./MessageList'
-import{AttachedProducts}from'./AttachedProducts'
-import{AttachedStyleReferences}from'./AttachedStyleReferences'
+import{AttachmentChips}from'./AttachmentChips'
 import{ProjectSelector}from'./ProjectSelector'
 import{GenerationSettings}from'./GenerationSettings'
 import{TodoList}from'./TodoList'
@@ -139,6 +138,16 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     handleSkipApproval()
     setTimeout(()=>messageInputRef.current?.focus(),100)
   },[handleSkipApproval])
+  //Handle detach product - remove from Quick Insert AND from input text @mentions
+  const handleDetachProduct=useCallback((slug:string)=>{
+    detachProduct(slug)
+    setInputText(prev=>prev.replace(new RegExp(`@product:${slug}\\s*`,'gi'),'').trim())
+  },[detachProduct])
+  //Handle detach style reference - remove from Quick Insert AND from input text @mentions
+  const handleDetachStyleReference=useCallback((slug:string)=>{
+    detachStyleReference(slug)
+    setInputText(prev=>prev.replace(new RegExp(`@style:${slug}\\s*`,'gi'),'').trim())
+  },[detachStyleReference])
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
@@ -400,15 +409,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} onRegenerate={regenerateMessage}/>
           </div>
         </ScrollArea>
-        {/* Context Area (Attachments) - Floating above input */}
-        <div className="px-4 max-w-3xl mx-auto w-full flex flex-col gap-2 mb-2">
-          <AttachedProducts products={products} attachedSlugs={combinedAttachments.products} onDetach={detachProduct}/>
-          <AttachedStyleReferences styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetach={detachStyleReference}/>
-          {attachments.length>0&&(<div className="flex flex-wrap gap-2 px-2">{attachments.map((att)=>(<div key={att.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/80 px-2 py-1 shadow-sm transition-all hover:shadow-md hover:border-border">{att.preview?(<img src={att.preview} alt={att.name} className="h-6 w-6 rounded object-cover shrink-0"/>):(<div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0"><Paperclip className="h-3 w-3 text-muted-foreground"/></div>)}<span className="text-xs max-w-[120px] truncate font-medium">{att.name}</span><button type="button" className="text-muted-foreground/60 hover:text-destructive transition-colors" onClick={()=>removeAttachment(att.id)}><X className="h-3 w-3"/></button></div>))}</div>)}
+        {/* Chips row */}
+        <div className="px-4 max-w-3xl mx-auto w-full">
+          <AttachmentChips products={products} attachedProductSlugs={combinedAttachments.products} onDetachProduct={handleDetachProduct} styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetachStyleReference={handleDetachStyleReference} attachments={attachments} onRemoveAttachment={removeAttachment}/>
         </div>
-        {/* Generation Settings + Autonomy Toggle */}
-        <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
-          <div className="flex-1"/>
+        {/* Controls row */}
+        <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-2 py-1">
           <GenerationSettings imageAspectRatio={imageAspectRatio} videoAspectRatio={videoAspectRatio as VideoAspectRatio} onImageAspectRatioChange={setImageAspectRatio} onVideoAspectRatioChange={setVideoAspectRatio} disabled={isLoading||!brandSlug}/>
           <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading||!brandSlug}/>
         </div>
