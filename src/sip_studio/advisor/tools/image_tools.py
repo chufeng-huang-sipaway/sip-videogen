@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
 
 from agents import function_tool
 
@@ -216,14 +215,6 @@ async def _impl_generate_image(
             template_constraints = build_style_reference_constraints(
                 analysis_v1, strict=strict, include_usage=False
             )
-        template_aspect_ratio = style_ref.analysis.canvas.aspect_ratio
-        allowed_aspects = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"}
-        if template_aspect_ratio and template_aspect_ratio in allowed_aspects:
-            if template_aspect_ratio != aspect_ratio:
-                logger.info(
-                    "Template aspect ratio override: %s -> %s", aspect_ratio, template_aspect_ratio
-                )
-            aspect_ratio = template_aspect_ratio
     # Load style reference images for strict mode (color grading visual reference)
     style_ref_images_bytes: list[bytes] = []
     style_ref_image_paths: list[str] = []
@@ -796,8 +787,6 @@ async def _impl_generate_image(
 @function_tool
 async def generate_image(
     prompt: str,
-    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"]
-    | None = None,
     filename: str | None = None,
     reference_image: str | None = None,
     product_slug: str | None = None,
@@ -809,9 +798,9 @@ async def generate_image(
 ) -> str:
     """Generate an image using Gemini 3.0 Pro.
     Creates a high-quality image from a text prompt. Use for brand assets like logos, mascots, lifestyle photos, and marketing materials.
+    Aspect ratio is automatically applied from user's settings - do not specify it.
     Args:
         prompt: Detailed description of the image to generate.
-        aspect_ratio: Image aspect ratio. Uses session context if not specified.
         filename: Optional filename to save as (without extension).
         reference_image: Optional path to a reference image within the brand directory.
         product_slug: Optional product slug. Automatically loads product's images and enables identity validation.
@@ -823,16 +812,11 @@ async def generate_image(
     Returns:
         Path to the saved image file, or error message.
     """
-    # APPROVAL CHOKEPOINT: Check if user approval is required before generation
     final_prompt, should_proceed = _request_approval_if_supervised(prompt)
     if not should_proceed:
         return "Image generation skipped by user"
-    # Session aspect ratio is source of truth (set by UI before agent runs)
-    session_ratio = get_active_aspect_ratio()
-    validated = validate_aspect_ratio(session_ratio)
-    effective_ratio = validated.value
-    if aspect_ratio and aspect_ratio != effective_ratio:
-        logger.debug(f"Using session aspect_ratio={effective_ratio} (LLM suggested {aspect_ratio})")
+    # Aspect ratio from user's UI settings (cannot be overridden)
+    effective_ratio = validate_aspect_ratio(get_active_aspect_ratio()).value
     return await _impl_generate_image(
         final_prompt,
         effective_ratio,

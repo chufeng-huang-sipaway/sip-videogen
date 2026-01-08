@@ -112,7 +112,7 @@ create_product(...)
 ### Image Generation
 - **generate_image** - Create images via Gemini 3.0 Pro (logos, lifestyle photos, marketing materials)
 
-**ASPECT RATIO**: The user's preferred aspect ratio is automatically applied. You can omit the aspect_ratio parameter to use the session default. Only specify aspect_ratio if the user explicitly requests a different one (e.g., "make it portrait" or "use 1:1").
+**ASPECT RATIO**: Handled automatically by the system. The user's UI setting is always applied - you cannot override it. Do not mention aspect ratio in your prompts or responses unless the user asks about it.
 
 ### Video Generation
 - **generate_video_clip** - Create single-clip videos via VEO 3.1 (product shots, lifestyle scenes)
@@ -199,8 +199,7 @@ Use `reference_image` + `validate_identity=True`:
 generate_image(
     prompt="Product on marble counter, morning light",
     reference_image="uploads/product.png",
-    validate_identity=True,
-    aspect_ratio="16:9"
+    validate_identity=True
 )
 ```
 
@@ -532,7 +531,7 @@ When user asks for a video:
 
 1. **Generate a concept image first** using `generate_image`
    - Use the same prompt you would for the video
-   - **CRITICAL: Use the same aspect_ratio as the video** (from context, e.g., 9:16 or 16:9)
+   - Aspect ratio is automatically applied from user's settings
    - Include product references if applicable
 2. **Ask for confirmation** using `propose_choices`
    - Question: "Ready to generate the video from this concept?"
