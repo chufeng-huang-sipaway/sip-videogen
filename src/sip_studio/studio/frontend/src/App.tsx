@@ -25,8 +25,8 @@ function App() {
   const [brandMemoryOpen, setBrandMemoryOpen] = useState(false)
   const [quickGenOpen, setQuickGenOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
-    return saved === 'true'
+    try { const s = localStorage.getItem(SIDEBAR_COLLAPSED_KEY); return s===null?true:s==='true' }
+    catch { return true }
   })
 
   const toggleSidebar = useCallback(() => {
@@ -105,7 +105,7 @@ function App() {
         onOpenBrandMemory={() => setBrandMemoryOpen(true)}
       />
       <Workstation />
-      <div className="w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
+      <div className="flex-1 max-w-[480px] min-w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
       {updateInfo && (<UpdateModal updateInfo={updateInfo} onClose={() => setUpdateInfo(null)} onSkipVersion={handleSkipVersion} />)}
       {activeBrand && <QuickGeneratorFAB onClick={() => setQuickGenOpen(true)} disabled={!activeBrand} />}
