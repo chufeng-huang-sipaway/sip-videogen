@@ -12,6 +12,7 @@ import{useWorkstation}from'@/context/WorkstationContext'
 import{useDrag}from'@/context/DragContext'
 import{useTodo}from'@/hooks/useTodo'
 import{useActiveJob}from'@/hooks/useActiveJob'
+import{useApproval}from'@/hooks/useApproval'
 import{MessageInput}from'./MessageInput'
 import{MessageList}from'./MessageList'
 import{AttachedProducts}from'./AttachedProducts'
@@ -20,6 +21,8 @@ import{ProjectSelector}from'./ProjectSelector'
 import{AspectRatioSelector}from'./AspectRatioSelector'
 import{ModeToggle}from'./ModeToggle'
 import{TodoListPanel}from'./TodoList'
+import{ApprovalPrompt}from'./ApprovalPrompt'
+import{AutonomyToggle}from'./AutonomyToggle'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
 import{getValidRatioForMode,type GenerationMode}from'@/types/aspectRatio'
@@ -68,9 +71,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
-  //Active job + todo list for Phase 1 Production Refactor
+  //Active job + todo list + approval for Phase 1 Production Refactor
   const{activeJob,isPaused,isGenerating:jobActive,pause,resume,stop}=useActiveJob()
   const{todoList}=useTodo(activeJob?.runId??null)
+  const{pendingApproval,respondApprove,respondReject,respondEdit,respondApproveAll}=useApproval()
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
@@ -357,7 +361,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             disabled={isLoading || !brandSlug}
           />
         </div>
-
+        <div className="flex items-center gap-2">
+        <AutonomyToggle disabled={!brandSlug}/>
         <Button
           variant="ghost"
           size="sm"
@@ -373,6 +378,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           <Plus className="w-3.5 h-3.5" />
           <span>New Chat</span>
         </Button>
+        </div>
       </div>
 
       {
@@ -493,6 +499,8 @@ await refreshProducts()}}
         />
       </div>
 
+      {/*Approval Prompt Modal - shows when approval is pending*/}
+      <ApprovalPrompt approval={pendingApproval} onApprove={respondApprove} onReject={respondReject} onEdit={respondEdit} onApproveAll={respondApproveAll}/>
     </main >
   )
 }
