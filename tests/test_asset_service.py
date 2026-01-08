@@ -69,8 +69,7 @@ class TestGetAssets:
 
     def test_error_when_no_brand(self, service):
         """Should return error when no brand selected."""
-        with patch("sip_studio.studio.services.asset_service.get_active_brand", return_value=None):
-            result = service.get_assets()
+        result = service.get_assets()
         assert not result["success"]
         assert "No brand selected" in result["error"]
 
