@@ -17,6 +17,7 @@ from .services.document_service import DocumentService
 from .services.image_status import ImageStatusService
 from .services.product_service import ProductService
 from .services.project_service import ProjectService
+from .services.quick_generate_service import QuickGenerateService
 from .services.style_reference_service import StyleReferenceService
 from .services.update_service import UpdateService
 from .state import BridgeState
@@ -47,6 +48,7 @@ class StudioBridge:
         self._project = ProjectService(self._state)
         self._style_reference = StyleReferenceService(self._state)
         self._chat = ChatService(self._state)
+        self._quick_gen = QuickGenerateService(self._state)
         self._update = UpdateService(self._state)
         self._image_status = ImageStatusService(self._state)
 
@@ -557,5 +559,61 @@ class StudioBridge:
                 return bridge_error(f"File not found: {image_path}")
             reveal_in_file_manager(path)
             return bridge_ok({"shared": True, "path": str(path)})
+        except Exception as e:
+            return bridge_error(str(e))
+
+    # ===========================================================================
+    # Quick Generate (Image Generator Toolbox - Phase 1 Production Refactor)
+    # ===========================================================================
+    def quick_generate(
+        self,
+        prompts: list[str],
+        aspect_ratio: str = "1:1",
+        product_slug: str | None = None,
+        template_slug: str | None = None,
+        strict: bool = True,
+    ) -> dict:
+        """Start quick image generation in background. Returns immediately with runId."""
+        return self._quick_gen.quick_generate(
+            prompts, aspect_ratio, product_slug, template_slug, strict
+        )
+
+    def cancel_quick_generate(self) -> dict:
+        """Cancel current quick generation job."""
+        return self._quick_gen.cancel_quick_generate()
+
+    def get_quick_generate_progress(self) -> dict:
+        """Get current quick generation progress."""
+        return self._quick_gen.get_quick_generate_progress()
+
+    def download_images_as_zip(self, image_paths: list[str]) -> dict:
+        """Create zip file from image paths and return path to temp file."""
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        from .utils.path_utils import resolve_assets_path
+
+        try:
+            if not image_paths:
+                return bridge_error("No image paths provided")
+            brand_dir, err = self._state.get_brand_dir()
+            if err or brand_dir is None:
+                return bridge_error(err or "No brand selected")
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+                with zipfile.ZipFile(tmp.name, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for img_path in image_paths:
+                        path = Path(img_path)
+                        if not path.is_absolute():
+                            resolved, res_err = resolve_assets_path(brand_dir, img_path)
+                            if res_err or resolved is None:
+                                logger.warning(f"Skipping invalid path: {img_path}")
+                                continue
+                            path = resolved
+                        if path.exists():
+                            zf.write(path, path.name)
+                        else:
+                            logger.warning(f"Skipping missing file: {img_path}")
+                return bridge_ok({"zipPath": tmp.name})
         except Exception as e:
             return bridge_error(str(e))
