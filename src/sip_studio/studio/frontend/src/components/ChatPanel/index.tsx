@@ -10,6 +10,7 @@ import{useProjects}from'@/context/ProjectContext'
 import{useStyleReferences}from'@/context/StyleReferenceContext'
 import{useWorkstation}from'@/context/WorkstationContext'
 import{useDrag}from'@/context/DragContext'
+import{useQuickGeneratorContext}from'@/context/QuickGeneratorContext'
 import{useTodo}from'@/hooks/useTodo'
 import{useActiveJob}from'@/hooks/useActiveJob'
 import{useApproval}from'@/hooks/useApproval'
@@ -128,7 +129,14 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setGenerationMode,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
 
-
+  //Register send-to-chat callback for QuickGenerator (Task 10.4)
+  const{registerSendToChat}=useQuickGeneratorContext()
+  useEffect(()=>{
+    const handleSendToChat=(paths:string[])=>{
+      for(const path of paths)addAttachmentReference(path)
+    }
+    registerSendToChat(handleSendToChat)
+  },[registerSendToChat,addAttachmentReference])
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)

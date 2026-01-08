@@ -10,10 +10,12 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useBrand } from '@/context/BrandContext'
 import { DragProvider } from '@/context/DragContext'
 import { ViewerProvider } from '@/context/ViewerContext'
+import { QuickGeneratorProvider } from '@/context/QuickGeneratorContext'
 import { bridge, waitForPyWebViewReady, fetchAndInitConstants } from '@/lib/bridge'
 import type { UpdateCheckResult } from '@/lib/bridge'
 import { useTheme } from '@/hooks/useTheme'
 import { initEventHandlers } from '@/lib/eventBus'
+import { QuickGeneratorOverlay } from '@/components/QuickGenerator/QuickGeneratorOverlay'
 //Initialize event handlers once at module load (before React renders)
 initEventHandlers()
 
@@ -98,7 +100,7 @@ function App() {
     return <ApiKeySetup onComplete={() => setNeedsSetup(false)} />
   }
 
-  return (<TooltipProvider><DragProvider><ViewerProvider>
+  return (<TooltipProvider><DragProvider><ViewerProvider><QuickGeneratorProvider>
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -109,8 +111,9 @@ function App() {
       <div className="w-[320px] flex-shrink-0"><ChatPanel brandSlug={activeBrand} /></div>
       <BrandMemory open={brandMemoryOpen} onOpenChange={setBrandMemoryOpen} />
       {updateInfo && (<UpdateModal updateInfo={updateInfo} onClose={() => setUpdateInfo(null)} onSkipVersion={handleSkipVersion} />)}
+      <QuickGeneratorOverlay disabled={!activeBrand}/>
       <Toaster />
-    </div></ViewerProvider></DragProvider></TooltipProvider>)
+    </div></QuickGeneratorProvider></ViewerProvider></DragProvider></TooltipProvider>)
 }
 
 export default App
