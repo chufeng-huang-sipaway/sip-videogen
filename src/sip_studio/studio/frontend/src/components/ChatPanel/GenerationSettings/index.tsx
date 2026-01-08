@@ -1,6 +1,6 @@
 //Generation settings popup - stores defaults for image and video generation
 import{useState}from'react'
-import{Settings,Image,Video,ChevronDown,Check}from'lucide-react'
+import{Image,Video,ChevronDown,Check}from'lucide-react'
 import{cn}from'@/lib/utils'
 import{Popover,PopoverTrigger,PopoverContent}from'@/components/ui/popover'
 import{DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem}from'@/components/ui/dropdown-menu'
@@ -57,9 +57,10 @@ const[open,setOpen]=useState(false)
 return(
 <Popover open={open} onOpenChange={setOpen}>
 <PopoverTrigger asChild>
-<button type="button" disabled={disabled} className={cn("flex items-center gap-1.5 px-2 py-1.5 rounded-full text-xs font-medium transition-all","bg-white/50 dark:bg-white/10 border border-border/40","hover:bg-white dark:hover:bg-white/20 focus:outline-none",disabled&&"opacity-50 cursor-not-allowed")} title="Generation defaults">
-<Settings className="h-3.5 w-3.5"/>
+<button type="button" disabled={disabled} className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all","bg-white/50 dark:bg-white/10 border border-border/40","hover:bg-white dark:hover:bg-white/20 focus:outline-none",disabled&&"opacity-50 cursor-not-allowed")} title="Generation defaults">
+<RatioIcon ratio={imageAspectRatio} size={14}/>
 <span className="text-muted-foreground">{imageAspectRatio}</span>
+<ChevronDown className="h-3 w-3 opacity-50"/>
 </button>
 </PopoverTrigger>
 <PopoverContent align="end" side="top" sideOffset={8} className="w-72 p-0">

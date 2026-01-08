@@ -1,4 +1,4 @@
-import{useCallback,useState,useEffect,useMemo}from'react'
+import{useCallback,useState,useEffect,useMemo,useRef}from'react'
 import{useDropzone,type DropEvent,type FileRejection}from'react-dropzone'
 import{ScrollArea}from'@/components/ui/scroll-area'
 import{Alert,AlertDescription}from'@/components/ui/alert'
@@ -10,7 +10,7 @@ import{useProjects}from'@/context/ProjectContext'
 import{useStyleReferences}from'@/context/StyleReferenceContext'
 import{useWorkstation}from'@/context/WorkstationContext'
 import{useDrag}from'@/context/DragContext'
-import{MessageInput}from'./MessageInput'
+import{MessageInput,type MessageInputRef}from'./MessageInput'
 import{MessageList}from'./MessageList'
 import{AttachedProducts}from'./AttachedProducts'
 import{AttachedStyleReferences}from'./AttachedStyleReferences'
@@ -73,6 +73,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
   const [panelMode, setPanelMode] = useState<PanelMode>('assistant')
+  const messageInputRef=useRef<MessageInputRef>(null)
   //Compute combined attachments (Quick Insert + mentions) for display
   const combinedAttachments=useMemo(()=>{
     const mentionAtts=resolveMentions(inputText,products,styleReferences)
@@ -129,14 +130,15 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     handleResume,
     handleStop,
     handleNewDirection,
-    handleApprove,
     handleApproveAll,
-    handleModifyApproval,
     handleSkipApproval,
     handleSetAutonomyMode,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
-
-
+  //Handle "Let me clarify" - skip approval and focus input
+  const handleLetMeClarify=useCallback(()=>{
+    handleSkipApproval()
+    setTimeout(()=>messageInputRef.current?.focus(),100)
+  },[handleSkipApproval])
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
@@ -402,7 +404,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <div className="px-4 max-w-3xl mx-auto w-full flex flex-col gap-2 mb-2">
           <AttachedProducts products={products} attachedSlugs={combinedAttachments.products} onDetach={detachProduct}/>
           <AttachedStyleReferences styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetach={detachStyleReference}/>
-          {attachments.length>0&&(<div className="flex flex-wrap gap-2 px-2">{attachments.map((att)=>(<div key={att.id} className="group flex items-center gap-2 rounded-full border border-border/60 bg-white/80 dark:bg-white/10 backdrop-blur-sm px-3 py-1 shadow-sm">{att.preview?(<img src={att.preview} alt={att.name} className="h-4 w-4 rounded object-cover"/>):(<Paperclip className="h-3 w-3 text-muted-foreground"/>)}<span className="text-xs max-w-[120px] truncate font-medium text-foreground/80">{att.name}</span><button type="button" className="text-muted-foreground/60 hover:text-destructive ml-1" onClick={()=>removeAttachment(att.id)}><X className="h-3 w-3"/></button></div>))}</div>)}
+          {attachments.length>0&&(<div className="flex flex-wrap gap-2 px-2">{attachments.map((att)=>(<div key={att.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/80 px-2 py-1 shadow-sm transition-all hover:shadow-md hover:border-border">{att.preview?(<img src={att.preview} alt={att.name} className="h-6 w-6 rounded object-cover shrink-0"/>):(<div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0"><Paperclip className="h-3 w-3 text-muted-foreground"/></div>)}<span className="text-xs max-w-[120px] truncate font-medium">{att.name}</span><button type="button" className="text-muted-foreground/60 hover:text-destructive transition-colors" onClick={()=>removeAttachment(att.id)}><X className="h-3 w-3"/></button></div>))}</div>)}
         </div>
         {/* Generation Settings + Autonomy Toggle */}
         <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
@@ -410,24 +412,17 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           <GenerationSettings imageAspectRatio={imageAspectRatio} videoAspectRatio={videoAspectRatio as VideoAspectRatio} onImageAspectRatioChange={setImageAspectRatio} onVideoAspectRatioChange={setVideoAspectRatio} disabled={isLoading||!brandSlug}/>
           <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading||!brandSlug}/>
         </div>
+        {/* Approval Prompt - Above input when pending */}
+        {pendingApproval&&(<div className="px-4 pb-2 w-full max-w-3xl mx-auto"><ApprovalPrompt request={pendingApproval} onApproveAll={handleApproveAll} onLetMeClarify={handleLetMeClarify}/></div>)}
         {/* Input Area - Clean, no gradient background */}
         <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
-          <MessageInput disabled={isLoading||!brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} onSend={async(text)=>{const mentionAtts=resolveMentions(text,products,styleReferences);const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])];const srMap=new Map<string,AttachedStyleReference>();for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t);for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t);const allStyleRefs=Array.from(srMap.values());await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} canSendWithoutText={attachments.length>0} onSelectImages={handleSelectImages} hasProducts={products.length>0} hasStyleReferences={styleReferences.length>0}/>
+          <MessageInput ref={messageInputRef} disabled={isLoading||!brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} onSend={async(text)=>{const mentionAtts=resolveMentions(text,products,styleReferences);const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])];const srMap=new Map<string,AttachedStyleReference>();for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t);for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t);const allStyleRefs=Array.from(srMap.values());await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} canSendWithoutText={attachments.length>0} onSelectImages={handleSelectImages} hasProducts={products.length>0} hasStyleReferences={styleReferences.length>0}/>
         </div>
       </div>
       {/* Playground Mode - hidden when assistant active (keeps state) */}
       <div className={panelMode==='playground'?'flex flex-col flex-1 min-h-0':'hidden'}>
         <PlaygroundMode brandSlug={brandSlug}/>
       </div>
-      {pendingApproval && (
-        <ApprovalPrompt
-          request={pendingApproval}
-          onApprove={handleApprove}
-          onApproveAll={handleApproveAll}
-          onModify={handleModifyApproval}
-          onSkip={handleSkipApproval}
-        />
-      )}
-    </main >
+          </main >
   )
 }

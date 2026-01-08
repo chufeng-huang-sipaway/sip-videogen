@@ -1,4 +1,4 @@
-import{useEffect,useRef,useState,useCallback}from'react'
+import{useEffect,useRef,useState,useCallback,forwardRef,useImperativeHandle}from'react'
 import{ArrowUp,Plus,Image,Square,Loader2}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{DropdownMenu,DropdownMenuContent,DropdownMenuItem,DropdownMenuTrigger}from'@/components/ui/dropdown-menu'
@@ -17,7 +17,8 @@ hasStyleReferences?:boolean
 isGenerating?:boolean
 onCancel?:()=>void
 onMessageChange?:(text:string)=>void}
-export function MessageInput({disabled,placeholder,onSend,canSendWithoutText=false,onSelectImages,hasProducts=false,hasStyleReferences=false,isGenerating=false,onCancel,onMessageChange}:MessageInputProps){
+export interface MessageInputRef{focus:()=>void}
+export const MessageInput=forwardRef<MessageInputRef,MessageInputProps>(function MessageInput({disabled,placeholder,onSend,canSendWithoutText=false,onSelectImages,hasProducts=false,hasStyleReferences=false,isGenerating=false,onCancel,onMessageChange},ref){
 const[message,setMessage]=useState('')
 const[popoverOpen,setPopoverOpen]=useState(false)
 const[showMention,setShowMention]=useState(false)
@@ -25,6 +26,8 @@ const[caretPos,setCaretPos]=useState(0)
 const textareaRef=useRef<HTMLTextAreaElement>(null)
 const fileInputRef=useRef<HTMLInputElement>(null)
 const mentionRef=useRef<MentionAutocompleteRef>(null)
+//Expose focus method to parent
+useImperativeHandle(ref,()=>({focus:()=>textareaRef.current?.focus()}),[])
 const handleFileSelect=(e:React.ChangeEvent<HTMLInputElement>)=>{
 const files=e.target.files
 if(files&&files.length>0&&onSelectImages)onSelectImages(Array.from(files))
@@ -130,4 +133,4 @@ return(
 </Button>)}
 </div>
 </div>
-</div>)}
+</div>)})
