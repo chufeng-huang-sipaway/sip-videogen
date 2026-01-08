@@ -294,3 +294,90 @@ def test_clear_interrupt():
     state.clear_interrupt()
     assert not state.is_interrupted()
     assert state.get_interrupt() is None
+
+
+# =========================================================================
+# Interruption Push and Control Tests (Stage 4)
+# =========================================================================
+def test_push_interrupt_status():
+    state = BridgeState()
+    state.window = MockWindow()
+    state._push_interrupt_status("pause")
+    assert any("__onInterruptStatus" in c for c in state.window.calls)
+    assert any('"signal": "pause"' in c for c in state.window.calls)
+
+
+def test_push_interrupt_status_none():
+    state = BridgeState()
+    state.window = MockWindow()
+    state._push_interrupt_status(None)
+    assert any("__onInterruptStatus" in c for c in state.window.calls)
+    assert any('"signal": null' in c for c in state.window.calls)
+
+
+def test_set_interrupt_with_push():
+    state = BridgeState()
+    state.window = MockWindow()
+    state.set_interrupt_with_push("pause")
+    assert state.get_interrupt() == "pause"
+    assert any("__onInterruptStatus" in c for c in state.window.calls)
+
+
+def test_set_interrupt_with_push_stop_skips_pending_approval():
+    state = BridgeState()
+    state.window = MockWindow()
+    state.APPROVAL_TIMEOUT_SEC = 0.1
+    # Set up a pending approval
+    req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
+    state.set_pending_approval(req)
+    assert state.get_pending_approval() is not None
+    # Stop should auto-skip the pending approval by setting event
+    state.set_interrupt_with_push("stop")
+    # The approval_event should be set
+    assert state._approval_event.is_set()
+
+
+def test_set_interrupt_with_push_new_direction_marks_todo_interrupted():
+    state = BridgeState()
+    state.window = MockWindow()
+    # Set up an active todo list
+    todo = TodoList(id="t1", title="Test Todo", items=[TodoItem(id="i1", description="Task")])
+    state.set_todo_list(todo)
+    state.window.calls.clear()
+    # New direction should mark todo as interrupted
+    state.set_interrupt_with_push("new_direction", "Do something else")
+    assert state.get_interrupt() == "new_direction"
+    assert state.get_new_direction_message() == "Do something else"
+    # Todo should be marked as interrupted
+    updated_todo = state.get_todo_list()
+    assert updated_todo.interrupted_at is not None
+    assert updated_todo.interrupt_reason == "new_direction"
+    # Push events should fire
+    assert any("__onTodoInterrupted" in c for c in state.window.calls)
+
+
+def test_set_interrupt_with_push_pause_does_not_mark_todo_interrupted():
+    state = BridgeState()
+    state.window = MockWindow()
+    # Set up an active todo list
+    todo = TodoList(id="t1", title="Test Todo", items=[TodoItem(id="i1", description="Task")])
+    state.set_todo_list(todo)
+    state.window.calls.clear()
+    # Pause should NOT mark todo as interrupted (pause is not interruption)
+    state.set_interrupt_with_push("pause")
+    assert state.get_interrupt() == "pause"
+    # Todo should NOT be marked as interrupted
+    updated_todo = state.get_todo_list()
+    assert updated_todo.interrupted_at is None
+    assert updated_todo.interrupt_reason is None
+    # No todo interrupted push
+    assert not any("__onTodoInterrupted" in c for c in state.window.calls)
+
+
+def test_push_todo_interrupted():
+    state = BridgeState()
+    state.window = MockWindow()
+    todo = TodoList(id="t1", title="Test", items=[], interrupt_reason="stop")
+    state._push_todo_interrupted(todo)
+    assert any("__onTodoInterrupted" in c for c in state.window.calls)
+    assert any('"reason": "stop"' in c for c in state.window.calls)

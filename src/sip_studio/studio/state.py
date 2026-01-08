@@ -487,3 +487,47 @@ class BridgeState:
         with self._lock:
             self._interrupt_signal = None
             self._new_direction_message = None
+
+    def _push_interrupt_status(self, signal: str | None) -> None:
+        """Push interrupt status to frontend via evaluate_js."""
+        w = self.window
+        if not w or not hasattr(w, "evaluate_js"):
+            return
+        try:
+            import json
+
+            data = json.dumps({"signal": signal})
+            w.evaluate_js(f"window.__onInterruptStatus&&window.__onInterruptStatus({data})")
+        except Exception:
+            pass
+
+    def set_interrupt_with_push(self, signal: str | None, new_message: str | None = None) -> None:
+        """Set interrupt and push to frontend.
+        On stop/new_direction, auto-skip pending approval and mark todo as interrupted.
+        Pause just sets the signal - doesn't mark todo as interrupted."""
+        from datetime import datetime, timezone
+
+        self.set_interrupt(signal, new_message)
+        self._push_interrupt_status(signal)
+        # On stop/new_direction, auto-skip any pending approval to prevent hangs
+        if signal in ("stop", "new_direction") and self._pending_approval:
+            self.respond_approval("skip")
+        # Mark todo list as interrupted ONLY for stop/new_direction (NOT pause)
+        if signal in ("stop", "new_direction") and self._active_todo_list:
+            with self._lock:
+                self._active_todo_list.interrupted_at = datetime.now(timezone.utc).isoformat()
+                self._active_todo_list.interrupt_reason = signal
+            self._push_todo_interrupted(self._active_todo_list)
+
+    def _push_todo_interrupted(self, todo: TodoList) -> None:
+        """Push todo list interrupted event to frontend."""
+        w = self.window
+        if not w or not hasattr(w, "evaluate_js"):
+            return
+        try:
+            import json
+
+            data = json.dumps({"id": todo.id, "reason": todo.interrupt_reason})
+            w.evaluate_js(f"window.__onTodoInterrupted&&window.__onTodoInterrupted({data})")
+        except Exception:
+            pass

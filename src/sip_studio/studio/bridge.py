@@ -554,6 +554,35 @@ class StudioBridge:
         return bridge_ok({"responded": True, "action": action})
 
     # ===========================================================================
+    # Interruption Management
+    # ===========================================================================
+    def interrupt_task(self, action: str, new_message: str | None = None) -> dict:
+        """Interrupt current task execution (cooperative).
+        NOTE: Interruption happens AFTER the current tool completes, not immediately.
+        Args:
+            action: Type of interruption - 'pause', 'stop', 'new_direction'
+            new_message: New direction message if action is 'new_direction'
+        Returns:
+            Dict with interruption status"""
+        valid_actions = {"pause", "stop", "new_direction"}
+        if action not in valid_actions:
+            return bridge_error(f"Invalid action: {action}. Must be one of: {valid_actions}")
+        self._state.set_interrupt_with_push(action, new_message)
+        return bridge_ok(
+            {"interrupted": True, "action": action, "note": "Will take effect after current step"}
+        )
+
+    def resume_task(self) -> dict:
+        """Resume a paused task.
+        Returns:
+            Dict with resume status"""
+        if self._state.get_interrupt() != "pause":
+            return bridge_error("Task is not paused")
+        self._state.clear_interrupt()
+        self._state._push_interrupt_status(None)
+        return bridge_ok({"resumed": True})
+
+    # ===========================================================================
     # Quick Image Generation
     # ===========================================================================
     def quick_generate(
