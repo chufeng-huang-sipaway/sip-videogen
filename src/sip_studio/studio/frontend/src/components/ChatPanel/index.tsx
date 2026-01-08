@@ -19,13 +19,11 @@ import{MessageList}from'./MessageList'
 import{AttachedProducts}from'./AttachedProducts'
 import{AttachedStyleReferences}from'./AttachedStyleReferences'
 import{ProjectSelector}from'./ProjectSelector'
-import{ModeToggle}from'./ModeToggle'
 import{TodoListPanel}from'./TodoList'
 import{ApprovalPrompt}from'./ApprovalPrompt'
 import{AutonomyToggle}from'./AutonomyToggle'
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
-import type{GenerationMode}from'@/types/aspectRatio'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -123,7 +121,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
-    setGenerationMode,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
 
   //Register send-to-chat callback for QuickGenerator (Task 10.4)
@@ -465,11 +462,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Mode Toggle */}
-      <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-3">
-        <ModeToggle value={generationMode} onChange={(m:GenerationMode)=>{setGenerationMode(m)}} disabled={isLoading||!brandSlug}/>
       </div>
 
       {/* Input Area - Clean, no gradient background */}

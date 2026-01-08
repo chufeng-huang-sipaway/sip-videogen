@@ -3,6 +3,8 @@ import{useState,useCallback}from'react'
 import{Play,X}from'lucide-react'
 import{Button}from'@/components/ui/button'
 import{Input}from'@/components/ui/input'
+import{AspectRatioSelector}from'@/components/ChatPanel/AspectRatioSelector'
+import{type AspectRatio,DEFAULT_ASPECT_RATIO}from'@/types/aspectRatio'
 export interface Product{slug:string;name:string}
 export interface StyleReference{slug:string;name:string}
 interface GeneratorFormProps{
@@ -12,12 +14,11 @@ isGenerating:boolean
 disabled?:boolean
 products?:Product[]
 styleReferences?:StyleReference[]}
-const ASPECT_RATIOS=['1:1','16:9','9:16','4:3','3:4']
 const COUNT_OPTIONS=[1,3,5,10]
 export function GeneratorForm({onGenerate,onCancel,isGenerating,disabled,products=[],styleReferences=[]}:GeneratorFormProps){
 const[prompt,setPrompt]=useState('')
 const[count,setCount]=useState(1)
-const[aspectRatio,setAspectRatio]=useState('1:1')
+const[aspectRatio,setAspectRatio]=useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
 const[productSlug,setProductSlug]=useState<string|undefined>()
 const[styleRefSlug,setStyleRefSlug]=useState<string|undefined>()
 const handleSubmit=useCallback(async()=>{
@@ -61,11 +62,7 @@ return(<div className="flex flex-col gap-4">
 {/*Aspect ratio selector*/}
 <div className="flex items-center gap-2">
 <span className="text-xs text-muted-foreground w-16">Aspect:</span>
-<div className="flex gap-1">
-{ASPECT_RATIOS.map(ar=>(<Button key={ar} variant={aspectRatio===ar?'secondary':'ghost'} size="sm" onClick={()=>setAspectRatio(ar)} disabled={isGenerating||disabled} className="h-7 px-2 text-xs">
-{ar}
-</Button>))}
-</div>
+<AspectRatioSelector value={aspectRatio} onChange={setAspectRatio} disabled={isGenerating||disabled} generationMode="image"/>
 </div>
 {/*Generate/Cancel button*/}
 <div className="flex items-center gap-2 pt-2">
