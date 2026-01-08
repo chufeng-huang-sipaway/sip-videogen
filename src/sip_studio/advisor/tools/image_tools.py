@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
 
 from agents import function_tool
 
@@ -22,6 +21,7 @@ from .metadata import (
     store_image_metadata,
 )
 from .session import get_active_aspect_ratio
+from .todo_tools import get_tool_state
 
 logger = get_logger(__name__)
 
@@ -69,6 +69,54 @@ def _build_style_reference_image_label(style_ref_name: str, num_images: int) -> 
     )
 
 
+def _request_approval_if_supervised(
+    prompt: str, action_type: str = "generate_image"
+) -> tuple[str, bool]:
+    """Check if approval needed and wait for it. Returns (prompt, should_proceed).
+    CRITICAL: This is enforced at chokepoint, NOT reliant on agent behavior.
+    Args:
+        prompt: The generation prompt
+        action_type: Type of action for approval display
+    Returns:
+        (prompt, True) - Proceed with (possibly modified) prompt
+        (prompt, False) - User skipped, do not proceed
+    Raises:
+        RuntimeError: If state not initialized (fail-closed, NOT fail-open)
+    """
+    from sip_studio.studio.state import ApprovalRequest
+
+    state = get_tool_state()
+    if not state:
+        # In autonomy mode by default if no state (e.g., quick generator)
+        return (prompt, True)
+    # In autonomy mode, skip approval
+    if state.is_autonomy_mode():
+        return (prompt, True)
+    # Check for interrupt before requesting approval
+    interrupt = state.get_interrupt()
+    if interrupt:
+        logger.info(f"Skipping approval due to interrupt: {interrupt}")
+        return (prompt, False)
+    # Request approval
+    request = ApprovalRequest(
+        id=str(uuid.uuid4())[:8],
+        action_type=action_type,
+        description=f"Generate image with prompt: {prompt[:100]}{'...' if len(prompt) > 100 else ''}",
+        prompt=prompt,
+    )
+    response = state.wait_for_approval(request)
+    action = response.get("action", "skip")
+    if action in ("approve", "approve_all"):
+        return (prompt, True)
+    elif action == "modify":
+        modified = response.get("modified_prompt", prompt)
+        logger.info(f"Prompt modified by user: {modified[:100]}...")
+        return (modified, True)
+    else:  # skip or timeout
+        logger.info(f"Generation skipped by user (action={action})")
+        return (prompt, False)
+
+
 async def _impl_generate_image(
     prompt: str,
     aspect_ratio: str = "1:1",
@@ -80,8 +128,11 @@ async def _impl_generate_image(
     strict: bool = True,
     validate_identity: bool = False,
     max_retries: int = 3,
+    skip_project: bool = False,
 ) -> str:
-    """Implementation of generate_image tool with optional reference-based generation."""
+    """Implementation of generate_image tool with optional reference-based generation.
+    Args:
+        skip_project: If True, don't tag image with active project (for Playground mode)."""
     import io
     import time
 
@@ -107,7 +158,9 @@ async def _impl_generate_image(
     else:
         output_dir = _common.get_brands_dir() / "_temp"
     output_dir.mkdir(parents=True, exist_ok=True)
-    active_project = _common.get_active_project(brand_slug) if brand_slug else None
+    active_project = (
+        _common.get_active_project(brand_slug) if brand_slug and not skip_project else None
+    )
     if active_project:
         generated_filename = _generate_output_filename(active_project)
         if filename:
@@ -162,14 +215,6 @@ async def _impl_generate_image(
             template_constraints = build_style_reference_constraints(
                 analysis_v1, strict=strict, include_usage=False
             )
-        template_aspect_ratio = style_ref.analysis.canvas.aspect_ratio
-        allowed_aspects = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"}
-        if template_aspect_ratio and template_aspect_ratio in allowed_aspects:
-            if template_aspect_ratio != aspect_ratio:
-                logger.info(
-                    "Template aspect ratio override: %s -> %s", aspect_ratio, template_aspect_ratio
-                )
-            aspect_ratio = template_aspect_ratio
     # Load style reference images for strict mode (color grading visual reference)
     style_ref_images_bytes: list[bytes] = []
     style_ref_image_paths: list[str] = []
@@ -742,8 +787,6 @@ async def _impl_generate_image(
 @function_tool
 async def generate_image(
     prompt: str,
-    aspect_ratio: Literal["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"]
-    | None = None,
     filename: str | None = None,
     reference_image: str | None = None,
     product_slug: str | None = None,
@@ -755,9 +798,9 @@ async def generate_image(
 ) -> str:
     """Generate an image using Gemini 3.0 Pro.
     Creates a high-quality image from a text prompt. Use for brand assets like logos, mascots, lifestyle photos, and marketing materials.
+    Aspect ratio is automatically applied from user's settings - do not specify it.
     Args:
         prompt: Detailed description of the image to generate.
-        aspect_ratio: Image aspect ratio. Uses session context if not specified.
         filename: Optional filename to save as (without extension).
         reference_image: Optional path to a reference image within the brand directory.
         product_slug: Optional product slug. Automatically loads product's images and enables identity validation.
@@ -769,14 +812,13 @@ async def generate_image(
     Returns:
         Path to the saved image file, or error message.
     """
-    # Session aspect ratio is source of truth (set by UI before agent runs)
-    session_ratio = get_active_aspect_ratio()
-    validated = validate_aspect_ratio(session_ratio)
-    effective_ratio = validated.value
-    if aspect_ratio and aspect_ratio != effective_ratio:
-        logger.debug(f"Using session aspect_ratio={effective_ratio} (LLM suggested {aspect_ratio})")
+    final_prompt, should_proceed = _request_approval_if_supervised(prompt)
+    if not should_proceed:
+        return "Image generation skipped by user"
+    # Aspect ratio from user's UI settings (cannot be overridden)
+    effective_ratio = validate_aspect_ratio(get_active_aspect_ratio()).value
     return await _impl_generate_image(
-        prompt,
+        final_prompt,
         effective_ratio,
         filename,
         reference_image,

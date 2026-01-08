@@ -20,7 +20,7 @@ downloads/
 eggs/
 .eggs/
 lib/
-!src/sip_videogen/studio/frontend/src/lib/
+!src/sip_studio/studio/frontend/src/lib/
 lib64/
 parts/
 sdist/

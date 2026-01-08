@@ -4,6 +4,7 @@ import type {
   IdentitySection,
   SectionDataMap,
 } from '../types/brand-identity'
+import type{ApprovalRequestData}from'./types/approval'
 import { initConstants, type ConstantsPayload } from './constants'
 
 interface BridgeResponse<T> {
@@ -272,13 +273,13 @@ export interface AttachedStyleReference {
   strict: boolean
 }
 //Chat context types
-import type { AspectRatio,GenerationMode } from '../types/aspectRatio'
+import type { AspectRatio,VideoAspectRatio } from '../types/aspectRatio'
 export interface ChatContext {
   project_slug?: string | null
   attached_products?: string[]
   attached_style_references?: AttachedStyleReference[]
-  aspect_ratio?: AspectRatio
-  generation_mode?: GenerationMode
+  image_aspect_ratio?: AspectRatio
+  video_aspect_ratio?: VideoAspectRatio
 }
 
 interface ApiKeyStatus {
@@ -442,8 +443,8 @@ interface PyWebViewAPI {
   get_constants(): Promise<BridgeResponse<ConstantsPayload>>
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
   save_api_keys(openai: string, gemini: string, firecrawl?: string): Promise<BridgeResponse<void>>
-  get_chat_prefs(brand_slug: string): Promise<BridgeResponse<{ aspect_ratio?: string; generation_mode?: string }>>
-  save_chat_prefs(brand_slug: string, aspect_ratio?: string, generation_mode?: string): Promise<BridgeResponse<void>>
+  get_chat_prefs(brand_slug: string): Promise<BridgeResponse<{ image_aspect_ratio?: string; video_aspect_ratio?: string; aspect_ratio?: string }>>
+  save_chat_prefs(brand_slug: string, image_aspect_ratio?: string, video_aspect_ratio?: string): Promise<BridgeResponse<void>>
   get_brands(): Promise<BridgeResponse<{ brands: BrandEntry[]; active: string | null }>>
   set_brand(slug: string): Promise<BridgeResponse<{ slug: string }>>
   get_brand_info(slug?: string): Promise<BridgeResponse<{ slug: string; name: string; tagline: string; category: string }>>
@@ -483,8 +484,8 @@ interface PyWebViewAPI {
     project_slug?: string | null,
     attached_products?: string[],
     attached_style_references?: AttachedStyleReference[],
-    aspect_ratio?: string,
-    generation_mode?: string
+    image_aspect_ratio?: string,
+    video_aspect_ratio?: string
   ): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
@@ -573,6 +574,24 @@ interface PyWebViewAPI {
   backfill_images(brand_slug?: string): Promise<BridgeResponse<{ added: ImageStatusEntry[]; count: number }>>
   copy_image_to_clipboard(image_path: string): Promise<BridgeResponse<{ copied: boolean; path: string }>>
   share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
+  //Todo list interrupt/resume methods
+  interrupt_task(action: string, new_message?: string): Promise<BridgeResponse<{ interrupted: boolean; action: string; note: string }>>
+  resume_task(): Promise<BridgeResponse<{ resumed: boolean }>>
+  //Quick generator method
+  quick_generate(prompt:string,product_slug?:string,style_reference_slug?:string,aspect_ratio?:string,count?:number):Promise<BridgeResponse<QuickGenerateResult>>
+  //Autonomy mode and approval methods
+  set_autonomy_mode(enabled:boolean):Promise<BridgeResponse<{autonomy_mode:boolean}>>
+  get_pending_approval():Promise<BridgeResponse<ApprovalRequestData|null>>
+  respond_to_approval(approval_id:string,action:string,modified_prompt?:string):Promise<BridgeResponse<{responded:boolean}>>
+}
+//Quick generate result type
+export interface QuickGenerateResult {
+  success:boolean
+  images:Array<{path:string;data?:string;prompt:string}>
+  errors?:Array<{index:number;error:string}>
+  generated:number
+  requested:number
+  error?:string
 }
 
 declare global {
@@ -628,7 +647,7 @@ export const bridge = {
   checkApiKeys: () => callBridge(() => window.pywebview!.api.check_api_keys()),
   saveApiKeys: (o: string, g: string, f?: string) => callBridge(() => window.pywebview!.api.save_api_keys(o, g, f || '')),
   getChatPrefs: (brandSlug: string) => callBridge(() => window.pywebview!.api.get_chat_prefs(brandSlug)),
-  saveChatPrefs: (brandSlug: string, aspectRatio?: string, generationMode?: string) => callBridge(() => window.pywebview!.api.save_chat_prefs(brandSlug, aspectRatio, generationMode)),
+  saveChatPrefs: (brandSlug: string, imageAspectRatio?: string, videoAspectRatio?: string) => callBridge(() => window.pywebview!.api.save_chat_prefs(brandSlug, imageAspectRatio, videoAspectRatio)),
   getBrands: () => callBridge(() => window.pywebview!.api.get_brands()),
   setBrand: (s: string) => callBridge(() => window.pywebview!.api.set_brand(s)),
   getBrandInfo: (s?: string) => callBridge(() => window.pywebview!.api.get_brand_info(s)),
@@ -672,8 +691,8 @@ export const bridge = {
         context?.project_slug,
         context?.attached_products,
         context?.attached_style_references,
-        context?.aspect_ratio || '16:9',
-        context?.generation_mode || 'image'
+        context?.image_aspect_ratio || '16:9',
+        context?.video_aspect_ratio || '16:9'
       )
     ),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
@@ -784,4 +803,13 @@ export const bridge = {
   backfillImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.backfill_images(brandSlug)),
   copyImageToClipboard: (imagePath: string) => callBridge(() => window.pywebview!.api.copy_image_to_clipboard(imagePath)),
   shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
+  //Todo list interrupt/resume
+  interruptTask: (action:'pause'|'stop'|'new_direction',newMessage?:string)=>callBridge(()=>window.pywebview!.api.interrupt_task(action,newMessage)),
+  resumeTask: ()=>callBridge(()=>window.pywebview!.api.resume_task()),
+  //Quick generator
+  quickGenerate: (prompt:string,productSlug?:string,styleReferenceSlug?:string,aspectRatio:string='1:1',count:number=1)=>callBridge(()=>window.pywebview!.api.quick_generate(prompt,productSlug,styleReferenceSlug,aspectRatio,count)),
+  //Autonomy mode and approval
+  setAutonomyMode: (enabled:boolean)=>callBridge(()=>window.pywebview!.api.set_autonomy_mode(enabled)),
+  getPendingApproval: async()=>callBridge(()=>window.pywebview!.api.get_pending_approval()),
+  respondToApproval: (approvalId:string,action:'approve'|'approve_all'|'modify'|'skip',modifiedPrompt?:string)=>callBridge(()=>window.pywebview!.api.respond_to_approval(approvalId,action,modifiedPrompt)),
 }

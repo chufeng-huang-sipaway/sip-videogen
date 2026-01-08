@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
+import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
+import type{ApprovalRequestData}from'@/lib/types/approval'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
-import { DEFAULT_ASPECT_RATIO, DEFAULT_GENERATION_MODE, type AspectRatio, type GenerationMode } from '@/types/aspectRatio'
+import { DEFAULT_ASPECT_RATIO, DEFAULT_VIDEO_ASPECT_RATIO, type AspectRatio, type VideoAspectRatio } from '@/types/aspectRatio'
 import type { SetStateAction } from 'react'
 
 export interface Message {
@@ -68,8 +70,14 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [error, setError] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
-  const [generationMode, setGenerationMode] = useState<GenerationMode>(DEFAULT_GENERATION_MODE)
+  const [imageAspectRatio, setImageAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
+  const [videoAspectRatio, setVideoAspectRatio] = useState<VideoAspectRatio>(DEFAULT_VIDEO_ASPECT_RATIO)
+  //Todo list state
+  const [todoList,setTodoList]=useState<TodoListData|null>(null)
+  const [isPaused,setIsPaused]=useState(false)
+  //Approval state
+  const [pendingApproval,setPendingApproval]=useState<ApprovalRequestData|null>(null)
+  const [autonomyMode,setAutonomyMode]=useState(false)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
@@ -94,6 +102,66 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     ;(window as unknown as{__onThinkingStep?:(s:ThinkingStep)=>void}).__onThinkingStep=handler
     return()=>{(window as unknown as{__onThinkingStep?:unknown}).__onThinkingStep=undefined}
   },[])
+  //Register todo list event handlers
+  useEffect(()=>{
+    const w=window as unknown as{
+      __onTodoList?:(d:TodoListData)=>void
+      __onTodoUpdate?:(d:TodoUpdateData)=>void
+      __onTodoCleared?:()=>void
+      __onTodoCompleted?:(d:{id:string})=>void
+      __onTodoInterrupted?:(d:{id:string;reason:string})=>void
+      __onInterruptStatus?:(d:{signal:string|null})=>void
+    }
+    //Full todo list created
+    w.__onTodoList=(d)=>setTodoList(d)
+    //Item update - handles status, outputs (delta), AND error
+    w.__onTodoUpdate=(u)=>{
+      setTodoList(prev=>{
+        if(!prev)return null
+        return{...prev,items:prev.items.map(item=>item.id===u.itemId?{
+          ...item,
+          status:u.status as TodoItemData['status'],
+          outputs:u.outputs?[...(item.outputs||[]),...u.outputs]:item.outputs,
+          error:u.error??item.error,
+        }:item)}
+      })
+    }
+    //Todo cleared
+    w.__onTodoCleared=()=>setTodoList(null)
+    //Todo completed
+    w.__onTodoCompleted=(d)=>{
+      setTodoList(prev=>prev?.id===d.id?{...prev,completedAt:new Date().toISOString()}:prev)
+    }
+    //Todo interrupted (only for stop/new_direction, NOT pause)
+    w.__onTodoInterrupted=(d)=>{
+      setTodoList(prev=>prev?.id===d.id?{...prev,interruptedAt:new Date().toISOString(),interruptReason:d.reason}:prev)
+    }
+    //Interrupt status (includes pause)
+    w.__onInterruptStatus=(d)=>{setIsPaused(d.signal==='pause')}
+    return()=>{
+      w.__onTodoList=undefined
+      w.__onTodoUpdate=undefined
+      w.__onTodoCleared=undefined
+      w.__onTodoCompleted=undefined
+      w.__onTodoInterrupted=undefined
+      w.__onInterruptStatus=undefined
+    }
+  },[])
+  //Register approval event handlers
+  useEffect(()=>{
+    const w=window as unknown as{
+      __onApprovalRequest?:(d:ApprovalRequestData)=>void
+      __onApprovalCleared?:()=>void
+    }
+    //Approval request - show prompt
+    w.__onApprovalRequest=(d)=>setPendingApproval(d)
+    //Approval cleared - hide prompt
+    w.__onApprovalCleared=()=>setPendingApproval(null)
+    return()=>{
+      w.__onApprovalRequest=undefined
+      w.__onApprovalCleared=undefined
+    }
+  },[])
 
   useEffect(() => {
     attachmentsRef.current = attachments
@@ -111,12 +179,13 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     //Load persisted preferences from backend config file
     if(brandSlug&&isPyWebView()){
       bridge.getChatPrefs(brandSlug).then(prefs=>{
-        if(prefs.aspect_ratio)setAspectRatio(prefs.aspect_ratio as AspectRatio)
-        else setAspectRatio(DEFAULT_ASPECT_RATIO)
-        if(prefs.generation_mode)setGenerationMode(prefs.generation_mode as GenerationMode)
-        else setGenerationMode(DEFAULT_GENERATION_MODE)
-      }).catch(()=>{setAspectRatio(DEFAULT_ASPECT_RATIO);setGenerationMode(DEFAULT_GENERATION_MODE)})
-    }else{setAspectRatio(DEFAULT_ASPECT_RATIO);setGenerationMode(DEFAULT_GENERATION_MODE)}
+        if(prefs.image_aspect_ratio)setImageAspectRatio(prefs.image_aspect_ratio as AspectRatio)
+        else if(prefs.aspect_ratio)setImageAspectRatio(prefs.aspect_ratio as AspectRatio)//Migration
+        else setImageAspectRatio(DEFAULT_ASPECT_RATIO)
+        if(prefs.video_aspect_ratio)setVideoAspectRatio(prefs.video_aspect_ratio as VideoAspectRatio)
+        else setVideoAspectRatio(DEFAULT_VIDEO_ASPECT_RATIO)
+      }).catch(()=>{setImageAspectRatio(DEFAULT_ASPECT_RATIO);setVideoAspectRatio(DEFAULT_VIDEO_ASPECT_RATIO)})
+    }else{setImageAspectRatio(DEFAULT_ASPECT_RATIO);setVideoAspectRatio(DEFAULT_VIDEO_ASPECT_RATIO)}
   }, [brandSlug])
 
   const addFilesAsAttachments = useCallback(async (files: File[]) => {
@@ -396,15 +465,15 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   }, [brandSlug, isLoading])
 
 //Wrapper setters that persist to backend config file
-  const setAspectRatioWithPersist=useCallback((action:SetStateAction<AspectRatio>)=>{
-    setAspectRatio(prev=>{
+  const setImageAspectRatioWithPersist=useCallback((action:SetStateAction<AspectRatio>)=>{
+    setImageAspectRatio(prev=>{
       const next=typeof action==='function'?action(prev):action
       if(brandSlug&&isPyWebView())bridge.saveChatPrefs(brandSlug,next,undefined).catch(()=>{})
       return next
     })
   },[brandSlug])
-  const setGenerationModeWithPersist=useCallback((action:SetStateAction<GenerationMode>)=>{
-    setGenerationMode(prev=>{
+  const setVideoAspectRatioWithPersist=useCallback((action:SetStateAction<VideoAspectRatio>)=>{
+    setVideoAspectRatio(prev=>{
       const next=typeof action==='function'?action(prev):action
       if(brandSlug&&isPyWebView())bridge.saveChatPrefs(brandSlug,undefined,next).catch(()=>{})
       return next
@@ -463,10 +532,46 @@ const clearMessages = useCallback(() => {
     await sendMessage(userMessage.content, {
       attached_products: userMessage.attachedProductSlugs,
       attached_style_references: userMessage.attachedStyleReferences,
-      aspect_ratio: aspectRatio,
-      generation_mode: generationMode,
+      image_aspect_ratio: imageAspectRatio,
+      video_aspect_ratio: videoAspectRatio,
     })
-  }, [messages, isLoading, brandSlug, sendMessage, aspectRatio, generationMode])
+  }, [messages, isLoading, brandSlug, sendMessage, imageAspectRatio, videoAspectRatio])
+  //Todo list control handlers
+  const handlePause=useCallback(async()=>{
+    await bridge.interruptTask('pause')
+  },[])
+  const handleResume=useCallback(async()=>{
+    await bridge.resumeTask()
+    setIsPaused(false)
+  },[])
+  const handleStop=useCallback(async()=>{
+    await bridge.interruptTask('stop')
+  },[])
+  const handleNewDirection=useCallback(async(msg:string)=>{
+    await bridge.interruptTask('new_direction',msg)
+  },[])
+  //Approval handlers
+  const handleApprove=useCallback(async()=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'approve')
+  },[pendingApproval])
+  const handleApproveAll=useCallback(async()=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'approve_all')
+    setAutonomyMode(true)//UI reflects mode change
+  },[pendingApproval])
+  const handleModifyApproval=useCallback(async(newPrompt:string)=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'modify',newPrompt)
+  },[pendingApproval])
+  const handleSkipApproval=useCallback(async()=>{
+    if(!pendingApproval)return
+    await bridge.respondToApproval(pendingApproval.id,'skip')
+  },[pendingApproval])
+  const handleSetAutonomyMode=useCallback(async(enabled:boolean)=>{
+    await bridge.setAutonomyMode(enabled)
+    setAutonomyMode(enabled)
+  },[])
 
 return {
     messages,
@@ -478,8 +583,23 @@ return {
     error,
     attachmentError,
     attachments,
-    aspectRatio,
-    generationMode,
+    imageAspectRatio,
+    videoAspectRatio,
+    //Todo list state and handlers
+    todoList,
+    isPaused,
+    handlePause,
+    handleResume,
+    handleStop,
+    handleNewDirection,
+    //Approval state and handlers
+    pendingApproval,
+    autonomyMode,
+    handleApprove,
+    handleApproveAll,
+    handleModifyApproval,
+    handleSkipApproval,
+    handleSetAutonomyMode,
     sendMessage,
     clearMessages,
     cancelGeneration,
@@ -489,7 +609,7 @@ return {
     addAttachmentReference,
     removeAttachment,
     setAttachmentError,
-    setAspectRatio: setAspectRatioWithPersist,
-    setGenerationMode: setGenerationModeWithPersist,
+    setImageAspectRatio: setImageAspectRatioWithPersist,
+    setVideoAspectRatio: setVideoAspectRatioWithPersist,
   }
 }

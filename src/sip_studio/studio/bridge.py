@@ -85,15 +85,18 @@ class StudioBridge:
             return bridge_error(str(e))
 
     def get_chat_prefs(self, brand_slug: str) -> dict:
-        """Get chat preferences (aspect_ratio, generation_mode) for a brand."""
+        """Get chat preferences (image_aspect_ratio, video_aspect_ratio) for a brand."""
         return bridge_ok(get_chat_preferences(brand_slug))
 
     def save_chat_prefs(
-        self, brand_slug: str, aspect_ratio: str | None = None, generation_mode: str | None = None
+        self,
+        brand_slug: str,
+        image_aspect_ratio: str | None = None,
+        video_aspect_ratio: str | None = None,
     ) -> dict:
         """Save chat preferences for a brand."""
         try:
-            save_chat_preferences(brand_slug, aspect_ratio, generation_mode)
+            save_chat_preferences(brand_slug, image_aspect_ratio, video_aspect_ratio)
             return bridge_ok()
         except Exception as e:
             return bridge_error(str(e))
@@ -350,8 +353,8 @@ class StudioBridge:
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
         attached_style_references: list[dict] | None = None,
-        aspect_ratio: str | None = None,
-        generation_mode: str | None = None,
+        image_aspect_ratio: str | None = None,
+        video_aspect_ratio: str | None = None,
     ) -> dict:
         logger.info("[Bridge.chat] attached_style_references=%s", attached_style_references)
         return self._chat.chat(
@@ -360,8 +363,8 @@ class StudioBridge:
             project_slug,
             attached_products,
             attached_style_references,
-            aspect_ratio,
-            generation_mode,
+            image_aspect_ratio,
+            video_aspect_ratio,
         )
 
     def clear_chat(self) -> dict:
@@ -510,3 +513,117 @@ class StudioBridge:
             return bridge_ok({"shared": True, "path": str(path)})
         except Exception as e:
             return bridge_error(str(e))
+
+    # ===========================================================================
+    # Autonomy and Approval Management
+    # ===========================================================================
+    def set_autonomy_mode(self, enabled: bool) -> dict:
+        """Toggle autonomy mode for chat interactions.
+        Args:
+            enabled: True for autonomous mode, False for supervised mode
+        Returns:
+            Dict with new autonomy mode state"""
+        self._state.set_autonomy_mode(enabled)
+        return bridge_ok({"autonomy_mode": enabled})
+
+    def get_pending_approval(self) -> dict:
+        """Get any pending approval request.
+        Returns:
+            Dict with pending approval request data or None"""
+        pending = self._state.get_pending_approval()
+        if pending:
+            return bridge_ok(pending.to_dict())
+        return bridge_ok(None)
+
+    def respond_to_approval(
+        self, approval_id: str, action: str, modified_prompt: str | None = None
+    ) -> dict:
+        """Respond to an agent's approval request.
+        Args:
+            approval_id: ID of the approval request (for validation)
+            action: User's response - 'approve', 'approve_all', 'modify', 'skip'
+            modified_prompt: Modified prompt if action is 'modify'
+        Returns:
+            Dict with response confirmation"""
+        valid_actions = {"approve", "approve_all", "modify", "skip"}
+        if action not in valid_actions:
+            return bridge_error(f"Invalid action: {action}. Must be one of: {valid_actions}")
+        pending = self._state.get_pending_approval()
+        if not pending:
+            return bridge_error("No pending approval request")
+        if pending.id != approval_id:
+            return bridge_error(f"Approval ID mismatch: expected {pending.id}, got {approval_id}")
+        self._state.respond_approval(action, modified_prompt)
+        return bridge_ok({"responded": True, "action": action})
+
+    # ===========================================================================
+    # Interruption Management
+    # ===========================================================================
+    def interrupt_task(self, action: str, new_message: str | None = None) -> dict:
+        """Interrupt current task execution (cooperative).
+        NOTE: Interruption happens AFTER the current tool completes, not immediately.
+        Args:
+            action: Type of interruption - 'pause', 'stop', 'new_direction'
+            new_message: New direction message if action is 'new_direction'
+        Returns:
+            Dict with interruption status"""
+        valid_actions = {"pause", "stop", "new_direction"}
+        if action not in valid_actions:
+            return bridge_error(f"Invalid action: {action}. Must be one of: {valid_actions}")
+        self._state.set_interrupt_with_push(action, new_message)
+        return bridge_ok(
+            {"interrupted": True, "action": action, "note": "Will take effect after current step"}
+        )
+
+    def resume_task(self) -> dict:
+        """Resume a paused task.
+        Returns:
+            Dict with resume status"""
+        if self._state.get_interrupt() != "pause":
+            return bridge_error("Task is not paused")
+        self._state.clear_interrupt()
+        self._state._push_interrupt_status(None)
+        return bridge_ok({"resumed": True})
+
+    # ===========================================================================
+    # Quick Image Generation
+    # ===========================================================================
+    def quick_generate(
+        self,
+        prompt: str,
+        product_slug: str | None = None,
+        style_reference_slug: str | None = None,
+        aspect_ratio: str = "1:1",
+        count: int = 1,
+    ) -> dict:
+        """Quick image generation without chat.
+        Args:
+            prompt: Image generation prompt
+            product_slug: Optional product to include
+            style_reference_slug: Optional style reference
+            aspect_ratio: Image aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
+            count: Number of images to generate (1-10)
+        Returns:
+            Dict with success status and generated images list"""
+        # Validate aspect ratio (must match Gemini API supported ratios)
+        valid_ratios = {"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4"}
+        if aspect_ratio not in valid_ratios:
+            return bridge_error(f"Invalid aspect ratio. Must be one of: {valid_ratios}")
+        from .services.quick_generator_service import QuickGeneratorService
+
+        service = QuickGeneratorService(self._state)
+        result = service.generate(prompt, product_slug, style_reference_slug, aspect_ratio, count)
+        if result.get("success"):
+            return bridge_ok(result)
+        else:
+            # Include structured errors in response, not just error message
+            return bridge_ok(
+                {
+                    "success": False,
+                    "error": result.get("error", "Unknown error"),
+                    "errors": result.get("errors"),
+                    "images": [],
+                    "generated": 0,
+                    "requested": count,
+                }
+            )

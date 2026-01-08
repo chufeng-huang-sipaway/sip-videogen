@@ -7,7 +7,12 @@ import time
 from datetime import datetime, timezone
 
 from sip_studio.advisor.agent import BrandAdvisor
-from sip_studio.advisor.tools import get_image_metadata, get_video_metadata
+from sip_studio.advisor.tools import (
+    clear_tool_context,
+    get_image_metadata,
+    get_video_metadata,
+    set_tool_context,
+)
 from sip_studio.brands.memory import list_brand_assets, list_brand_videos
 from sip_studio.brands.storage import (
     get_active_brand,
@@ -123,8 +128,8 @@ class ChatService:
         project_slug: str | None = None,
         attached_products: list[str] | None = None,
         attached_style_references: list[dict] | None = None,
-        aspect_ratio: str | None = None,
-        generation_mode: str | None = None,
+        image_aspect_ratio: str | None = None,
+        video_aspect_ratio: str | None = None,
     ) -> dict:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace = []
@@ -182,17 +187,21 @@ class ChatService:
             before_images = {a["path"] for a in list_brand_assets(slug, category="generated")}
             before_videos = {a["path"] for a in list_brand_videos(slug)}
             before_style_refs = {t.slug for t in storage_list_style_references(slug)}
-            # Run advisor
-            validated_ratio = validate_aspect_ratio(aspect_ratio)
-            mode = generation_mode if generation_mode in ("image", "video") else "image"
+            # Set tool context for todo tools (uses contextvars for thread safety)
+            set_tool_context(self._state)
+            # Run advisor - pass aspect ratios as passive defaults (not instructions)
+            validated_image_ratio = validate_aspect_ratio(image_aspect_ratio)
+            validated_video_ratio = (
+                video_aspect_ratio if video_aspect_ratio in ("16:9", "9:16") else "16:9"
+            )
             result = asyncio.run(
                 advisor.chat_with_metadata(
                     prepared,
                     project_slug=effective_project,
                     attached_products=attached_products,
                     attached_style_references=attached_style_references,
-                    aspect_ratio=validated_ratio.value,
-                    generation_mode=mode,
+                    image_aspect_ratio=validated_image_ratio.value,
+                    video_aspect_ratio=validated_video_ratio,
                 )
             )
             response = result["response"]
@@ -225,6 +234,7 @@ class ChatService:
         except Exception as e:
             return bridge_error(str(e))
         finally:
+            clear_tool_context()
             self._state.current_progress = ""
 
     def clear_chat(self) -> dict:

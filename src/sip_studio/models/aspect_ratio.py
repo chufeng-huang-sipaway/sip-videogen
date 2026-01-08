@@ -11,17 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 class AspectRatio(str, Enum):
-    """Supported aspect ratios for video generation."""
+    """Supported aspect ratios - must match Gemini API supported ratios."""
 
     SQUARE = "1:1"
     LANDSCAPE_16_9 = "16:9"
     PORTRAIT_9_16 = "9:16"
-    CINEMATIC_5_3 = "5:3"
-    PORTRAIT_CINEMATIC_3_5 = "3:5"
     CLASSIC_4_3 = "4:3"
     PORTRAIT_CLASSIC_3_4 = "3:4"
     PHOTO_3_2 = "3:2"
     PORTRAIT_PHOTO_2_3 = "2:3"
+    PORTRAIT_4_5 = "4:5"
+    LANDSCAPE_5_4 = "5:4"
 
 
 # Provider-specific supported ratios
@@ -76,7 +76,7 @@ def get_supported_ratio(requested: AspectRatio, provider: str) -> tuple[AspectRa
         return (AspectRatio(supported[0]), True)
     is_portrait = req_h > req_w
     orientation_fallbacks = (
-        ["9:16", "3:5", "2:3", "3:4"] if is_portrait else ["16:9", "5:3", "3:2", "4:3"]
+        ["9:16", "4:5", "2:3", "3:4"] if is_portrait else ["16:9", "5:4", "3:2", "4:3"]
     )
     for fallback in orientation_fallbacks:
         if fallback in supported:
