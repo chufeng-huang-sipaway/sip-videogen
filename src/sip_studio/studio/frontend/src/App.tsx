@@ -13,6 +13,9 @@ import { ViewerProvider } from '@/context/ViewerContext'
 import { bridge, waitForPyWebViewReady, fetchAndInitConstants } from '@/lib/bridge'
 import type { UpdateCheckResult } from '@/lib/bridge'
 import { useTheme } from '@/hooks/useTheme'
+import { initEventHandlers } from '@/lib/eventBus'
+//Initialize event handlers once at module load (before React renders)
+initEventHandlers()
 
 const SIDEBAR_COLLAPSED_KEY = 'sip-studio-sidebar-collapsed'
 

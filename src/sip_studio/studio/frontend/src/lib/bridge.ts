@@ -437,7 +437,32 @@ export interface UpdateSettings {
   last_check?: number
   skipped_version?: string
 }
-
+//Session state for hydration (Phase 1 Production Refactor)
+import type { TodoList } from '../types/todo'
+import type { ApprovalRequest } from '../types/approval'
+export interface ActiveJobState {
+  runId: string
+  jobType: 'chat' | 'quick_generate'
+  isPaused: boolean
+  todoList: TodoList | null
+  pendingApproval?: ApprovalRequest | null
+  interruptRequested?: 'pause' | 'stop' | 'new_direction' | null
+  interruptMessage?: string | null
+  createdAt: string
+}
+export interface SessionState {
+  autonomyMode: boolean
+  activeJob: ActiveJobState | null
+  pendingApproval: ApprovalRequest | null
+}
+export interface QuickGenerateProgressResponse {
+  total: number
+  completed: number
+  currentPrompt: string
+  generatedPaths: string[]
+  errors: string[]
+  runId: string
+}
 interface PyWebViewAPI {
   get_constants(): Promise<BridgeResponse<ConstantsPayload>>
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
@@ -573,6 +598,17 @@ interface PyWebViewAPI {
   backfill_images(brand_slug?: string): Promise<BridgeResponse<{ added: ImageStatusEntry[]; count: number }>>
   copy_image_to_clipboard(image_path: string): Promise<BridgeResponse<{ copied: boolean; path: string }>>
   share_image(image_path: string): Promise<BridgeResponse<{ shared: boolean; path: string }>>
+  //Job control & approval (Phase 1 Production Refactor)
+  interrupt_task(action: string, message?: string): Promise<BridgeResponse<{ success: boolean }>>
+  resume_task(): Promise<BridgeResponse<{ started: boolean; runId: string }>>
+  respond_to_approval(request_id: string, action: string, modified_prompt?: string): Promise<BridgeResponse<{ success: boolean; action: string }>>
+  set_autonomy_mode(enabled: boolean): Promise<BridgeResponse<{ autonomyMode: boolean }>>
+  get_session_state(): Promise<BridgeResponse<SessionState>>
+  //Quick generate (Image Generator Toolbox)
+  quick_generate(prompts: string[], aspect_ratio?: string, product_slug?: string, template_slug?: string, strict?: boolean): Promise<BridgeResponse<{ started: boolean; runId: string }>>
+  cancel_quick_generate(): Promise<BridgeResponse<{ success: boolean }>>
+  get_quick_generate_progress(): Promise<BridgeResponse<QuickGenerateProgressResponse | null>>
+  download_images_as_zip(image_paths: string[]): Promise<BridgeResponse<{ zipPath: string }>>
 }
 
 declare global {
@@ -784,4 +820,15 @@ export const bridge = {
   backfillImages: (brandSlug?: string) => callBridge(() => window.pywebview!.api.backfill_images(brandSlug)),
   copyImageToClipboard: (imagePath: string) => callBridge(() => window.pywebview!.api.copy_image_to_clipboard(imagePath)),
   shareImage: (imagePath: string) => callBridge(() => window.pywebview!.api.share_image(imagePath)),
+  //Job control & approval (Phase 1 Production Refactor)
+  interruptTask: (action: string, message?: string) => callBridge(() => window.pywebview!.api.interrupt_task(action, message)),
+  resumeTask: () => callBridge(() => window.pywebview!.api.resume_task()),
+  respondToApproval: (requestId: string, action: string, modifiedPrompt?: string) => callBridge(() => window.pywebview!.api.respond_to_approval(requestId, action, modifiedPrompt)),
+  setAutonomyMode: (enabled: boolean) => callBridge(() => window.pywebview!.api.set_autonomy_mode(enabled)),
+  getSessionState: () => callBridge(() => window.pywebview!.api.get_session_state()),
+  //Quick generate (Image Generator Toolbox)
+  quickGenerate: (prompts: string[], aspectRatio?: string, productSlug?: string, templateSlug?: string, strict?: boolean) => callBridge(() => window.pywebview!.api.quick_generate(prompts, aspectRatio, productSlug, templateSlug, strict)),
+  cancelQuickGenerate: () => callBridge(() => window.pywebview!.api.cancel_quick_generate()),
+  getQuickGenerateProgress: () => callBridge(() => window.pywebview!.api.get_quick_generate_progress()),
+  downloadImagesAsZip: async (imagePaths: string[]) => (await callBridge(() => window.pywebview!.api.download_images_as_zip(imagePaths))).zipPath,
 }
