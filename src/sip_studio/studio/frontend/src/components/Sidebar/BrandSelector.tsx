@@ -18,9 +18,9 @@ const CONTENT_DURATION = 150
 const WIDTH_DURATION = 250
 const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)'
 
-interface BrandSelectorProps { compact?: boolean; showContent?: boolean }
+interface BrandSelectorProps { compact?: boolean; showContent?: boolean; allowTooltips?: boolean }
 
-export function BrandSelector({ compact, showContent = true }: BrandSelectorProps) {
+export function BrandSelector({ compact, showContent = true, allowTooltips = true }: BrandSelectorProps) {
   const { brands, activeBrand, isLoading, selectBrand, refresh } = useBrand()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -73,7 +73,7 @@ export function BrandSelector({ compact, showContent = true }: BrandSelectorProp
   //Unified structure - same DOM, CSS handles compact/expanded with sequenced timing
   return(
     <DropdownMenu>
-      <Tooltip>
+      <Tooltip open={compact&&allowTooltips?undefined:false}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className={cn("justify-start rounded-xl bg-primary/10 hover:bg-primary/15 overflow-hidden",compact?"w-12 h-12 p-0":"w-full h-auto py-3 px-3")} style={{transition: sizeTransition}}>

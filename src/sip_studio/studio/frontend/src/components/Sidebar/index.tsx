@@ -33,14 +33,20 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
   const isExpanded = !collapsed || isHovering || isFocusWithin
   //Delayed content visibility for sequenced animation
   const [showContent, setShowContent] = useState(isExpanded)
+  //Delay tooltips after collapse to prevent lingering tooltips
+  const [allowTooltips, setAllowTooltips] = useState(!isExpanded)
   useEffect(() => {
     if (isExpanded) {
       //Expanding: delay content appearance until width has started expanding
+      setAllowTooltips(false) //Disable tooltips immediately when expanding
       const t = setTimeout(() => setShowContent(true), CONTENT_DELAY_EXPAND)
       return () => clearTimeout(t)
     } else {
       //Collapsing: hide content immediately (it will fade fast)
       setShowContent(false)
+      //Delay tooltip activation until after collapse animation completes
+      const t = setTimeout(() => setAllowTooltips(true), WIDTH_DURATION + 100)
+      return () => clearTimeout(t)
     }
   }, [isExpanded])
   const handleMouseEnter = () => { if(collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current); setIsHovering(true) }
@@ -71,8 +77,8 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
         <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col border-r border-border/20 overflow-hidden",isExpanded?"w-[280px] z-50 sidebar-float-shadow bg-background":"w-[72px] bg-background")} style={{transition: widthTransition, willChange: 'width'}}>
           {/* Header - icons stay, labels fade */}
           <div className="flex-shrink-0 pt-4 pb-2 px-3 space-y-2">
-            <BrandSelector compact={!isExpanded} showContent={showContent}/>
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" className={cn("w-full justify-start gap-3 h-10 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl font-medium overflow-hidden",!activeBrand&&"opacity-50 pointer-events-none",isExpanded?"px-3":"px-[14px]")} onClick={onOpenBrandMemory}><Brain className="w-5 h-5 flex-shrink-0" strokeWidth={1.5}/><span className="text-sm whitespace-nowrap" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden', transform: showContent?'translateX(0)':'translateX(-8px)'}}>Brand Profile</span></Button></TooltipTrigger>{!isExpanded&&<TooltipContent side="right">Brand Profile</TooltipContent>}</Tooltip>
+            <BrandSelector compact={!isExpanded} showContent={showContent} allowTooltips={allowTooltips}/>
+            <Tooltip open={!isExpanded&&allowTooltips?undefined:false}><TooltipTrigger asChild><Button variant="ghost" className={cn("w-full justify-start gap-3 h-10 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl font-medium overflow-hidden",!activeBrand&&"opacity-50 pointer-events-none",isExpanded?"px-3":"px-[14px]")} onClick={onOpenBrandMemory}><Brain className="w-5 h-5 flex-shrink-0" strokeWidth={1.5}/><span className="text-sm whitespace-nowrap" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden', transform: showContent?'translateX(0)':'translateX(-8px)'}}>Brand Profile</span></Button></TooltipTrigger>{!isExpanded&&<TooltipContent side="right">Brand Profile</TooltipContent>}</Tooltip>
           </div>
           {/* Separator - fades with content */}
           <div className="px-4 py-2" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden'}}><Separator className="opacity-50"/></div>
@@ -90,7 +96,7 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
           </ScrollArea>
           {/* Footer - icon stays centered, label fades */}
           <div className={cn("p-3 border-t border-border/30 bg-background",isExpanded?"":"flex justify-center")}>
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size={isExpanded?"sm":"icon"} className={cn("justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg font-medium text-xs overflow-hidden",isExpanded?"h-9 px-2":"w-10 h-10")} style={{transition: `all ${CONTENT_DURATION}ms ${EASING}`}} onClick={()=>setIsSettingsOpen(true)}><Settings className="w-5 h-5 flex-shrink-0"/><span className="whitespace-nowrap" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden', transform: showContent?'translateX(0)':'translateX(-8px)', position: showContent?'relative':'absolute'}}>Settings</span></Button></TooltipTrigger>{!isExpanded&&<TooltipContent side="right">Settings</TooltipContent>}</Tooltip>
+            <Tooltip open={!isExpanded&&allowTooltips?undefined:false}><TooltipTrigger asChild><Button variant="ghost" size={isExpanded?"sm":"icon"} className={cn("justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg font-medium text-xs overflow-hidden",isExpanded?"h-9 px-2":"w-10 h-10")} style={{transition: `all ${CONTENT_DURATION}ms ${EASING}`}} onClick={()=>setIsSettingsOpen(true)}><Settings className="w-5 h-5 flex-shrink-0"/><span className="whitespace-nowrap" style={{transition: contentTransition, opacity: showContent?1:0, visibility: showContent?'visible':'hidden', transform: showContent?'translateX(0)':'translateX(-8px)', position: showContent?'relative':'absolute'}}>Settings</span></Button></TooltipTrigger>{!isExpanded&&<TooltipContent side="right">Settings</TooltipContent>}</Tooltip>
           </div>
           <CreateProductDialog open={isCreateProductOpen} onOpenChange={setIsCreateProductOpen}/>
           <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}/>
