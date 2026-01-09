@@ -14,6 +14,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from sip_studio.config.logging import get_logger
 from sip_studio.models.assets import AssetType, GeneratedAsset
 from sip_studio.models.script import SharedElement
+from sip_studio.studio.services.rate_limiter import rate_limited_generate_content
 
 logger = get_logger(__name__)
 
@@ -78,10 +79,11 @@ class ImageGenerator:
         logger.debug(f"Image prompt: {prompt}")
 
         try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
+            response = rate_limited_generate_content(
+                self.client,
+                self.model,
+                prompt,
+                types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
                         aspect_ratio=aspect_ratio,
@@ -298,10 +300,11 @@ class ImageGenerator:
         async def gen_variant(idx: int) -> str | None:
             try:
                 prompt = self._build_prompt(element)
-                response = self.client.models.generate_content(
-                    model=self.model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
+                response = rate_limited_generate_content(
+                    self.client,
+                    self.model,
+                    prompt,
+                    types.GenerateContentConfig(
                         response_modalities=["IMAGE"],
                         image_config=types.ImageConfig(aspect_ratio=ar, image_size="4K"),
                     ),

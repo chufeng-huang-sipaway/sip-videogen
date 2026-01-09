@@ -690,10 +690,13 @@ async def _impl_generate_image(
         else:
             contents = generation_prompt  # type: ignore[assignment]
             logger.info(f"Generating image: {generation_prompt[:100]}...")
-        response = client.models.generate_content(
-            model=model,
-            contents=contents,  # type: ignore[arg-type]
-            config=types.GenerateContentConfig(
+        from sip_studio.studio.services.rate_limiter import rate_limited_generate_content
+
+        response = rate_limited_generate_content(
+            client,
+            model,
+            contents,
+            types.GenerateContentConfig(
                 response_modalities=["IMAGE"],
                 image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size),
             ),

@@ -81,13 +81,17 @@ async def _generate_style_reference_name(image_path: Path) -> str:
         from google import genai
         from google.genai import types
 
+        from sip_studio.studio.services.rate_limiter import rate_limited_generate_content
+
         settings = _common.get_settings()
         client = genai.Client(api_key=settings.gemini_api_key)
         img_bytes = image_path.read_bytes()
         prompt = "Analyze this design style reference image and suggest a short descriptive name (2-4 words) that captures its visual style. Examples: 'Hero Centered Product', 'Split Two-Column', 'Minimalist Product Card'. Reply with ONLY the name, nothing else."
-        resp = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[types.Part.from_bytes(data=img_bytes, mime_type="image/png"), prompt],  # type: ignore[arg-type]
+        resp = rate_limited_generate_content(
+            client,
+            "gemini-2.0-flash",
+            [types.Part.from_bytes(data=img_bytes, mime_type="image/png"), prompt],
+            None,
         )
         name = (resp.text or "").strip().strip('"').strip("'")
         return name if name else "New Style Reference"

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from sip_studio.advisor.tools import emit_tool_thinking
 from sip_studio.config.logging import get_logger
 from sip_studio.config.settings import get_settings
+from sip_studio.studio.services.rate_limiter import rate_limited_generate_content
 
 from .metrics import (
     GenerationMetrics,
@@ -113,11 +114,12 @@ async def generate_with_validation(
                 "This might take a moment",
                 expertise="Image Generation",
             )
-            # Generate image
-            resp = client.models.generate_content(
-                model="gemini-3-pro-image-preview",
-                contents=contents,
-                config=types.GenerateContentConfig(
+            # Generate image (rate-limited)
+            resp = rate_limited_generate_content(
+                client,
+                "gemini-3-pro-image-preview",
+                contents,
+                types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size="4K"),
                 ),
@@ -352,11 +354,12 @@ async def generate_with_multi_validation(
                 "This might take a moment",
                 expertise="Image Generation",
             )
-            # Generate image
-            resp = client.models.generate_content(
-                model="gemini-3-pro-image-preview",
-                contents=contents,
-                config=types.GenerateContentConfig(
+            # Generate image (rate-limited)
+            resp = rate_limited_generate_content(
+                client,
+                "gemini-3-pro-image-preview",
+                contents,
+                types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(aspect_ratio=aspect_ratio, image_size="4K"),
                 ),
