@@ -144,11 +144,36 @@ class ImageGenerationPool:
             self._on_ticket_done(ticket_id)
 
     def _default_generate(self, ticket: Ticket) -> str:
-        """Default image generation - placeholder for Stage 3 integration."""
-        # Stage 3 will wire this to actual image generation
-        raise NotImplementedError(
-            "ImageGenerationPool requires generator_fn - will be provided in Stage 3 integration"
-        )
+        """Default image generation using rate-limited Gemini API.
+        Runs in worker thread, so we create a new event loop for async code."""
+        import asyncio
+
+        from sip_studio.advisor.tools.image_tools import _impl_generate_image
+
+        cfg = ticket.config
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                _impl_generate_image(
+                    prompt=ticket.prompt,
+                    aspect_ratio=cfg.get("aspect_ratio", "1:1"),
+                    filename=cfg.get("filename"),
+                    reference_image=cfg.get("reference_image"),
+                    product_slug=cfg.get("product_slug"),
+                    product_slugs=cfg.get("product_slugs"),
+                    template_slug=cfg.get("template_slug"),
+                    strict=cfg.get("strict", True),
+                    validate_identity=cfg.get("validate_identity", False),
+                    max_retries=cfg.get("max_retries", 3),
+                    skip_project=cfg.get("skip_project", False),
+                )
+            )
+            if result.startswith("Error"):
+                raise RuntimeError(result)
+            return result.split("\n\n")[0] if "\n\n" in result else result
+        finally:
+            loop.close()
 
     def _on_ticket_done(self, ticket_id: str):
         """Called when ticket processing completes (success, fail, or cancel)."""
