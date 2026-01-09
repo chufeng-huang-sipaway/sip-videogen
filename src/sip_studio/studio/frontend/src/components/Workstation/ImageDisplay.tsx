@@ -184,10 +184,10 @@ export function ImageDisplay() {
     const imgClass = cn("absolute inset-0 w-full h-full object-contain select-none transition-opacity duration-200", isDragging && "opacity-50")
     const navBtnClass = "absolute top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white/90 backdrop-blur-sm transition-all hover:bg-black/70 hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
     const imgStyle = { transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`, transformOrigin: 'center center', cursor: zoom > 1.01 ? (isPanning ? 'grabbing' : 'grab') : 'grab' }
-    return (<div ref={containerRef} className={cn("w-full h-full flex items-center justify-center relative overflow-hidden", isFullscreen && "fixed inset-0 z-50 bg-black")} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onWheel={handleWheel} onDoubleClick={handleDoubleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel}>
+    return (<div ref={containerRef} className={cn("w-full h-full flex items-center justify-center relative", isFullscreen && "fixed inset-0 z-50 bg-black")} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onWheel={handleWheel} onDoubleClick={handleDoubleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel}>
         {DEBUG && (<div className="absolute top-2 left-2 right-2 z-50 bg-black/80 text-white text-[10px] font-mono p-2 rounded">{debugInfo}</div>)}
         {/* Outer wrapper - absolute positioning for reliable height calculation */}
-        <div className="absolute inset-0 flex items-center justify-center" style={{ top: 20, bottom: 20, left: 60, right: 60 }}>
+        <div className="absolute inset-0 flex items-center justify-center">
             {/* Image container - relative for overlays */}
             <div className="relative flex items-center justify-center w-full h-full">
                 {/* Currently displayed image */}
