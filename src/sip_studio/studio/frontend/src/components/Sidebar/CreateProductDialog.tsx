@@ -59,7 +59,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Add New Product
 {images.length>0&&(<div className="flex flex-wrap gap-2">
 {images.map((item,index)=>(<div key={index} className="relative group">
 <img src={item.dataUrl} alt={item.file.name} className="h-16 w-16 rounded object-cover border"/>
-<button type="button" onClick={()=>removeImage(index)} className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
+<button type="button" onClick={()=>removeImage(index)} className="absolute -top-1 -right-1 h-5 w-5 bg-white/90 text-destructive hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
 <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 truncate rounded-b">{item.file.name}</span>
 </div>))}
 </div>)}

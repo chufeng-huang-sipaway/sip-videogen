@@ -45,7 +45,7 @@ return(<DropdownMenuItem key={r} onClick={()=>onChange(r)} className={cn("flex i
 //Video aspect ratio toggle
 function VideoRatioToggle({value,onChange}:{value:VideoAspectRatio,onChange:(r:VideoAspectRatio)=>void}){
 const opts:VideoAspectRatio[]=['16:9','9:16']
-return(<div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-secondary/50 border border-border/40 w-full">
+return(<div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white/50 dark:bg-white/10 border border-border/40 w-full">
 {opts.map(r=>{
 const sel=value===r
 return(<button key={r} type="button" onClick={()=>onChange(r)} className={cn("flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-sm font-medium transition-all",sel?"bg-background shadow-sm text-foreground":"text-muted-foreground hover:text-foreground")}>

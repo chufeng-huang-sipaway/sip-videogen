@@ -140,7 +140,7 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {newImages.map((item,idx)=>(<div key={`new-${idx}`} className="relative group aspect-square rounded-lg overflow-hidden border-2 border-dashed border-success">
 <img src={item.dataUrl} alt={item.file.name} className="w-full h-full object-cover"/>
 <div className="absolute top-1.5 right-1.5 bg-success text-white text-[10px] font-medium px-1.5 py-0.5 rounded">NEW</div>
-<button type="button" onClick={()=>handleDeleteNew(idx)} className="absolute top-1.5 left-1.5 h-6 w-6 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
+<button type="button" onClick={()=>handleDeleteNew(idx)} className="absolute top-1.5 left-1.5 h-6 w-6 bg-white/90 text-destructive hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
 </div>))}
 {/*Add more dropzone*/}
 {canAddImages&&(<Dropzone accept={{'image/*':getAllowedImageExts()}} maxFiles={2-visibleExistingImages.length-newImages.length} onDrop={handleFilesAdded} onError={e=>setUploadError(e.message)} className="aspect-square border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-lg hover:border-brand-500 hover:bg-brand-500/5 transition-colors">
@@ -151,7 +151,7 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {/*Action Buttons*/}
 <div className="flex gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
 <Button variant="outline" size="sm" className="flex-1" onClick={handleCancelEdit} disabled={isWorking}>Cancel</Button>
-<Button size="sm" className="flex-1 bg-brand-500 hover:bg-brand-600 gap-1.5" onClick={handleSave} disabled={isWorking||!hasChanges}>{isSaving?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<Save className="h-3.5 w-3.5"/>}Save</Button>
+<Button variant="default" size="sm" className="flex-1 gap-1.5" onClick={handleSave} disabled={isWorking||!hasChanges}>{isSaving?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<Save className="h-3.5 w-3.5"/>}Save</Button>
 </div>
 </>
 ):(
@@ -163,7 +163,7 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {/*Aspect Ratio Badge*/}
 {analysis?.canvas?.aspect_ratio&&(<div className="flex items-center gap-2"><span className="text-xs text-neutral-500 dark:text-neutral-400">Aspect Ratio:</span><span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{analysis.canvas.aspect_ratio}</span></div>)}
 {/*Attach Control*/}
-{!isAttached&&(<Button variant="default" size="sm" className="w-full bg-brand-500 hover:bg-brand-600" onClick={handleAttach}>Attach to Chat</Button>)}
+{!isAttached&&(<Button variant="default" size="sm" className="w-full" onClick={handleAttach}>Attach to Chat</Button>)}
 {/*Action Buttons*/}
 <div className="flex gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
 <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleEnterEdit}><Pencil className="h-3.5 w-3.5"/>Edit</Button>
