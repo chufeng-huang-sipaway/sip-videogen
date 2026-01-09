@@ -36,7 +36,7 @@ const handleClose=useCallback(()=>{if(!isLoading){onOpenChange(false);setName(''
 const combinedError=error||uploadError
 return(<FormDialog open={open} onOpenChange={handleClose} title="Add New Product" description="Add a product with reference images for AI-powered generation." icon={<Package className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isLoading} loadingMessage="Creating product..." error={combinedError} onClearError={()=>{clearError();setUploadError(null)}} footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-<Button onClick={()=>execute()} disabled={isLoading||!name.trim()} className="bg-brand-500 hover:bg-brand-600">{isLoading?'Creating...':'Add Product'}</Button>
+<Button onClick={()=>execute()} disabled={isLoading||!name.trim()}>{isLoading?'Creating...':'Add Product'}</Button>
 </>}>
 {/* Name Input */}
 <div className="space-y-2">
@@ -46,7 +46,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Add New Product
 {/* Description Input */}
 <div className="space-y-2">
 <label htmlFor="product-description" className="text-sm font-medium">Description</label>
-<textarea id="product-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the product (size, texture, use cases, etc.)" rows={3} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"/>
+<textarea id="product-description" value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Describe the product (size, texture, use cases, etc.)" rows={3} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-ring resize-none"/>
 </div>
 {/* Image Dropzone */}
 <div className="space-y-2">

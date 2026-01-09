@@ -39,16 +39,16 @@ return(<DropdownMenuItem key={r} onClick={()=>onChange(r)} className={cn("flex i
 <span className="text-xs text-muted-foreground">{hint}</span>
 </div>
 </div>
-{sel&&<Check className="h-4 w-4 text-foreground shrink-0"/>}
+{sel&&<Check className="h-4 w-4 text-primary shrink-0"/>}
 </DropdownMenuItem>)})}</DropdownMenuContent>
 </DropdownMenu>)}
 //Video aspect ratio toggle
 function VideoRatioToggle({value,onChange}:{value:VideoAspectRatio,onChange:(r:VideoAspectRatio)=>void}){
 const opts:VideoAspectRatio[]=['16:9','9:16']
-return(<div className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-secondary/50 border border-border/40 w-full">
+return(<div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-secondary/50 border border-border/40 w-full">
 {opts.map(r=>{
 const sel=value===r
-return(<button key={r} type="button" onClick={()=>onChange(r)} className={cn("flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-all",sel?"bg-background shadow-sm text-foreground":"text-muted-foreground hover:text-foreground")}>
+return(<button key={r} type="button" onClick={()=>onChange(r)} className={cn("flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-sm font-medium transition-all",sel?"bg-background shadow-sm text-foreground":"text-muted-foreground hover:text-foreground")}>
 <RatioIcon ratio={r} size={14}/>
 <span>{r}</span>
 </button>)})}</div>)}
@@ -68,7 +68,7 @@ return(
 </PopoverTrigger>
 <PopoverContent align="end" side="top" sideOffset={8} className="w-72 p-0">
 <div className="p-4 space-y-4">
-<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Generation Defaults</div>
+<div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Generation Defaults</div>
 {/* Image settings */}
 <div className="space-y-2">
 <div className="flex items-center gap-2 text-sm font-medium">
