@@ -227,6 +227,32 @@ Do NOT use glass for:
 - Include ARIA labels where needed
 - Disabled states must be visually distinct
 
+## Floating Command Center Aesthetics (New)
+
+The application moves towards a "Floating Command Center" aesthetic for primary inputs.
+
+### Core Principles
+- **Floating Island**: Inputs are distinct, floating elements rather than flat forms.
+- **Glass & Blur**: High usage of `backdrop-blur-md` and semi-transparent backgrounds (`bg-background/80`).
+- **Soft Shadows**: Use multi-layered shadows to create depth.
+- **Rounded Corners**: Use `rounded-3xl` for main input containers.
+
+### Input Styling
+```css
+/* Floating Input Container */
+border-radius: 1.5rem (24px) / 2rem (32px);
+background: bg-background/80;
+backdrop-filter: blur(12px);
+border: 1px solid rgba(255,255,255,0.2); /* Light/Glass border */
+box-shadow:
+  0 10px 15px -3px rgba(0, 0, 0, 0.1),
+  0 4px 6px -2px rgba(0, 0, 0, 0.05);
+```
+
+### Iconography
+- **Stroke Width**: STRICTLY `strokeWidth={1.5}` for all general UI icons.
+- **Micro-interactions**: Subtle scale (`active:scale-95`) and glow effects on primary actions.
+
 ---
 
 ## Unified Component Patterns
