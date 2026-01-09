@@ -181,19 +181,19 @@ useEffect(()=>{const el=containerRef.current;if(!el)return;const handler=(e:Whee
     if (!currentImage) return null
     const debugInfo = DEBUG ? `id:${currentImage.id?.slice(-8) || '?'} idx:${selectedIndex} displayed:${displayedSrc ? 'Y' : 'N'} pending:${pendingSrc ? 'Y' : 'N'} loading:${isLoading} err:${error || 'none'}` : ''
     const isDragging = !!dragData
-const imgClass=cn("max-w-full max-h-full object-contain select-none transition-opacity duration-200",isDragging&&"opacity-50")
+const imgClass=cn("absolute inset-0 w-full h-full object-contain select-none transition-opacity duration-200",isDragging&&"opacity-50")
 const navBtnClass="absolute top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white/90 backdrop-blur-sm transition-all hover:bg-black/70 hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
 const imgStyle={transform:`scale(${zoom}) translate(${panX}px, ${panY}px)`,transformOrigin:'center center',cursor:zoom>1.01?(isPanning?'grabbing':'grab'):'grab'}
 return(<div ref={containerRef} className={cn("w-full h-full flex items-center justify-center relative overflow-hidden",isFullscreen&&"fixed inset-0 z-50 bg-black")} onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onWheel={handleWheel} onDoubleClick={handleDoubleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel}>
 {DEBUG&&(<div className="absolute top-2 left-2 right-2 z-50 bg-black/80 text-white text-[10px] font-mono p-2 rounded">{debugInfo}</div>)}
-{/* Outer wrapper - centers content with padding */}
-<div className="flex items-center justify-center overflow-hidden" style={{maxWidth:'calc(100% - 120px)',maxHeight:'calc(100% - 40px)'}}>
-{/* Inner wrapper - sizes to displayed image, contains all overlays */}
-<div className="relative max-w-full max-h-full">
+{/* Outer wrapper - absolute positioning for reliable height calculation */}
+<div className="absolute inset-0 flex items-center justify-center" style={{top:20,bottom:20,left:60,right:60}}>
+{/* Image container - relative for overlays */}
+<div className="relative flex items-center justify-center w-full h-full">
 {/* Currently displayed image */}
 {displayedSrc&&!error&&(<img draggable={false} onMouseDown={handleMouseDown} onLoad={handleImgLoad} onError={handleImgError} src={displayedSrc} alt="" className={imgClass} style={imgStyle}/>)}
 {/* Pending image - fades in on top */}
-{pendingSrc&&pendingSrc!==displayedSrc&&(<img draggable={false} src={pendingSrc} alt={currentImage.prompt||'Generated image'} onLoad={(e)=>{handlePendingLoad();handleImgLoad(e)}} onError={()=>{handlePendingError();handleImgError()}} className={cn(imgClass,"absolute inset-0")} style={{...imgStyle,animation:'fadeIn 200ms ease-out forwards'}}/>)}
+{pendingSrc&&pendingSrc!==displayedSrc&&(<img draggable={false} src={pendingSrc} alt={currentImage.prompt||'Generated image'} onLoad={(e)=>{handlePendingLoad();handleImgLoad(e)}} onError={()=>{handlePendingError();handleImgError()}} className={imgClass} style={{...imgStyle,animation:'fadeIn 200ms ease-out forwards'}}/>)}
 {/* Quick Edit result image - inside wrapper to match original image bounds */}
 {resultPath&&!isGenerating&&<QuickEditResultImage/>}
 {/* Shimmer overlay with sparkles - now contained to image area */}
