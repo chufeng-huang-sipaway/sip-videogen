@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent } from '@/lib/bridge'
 import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
 import type{ApprovalRequestData}from'@/lib/types/approval'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
@@ -67,6 +67,9 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const loadedSkillsRef = useRef<string[]>([])
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
   const thinkingStepsRef = useRef<ThinkingStep[]>([])
+  //Image batch progress state
+  const [imageBatch,setImageBatch]=useState<{batchId:string|null;expectedCount:number;tickets:Map<string,ImageProgressEvent>}>({batchId:null,expectedCount:0,tickets:new Map()})
+  const imageBatchRef=useRef(imageBatch)
   const [error, setError] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
@@ -101,6 +104,25 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     }
     ;(window as unknown as{__onThinkingStep?:(s:ThinkingStep)=>void}).__onThinkingStep=handler
     return()=>{(window as unknown as{__onThinkingStep?:unknown}).__onThinkingStep=undefined}
+  },[])
+  //Register global handler for image progress events
+  useEffect(()=>{
+    const handler=(event:ImageEvent)=>{
+      if(event.type==='batchStart'){
+        const newState={batchId:event.batchId,expectedCount:event.expectedCount,tickets:new Map<string,ImageProgressEvent>()}
+        imageBatchRef.current=newState
+        setImageBatch(newState)
+      }else if(event.type==='progress'){
+        const current=imageBatchRef.current
+        //Only accept events for current batch or if no batch set (backwards compat)
+        if(current.batchId&&event.batchId&&event.batchId!==current.batchId)return
+        const next={...current,tickets:new Map(current.tickets).set(event.ticketId,event)}
+        imageBatchRef.current=next
+        setImageBatch(next)
+      }
+    }
+    window.__onImageProgress=handler
+    return()=>{window.__onImageProgress=undefined}
   },[])
   //Register todo list event handlers
   useEffect(()=>{
@@ -323,11 +345,14 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setMessages(prev => [...prev, userMessage, assistantMessage])
     setIsLoading(true)
 
-    //Clear thinking steps and skills at start
+    //Clear thinking steps, skills, and image batch at start
     setThinkingSteps([])
     thinkingStepsRef.current=[]
     setLoadedSkills([])
-    loadedSkillsRef.current = []
+    loadedSkillsRef.current=[]
+    const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(emptyBatch)
+    imageBatchRef.current=emptyBatch
     //Try polling for progress (may not work due to PyWebView concurrency)
     if (isPyWebView()) {
       progressInterval.current = setInterval(async () => {
@@ -460,7 +485,10 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       ))
     } finally {
       if (progressInterval.current) { clearInterval(progressInterval.current); progressInterval.current = null }
-      setProgress(''); setProgressType(''); setLoadedSkills([]); setThinkingSteps([]); thinkingStepsRef.current=[]; setIsLoading(false)
+      setProgress(''); setProgressType(''); setLoadedSkills([]); setThinkingSteps([]); thinkingStepsRef.current=[]
+      const finalEmptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+      setImageBatch(finalEmptyBatch); imageBatchRef.current=finalEmptyBatch
+      setIsLoading(false)
     }
   }, [brandSlug, isLoading])
 
@@ -494,7 +522,10 @@ const clearMessages = useCallback(() => {
     cancelledRequestIdRef.current = requestIdRef.current
     try { if (isPyWebView()) await bridge.cancelGeneration() } catch { /* ignore */ }
     if (progressInterval.current) { clearInterval(progressInterval.current); progressInterval.current = null }
-    setProgress(''); setProgressType(''); setLoadedSkills([]); setIsLoading(false)
+    setProgress(''); setProgressType(''); setLoadedSkills([])
+    const cancelEmptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(cancelEmptyBatch); imageBatchRef.current=cancelEmptyBatch
+    setIsLoading(false)
     setMessages(prev => prev.map(m => m.status === 'sending' ? { ...m, content: 'Generation cancelled.', status: 'sent' } : m))
   }, [isLoading])
 
@@ -580,6 +611,8 @@ return {
     progressType,
     loadedSkills,
     thinkingSteps,
+    //Image batch progress
+    imageBatch,
     error,
     attachmentError,
     attachments,
