@@ -409,7 +409,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
             {todoList&&(<TodoList todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>)}
             <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} onRegenerate={regenerateMessage}/>
-            {isLoading&&(imageBatch.tickets.size>0||imageBatch.expectedCount>0)&&(<div className="mt-4"><ImageBatchCard tickets={imageBatch.tickets} expectedCount={imageBatch.expectedCount}/></div>)}
+            {isLoading&&(imageBatch.tickets.size>0||imageBatch.expectedCount>0)&&(<div className="mt-2"><ImageBatchCard tickets={imageBatch.tickets} expectedCount={imageBatch.expectedCount}/></div>)}
           </div>
         </ScrollArea>
         {/* Chips row */}

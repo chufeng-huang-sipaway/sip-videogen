@@ -58,10 +58,13 @@ class StudioBridge:
 
     def _on_image_progress(self, payload: dict):
         """Called from pool thread - dispatch to UI thread via PyWebView."""
+        logger.warning("[DEBUG] Bridge._on_image_progress() called - payload=%s", payload)
         if not self._window:
+            logger.warning("[DEBUG] Bridge._on_image_progress() - no window set, skipping!")
             return
         try:
             js = f"window.__onImageProgress && window.__onImageProgress({json.dumps(payload)})"
+            logger.warning("[DEBUG] Bridge dispatching JS: %s", js[:100])
             self._window.evaluate_js(js)
         except Exception as e:
             logger.warning(f"Failed to dispatch image progress: {e}")

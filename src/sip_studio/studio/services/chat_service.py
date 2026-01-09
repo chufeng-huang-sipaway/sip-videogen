@@ -141,6 +141,10 @@ class ChatService:
         run_id = self._state.start_chat_turn()
         # Cancel previous batch if exists (user sent new message)
         pool = get_image_pool()
+        logger.warning(
+            "[DEBUG] ChatService.chat() - getting image pool, previous batch_id=%s",
+            self._current_batch_id,
+        )
         if self._current_batch_id:
             cancelled = pool.cancel_batch(self._current_batch_id)
             pool.cleanup_batch(self._current_batch_id)
@@ -149,6 +153,7 @@ class ChatService:
             self._current_batch_id = None
         # Generate new batch ID for this chat turn
         self._current_batch_id = str(uuid.uuid4())
+        logger.warning("[DEBUG] ChatService.chat() - new batch_id=%s", self._current_batch_id)
         initial_step = ThinkingStep(
             id=f"initial-{run_id[:8]}",
             run_id=run_id,
@@ -204,6 +209,9 @@ class ChatService:
             set_tool_context(self._state)
             # Set batch ID for image pool (uses contextvars)
             set_current_batch_id(self._current_batch_id)
+            logger.warning(
+                "[DEBUG] ChatService - set_current_batch_id(%s) called", self._current_batch_id
+            )
             # Run advisor - pass aspect ratios as passive defaults (not instructions)
             validated_image_ratio = validate_aspect_ratio(image_aspect_ratio)
             validated_video_ratio = (

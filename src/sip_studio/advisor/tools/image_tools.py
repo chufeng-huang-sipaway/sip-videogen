@@ -815,23 +815,51 @@ async def generate_image(
     Returns:
         Path to the saved image file, or error message.
     """
+    import asyncio
+
+    from sip_studio.studio.services.image_pool import TicketStatus, get_image_pool
+
+    from .todo_tools import get_current_batch_id
+
+    batch_id = get_current_batch_id()
+    logger.warning(
+        "[DEBUG] generate_image called - batch_id=%s, prompt=%s...", batch_id, prompt[:50]
+    )
     final_prompt, should_proceed = _request_approval_if_supervised(prompt)
     if not should_proceed:
         return "Image generation skipped by user"
     # Aspect ratio from user's UI settings (cannot be overridden)
     effective_ratio = validate_aspect_ratio(get_active_aspect_ratio()).value
-    return await _impl_generate_image(
-        final_prompt,
-        effective_ratio,
-        filename,
-        reference_image,
-        product_slug,
-        product_slugs,
-        template_slug,
-        strict,
-        validate_identity,
-        max_retries,
+    # Build config dict for pool
+    config = {
+        "aspect_ratio": effective_ratio,
+        "filename": filename,
+        "reference_image": reference_image,
+        "product_slug": product_slug,
+        "product_slugs": product_slugs,
+        "template_slug": template_slug,
+        "strict": strict,
+        "validate_identity": validate_identity,
+        "max_retries": max_retries,
+    }
+    # Submit to pool for parallel execution
+    pool = get_image_pool()
+    ticket_id = pool.submit(final_prompt, config, batch_id=batch_id)
+    logger.warning("[DEBUG] generate_image submitted ticket %s to pool, waiting...", ticket_id[:8])
+    # Wait for ticket completion (runs in executor to not block event loop)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, pool.wait_for_ticket, ticket_id, 180.0)
+    logger.warning(
+        "[DEBUG] generate_image ticket %s completed - status=%s", ticket_id[:8], result.status.value
     )
+    # Handle result
+    if result.status == TicketStatus.FAILED:
+        return f"Error generating image: {result.error}"
+    if result.status == TicketStatus.CANCELLED:
+        return "Image generation was cancelled"
+    if result.status == TicketStatus.TIMEOUT:
+        return "Error: Image generation timed out"
+    return result.path or "Error: No image path returned"
 
 
 @function_tool

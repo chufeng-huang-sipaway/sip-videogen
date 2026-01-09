@@ -3,6 +3,7 @@ Uses ThreadPoolExecutor because Gemini client is synchronous.
 Thread-safe with proper locking and cancel token pattern.
 """
 
+import logging
 import queue
 import threading
 import time
@@ -12,6 +13,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 
 class TicketStatus(Enum):
@@ -90,6 +93,11 @@ class ImageGenerationPool:
 
     def submit(self, prompt: str, config: dict, batch_id: str | None = None) -> str:
         """Submit a ticket for processing. Returns ticket_id immediately."""
+        logger.warning(
+            "[DEBUG] ImageGenerationPool.submit() called - batch_id=%s, prompt=%s...",
+            batch_id,
+            prompt[:50] if prompt else "",
+        )
         tid = str(uuid.uuid4())
         ticket = Ticket(id=tid, prompt=prompt, config=config, batch_id=batch_id)
         with self._lock:
@@ -101,10 +109,16 @@ class ImageGenerationPool:
         with self._lock:
             self._futures[tid] = future
         self._emit_progress(tid, TicketStatus.QUEUED, {})
+        logger.warning("[DEBUG] Pool submitted ticket %s to ThreadPoolExecutor", tid[:8])
         return tid
 
     def _process_ticket(self, ticket_id: str):
         """Process a single ticket (runs in worker thread)."""
+        logger.warning(
+            "[DEBUG] Pool._process_ticket() started - ticket=%s, thread=%s",
+            ticket_id[:8],
+            threading.current_thread().name,
+        )
         try:
             with self._lock:
                 if ticket_id in self._cancelled:
@@ -249,7 +263,14 @@ class ImageGenerationPool:
 
     def _emit_progress(self, ticket_id: str, status: TicketStatus, data: dict):
         """Emit progress update. Throttles by status change, not time."""
+        logger.warning(
+            "[DEBUG] Pool._emit_progress() called - ticket=%s, status=%s, has_callback=%s",
+            ticket_id[:8],
+            status.value,
+            self._progress_callback is not None,
+        )
         if not self._progress_callback:
+            logger.warning("[DEBUG] No progress callback set - skipping emit!")
             return
         last = self._last_status.get(ticket_id)
         if last == status and not status.is_terminal():
@@ -258,14 +279,21 @@ class ImageGenerationPool:
         with self._lock:
             ticket = self._tickets.get(ticket_id)
             batch_id = ticket.batch_id if ticket else None
-        payload = {"ticketId": ticket_id, "batchId": batch_id, "status": status.value, **data}
+        payload = {
+            "type": "progress",
+            "ticketId": ticket_id,
+            "batchId": batch_id,
+            "status": status.value,
+            **data,
+        }
+        logger.warning("[DEBUG] Emitting progress payload: %s", payload)
         if self._main_thread_queue:
             self._main_thread_queue.put(("image_progress", payload))
         else:
             try:
                 self._progress_callback(payload)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[DEBUG] Progress callback failed: %s", e)
 
     def set_progress_callback(self, callback: Callable[[dict], None]):
         """Set callback for progress updates."""
