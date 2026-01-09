@@ -15,6 +15,7 @@ from PIL import Image as PILImage
 
 from sip_studio.config.logging import get_logger
 from sip_studio.config.settings import get_settings
+from sip_studio.studio.services.rate_limiter import rate_limited_generate_content
 
 logger = get_logger(__name__)
 
@@ -93,13 +94,12 @@ async def analyze_image(image_path: Path) -> ImageAnalysisResult | None:
         pil_image = PILImage.open(image_path)
         logger.debug(f"Analyzing image: {image_path.name} ({pil_image.size})")
 
-        # Call Gemini Vision
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[_ANALYSIS_PROMPT, pil_image],  # type: ignore[arg-type]
-            config=types.GenerateContentConfig(
-                temperature=0.1,  # Low temperature for consistent JSON output
-            ),
+        # Call Gemini Vision (rate-limited)
+        response = rate_limited_generate_content(
+            client,
+            "gemini-2.0-flash",
+            [_ANALYSIS_PROMPT, pil_image],
+            types.GenerateContentConfig(temperature=0.1),
         )
 
         # Parse response
@@ -195,10 +195,11 @@ async def analyze_packaging_text(
         pil_image = PILImage.open(image_path)
         prompt = _build_packaging_prompt(brand_context, product_context)
         logger.debug(f"Analyzing packaging text: {image_path.name} ({pil_image.size})")
-        response = client.models.generate_content(
-            model="gemini-3-pro-image-preview",
-            contents=[prompt, pil_image],  # type: ignore[arg-type]
-            config=types.GenerateContentConfig(temperature=0.1),
+        response = rate_limited_generate_content(
+            client,
+            "gemini-3-pro-image-preview",
+            [prompt, pil_image],
+            types.GenerateContentConfig(temperature=0.1),
         )
         response_text = (response.text or "").strip()
         # Handle potential markdown code blocks (reuse existing pattern)

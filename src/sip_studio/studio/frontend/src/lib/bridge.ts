@@ -594,9 +594,16 @@ export interface QuickGenerateResult {
   error?:string
 }
 
+//Image progress event types for pool-based generation
+export type ImageProgressStatus='queued'|'processing'|'completed'|'failed'|'cancelled'|'timeout'
+export interface ImageBatchStartEvent{type:'batchStart';batchId:string;expectedCount:number}
+export interface ImageProgressEvent{type:'progress';ticketId:string;batchId:string|null;status:ImageProgressStatus;path?:string;rawPath?:string;error?:string}
+export type ImageEvent=ImageBatchStartEvent|ImageProgressEvent
+
 declare global {
   interface Window {
     pywebview?: { api: PyWebViewAPI }
+    __onImageProgress?:(data:ImageEvent)=>void
   }
 }
 

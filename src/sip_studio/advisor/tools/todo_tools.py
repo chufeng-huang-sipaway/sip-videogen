@@ -4,6 +4,7 @@ Uses contextvars for thread-safe per-session state access.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -18,6 +19,28 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 # Thread-safe per-session state using contextvars (NOT module globals)
 _tool_state: ContextVar["BridgeState|None"] = ContextVar("todo_tool_state", default=None)
+# Batch ID for image generation pool (async-safe via contextvars)
+_batch_id_var: ContextVar[str | None] = ContextVar("batch_id", default=None)
+
+
+def set_current_batch_id(batch_id: str | None) -> None:
+    """Set batch ID for current context (used by image pool)."""
+    _batch_id_var.set(batch_id)
+
+
+def get_current_batch_id() -> str | None:
+    """Get batch ID for current context."""
+    return _batch_id_var.get()
+
+
+@contextmanager
+def batch_context(batch_id: str):
+    """Context manager for batch ID scope."""
+    token = _batch_id_var.set(batch_id)
+    try:
+        yield
+    finally:
+        _batch_id_var.reset(token)
 
 
 def set_tool_context(state: "BridgeState") -> None:

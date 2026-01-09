@@ -18,6 +18,7 @@ from sip_studio.brands.models import (
 )
 from sip_studio.config.logging import get_logger
 from sip_studio.config.settings import get_settings
+from sip_studio.studio.services.rate_limiter import rate_limited_generate_content
 
 logger = get_logger(__name__)
 # V1 geometry-focused analysis prompt
@@ -165,11 +166,12 @@ async def analyze_style_reference(images: list[Path | bytes]) -> StyleReferenceA
         # Build content
         prompt = _MULTI_IMAGE_PROMPT if len(pil_imgs) > 1 else _STYLE_ANALYSIS_PROMPT
         contents = [prompt] + pil_imgs
-        # Call Gemini Vision
-        resp = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=contents,  # type: ignore[arg-type]
-            config=types.GenerateContentConfig(temperature=0.1),
+        # Call Gemini Vision (rate-limited)
+        resp = rate_limited_generate_content(
+            client,
+            "gemini-2.0-flash",
+            contents,
+            types.GenerateContentConfig(temperature=0.1),
         )
         txt = _strip_md((resp.text or "").strip())
         data = json.loads(txt)
@@ -289,10 +291,11 @@ async def analyze_style_reference_v2(images: list[Path | bytes]) -> StyleReferen
         logger.debug(f"Analyzing {len(pil_imgs)} style reference image(s) with V2: {img_info}")
         prompt = _MULTI_IMAGE_PROMPT_V2 if len(pil_imgs) > 1 else _STYLE_ANALYSIS_PROMPT_V2
         contents = [prompt] + pil_imgs
-        resp = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=contents,  # type: ignore[arg-type]
-            config=types.GenerateContentConfig(temperature=0.1),
+        resp = rate_limited_generate_content(
+            client,
+            "gemini-2.0-flash",
+            contents,
+            types.GenerateContentConfig(temperature=0.1),
         )
         txt = _strip_md((resp.text or "").strip())
         data = json.loads(txt)
@@ -393,10 +396,11 @@ async def analyze_style_reference_v3(images: list[Path | bytes]) -> StyleReferen
         logger.debug(f"Analyzing {len(pil_imgs)} style reference image(s) with V3: {img_info}")
         prompt = _MULTI_IMAGE_PROMPT_V3 if len(pil_imgs) > 1 else _STYLE_ANALYSIS_PROMPT_V3
         contents = [prompt] + pil_imgs
-        resp = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=contents,
-            config=types.GenerateContentConfig(temperature=0.1),
+        resp = rate_limited_generate_content(
+            client,
+            "gemini-2.0-flash",
+            contents,
+            types.GenerateContentConfig(temperature=0.1),
         )
         txt = _strip_md((resp.text or "").strip())
         data = json.loads(txt)

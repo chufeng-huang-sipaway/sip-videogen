@@ -1,5 +1,7 @@
 """Python bridge exposed to JavaScript - thin facade delegating to services."""
 
+import json
+
 from sip_studio.config.logging import get_logger
 
 from ..constants import (
@@ -14,6 +16,7 @@ from .services.asset_service import AssetService
 from .services.brand_service import BrandService
 from .services.chat_service import ChatService
 from .services.document_service import DocumentService
+from .services.image_pool import get_image_pool
 from .services.image_status import ImageStatusService
 from .services.product_service import ProductService
 from .services.project_service import ProjectService
@@ -36,8 +39,7 @@ class StudioBridge:
     """API exposed to the frontend via PyWebView."""
 
     def __init__(self):
-        # Load API keys on bridge initialization rather than module import, to avoid
-        # side effects when the module is imported (e.g., during tests).
+        # Load API keys on bridge initialization rather than module import
         load_api_keys_from_config()
         self._state = BridgeState()
         self._brand = BrandService(self._state)
@@ -49,9 +51,27 @@ class StudioBridge:
         self._chat = ChatService(self._state)
         self._update = UpdateService(self._state)
         self._image_status = ImageStatusService(self._state)
+        self._window = None
+        # Initialize image pool with progress callback
+        self._image_pool = get_image_pool()
+        self._image_pool.set_progress_callback(self._on_image_progress)
+
+    def _on_image_progress(self, payload: dict):
+        """Called from pool thread - dispatch to UI thread via PyWebView."""
+        logger.warning("[DEBUG] Bridge._on_image_progress() called - payload=%s", payload)
+        if not self._window:
+            logger.warning("[DEBUG] Bridge._on_image_progress() - no window set, skipping!")
+            return
+        try:
+            js = f"window.__onImageProgress && window.__onImageProgress({json.dumps(payload)})"
+            logger.warning("[DEBUG] Bridge dispatching JS: %s", js[:100])
+            self._window.evaluate_js(js)
+        except Exception as e:
+            logger.warning(f"Failed to dispatch image progress: {e}")
 
     def set_window(self, window):
         self._state.window = window
+        self._window = window
 
     # ===========================================================================
     # Constants (Single Source of Truth)
