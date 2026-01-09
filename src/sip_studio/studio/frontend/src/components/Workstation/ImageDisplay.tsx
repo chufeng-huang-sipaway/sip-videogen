@@ -30,21 +30,26 @@ export function ImageDisplay() {
     const { currentBatch, selectedIndex, updateImagePath, setSelectedIndex } = useWorkstation()
     const { setDragData, dragData } = useDrag()
     const { isGenerating, cancelEdit, resultPath } = useQuickEdit()
-    const { zoom, panX, panY, isFullscreen, isPanning, setPan, setZoomAndPan, zoomToFit, zoomToActual, setNaturalSize, setContainerSize, setIsPanning, clampPan, resetView, clearDimensions } = useViewer()
+    const { zoom, panX, panY, isFullscreen, isPanning, naturalW, naturalH, containerW, containerH, setPan, setZoomAndPan, zoomToFit, zoomToActual, setNaturalSize, setContainerSize, setIsPanning, clampPan, resetView, clearDimensions } = useViewer()
     const currentImage = currentBatch[selectedIndex]
     const [isLoading, setIsLoading] = useState(false)
-    const [displayedSrc, setDisplayedSrc] = useState<string | null>(null)//Currently shown image
-    const [pendingSrc, setPendingSrc] = useState<string | null>(null)//New image loading in
+    const [slot0Src, setSlot0Src] = useState<string | null>(null)
+    const [slot1Src, setSlot1Src] = useState<string | null>(null)
+    const [activeSlot, setActiveSlot] = useState<0 | 1>(0)
     const [error, setError] = useState<string | null>(null)
     const [hovered, setHovered] = useState(false)
     const prevIdRef = useRef<string | null>(null)
     const wheelGestureRef = useRef<WheelGestureState>({ active: false, handled: false, accX: 0, accY: 0, idleTimer: null })
     const containerRef = useRef<HTMLDivElement>(null)
+    const activeSlotRef = useRef<0 | 1>(activeSlot)
+    const pendingSlotRef = useRef<0 | 1>(1)
+    const pendingNonceRef = useRef(0)
     const zoomRef = useRef(zoom)
     const panRef = useRef({ x: panX, y: panY })
     const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
     useEffect(() => { zoomRef.current = zoom }, [zoom])
     useEffect(() => { panRef.current = { x: panX, y: panY } }, [panX, panY])
+    useEffect(() => { activeSlotRef.current = activeSlot }, [activeSlot])
     const canPrev = selectedIndex > 0, canNext = selectedIndex < currentBatch.length - 1
     const goPrev = useCallback(() => { if (canPrev && !isGenerating) setSelectedIndex(selectedIndex - 1) }, [canPrev, selectedIndex, setSelectedIndex, isGenerating])
     const goNext = useCallback(() => { if (canNext && !isGenerating) setSelectedIndex(selectedIndex + 1) }, [canNext, selectedIndex, setSelectedIndex, isGenerating])
@@ -61,7 +66,7 @@ export function ImageDisplay() {
     const handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => { const img = e.currentTarget; setNaturalSize(img.naturalWidth, img.naturalHeight) }
     const handleImgError = () => { clearDimensions() }
     //Reset view on image change
-    useEffect(() => { if (currentImage?.id !== prevIdRef.current) { resetView(); clearDimensions() } }, [currentImage?.id, resetView, clearDimensions])
+    useEffect(() => { if (currentImage?.id !== prevIdRef.current) { resetView() } }, [currentImage?.id, resetView])
     //ResizeObserver for container size
     useEffect(() => { const el = containerRef.current; if (!el || typeof ResizeObserver === 'undefined') return; const ro = new ResizeObserver((entries) => { const { width, height } = entries[0].contentRect; setContainerSize(width, height); clampPan() }); ro.observe(el); return () => ro.disconnect() }, [setContainerSize, clampPan])
     //Wheel handler: zoom (Cmd/Ctrl) or pan when zoomed, else swipe navigation
@@ -106,9 +111,23 @@ export function ImageDisplay() {
         if (state.accX > 0 && canNext) setSelectedIndex(selectedIndex + 1)
         else if (state.accX < 0 && canPrev) setSelectedIndex(selectedIndex - 1)
     }, [canPrev, canNext, selectedIndex, setSelectedIndex, isGenerating])
-    dbg('render', { id: currentImage?.id, selectedIndex, batchLen: currentBatch.length, isLoading, hasDisplayed: !!displayedSrc, hasPending: !!pendingSrc, error })
-    //Handle image transition - DON'T clear displayedSrc, just mark loading
-    useEffect(() => { if (!currentImage) return; if (prevIdRef.current !== currentImage.id) { dbg('id changed', prevIdRef.current, '→', currentImage.id); setIsLoading(true); setPendingSrc(null); setError(null); prevIdRef.current = currentImage.id } }, [currentImage?.id])
+    const activeSrc = activeSlot === 0 ? slot0Src : slot1Src
+    dbg('render', { id: currentImage?.id, selectedIndex, batchLen: currentBatch.length, isLoading, activeSlot, hasActive: !!activeSrc, slot0: !!slot0Src, slot1: !!slot1Src, error })
+    //Handle image transition - keep current visible, load next into the hidden slot
+    useEffect(() => {
+        if (!currentImage) return
+        if (prevIdRef.current !== currentImage.id) {
+            dbg('id changed', prevIdRef.current, '→', currentImage.id)
+            pendingNonceRef.current += 1
+            const nextSlot: 0 | 1 = activeSlotRef.current === 0 ? 1 : 0
+            pendingSlotRef.current = nextSlot
+            if (nextSlot === 0) setSlot0Src(null)
+            else setSlot1Src(null)
+            setIsLoading(true)
+            setError(null)
+            prevIdRef.current = currentImage.id
+        }
+    }, [currentImage?.id])
     //Resolve image source (prefer data URLs; otherwise load via bridge)
     useEffect(() => {
         let cancelled = false
@@ -119,7 +138,14 @@ export function ImageDisplay() {
             dbg('load start', { raw: raw?.slice(-40), origPath: origPath?.slice(-40) })
             //Check shared cache first - if cached, swap instantly
             const cacheKey = origPath || np(raw || '')
-            if (cacheKey && hasFullCached(cacheKey)) { const cached = getFullCached(cacheKey)!; dbg('cache hit', cacheKey.slice(-40)); setPendingSrc(cached); return }
+            const targetSlot = pendingSlotRef.current
+            if (cacheKey && hasFullCached(cacheKey)) {
+                const cached = getFullCached(cacheKey)!
+                dbg('cache hit', cacheKey.slice(-40))
+                if (targetSlot === 0) setSlot0Src(cached)
+                else setSlot1Src(cached)
+                return
+            }
             dbg('cache miss', cacheKey?.slice(-40))
             //Lazy loading: if path is empty but originalPath exists, load via getAssetFull
             if ((!raw || raw === '') && origPath) {
@@ -129,21 +155,40 @@ export function ImageDisplay() {
                     const dataUrl = await bridge.getAssetFull(origPath)
                     dbg('getAssetFull result', { len: dataUrl?.length, cancelled })
                     if (cancelled) return
-                    if (dataUrl && dataUrl !== '') { setFullCached(origPath, dataUrl); updateImagePath(currentImage.id, dataUrl); setPendingSrc(dataUrl) }
+                    if (dataUrl && dataUrl !== '') {
+                        setFullCached(origPath, dataUrl); updateImagePath(currentImage.id, dataUrl)
+                        if (targetSlot === 0) setSlot0Src(dataUrl)
+                        else setSlot1Src(dataUrl)
+                    }
                     else { setIsLoading(false); setError('Image not found') }
                 } catch (e) { dbg('getAssetFull error', e); if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setIsLoading(false) } }
                 return
             }
             if (!raw || raw === '') { dbg('missing path'); setIsLoading(false); setError('Missing image path'); return }
-            if (raw.startsWith('data:') || raw.startsWith('http://') || raw.startsWith('https://')) { dbg('direct URL'); setPendingSrc(raw); return }
+            if (raw.startsWith('data:') || raw.startsWith('http://') || raw.startsWith('https://')) {
+                dbg('direct URL')
+                if (targetSlot === 0) setSlot0Src(raw)
+                else setSlot1Src(raw)
+                return
+            }
             const normalized = np(raw)
             dbg('using getImageData branch', normalized.slice(-40))
-            if (!isPyWebView()) { setPendingSrc(normalized.startsWith('/') ? `file://${normalized}` : normalized); return }
+            if (!isPyWebView()) {
+                const url = normalized.startsWith('/') ? `file://${normalized}` : normalized
+                if (targetSlot === 0) setSlot0Src(url)
+                else setSlot1Src(url)
+                return
+            }
             try {
                 const dataUrl = await bridge.getImageData(normalized)
                 dbg('getImageData result', { len: dataUrl?.length, cancelled })
                 if (cancelled) return
-                if (dataUrl && dataUrl !== '') { setFullCached(normalized, dataUrl); setPendingSrc(dataUrl); dbg('pendingSrc set') }
+                if (dataUrl && dataUrl !== '') {
+                    setFullCached(normalized, dataUrl)
+                    if (targetSlot === 0) setSlot0Src(dataUrl)
+                    else setSlot1Src(dataUrl)
+                    dbg('slot src set', { slot: targetSlot })
+                }
                 else { setIsLoading(false); setError('Image not found') }
             } catch (e) { dbg('getImageData error', e); if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setIsLoading(false) } }
         }
@@ -173,28 +218,83 @@ export function ImageDisplay() {
         void preload()
         return () => { cancelled = true }
     }, [selectedIndex, currentBatch, currentImage, isLoading])
-    //When pending image loads, promote it to displayed (completes crossfade)
-    const handlePendingLoad = () => { dbg('pending img onLoad - promoting to displayed'); setDisplayedSrc(pendingSrc); setPendingSrc(null); setIsLoading(false) }
-    const handlePendingError = () => { dbg('pending img onError'); setPendingSrc(null); setIsLoading(false); setError('Failed to load image') }
+    const commitLoadedSlot = useCallback((slot: 0 | 1, img: HTMLImageElement, nonce: number) => {
+        requestAnimationFrame(() => {
+            if (pendingNonceRef.current !== nonce) return
+            if (pendingSlotRef.current !== slot) return
+            setNaturalSize(img.naturalWidth, img.naturalHeight)
+            setActiveSlot(slot)
+            if (slot === 0) setSlot1Src(null)
+            else setSlot0Src(null)
+            setIsLoading(false)
+        })
+    }, [setNaturalSize])
+    const handleSlotLoad = useCallback((slot: 0 | 1, expectedSrc: string | null) => (e: React.SyntheticEvent<HTMLImageElement>) => {
+        if (!expectedSrc) return
+        if (e.currentTarget.getAttribute('src') !== expectedSrc) return
+        const nonce = pendingNonceRef.current
+        if (pendingSlotRef.current === slot) commitLoadedSlot(slot, e.currentTarget, nonce)
+        else if (activeSlotRef.current === slot) handleImgLoad(e)
+    }, [commitLoadedSlot])
+    const handleSlotError = useCallback((slot: 0 | 1) => () => {
+        if (pendingSlotRef.current === slot) { setIsLoading(false); setError('Failed to load image') }
+        if (activeSlotRef.current === slot) handleImgError()
+    }, [handleImgError])
     //Use mousedown to initiate drag (bypasses PyWebView/WebKit HTML5 drag issues)
-    const handleMouseDown = (e: React.MouseEvent) => { if (e.button !== 0 || isGenerating) return; const path = currentImage?.originalPath || currentImage?.path; if (!path || path.startsWith('data:')) return; setDragData({ type: 'asset', path, thumbnailUrl: displayedSrc || undefined }) }
+    const handleMouseDown = (e: React.MouseEvent) => { if (e.button !== 0 || isGenerating) return; const path = currentImage?.originalPath || currentImage?.path; if (!path || path.startsWith('data:')) return; setDragData({ type: 'asset', path, thumbnailUrl: activeSrc || undefined }) }
     if (!currentImage) return null
-    const debugInfo = DEBUG ? `id:${currentImage.id?.slice(-8) || '?'} idx:${selectedIndex} displayed:${displayedSrc ? 'Y' : 'N'} pending:${pendingSrc ? 'Y' : 'N'} loading:${isLoading} err:${error || 'none'}` : ''
+    const debugInfo = DEBUG ? `id:${currentImage.id?.slice(-8) || '?'} idx:${selectedIndex} slot:${activeSlot} loading:${isLoading} err:${error || 'none'}` : ''
     const isDragging = !!dragData
-    const imgClass = cn("absolute inset-0 w-full h-full object-contain select-none transition-opacity duration-200", isDragging && "opacity-50")
+    const imgClass = cn("absolute inset-0 w-full h-full object-contain select-none", isDragging && "opacity-50")
     const navBtnClass = "absolute top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white/90 backdrop-blur-sm transition-all hover:bg-black/70 hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
-    const imgStyle = { transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`, transformOrigin: 'center center', cursor: zoom > 1.01 ? (isPanning ? 'grabbing' : 'grab') : 'grab' }
-    return (<div ref={containerRef} className={cn("w-full h-full flex items-center justify-center relative", isFullscreen && "fixed inset-0 z-50 bg-black")} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onWheel={handleWheel} onDoubleClick={handleDoubleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel}>
+    const cursor = zoom > 1.01 ? (isPanning ? 'grabbing' : 'grab') : 'grab'
+    const stageStyle: React.CSSProperties = { transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`, transformOrigin: 'center center', willChange: 'transform' }
+    if (naturalW && naturalH && containerW > 0 && containerH > 0) {
+        const fitScale = Math.min(containerW / naturalW, containerH / naturalH, 1)
+        stageStyle.width = Math.round(naturalW * fitScale)
+        stageStyle.height = Math.round(naturalH * fitScale)
+    } else {
+        stageStyle.width = '100%'
+        stageStyle.height = '100%'
+    }
+    return (<div ref={containerRef} style={{ cursor }} className={cn("w-full h-full flex items-center justify-center relative", isFullscreen && "fixed inset-0 z-50 bg-black")} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onWheel={handleWheel} onDoubleClick={handleDoubleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel}>
         {DEBUG && (<div className="absolute top-2 left-2 right-2 z-50 bg-black/80 text-white text-[10px] font-mono p-2 rounded">{debugInfo}</div>)}
         {/* Outer wrapper - absolute positioning for reliable height calculation */}
         <div className="absolute inset-0 flex items-center justify-center">
             {/* Image container - relative for overlays */}
-            <div className="relative flex items-center justify-center w-full h-full">
-                {/* Currently displayed image */}
-                {/* Currently displayed image */}
-                {displayedSrc && !error && (<img draggable={false} onMouseDown={handleMouseDown} onLoad={handleImgLoad} onError={handleImgError} src={displayedSrc} alt="" className={imgClass} style={{ ...imgStyle, filter: 'drop-shadow(0 20px 50px rgba(0,0,0,0.15))' }} />)}
-                {/* Pending image - fades in on top */}
-                {pendingSrc && pendingSrc !== displayedSrc && (<img draggable={false} src={pendingSrc} alt={currentImage.prompt || 'Generated image'} onLoad={(e) => { handlePendingLoad(); handleImgLoad(e) }} onError={() => { handlePendingError(); handleImgError() }} className={imgClass} style={{ ...imgStyle, animation: 'fadeIn 200ms ease-out forwards', filter: 'drop-shadow(0 20px 50px rgba(0,0,0,0.15))' }} />)}
+            <div className="relative flex items-center justify-center" style={stageStyle}>
+                {/* Stable shadow plate (avoids WebKit drop-shadow clipping + eliminates flicker) */}
+                {naturalW && naturalH && !error && (
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}
+                    />
+                )}
+                {/* Double-buffered images: keep current visible until next fully loaded, then swap instantly */}
+                {slot0Src && !error && (
+                    <img
+                        draggable={false}
+                        onMouseDown={activeSlot === 0 ? handleMouseDown : undefined}
+                        onLoad={handleSlotLoad(0, slot0Src)}
+                        onError={handleSlotError(0)}
+                        src={slot0Src}
+                        alt=""
+                        className={imgClass}
+                        style={{ opacity: activeSlot === 0 ? 1 : 0, pointerEvents: activeSlot === 0 ? 'auto' : 'none' }}
+                    />
+                )}
+                {slot1Src && !error && (
+                    <img
+                        draggable={false}
+                        onMouseDown={activeSlot === 1 ? handleMouseDown : undefined}
+                        onLoad={handleSlotLoad(1, slot1Src)}
+                        onError={handleSlotError(1)}
+                        src={slot1Src}
+                        alt={currentImage.prompt || 'Generated image'}
+                        className={imgClass}
+                        style={{ opacity: activeSlot === 1 ? 1 : 0, pointerEvents: activeSlot === 1 ? 'auto' : 'none' }}
+                    />
+                )}
                 {/* Quick Edit result image - inside wrapper to match original image bounds */}
                 {resultPath && !isGenerating && <QuickEditResultImage />}
                 {/* Shimmer overlay with sparkles - now contained to image area */}
@@ -202,9 +302,9 @@ export function ImageDisplay() {
             </div>
         </div>
         {/* Loading indicator */}
-        {isLoading && !displayedSrc && (<div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/30" /></div>)}
+        {isLoading && !activeSrc && (<div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/30" /></div>)}
         {/* Error state */}
-        {!isLoading && error && !displayedSrc && (<div className="text-sm text-muted-foreground">{error}</div>)}
+        {!isLoading && error && !activeSrc && (<div className="text-sm text-muted-foreground">{error}</div>)}
         {/* Quick Edit result preview - outside wrappers to prevent clipping */}
         {resultPath && !isGenerating && <QuickEditPreview />}
         {/* Navigation buttons - hidden in fullscreen since FullscreenControls handles it */}
