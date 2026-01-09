@@ -26,6 +26,7 @@ from ..utils.bridge_types import (
 from ..utils.decorators import require_brand
 from ..utils.os_utils import reveal_in_file_manager
 from ..utils.path_utils import resolve_assets_path, resolve_in_dir
+from .image_status import ImageStatusService
 
 logger = logging.getLogger(__name__)
 
@@ -296,7 +297,7 @@ class AssetService:
             return bridge_error(str(e))
 
     def delete_asset(self, relative_path: str) -> dict:
-        """Move an asset file to system trash."""
+        """Move an asset file to system trash and clean up metadata."""
         try:
             brand_dir, err = self._state.get_brand_dir()
             if err or brand_dir is None:
@@ -312,6 +313,20 @@ class AssetService:
                 return bridge_error("Unsupported file type")
             if not _move_to_trash(resolved):
                 return bridge_error("Failed to move to trash")
+            # Cleanup .meta.json sidecar file if exists
+            meta_path = resolved.with_suffix(".meta.json")
+            if meta_path.exists():
+                try:
+                    meta_path.unlink()
+                except OSError:
+                    logger.debug("Failed to delete meta file: %s", meta_path)
+            # Cleanup image_status.json entry
+            slug = self._state.get_active_slug()
+            if slug:
+                svc = ImageStatusService(self._state)
+                found = svc.find_by_path(slug, str(resolved))
+                if found.get("success") and found.get("data", {}).get("id"):
+                    svc.delete_image(slug, found["data"]["id"])
             return bridge_ok()
         except Exception as e:
             return bridge_error(str(e))
