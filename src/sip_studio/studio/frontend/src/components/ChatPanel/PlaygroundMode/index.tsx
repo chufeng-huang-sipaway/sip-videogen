@@ -57,7 +57,7 @@ export function PlaygroundMode({ brandSlug }: PlaygroundModeProps) {
     if (!brandSlug) return (<div className="flex flex-col items-center justify-center h-full text-center p-8"><div className="text-muted-foreground text-sm">Select a brand to use Playground</div></div>)
     return (
         <div className="flex flex-col h-full bg-neutral-50/50 dark:bg-neutral-900/20">
-            <div className="flex-1 flex flex-col items-center justify-center overflow-hidden">
+            <div className="flex-1 flex flex-col items-center justify-center overflow-hidden max-w-3xl mx-auto w-full">
                 <PreviewCanvas
                     aspectRatio={aspectRatio}
                     isLoading={isGenerating}

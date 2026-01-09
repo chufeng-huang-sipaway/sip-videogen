@@ -5,7 +5,7 @@ import{type AspectRatio,ASPECT_RATIOS}from'@/types/aspectRatio'
 import{cn}from'@/lib/utils'
 interface Props{aspectRatio:AspectRatio,isLoading:boolean,result:{path:string;data?:string}|null,onStop?:()=>void,showSaved?:boolean}
 //Safe margins for the preview area
-const MARGIN_X=32,MARGIN_Y=48
+const MARGIN_X=48,MARGIN_Y=48
 export function PreviewCanvas({aspectRatio,isLoading,result,onStop,showSaved}:Props){
 const containerRef=useRef<HTMLDivElement>(null)
 const[dims,setDims]=useState({w:300,h:300})

@@ -32,7 +32,6 @@ function WorkstationContent() {
     const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const handleMouseMove = useCallback(() => { setToolbarVisible(true); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); hideTimeoutRef.current = setTimeout(() => setToolbarVisible(false), 2500) }, [])
     const handleMouseLeave = useCallback(() => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); hideTimeoutRef.current = setTimeout(() => setToolbarVisible(false), 800) }, [])
-    const imageCounter = `${selectedIndex + 1} / ${currentBatch.length}`
     //Hide toolbar when Quick Edit result is showing
     const showOriginalToolbar = !resultPath && !isGenerating
     //Load images on brand change
@@ -138,13 +137,6 @@ function WorkstationContent() {
 
                             {/* Thumbnail Strip - Bottom (Absolute) */}
                             <ThumbnailStrip />
-
-                            {/* Counter - Above Thumbnails */}
-                            <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 pointer-events-none fade-in">
-                                <div className="bg-black/20 dark:bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-medium text-white/90 shadow-sm border border-white/10">
-                                    {imageCounter}
-                                </div>
-                            </div>
                         </>
                     )}
                 </>
