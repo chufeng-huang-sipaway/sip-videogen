@@ -44,7 +44,7 @@ return(<DropdownMenuItem key={r} onClick={()=>onChange(r)} className={cn("flex i
 <span className="text-xs text-muted-foreground">{hint}</span>
 </div>
 </div>
-{sel&&<Check className="h-4 w-4 text-foreground shrink-0"/>}
+{sel&&<Check className="h-4 w-4 text-primary shrink-0"/>}
 </DropdownMenuItem>)})}</DropdownMenuContent>
 </DropdownMenu>)}
 //Main component - renders VideoRatioToggle or ImageRatioDropdown based on mode

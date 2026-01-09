@@ -15,6 +15,7 @@ import { bridge, isPyWebView, type AssetNode } from '@/lib/bridge'
 import { getAllowedImageExts } from '@/lib/constants'
 import { ImageViewer } from '../ui/image-viewer'
 import { VideoViewer } from '../ui/video-viewer'
+import { cn } from '@/lib/utils'
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -93,10 +94,13 @@ function TreeItem({ node, depth = 0, onDelete, onRename, onPreview, onPreviewVid
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`flex items-center gap-1 py-1 px-2 rounded hover:bg-muted/50 group ${
-              node.type === 'image' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-            }`}
-            style={{ paddingLeft: `${depth * 12 + 8}px` }}
+            className={cn(
+              "flex items-center gap-2 py-1.5 px-3 mb-0.5 rounded-full text-xs transition-all duration-200 group relative",
+              node.type === 'image' || node.type === 'video' ? 'cursor-grab active:cursor-grabbing hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 hover:shadow-sm' : 'cursor-pointer hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50',
+              //Active state simulation using background
+              isOpen && node.type === 'folder' ? 'bg-neutral-100/50 dark:bg-neutral-800/50' : ''
+            )}
+            style={{ paddingLeft: `${depth * 12 + 12}px` }}
             onClick={handleClick}
             draggable={node.type === 'image'}
             onDragStart={handleDragStart}

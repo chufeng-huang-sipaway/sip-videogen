@@ -18,9 +18,9 @@ const CONTENT_DURATION = 150
 const WIDTH_DURATION = 250
 const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)'
 
-interface BrandSelectorProps { compact?: boolean; showContent?: boolean }
+interface BrandSelectorProps { compact?: boolean; showContent?: boolean; allowTooltips?: boolean }
 
-export function BrandSelector({ compact, showContent = true }: BrandSelectorProps) {
+export function BrandSelector({ compact, showContent = true, allowTooltips = true }: BrandSelectorProps) {
   const { brands, activeBrand, isLoading, selectBrand, refresh } = useBrand()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -31,7 +31,7 @@ export function BrandSelector({ compact, showContent = true }: BrandSelectorProp
   const sizeTransition = `width ${WIDTH_DURATION}ms ${EASING}, height ${WIDTH_DURATION}ms ${EASING}, padding ${WIDTH_DURATION}ms ${EASING}`
 
   if (isLoading) {
-    return(<Button variant="ghost" className={cn("rounded-xl bg-primary/10",compact?"w-12 h-12 p-0":"w-full h-auto py-3 px-3")} style={{transition: sizeTransition}} disabled><Building2 className="w-5 h-5 animate-pulse"/></Button>)
+    return (<Button variant="ghost" className={cn("rounded-xl bg-primary/10", compact ? "w-12 h-12 p-0" : "w-full h-auto py-3 px-3")} style={{ transition: sizeTransition }} disabled><Building2 className="w-5 h-5 animate-pulse" /></Button>)
   }
 
   const dropdownContent = (
@@ -71,24 +71,24 @@ export function BrandSelector({ compact, showContent = true }: BrandSelectorProp
   )
 
   //Unified structure - same DOM, CSS handles compact/expanded with sequenced timing
-  return(
+  return (
     <DropdownMenu>
-      <Tooltip>
+      <Tooltip open={compact && allowTooltips ? undefined : false}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className={cn("justify-start rounded-xl bg-primary/10 hover:bg-primary/15 overflow-hidden",compact?"w-12 h-12 p-0":"w-full h-auto py-3 px-3")} style={{transition: sizeTransition}}>
+            <Button variant="ghost" className={cn("justify-start rounded-2xl bg-gradient-to-br from-white to-neutral-50 dark:from-neutral-900 dark:to-neutral-950 border border-white/20 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden", compact ? "w-12 h-12 p-0" : "w-full h-auto py-3.5 px-3")} style={{ transition: sizeTransition }}>
               <div className="flex items-center gap-3 text-left">
-                <div className={cn("rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0",compact?"w-12 h-12 text-base":"w-8 h-8 text-xs")} style={{transition: sizeTransition}}>{currentBrand?getInitials(currentBrand.name):<Building2 className="w-5 h-5"/>}</div>
-                <div className="flex-1 min-w-0" style={{transition: contentTransition, opacity: showContent&&!compact?1:0, visibility: showContent&&!compact?'visible':'hidden', transform: showContent&&!compact?'translateX(0)':'translateX(-8px)', position: showContent&&!compact?'relative':'absolute'}}>
-                  <div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name||'Select Brand'}</div>
+                <div className={cn("rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center font-bold shrink-0 shadow-inner", compact ? "w-12 h-12 text-base" : "w-10 h-10 text-sm")} style={{ transition: sizeTransition }}>{currentBrand ? getInitials(currentBrand.name) : <Building2 className="w-5 h-5" />}</div>
+                <div className="flex-1 min-w-0" style={{ transition: contentTransition, opacity: showContent && !compact ? 1 : 0, visibility: showContent && !compact ? 'visible' : 'hidden', transform: showContent && !compact ? 'translateX(0)' : 'translateX(-8px)', position: showContent && !compact ? 'relative' : 'absolute' }}>
+                  <div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name || 'Select Brand'}</div>
                   <div className="text-[10px] text-muted-foreground/70 font-medium">Brand Workspace</div>
                 </div>
               </div>
-              <ChevronsUpDown className="h-4 w-4 text-muted-foreground/40" style={{transition: contentTransition, opacity: showContent&&!compact?1:0, visibility: showContent&&!compact?'visible':'hidden', position: showContent&&!compact?'relative':'absolute'}}/>
+              <ChevronsUpDown className="h-4 w-4 text-muted-foreground/40" style={{ transition: contentTransition, opacity: showContent && !compact ? 1 : 0, visibility: showContent && !compact ? 'visible' : 'hidden', position: showContent && !compact ? 'relative' : 'absolute' }} />
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        {compact&&<TooltipContent side="right" className="font-semibold">{currentBrand?.name||'Select Brand'}</TooltipContent>}
+        {compact && <TooltipContent side="right" className="font-semibold">{currentBrand?.name || 'Select Brand'}</TooltipContent>}
       </Tooltip>
       {dropdownContent}
       {dialogs}

@@ -38,7 +38,7 @@ const handleClose=useCallback(()=>{if(!isLoading){onOpenChange(false);setName(''
 const combinedError=error||uploadError
 return(<FormDialog open={open} onOpenChange={handleClose} title="Quick Add Style Reference" description="Add a reference image. AI will analyze the visual style." icon={<Layout className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isLoading} loadingMessage="Creating style reference..." error={combinedError} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-md" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-<Button onClick={()=>execute()} disabled={isLoading||!name.trim()||images.length===0} className="bg-brand-500 hover:bg-brand-600">{isLoading?'Creating...':'Add Style Reference'}</Button>
+<Button variant="default" onClick={()=>execute()} disabled={isLoading||!name.trim()||images.length===0}>{isLoading?'Creating...':'Add Style Reference'}</Button>
 </>}>
 {/*Name Input*/}
 <div className="space-y-2">
@@ -53,7 +53,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Quick Add Style
 </Dropzone>):(<div className="flex flex-wrap gap-2">
 {images.map((item,idx)=>(<div key={idx} className="relative group">
 <img src={item.dataUrl} alt={item.file.name} className="h-20 w-20 rounded object-cover border"/>
-<button type="button" onClick={()=>removeImage(idx)} className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
+<button type="button" onClick={()=>removeImage(idx)} className="absolute -top-1 -right-1 h-5 w-5 bg-white/90 text-destructive hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
 <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 truncate rounded-b">{item.file.name}</span>
 </div>))}
 {images.length<2&&(<Dropzone accept={{'image/*':getAllowedImageExts()}} maxFiles={2-images.length} onDrop={handleFilesAdded} onError={handleDropError} className="h-20 w-20 border-dashed flex items-center justify-center">

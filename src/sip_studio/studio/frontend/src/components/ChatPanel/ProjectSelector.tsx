@@ -48,7 +48,7 @@ export function ProjectSelector({
           className="text-muted-foreground"
         >
           <span className="flex-1">No Project</span>
-          {!activeProject && <Check className="h-4 w-4 text-success" />}
+          {!activeProject && <Check className="h-4 w-4 text-primary" />}
         </DropdownMenuItem>
         {activeProjects.length > 0 && (
           <>
@@ -60,7 +60,7 @@ export function ProjectSelector({
               >
                 <span className="flex-1 truncate">{project.name}</span>
                 {project.slug === activeProject && (
-                  <Check className="h-4 w-4 text-success" />
+                  <Check className="h-4 w-4 text-primary" />
                 )}
               </DropdownMenuItem>
             ))}
@@ -70,7 +70,7 @@ export function ProjectSelector({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled className="text-xs text-muted-foreground/60 italic">
-              No projects yet
+              No projects yet. Create one in sidebar.
             </DropdownMenuItem>
           </>
         )}

@@ -52,7 +52,7 @@ return(<DropdownMenu open={open} onOpenChange={o=>{setOpen(o);if(!o)setSearch(''
 <button type="button" onClick={()=>handleSelect('')} className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors","hover:bg-accent",!value&&"bg-accent")}>
 <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-muted-foreground"/></div>
 <div className="flex-1 min-w-0"><div className="text-sm font-medium">{emptyLabel}</div></div>
-{!value&&<Check className="h-4 w-4 shrink-0"/>}
+{!value&&<Check className="h-4 w-4 text-primary shrink-0"/>}
 </button>
 {filtered.map(item=>(<button key={item.slug} type="button" onClick={()=>handleSelect(item.slug)} className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors","hover:bg-accent",value===item.slug&&"bg-accent")}>
 <ItemThumb path={item.imagePath} type={type} fallback={<Icon className="w-4 h-4 text-muted-foreground"/>}/>
@@ -60,7 +60,7 @@ return(<DropdownMenu open={open} onOpenChange={o=>{setOpen(o);if(!o)setSearch(''
 <div className="text-sm font-medium truncate">{item.name}</div>
 {item.description&&<div className="text-xs text-muted-foreground truncate">{item.description}</div>}
 </div>
-{value===item.slug&&<Check className="h-4 w-4 shrink-0"/>}
+{value===item.slug&&<Check className="h-4 w-4 text-primary shrink-0"/>}
 </button>))}
 {filtered.length===0&&search&&<div className="py-4 text-center text-sm text-muted-foreground">No {type}s found</div>}
 </div>

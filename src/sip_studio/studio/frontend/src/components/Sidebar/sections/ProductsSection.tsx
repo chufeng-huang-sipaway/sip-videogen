@@ -9,6 +9,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { FormDialog } from '@/components/ui/form-dialog'
 import { useProducts } from '@/context/ProductContext'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView, type ProductEntry } from '@/lib/bridge'
@@ -52,8 +53,11 @@ export function ProductsSection() {
   } = useProducts()
   const [actionError,setActionError]=useState<string|null>(null)
   const [editingProductSlug,setEditingProductSlug]=useState<string|null>(null)
+  const [deletingProduct,setDeletingProduct]=useState<{slug:string,name:string}|null>(null)
+  const [isDeleting,setIsDeleting]=useState(false)
   useEffect(()=>{if(actionError){const t=setTimeout(()=>setActionError(null),5000);return()=>clearTimeout(t)}},[actionError])
-  const handleDelete=async(slug:string)=>{if(confirm(`Delete product "${slug}"? This cannot be undone.`)){try{await deleteProduct(slug)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete product')}}}
+  const handleDeleteConfirm=async()=>{if(!deletingProduct)return;setIsDeleting(true);try{await deleteProduct(deletingProduct.slug);setDeletingProduct(null)}catch(err){setActionError(err instanceof Error?err.message:'Failed to delete product')}finally{setIsDeleting(false)}}
+  const handleDelete=(slug:string)=>{const product=products.find(p=>p.slug===slug);setDeletingProduct({slug,name:product?.name||slug})}
 
   if (!activeBrand) {
     return <div className="text-sm text-muted-foreground">Select a brand</div>
@@ -72,4 +76,5 @@ export function ProductsSection() {
 
   return (
     <div className="space-y-1 pl-1 pr-1">{actionError&&(<Alert variant="destructive" className="py-2 px-3 mb-2"><AlertDescription className="flex items-center justify-between text-xs"><span>{actionError}</span><Button variant="ghost" size="icon" className="h-4 w-4 shrink-0" onClick={()=>setActionError(null)}><X className="h-3 w-3"/></Button></AlertDescription></Alert>)}{products.length===0?(<p className="text-xs text-muted-foreground py-2 px-2">{isLoading?'Loading...':'No products yet. Click + to add one.'}</p>):(<div className="space-y-0.5">{products.map((product)=>(<ProductCard key={product.slug} product={product} isAttached={attachedProducts.includes(product.slug)} onOpenModal={()=>setEditingProductSlug(product.slug)} onAttach={()=>attachProduct(product.slug)} onDetach={()=>detachProduct(product.slug)} onEdit={()=>setEditingProductSlug(product.slug)} onDelete={()=>handleDelete(product.slug)}/>))}</div>)}
-{editingProductSlug&&(<EditProductDialog open={!!editingProductSlug} onOpenChange={(o)=>{if(!o)setEditingProductSlug(null)}} productSlug={editingProductSlug}/>)}</div>)}
+{editingProductSlug&&(<EditProductDialog open={!!editingProductSlug} onOpenChange={(o)=>{if(!o)setEditingProductSlug(null)}} productSlug={editingProductSlug}/>)}
+{deletingProduct&&(<FormDialog open={!!deletingProduct} onOpenChange={(o)=>{if(!o&&!isDeleting)setDeletingProduct(null)}} title="Delete Product?" isLoading={isDeleting} loadingMessage="Deleting..." footer={<><Button variant="ghost" onClick={()=>setDeletingProduct(null)} disabled={isDeleting}>Cancel</Button><Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting}>{isDeleting?'Deleting...':'Delete'}</Button></>}><p className="text-sm text-muted-foreground">Are you sure you want to delete "{deletingProduct.name}"? This action cannot be undone.</p></FormDialog>)}</div>)}

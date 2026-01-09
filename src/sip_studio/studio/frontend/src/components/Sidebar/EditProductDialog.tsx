@@ -82,7 +82,7 @@ const error=loadError||saveError||uploadError
 const loadingMsg=isLoading?'Loading product...':'Saving changes...'
 return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" description="Update product details and images." icon={<Package className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isWorking} loadingMessage={loadingMsg} error={error} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-xl" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isSaving}>Cancel</Button>
-<Button onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges} className="bg-brand-500 hover:bg-brand-600">{isSaving?'Saving...':'Save Changes'}</Button>
+<Button variant="default" onClick={()=>save()} disabled={isWorking||!name.trim()||!hasChanges}>{isSaving?'Saving...':'Save Changes'}</Button>
 </>}>
 {/* Name Input */}
 <div className="space-y-2">
@@ -130,7 +130,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" d
 {img.isPrimary&&(<div className="absolute top-1 left-1 bg-brand-500 text-white rounded-full p-0.5"><Star className="h-3 w-3 fill-current"/></div>)}
 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
 {!img.isPrimary&&(<button type="button" onClick={()=>handleSetPrimary(img.path)} className="h-6 w-6 bg-brand-500 text-white rounded-full flex items-center justify-center hover:bg-brand-600" title="Set as primary"><Star className="h-3 w-3"/></button>)}
-<button type="button" onClick={()=>handleDeleteExisting(img.path)} className="h-6 w-6 bg-destructive text-white rounded-full flex items-center justify-center hover:bg-destructive/90" title="Delete image"><X className="h-3 w-3"/></button>
+<button type="button" onClick={()=>handleDeleteExisting(img.path)} className="h-6 w-6 bg-white/90 text-destructive hover:bg-white rounded-full flex items-center justify-center" title="Delete image"><X className="h-3 w-3"/></button>
 </div>
 <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 truncate rounded-b">{img.filename}</span>
 </div>))}
@@ -140,7 +140,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Edit Product" d
 {newImages.map((item,index)=>(<div key={index} className="relative group">
 <img src={item.dataUrl} alt={item.file.name} className="h-20 w-20 rounded object-cover border border-dashed border-success"/>
 <div className="absolute top-1 right-1 bg-success text-white text-[10px] px-1 rounded">NEW</div>
-<button type="button" onClick={()=>handleDeleteNew(index)} className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
+<button type="button" onClick={()=>handleDeleteNew(index)} className="absolute -top-1 -right-1 h-5 w-5 bg-white/90 text-destructive hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3"/></button>
 <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 truncate rounded-b">{item.file.name}</span>
 </div>))}
 </div>)}

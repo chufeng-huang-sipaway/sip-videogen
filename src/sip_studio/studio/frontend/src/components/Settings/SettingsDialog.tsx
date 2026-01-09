@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Eye, EyeOff, Loader2, Globe, Sparkles, ShieldCheck, ShieldAlert, X } from 'lucide-react'
+import { Eye, EyeOff, Globe, Sparkles, ShieldCheck, ShieldAlert, X } from 'lucide-react'
+import { Spinner } from '@/components/ui/spinner'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import { cn } from '@/lib/utils'
 
@@ -115,8 +116,8 @@ export function SettingsDialog({ open, onOpenChange }: Props) {
             {success&&(<div className="flex items-center gap-2 text-success text-xs animate-in slide-in-from-left-2 fade-in"><ShieldCheck className="w-3.5 h-3.5"/><span>Credentials updated successfully</span></div>)}
           </div>
 
-          <Button onClick={onSave} disabled={saving||(!openaiKey&&!geminiKey&&!firecrawlKey)} className={cn("w-full h-11 rounded-full font-medium transition-all shadow-lg hover:shadow-xl active:scale-[0.98]",saving?"bg-muted text-muted-foreground":"bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200")}>
-            {saving?(<span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/>Saving...</span>):('Save Changes')}
+          <Button onClick={onSave} disabled={saving||(!openaiKey&&!geminiKey&&!firecrawlKey)} className="w-full h-11 rounded-full font-medium transition-all shadow-lg hover:shadow-xl active:scale-[0.98]">
+            {saving?(<span className="flex items-center gap-2"><Spinner className="h-4 w-4"/>Saving...</span>):('Save Changes')}
           </Button>
         </div>
       </DialogContent>
@@ -141,7 +142,7 @@ function ApiKeyRow({label,hint,icon,configured,value,onChange,placeholder,show}:
           {configured?"Active":"Not Set"}
         </div>
       </div>
-      <Input type={show?"text":"password"} value={value} onChange={(e)=>onChange(e.target.value)} placeholder={placeholder} className="h-10 px-3 rounded-xl border-0 bg-background/60 hover:bg-background focus:bg-background focus:ring-1 focus:ring-black/5 transition-all text-sm placeholder:text-muted-foreground/30"/>
+      <Input type={show?"text":"password"} value={value} onChange={(e)=>onChange(e.target.value)} placeholder={placeholder} className="h-10 px-3 rounded-xl border-0 bg-background/60 hover:bg-background focus:bg-background focus:ring-1 focus:ring-ring transition-all text-sm placeholder:text-muted-foreground/30"/>
     </div>
   )
 }

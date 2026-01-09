@@ -19,7 +19,7 @@ const handleClose=useCallback(()=>{if(!isLoading){onOpenChange(false);clearError
 const handleKeyDown=(e:React.KeyboardEvent)=>{if(e.key==='Enter'&&!e.shiftKey&&name.trim()){e.preventDefault();execute()}}
 return(<FormDialog open={open} onOpenChange={handleClose} title="New Project" description="Create a new campaign project to organize generated assets." icon={<FolderKanban className="h-5 w-5"/>} iconColor="text-success" isLoading={isLoading} loadingMessage="Creating project..." error={error} onClearError={clearError} footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-<Button onClick={()=>execute()} disabled={isLoading||!name.trim()} className="bg-success hover:bg-success/90">{isLoading?'Creating...':'Create Project'}</Button>
+<Button onClick={()=>execute()} disabled={isLoading||!name.trim()}>{isLoading?'Creating...':'Create Project'}</Button>
 </>}>
 {/* Name Input */}
 <div className="space-y-2">
@@ -29,7 +29,7 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="New Project" de
 {/* Instructions Input */}
 <div className="space-y-2">
 <label htmlFor="create-project-instructions" className="text-sm font-medium">Campaign Instructions <span className="text-muted-foreground text-xs">(optional)</span></label>
-<textarea id="create-project-instructions" value={instructions} onChange={(e)=>setInstructions(e.target.value)} placeholder="Instructions for the AI when generating content for this campaign..." rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-success resize-none"/>
+<textarea id="create-project-instructions" value={instructions} onChange={(e)=>setInstructions(e.target.value)} placeholder="Instructions for the AI when generating content for this campaign..." rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-ring resize-none"/>
 <p className="text-xs text-muted-foreground">These instructions will guide the AI when creating images for this project.</p>
 </div>
 </FormDialog>)}

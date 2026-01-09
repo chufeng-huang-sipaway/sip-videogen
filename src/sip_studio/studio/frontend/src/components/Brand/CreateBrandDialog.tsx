@@ -39,7 +39,7 @@ const handleClose=useCallback(()=>{if(!isLoading){onOpenChange(false);setDescrip
 const combinedError=error||uploadError
 return(<FormDialog open={open} onOpenChange={handleClose} title="Create New Brand" description="Upload brand materials and describe your vision. Our AI will create a complete brand identity." icon={<Plus className="h-5 w-5"/>} iconColor="text-brand-500" isLoading={isLoading} loadingMessage="Creating your brand identity... This may take a minute as our AI team analyzes your materials." error={combinedError} onClearError={()=>{clearError();setUploadError(null)}} maxWidth="max-w-lg" footer={<>
 <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-<Button onClick={()=>execute()} disabled={isLoading||(!description.trim()&&files.length===0)} className="bg-brand-500 hover:bg-brand-600">{isLoading?'Creating...':'Create Brand'}</Button>
+<Button onClick={()=>execute()} disabled={isLoading||(!description.trim()&&files.length===0)}>{isLoading?'Creating...':'Create Brand'}</Button>
 </>}>
 {/* Dropzone */}
 <Dropzone accept={{'image/*':getAllowedImageExts().map(e=>e),'text/*':getAllowedTextExts().map(e=>e)}} maxFiles={20} onDrop={handleFilesAdded} onError={handleDropError} className="border-dashed">
@@ -55,6 +55,6 @@ return(<FormDialog open={open} onOpenChange={handleClose} title="Create New Bran
 </div>)}
 {/* Description */}
 <div>
-<textarea value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Tell us about your brand... (describe your concept, target audience, values, style preferences)" rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"/>
+<textarea value={description} onChange={(e)=>setDescription(e.target.value)} placeholder="Tell us about your brand... (describe your concept, target audience, values, style preferences)" rows={4} className="w-full px-3 py-2 text-sm border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-ring resize-none"/>
 </div>
 </FormDialog>)}
