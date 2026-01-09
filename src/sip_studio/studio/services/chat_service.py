@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 from datetime import datetime, timezone
 
 from sip_studio.advisor.agent import BrandAdvisor
@@ -11,6 +12,7 @@ from sip_studio.advisor.tools import (
     clear_tool_context,
     get_image_metadata,
     get_video_metadata,
+    set_current_batch_id,
     set_tool_context,
 )
 from sip_studio.brands.memory import list_brand_assets, list_brand_videos
@@ -33,6 +35,7 @@ from ..utils.chat_utils import (
     process_attachments,
 )
 from ..utils.path_utils import resolve_assets_path, resolve_docs_path
+from .image_pool import get_image_pool
 
 logger = get_logger(__name__)
 
@@ -42,6 +45,7 @@ class ChatService:
 
     def __init__(self, state: BridgeState):
         self._state = state
+        self._current_batch_id: str | None = None
 
     def _progress_callback(self, progress) -> None:
         """Called by BrandAdvisor during execution."""
@@ -134,8 +138,17 @@ class ChatService:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace = []
         self._state.matched_skills = []
-        run_id = self._state.start_chat_turn()  # Generates run_id, clears thinking_steps
-        # Add initial thinking step so timeline shows immediately
+        run_id = self._state.start_chat_turn()
+        # Cancel previous batch if exists (user sent new message)
+        pool = get_image_pool()
+        if self._current_batch_id:
+            cancelled = pool.cancel_batch(self._current_batch_id)
+            pool.cleanup_batch(self._current_batch_id)
+            if cancelled > 0:
+                logger.info(f"Cancelled {cancelled} pending images from previous batch")
+            self._current_batch_id = None
+        # Generate new batch ID for this chat turn
+        self._current_batch_id = str(uuid.uuid4())
         initial_step = ThinkingStep(
             id=f"initial-{run_id[:8]}",
             run_id=run_id,
@@ -189,6 +202,8 @@ class ChatService:
             before_style_refs = {t.slug for t in storage_list_style_references(slug)}
             # Set tool context for todo tools (uses contextvars for thread safety)
             set_tool_context(self._state)
+            # Set batch ID for image pool (uses contextvars)
+            set_current_batch_id(self._current_batch_id)
             # Run advisor - pass aspect ratios as passive defaults (not instructions)
             validated_image_ratio = validate_aspect_ratio(image_aspect_ratio)
             validated_video_ratio = (
@@ -235,6 +250,11 @@ class ChatService:
             return bridge_error(str(e))
         finally:
             clear_tool_context()
+            set_current_batch_id(None)
+            # Cleanup completed batch
+            if self._current_batch_id:
+                pool.cleanup_batch(self._current_batch_id)
+                self._current_batch_id = None
             self._state.current_progress = ""
 
     def clear_chat(self) -> dict:

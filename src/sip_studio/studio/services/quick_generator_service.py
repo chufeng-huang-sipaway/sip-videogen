@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sip_studio.advisor.tools.todo_tools import set_current_batch_id
 from sip_studio.brands.storage import get_active_brand, load_product, load_style_reference
 from sip_studio.config.logging import get_logger
+
+from .image_pool import get_image_pool
 
 if TYPE_CHECKING:
     from ..state import BridgeState
@@ -57,13 +61,10 @@ class QuickGeneratorService:
             count: Number of images to generate (1-10)
         Returns:
             Dict with generated images list (base64 encoded for frontend display)"""
-        # Validate brand
         brand_slug = get_active_brand()
         if not brand_slug:
             return {"success": False, "error": "No brand selected"}
-        # Validate count
         count = max(1, min(10, count))
-        # Validate product if specified
         if product_slug:
             try:
                 product = load_product(brand_slug, product_slug)
@@ -71,7 +72,6 @@ class QuickGeneratorService:
                     return {"success": False, "error": f"Product '{product_slug}' not found"}
             except Exception as e:
                 return {"success": False, "error": f"Failed to load product: {e}"}
-        # Validate style reference if specified
         if style_reference_slug:
             try:
                 style_ref = load_style_reference(brand_slug, style_reference_slug)
@@ -82,27 +82,33 @@ class QuickGeneratorService:
                     }
             except Exception as e:
                 return {"success": False, "error": f"Failed to load style reference: {e}"}
-        # Generate images
+        # Generate batch ID for this quick generate request
+        batch_id = str(uuid.uuid4())
+        pool = get_image_pool()
         results: list[dict[str, Any]] = []
         errors: list[dict[str, Any]] = []
-        for i in range(count):
-            try:
-                result = _run_async(
-                    self._async_generate_single(
-                        prompt=prompt,
-                        aspect_ratio=aspect_ratio,
-                        product_slug=product_slug,
-                        style_reference_slug=style_reference_slug,
+        try:
+            # Set batch ID for contextvar (will propagate to image generation)
+            set_current_batch_id(batch_id)
+            for i in range(count):
+                try:
+                    result = _run_async(
+                        self._async_generate_single(
+                            prompt=prompt,
+                            aspect_ratio=aspect_ratio,
+                            product_slug=product_slug,
+                            style_reference_slug=style_reference_slug,
+                        )
                     )
-                )
-                # Convert file path to base64 data URL for frontend
-                if result.get("path"):
-                    result["data"] = self._path_to_base64(result["path"])
-                results.append(result)
-            except Exception as e:
-                logger.error(f"Quick generate image {i+1}/{count} failed: {e}")
-                errors.append({"index": i, "error": str(e)})
-        # Determine overall success
+                    if result.get("path"):
+                        result["data"] = self._path_to_base64(result["path"])
+                    results.append(result)
+                except Exception as e:
+                    logger.error(f"Quick generate image {i+1}/{count} failed: {e}")
+                    errors.append({"index": i, "error": str(e)})
+        finally:
+            set_current_batch_id(None)
+            pool.cleanup_batch(batch_id)
         if not results and errors:
             return {"success": False, "error": "All generations failed", "errors": errors}
         return {
