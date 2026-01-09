@@ -1,8 +1,8 @@
 # SIP VideoGen
 
-AI-powered video generation and brand identity management platform.
+AI-powered brand management and video generation platform.
 
-**Current Version: v0.7.0**
+**Current Version: v0.9.0**
 
 ## Overview
 
@@ -28,11 +28,12 @@ A macOS desktop app for creating and managing brand identities with AI assistanc
 
 ### Features
 
-- **Brand Strategy** - Mission, values, positioning, target audience
+- **Brand Strategy** - Mission, values, positioning, target audience, competitive analysis
 - **Visual Identity** - Color palette, typography, imagery guidelines
 - **Brand Voice** - Tone, messaging, communication style
 - **Asset Library** - Organized storage for logos, marketing materials, documents
-- **AI Brand Advisor** - Chat interface with brand-aware AI assistant
+- **Product Management** - Product specifications and style references
+- **AI Brand Advisor** - Chat interface with brand-aware AI assistant and specialized skills
 
 ### Installation
 
@@ -61,28 +62,24 @@ curl -sSL https://raw.githubusercontent.com/chufeng-huang-sipaway/sip-videogen/m
 #### Creating a Brand
 
 1. Click **New Brand** in the sidebar
-2. Optionally upload reference materials:
-   - Images (logos, packaging, mood boards)
-   - Documents (brand guidelines, briefs)
+2. Optionally upload reference materials (images, documents)
 3. Describe your brand concept
 4. The AI Brand Director team develops your complete identity
 
-#### Managing Brands
-
-- **Switch brands** - Use the dropdown in the sidebar
-- **View brand info** - See name, tagline, and category
-- **Delete brands** - Click the trash icon (with confirmation)
-
 #### AI Brand Advisor
 
-Chat with an AI that understands your brand's voice, values, and visual identity:
+Chat with an AI that understands your brand's voice, values, and visual identity. The advisor uses specialized skills:
 
-- Ask for copy suggestions in your brand voice
-- Request asset generation (uses Gemini)
-- Get feedback on brand consistency
-- Refine your brand identity over time
+- **Brand Identity** - Develop and refine brand strategy
+- **Logo Design** - Create logo concepts and variations
+- **Mascot Generation** - Design brand mascots
+- **Image Composition** - Generate brand-aligned imagery
+- **Product Image Strategy** - Product photography direction
+- **Video Prompts** - Video generation prompt engineering
+- **Style References** - Analyze and apply visual styles
+- **Brand Evolution** - Guide brand growth and changes
 
-**Attachments**: Drag and drop files into the chat, or click the attachment button to reference assets or documents.
+**Attachments**: Drag and drop files into the chat to reference assets or documents.
 
 #### Asset Library
 
@@ -98,16 +95,6 @@ Organize your brand materials by category:
 | `generated/` | AI-generated assets |
 | `video/` | Video files |
 
-Upload, rename, or delete assets directly in the sidebar.
-
-#### Documents
-
-Store brand-related documents (`.md`, `.txt`, `.json`, `.yaml`).
-
-### Auto-Updates
-
-Sip Studio checks for updates on launch. When a new version is available, click **Update Now** to download and install automatically.
-
 ### Data Storage
 
 All brand data is stored locally at `~/.sip-studio/brands/`:
@@ -118,6 +105,8 @@ All brand data is stored locally at `~/.sip-studio/brands/`:
 ├── my-brand/
 │   ├── identity.json       # Brand summary (fast loading)
 │   ├── identity_full.json  # Complete identity
+│   ├── products/           # Product specifications
+│   ├── projects/           # Project data
 │   ├── assets/
 │   └── docs/
 ```
@@ -180,16 +169,6 @@ for scene in result.script.scenes:
 | **VEO** (Google) | 4, 6, 8 sec | `GEMINI_API_KEY`, `SIP_GCS_BUCKET_NAME` |
 | **Kling AI** | 5, 10 sec | `KLING_ACCESS_KEY`, `KLING_SECRET_KEY` |
 | **Sora** (OpenAI) | 5, 10, 15, 20 sec | `OPENAI_API_KEY` |
-
-### Available Components
-
-| Module | Purpose |
-|--------|---------|
-| `sip_studio.video.VideoPipeline` | Full video generation pipeline |
-| `sip_studio.video.PipelineConfig` | Pipeline configuration |
-| `sip_studio.generators.VideoGeneratorFactory` | Provider selection |
-| `sip_studio.assembler.FFmpegAssembler` | Video clip assembly |
-| `sip_studio.models.*` | Script, asset, and scene models |
 
 ### Agent Architecture
 
@@ -266,9 +245,6 @@ python -m sip_studio.studio
 
 # Development mode (with hot reload)
 STUDIO_DEV=1 python -m sip_studio.studio
-
-# Or use the demo script
-./scripts/studio-demo.sh
 ```
 
 ### Frontend Development
@@ -294,21 +270,11 @@ mypy src/                      # Type check
 ### Building a Release
 
 ```bash
-./scripts/build-release.sh 0.7.0    # Build DMG
-gh release create v0.7.0 dist/Brand-Studio-0.7.0.dmg \
-  --title "Sip Studio v0.7.0" \
+./scripts/build-release.sh 0.9.0    # Build DMG
+gh release create v0.9.0 dist/Brand-Studio-0.9.0.dmg \
+  --title "Sip Studio v0.9.0" \
   --notes "Release notes here"
 ```
-
-### Available Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `scripts/studio-demo.sh` | Launch Sip Studio with auto-rebuild |
-| `scripts/build-release.sh {ver}` | Build DMG release |
-| `scripts/build-dmg.sh` | Create disk image installer |
-| `scripts/install-sip-studio.sh` | Terminal installation |
-| `scripts/publish.sh` | GitHub release publishing |
 
 ---
 
@@ -321,20 +287,27 @@ sip-videogen/
 │   ├── generators/         # Provider implementations (VEO, Kling, Sora)
 │   ├── agents/             # AI agents (Showrunner, Screenwriter, etc.)
 │   ├── advisor/            # Brand Advisor agent + skills
+│   │   ├── agent.py        # Main advisor with skills architecture
+│   │   ├── skills/         # Specialized skills (logo, mascot, etc.)
+│   │   └── tools/          # Advisor tools
 │   ├── brands/             # Brand management system
+│   │   ├── context.py      # Context builder for AI agents
+│   │   ├── memory.py       # Brand memory/storage layer
+│   │   ├── models/         # Brand data structures
+│   │   └── storage/        # Persistent brand storage
 │   ├── studio/             # Desktop app
 │   │   ├── frontend/       # React + TypeScript + Vite
 │   │   ├── services/       # Service layer
-│   │   ├── app.py          # Main entry point
-│   │   └── bridge.py       # Python ↔ JS bridge
+│   │   ├── app.py          # PyWebView entry point
+│   │   ├── bridge.py       # Python ↔ JS bridge
+│   │   └── state.py        # Application state
 │   ├── assembler/          # FFmpeg integration
 │   ├── models/             # Pydantic data models
 │   └── config/             # Settings and configuration
-├── tests/                  # Test suite (900+ tests)
+├── tests/                  # Test suite
 ├── scripts/                # Build and release scripts
 ├── pyproject.toml          # Project configuration
-├── README.md               # This file
-└── CLAUDE.md               # Developer guidelines
+└── README.md               # This file
 ```
 
 ---
