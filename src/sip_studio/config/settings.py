@@ -129,6 +129,14 @@ class Settings(BaseSettings):
         default=True,
         description="Enable measurement/proportion validation in retry loop",
     )
+    # Image generation pool settings
+    use_image_pool: bool = Field(
+        default=True,
+        description="Use image generation pool (set False to bypass pool for rollback)",
+    )
+    image_pool_max_rpm: int = Field(
+        default=15, ge=1, le=60, description="Max requests per minute for Gemini API"
+    )
 
     @field_validator("sip_output_dir", mode="before")
     @classmethod
