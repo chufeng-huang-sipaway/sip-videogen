@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Check, Trash2, Building2, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -24,14 +24,26 @@ export function BrandSelector({ compact, showContent = true, allowTooltips = tru
   const { brands, activeBrand, isLoading, selectBrand, refresh } = useBrand()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  //Delay the compact morph on collapse so the label can fade out first (prevents text/avatar overlap).
+  const [visualCompact, setVisualCompact] = useState(Boolean(compact))
   const currentBrand = brands.find(b => b.slug === activeBrand)
   const getInitials = (name: string) => { const words = name.split(/\s+/); if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase(); return name.slice(0, 2).toUpperCase() }
 
   const contentTransition = `opacity ${CONTENT_DURATION}ms ${EASING}, visibility ${CONTENT_DURATION}ms ${EASING}, transform ${CONTENT_DURATION}ms ${EASING}`
   const sizeTransition = `width ${WIDTH_DURATION}ms ${EASING}, height ${WIDTH_DURATION}ms ${EASING}, padding ${WIDTH_DURATION}ms ${EASING}`
 
+  useEffect(() => {
+    const shouldBeCompact = Boolean(compact)
+    if (!shouldBeCompact) {
+      setVisualCompact(false)
+      return
+    }
+    const t = setTimeout(() => setVisualCompact(true), CONTENT_DURATION)
+    return () => clearTimeout(t)
+  }, [compact])
+
   if (isLoading) {
-    return (<Button variant="ghost" className={cn("rounded-xl bg-primary/10", compact ? "w-12 h-12 p-0" : "w-full h-auto py-3 px-3")} style={{ transition: sizeTransition }} disabled><Building2 className="w-5 h-5 animate-pulse" /></Button>)
+    return (<Button variant="ghost" className={cn("rounded-xl bg-primary/10", visualCompact ? "w-12 h-12 p-0" : "w-full h-auto py-3 px-3")} style={{ transition: sizeTransition }} disabled><Building2 className="w-5 h-5 animate-pulse" /></Button>)
   }
 
   const dropdownContent = (
@@ -71,20 +83,25 @@ export function BrandSelector({ compact, showContent = true, allowTooltips = tru
   )
 
   //Unified structure - same DOM, CSS handles compact/expanded with sequenced timing
+  const showLabels = showContent && !visualCompact
   return (
     <DropdownMenu>
       <Tooltip open={compact && allowTooltips ? undefined : false}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className={cn("justify-start rounded-2xl bg-gradient-to-br from-white to-neutral-50 dark:from-neutral-900 dark:to-neutral-950 border border-white/20 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden", compact ? "w-12 h-12 p-0" : "w-full h-auto py-3.5 px-3")} style={{ transition: sizeTransition }}>
+            <Button variant="ghost" className={cn("justify-start rounded-2xl bg-gradient-to-br from-white to-neutral-50 dark:from-neutral-900 dark:to-neutral-950 border border-white/20 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden", visualCompact ? "w-12 h-12 p-0" : "w-full h-auto py-3.5 px-3")} style={{ transition: sizeTransition }}>
               <div className="flex items-center gap-3 text-left">
-                <div className={cn("rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center font-bold shrink-0 shadow-inner", compact ? "w-12 h-12 text-base" : "w-10 h-10 text-sm")} style={{ transition: sizeTransition }}>{currentBrand ? getInitials(currentBrand.name) : <Building2 className="w-5 h-5" />}</div>
-                <div className="flex-1 min-w-0" style={{ transition: contentTransition, opacity: showContent && !compact ? 1 : 0, visibility: showContent && !compact ? 'visible' : 'hidden', transform: showContent && !compact ? 'translateX(0)' : 'translateX(-8px)', position: showContent && !compact ? 'relative' : 'absolute' }}>
-                  <div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name || 'Select Brand'}</div>
-                  <div className="text-[10px] text-muted-foreground/70 font-medium">Brand Workspace</div>
-                </div>
+                <div className={cn("rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center font-bold shrink-0 shadow-inner", visualCompact ? "w-12 h-12 text-base" : "w-10 h-10 text-sm")} style={{ transition: sizeTransition }}>{currentBrand ? getInitials(currentBrand.name) : <Building2 className="w-5 h-5" />}</div>
+                {!visualCompact && (
+                  <div className="flex-1 min-w-0" style={{ transition: contentTransition, opacity: showLabels ? 1 : 0, visibility: showLabels ? 'visible' : 'hidden', transform: 'translateX(0)' }}>
+                    <div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name || 'Select Brand'}</div>
+                    <div className="text-[10px] text-muted-foreground/70 font-medium">Brand Workspace</div>
+                  </div>
+                )}
               </div>
-              <ChevronsUpDown className="h-4 w-4 text-muted-foreground/40" style={{ transition: contentTransition, opacity: showContent && !compact ? 1 : 0, visibility: showContent && !compact ? 'visible' : 'hidden', position: showContent && !compact ? 'relative' : 'absolute' }} />
+              {!visualCompact && (
+                <ChevronsUpDown className="h-4 w-4 text-muted-foreground/40" style={{ transition: contentTransition, opacity: showLabels ? 1 : 0, visibility: showLabels ? 'visible' : 'hidden', transform: 'translateX(0)' }} />
+              )}
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>

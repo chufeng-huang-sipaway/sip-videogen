@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -35,7 +35,7 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
   const [showContent, setShowContent] = useState(isExpanded)
   //Delay tooltips after collapse to prevent lingering tooltips
   const [allowTooltips, setAllowTooltips] = useState(!isExpanded)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isExpanded) {
       //Expanding: delay content appearance until width has started expanding
       setAllowTooltips(false) //Disable tooltips immediately when expanding
@@ -68,13 +68,13 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   //Inline transition styles for precise control
-  const widthTransition = `width ${WIDTH_DURATION}ms ${EASING}, box-shadow ${WIDTH_DURATION}ms ${EASING}`
+  const widthTransition = `width ${WIDTH_DURATION}ms ${EASING}, box-shadow ${WIDTH_DURATION}ms ${EASING}, background-color ${WIDTH_DURATION}ms ${EASING}, border-color ${WIDTH_DURATION}ms ${EASING}`
   const contentTransition = `opacity ${CONTENT_DURATION}ms ${EASING}, visibility ${CONTENT_DURATION}ms ${EASING}, transform ${CONTENT_DURATION}ms ${EASING}`
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="relative flex-shrink-0 h-full" style={{ width: SIDEBAR_COLLAPSED_WIDTH }} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col overflow-hidden", isExpanded ? "w-[280px] z-50 bg-background/95 backdrop-blur-sm shadow-[4px_0_24px_rgba(0,0,0,0.02)]" : "w-[72px] bg-background/50 border-r border-border/10")} style={{ transition: widthTransition, willChange: 'width' }}>
+      <div className="relative flex-shrink-0 h-full z-50" style={{ width: SIDEBAR_COLLAPSED_WIDTH }} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col overflow-hidden border-r backdrop-blur-sm", isExpanded ? "w-[280px] bg-background/95 border-transparent shadow-[4px_0_24px_rgba(0,0,0,0.02)]" : "w-[72px] bg-background/50 border-border/10")} style={{ transition: widthTransition, willChange: 'width, box-shadow, background-color, border-color' }}>
           {/* Header - icons stay, labels fade */}
           <div className="flex-shrink-0 pt-4 pb-2 px-3 space-y-2">
             <BrandSelector compact={!isExpanded} showContent={showContent} allowTooltips={allowTooltips} />
