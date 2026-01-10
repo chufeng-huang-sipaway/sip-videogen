@@ -3,8 +3,9 @@ import{useDropzone,type DropEvent,type FileRejection}from'react-dropzone'
 import{ScrollArea}from'@/components/ui/scroll-area'
 import{Alert,AlertDescription}from'@/components/ui/alert'
 import{Button}from'@/components/ui/button'
-import{AlertCircle,Upload,Plus}from'lucide-react'
+import{AlertCircle,Upload,Plus,History}from'lucide-react'
 import{useChat}from'@/hooks/useChat'
+import{useChatSessions}from'@/hooks/useChatSessions'
 import{useProducts}from'@/context/ProductContext'
 import{useProjects}from'@/context/ProjectContext'
 import{useStyleReferences}from'@/context/StyleReferenceContext'
@@ -19,6 +20,7 @@ import{AutonomyToggle}from'./AutonomyToggle'
 import{ApprovalPrompt}from'./ApprovalPrompt'
 import{PanelModeToggle,type PanelMode}from'./PanelModeToggle'
 import{PlaygroundMode}from'./PlaygroundMode'
+import{SessionHistoryDrawer}from'./SessionHistoryDrawer'
 //ImageBatchCard removed - now handled by TodoList with virtual items
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
@@ -68,10 +70,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
+  const{sessionsByDate,activeSessionId,isLoading:sessionsLoading,createSession,switchSession,deleteSession:delSession,renameSession}=useChatSessions(brandSlug)
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
   const [panelMode, setPanelMode] = useState<PanelMode>('assistant')
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
   const messageInputRef=useRef<MessageInputRef>(null)
   //Compute combined attachments (Quick Insert + mentions) for display
   const combinedAttachments=useMemo(()=>{
@@ -399,10 +403,13 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Assistant Mode - hidden when playground active (keeps state) */}
       <div className={panelMode==='assistant'?'flex flex-col flex-1 min-h-0':'hidden'}>
-        {/* Assistant subheader: Project selector + New Chat */}
+        {/* Assistant subheader: Project selector + History + New Chat */}
         <div className="flex items-center justify-between px-4 pb-2">
-          <ProjectSelector projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>
-          <Button variant="ghost" size="sm" onClick={()=>{clearMessages();clearAttachments();clearStyleReferenceAttachments();setInputText('')}} disabled={isLoading||messages.length===0} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5"/><span>New Chat</span></Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={()=>setHistoryDrawerOpen(true)} disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><History className="w-3.5 h-3.5"/><span>History</span></Button>
+            <ProjectSelector projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>
+          </div>
+          <Button variant="ghost" size="sm" onClick={async()=>{clearMessages();clearAttachments();clearStyleReferenceAttachments();setInputText('');await createSession()}} disabled={isLoading||!brandSlug} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5"/><span>New Chat</span></Button>
         </div>
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
@@ -430,6 +437,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       <div className={panelMode==='playground'?'flex flex-col flex-1 min-h-0':'hidden'}>
         <PlaygroundMode brandSlug={brandSlug}/>
       </div>
+      {/* Session History Drawer */}
+      <SessionHistoryDrawer isOpen={historyDrawerOpen} onClose={()=>setHistoryDrawerOpen(false)} sessionsByDate={sessionsByDate} activeSessionId={activeSessionId} onSwitchSession={switchSession} onDeleteSession={delSession} onRenameSession={renameSession} onCreateSession={async()=>{await createSession();clearMessages();clearAttachments();clearStyleReferenceAttachments();setInputText('')}} isLoading={sessionsLoading}/>
           </main >
   )
 }

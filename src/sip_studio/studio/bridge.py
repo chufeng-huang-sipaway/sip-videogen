@@ -20,6 +20,7 @@ from .services.image_pool import get_image_pool
 from .services.image_status import ImageStatusService
 from .services.product_service import ProductService
 from .services.project_service import ProjectService
+from .services.session_service import SessionService
 from .services.style_reference_service import StyleReferenceService
 from .services.update_service import UpdateService
 from .state import BridgeState
@@ -51,6 +52,7 @@ class StudioBridge:
         self._chat = ChatService(self._state)
         self._update = UpdateService(self._state)
         self._image_status = ImageStatusService(self._state)
+        self._session = SessionService(self._state)
         self._window = None
         # Initialize image pool with progress callback
         self._image_pool = get_image_pool()
@@ -647,3 +649,40 @@ class StudioBridge:
                     "requested": count,
                 }
             )
+
+    # ===========================================================================
+    # Session Management
+    # ===========================================================================
+    def list_sessions(self, brand_slug: str | None = None, include_archived: bool = False) -> dict:
+        """List all sessions for a brand."""
+        return self._session.list_sessions(brand_slug, include_archived)
+
+    def get_session(self, session_id: str) -> dict:
+        """Get session metadata by ID."""
+        return self._session.get_session(session_id)
+
+    def get_active_session(self) -> dict:
+        """Get the active session for current brand."""
+        return self._session.get_active_session()
+
+    def create_session(self, title: str = "New conversation", settings: dict | None = None) -> dict:
+        """Create a new session."""
+        return self._session.create_session(title, settings)
+
+    def set_active_session(self, session_id: str) -> dict:
+        """Set the active session."""
+        return self._session.set_active_session(session_id)
+
+    def update_session(
+        self, session_id: str, title: str | None = None, is_archived: bool | None = None
+    ) -> dict:
+        """Update session metadata."""
+        return self._session.update_session(session_id, title, is_archived)
+
+    def delete_session(self, session_id: str) -> dict:
+        """Delete a session."""
+        return self._session.delete_session(session_id)
+
+    def load_session(self, session_id: str, limit: int = 50, before: str | None = None) -> dict:
+        """Load session with messages (paginated)."""
+        return self._session.load_session(session_id, limit, before)
