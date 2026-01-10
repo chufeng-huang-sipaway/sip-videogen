@@ -115,9 +115,8 @@ async def analyze_and_format_attachments(
 
 def encode_new_images(paths: list[str], get_image_metadata_fn: Callable) -> list[dict]:
     """Encode newly generated images to base64 with metadata."""
-
     image_data: list[dict] = []
-    for img_path in paths[:4]:
+    for img_path in paths:
         try:
             path = Path(img_path)
             if not path.exists() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
@@ -152,7 +151,7 @@ def encode_new_videos(paths: list[str], get_video_metadata_fn: Callable) -> list
     video_exts = {".mp4", ".mov", ".webm"}
     mime_types = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"}
     video_data: list[dict] = []
-    for vid_path in paths[:4]:  # Limit to 4 videos
+    for vid_path in paths:
         try:
             path = Path(vid_path)
             if not path.exists() or path.suffix.lower() not in video_exts:
