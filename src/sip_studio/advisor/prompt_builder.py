@@ -8,8 +8,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sip_studio.advisor.skills.registry import get_skills_registry
+from sip_studio.brands.knowledge_summary import build_knowledge_context
 from sip_studio.brands.memory import list_brand_assets
-from sip_studio.brands.storage import get_brand_dir, load_brand
+from sip_studio.brands.storage import (
+    get_brand_dir,
+    list_products,
+    list_style_references,
+    load_brand,
+    load_brand_summary,
+)
 
 if TYPE_CHECKING:
     from sip_studio.brands.models import BrandIdentityFull
@@ -94,18 +101,52 @@ def format_brand_context(slug: str, identity: "BrandIdentityFull") -> str:
         pass
     p.append("")
     p.append(
-        "Use `load_brand()` for a quick summary, or `load_brand(detail_level='full')` for complete context. Use `list_files()` to browse assets."
+        "Use `load_brand()` for a quick summary, or "
+        "`load_brand(detail_level='full')` for complete context. "
+        "Use `list_files()` to browse assets."
     )
     return "\n".join(p)
 
 
-def build_system_prompt(brand_slug: str | None = None) -> str:
+def build_lean_brand_context(slug: str, conversation_summary: str | None = None) -> str:
+    """Build lean brand context using knowledge pointers (Stage 7).
+    Replaces full data injection with ~300 tokens of context + tool pointers.
+    Args:
+        slug: Brand slug.
+        conversation_summary: Optional compacted conversation summary.
+    Returns:
+        Lean context string with tool pointers.
+    """
+    brand_summary = load_brand_summary(slug)
+    if not brand_summary:
+        return ""
+    # Get product and style reference summaries
+    products = list_products(slug) or []
+    style_refs = list_style_references(slug) or []
+    return build_knowledge_context(
+        brand_summary=brand_summary,
+        products=products,
+        style_refs=style_refs,
+        active_project=None,
+        conversation_summary=conversation_summary,
+    )
+
+
+def build_system_prompt(
+    brand_slug: str | None = None,
+    use_lean_context: bool = False,
+    conversation_summary: str | None = None,
+) -> str:
     """Build the system prompt for the Brand Marketing Advisor.
     Args:
         brand_slug: Optional brand slug to include context for.
+        use_lean_context: If True, use lean context with tool pointers (Stage 7).
+        conversation_summary: Optional compacted conversation summary (for lean context).
     Returns:
         Complete system prompt with skills and brand context.
     """
+    import json as _json
+
     # Load base prompt
     pp = Path(__file__).parent / "prompts" / "advisor.md"
     base = pp.read_text() if pp.exists() else DEFAULT_PROMPT
@@ -116,21 +157,24 @@ def build_system_prompt(brand_slug: str | None = None) -> str:
     brand_sec = ""
     mem_sec = ""
     if brand_slug:
-        ident = load_brand(brand_slug)
-        if ident:
-            brand_sec = format_brand_context(brand_slug, ident)
+        if use_lean_context:
+            # Use lean context with tool pointers (Stage 7 - ~300 tokens vs ~500+)
+            brand_sec = build_lean_brand_context(brand_slug, conversation_summary)
+        else:
+            # Legacy: full brand context injection
+            ident = load_brand(brand_slug)
+            if ident:
+                brand_sec = format_brand_context(brand_slug, ident)
         mp = get_brand_dir(brand_slug) / "memory.json"
         if mp.exists():
             try:
-                import json
-
-                mem = json.loads(mp.read_text())
+                mem = _json.loads(mp.read_text())
                 if mem:
                     ml = ["## Remembered Preferences", ""]
                     for k, d in mem.items():
                         ml.append(f"- **{k}**: {d.get('value', '')}")
                     mem_sec = "\n".join(ml)
-            except (json.JSONDecodeError, KeyError):
+            except (_json.JSONDecodeError, KeyError):
                 pass
     return f"""{base}
 

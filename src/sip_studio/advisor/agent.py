@@ -10,26 +10,52 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import AsyncIterator
 
+import openai
 from agents import Agent, Runner
 
 from sip_studio.advisor.context_budget import ContextBudgetManager
 from sip_studio.advisor.history_manager import ConversationHistoryManager
 from sip_studio.advisor.hooks import AdvisorHooks, AdvisorProgress, ProgressCallback
-from sip_studio.advisor.prompt_builder import (
-    build_system_prompt as _build_system_prompt,
+from sip_studio.advisor.prompt_builder import build_system_prompt as _build_system_prompt
+from sip_studio.advisor.session_context_cache import SessionContextCache
+from sip_studio.advisor.session_history_manager import (
+    MAX_CONTEXT_LIMIT,
+    SessionHistoryManager,
+    _call_llm_with_retry,
+    cancel_compaction,
 )
+from sip_studio.advisor.session_manager import Message, SessionManager, SessionSettings
 from sip_studio.advisor.skills.registry import get_skills_registry
 from sip_studio.advisor.tools import (
     ADVISOR_TOOLS,
     set_active_aspect_ratio,
     set_tool_progress_callback,
 )
+from sip_studio.advisor.tools.context_tools import set_context_cache
 from sip_studio.brands.context import HierarchicalContextBuilder
 from sip_studio.brands.storage import get_active_brand, get_brand_dir, set_active_brand
 from sip_studio.config.constants import Limits
 from sip_studio.config.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+async def _generate_session_title(first_user_message: str) -> str:
+    """Generate a session title from the first user message.
+    Args:
+        first_user_message: The first message in the conversation.
+    Returns:
+        A 3-5 word title for the session.
+    """
+    prompt = f"""Generate a 3-5 word title for a conversation starting with:
+"{first_user_message[:200]}"
+
+Title (no quotes, no punctuation at end):"""
+    result = await _call_llm_with_retry(prompt, max_tokens=20)
+    if result:
+        title = result.strip().strip("\"'").strip(".")[:50]
+        return title if title else "New conversation"
+    return "New conversation"
 
 
 @dataclass
@@ -61,9 +87,15 @@ class BrandAdvisor:
     A single intelligent agent that uses skills to handle all brand-related tasks.
     Uses GPT-5.1 with 5 universal tools and dynamically loaded skills.
 
+    Now supports session-aware mode (Stage 7) with:
+    - SessionManager for CRUD on sessions
+    - SessionHistoryManager for per-session history with auto-compaction
+    - Lean context loading with tool pointers (~300 tokens vs ~500+)
+    - Hard context limit guardrail with emergency truncation
+
     Example:
         ```python
-        advisor = BrandAdvisor(brand_slug="summit-coffee")
+        advisor = BrandAdvisor(brand_slug="summit-coffee", session_aware=True)
         response = await advisor.chat("Create a playful mascot")
         print(response)
         ```
@@ -73,6 +105,8 @@ class BrandAdvisor:
         self,
         brand_slug: str | None = None,
         progress_callback: ProgressCallback | None = None,
+        session_aware: bool = False,
+        session_id: str | None = None,
     ):
         """Initialize the advisor.
 
@@ -80,17 +114,32 @@ class BrandAdvisor:
             brand_slug: Optional brand slug to load context for.
                 If not provided, uses the active brand.
             progress_callback: Optional callback for progress updates.
+            session_aware: If True, use new session-aware architecture (Stage 7).
+            session_id: Optional specific session to load. If None and session_aware=True,
+                uses active session or creates new one.
         """
         # Resolve brand slug
         if brand_slug is None:
             brand_slug = get_active_brand()
-
         self.brand_slug = brand_slug
         self.progress_callback = progress_callback
-
-        # Build system prompt
-        system_prompt = _build_system_prompt(brand_slug)
-
+        self._session_aware = session_aware
+        # Session-aware components (Stage 7)
+        self._session_manager: SessionManager | None = None
+        self._session_history: SessionHistoryManager | None = None
+        self._context_cache: SessionContextCache | None = None
+        self._current_session_id: str | None = None
+        if session_aware and brand_slug:
+            self._init_session_aware(brand_slug, session_id)
+        # Build system prompt (with lean context if session-aware)
+        summary = None
+        if self._session_history:
+            summary = self._session_history.get_summary()
+        system_prompt = _build_system_prompt(
+            brand_slug,
+            use_lean_context=session_aware,
+            conversation_summary=summary,
+        )
         # Create the agent
         self._agent = Agent(
             name="Brand Marketing Advisor",
@@ -98,23 +147,153 @@ class BrandAdvisor:
             instructions=system_prompt,
             tools=ADVISOR_TOOLS,
         )
-
-        # Get brand directory for history persistence
+        # Get brand directory for legacy history persistence
         brand_dir = get_brand_dir(brand_slug) if brand_slug else None
-
-        # Track conversation history with token-aware management and persistence
+        # Track conversation history (legacy mode)
         self._history_manager = ConversationHistoryManager(
             max_tokens=Limits.MAX_TOKENS_FULL, brand_dir=brand_dir
         )
-
-        # Load existing history from disk if available
-        if brand_dir:
+        # Load existing legacy history from disk if available (not session-aware)
+        if brand_dir and not session_aware:
             self._history_manager.load_from_disk()
-
         # Context budget manager for monitoring total token usage
         self._budget_manager = ContextBudgetManager()
+        logger.info(
+            f"BrandAdvisor initialized for brand: {brand_slug or '(none)'}, "
+            f"session_aware={session_aware}, session_id={self._current_session_id}"
+        )
 
-        logger.info(f"BrandAdvisor initialized for brand: {brand_slug or '(none)'}")
+    def _init_session_aware(self, brand_slug: str, session_id: str | None = None) -> None:
+        """Initialize session-aware components.
+        Args:
+            brand_slug: Brand to initialize sessions for.
+            session_id: Optional specific session ID. If None, uses active or creates new.
+        """
+        self._session_manager = SessionManager(brand_slug)
+        # Get or create session
+        if session_id:
+            self._current_session_id = session_id
+        else:
+            active = self._session_manager.get_active_session()
+            if active:
+                self._current_session_id = active.id
+            else:
+                # Create new session
+                session = self._session_manager.create_session(SessionSettings())
+                self._current_session_id = session.id
+        # Initialize session history manager
+        self._session_history = SessionHistoryManager(
+            brand_slug, self._current_session_id, self._session_manager
+        )
+        # Initialize context cache
+        self._context_cache = SessionContextCache(brand_slug, self._current_session_id)
+        set_context_cache(self._context_cache)
+        logger.debug(f"Session-aware mode initialized: session_id={self._current_session_id}")
+
+    @property
+    def session_id(self) -> str | None:
+        """Get current session ID (session-aware mode only)."""
+        return self._current_session_id
+
+    @property
+    def session_history(self) -> SessionHistoryManager | None:
+        """Get session history manager (session-aware mode only)."""
+        return self._session_history
+
+    def switch_session(self, session_id: str) -> bool:
+        """Switch to a different session (session-aware mode only).
+        Args:
+            session_id: Session ID to switch to.
+        Returns:
+            True if switch succeeded, False otherwise.
+        """
+        if not self._session_aware or not self._session_manager or not self.brand_slug:
+            logger.warning("switch_session called but not in session-aware mode")
+            return False
+        # Cancel any pending compaction for current session
+        if self._current_session_id:
+            cancel_compaction(self._current_session_id)
+        # Validate session exists
+        session = self._session_manager.get_session(session_id)
+        if not session:
+            logger.warning(f"Session {session_id} not found")
+            return False
+        # Switch
+        self._session_manager.set_active_session(session_id)
+        self._current_session_id = session_id
+        self._session_history = SessionHistoryManager(
+            self.brand_slug, session_id, self._session_manager
+        )
+        self._context_cache = SessionContextCache(self.brand_slug, session_id)
+        set_context_cache(self._context_cache)
+        # Rebuild system prompt with new session's summary
+        summary = self._session_history.get_summary()
+        self._agent = Agent(
+            name="Brand Marketing Advisor",
+            model="gpt-5.1",
+            instructions=_build_system_prompt(
+                self.brand_slug, use_lean_context=True, conversation_summary=summary
+            ),
+            tools=ADVISOR_TOOLS,
+        )
+        logger.info(f"Switched to session: {session_id}")
+        return True
+
+    def create_new_session(self, settings: SessionSettings | None = None) -> str:
+        """Create a new session and switch to it (session-aware mode only).
+        Args:
+            settings: Optional session settings.
+        Returns:
+            New session ID.
+        """
+        if not self._session_aware or not self._session_manager or not self.brand_slug:
+            raise RuntimeError("create_new_session requires session-aware mode")
+        # Cancel any pending compaction for current session
+        if self._current_session_id:
+            cancel_compaction(self._current_session_id)
+        session = self._session_manager.create_session(settings or SessionSettings())
+        self._current_session_id = session.id
+        self._session_history = SessionHistoryManager(
+            self.brand_slug, session.id, self._session_manager
+        )
+        self._context_cache = SessionContextCache(self.brand_slug, session.id)
+        set_context_cache(self._context_cache)
+        # Rebuild system prompt (no summary for new session)
+        self._agent = Agent(
+            name="Brand Marketing Advisor",
+            model="gpt-5.1",
+            instructions=_build_system_prompt(self.brand_slug, use_lean_context=True),
+            tools=ADVISOR_TOOLS,
+        )
+        logger.info(f"Created new session: {session.id}")
+        return session.id
+
+    async def _enforce_context_limit(self, system_prompt: str) -> list[Message]:
+        """Enforce hard context limit with compaction and emergency truncation.
+        Per IMPLEMENTATION_PLAN.md Stage 7 - Hard context limit guardrail.
+        Args:
+            system_prompt: Current system prompt for token estimation.
+        Returns:
+            List of messages to use in prompt (after any compaction/truncation).
+        """
+        if not self._session_history:
+            return []
+        messages = self._session_history.get_prompt_messages()
+        max_iterations = 5
+        for _ in range(max_iterations):
+            total_tokens = self._session_history.estimate_total_tokens(system_prompt)
+            if total_tokens <= MAX_CONTEXT_LIMIT:
+                break
+            # Try compaction first
+            if self._session_history.can_compact():
+                await self._session_history.force_compact()
+                messages = self._session_history.get_prompt_messages()
+                continue
+            # Emergency truncation - drop oldest non-system message
+            if messages:
+                self._session_history.advance_prompt_window(1)
+                messages = self._session_history.get_prompt_messages()
+        return messages
 
     @property
     def agent(self) -> Agent:
@@ -312,22 +491,74 @@ class BrandAdvisor:
         self._emit_skill_events(ctx.matched_skills)
         self._log_budget_warnings(ctx)
         self._setup_tool_callback()
+        # Session-aware mode: enforce context limits and generate title
+        if self._session_aware and self._session_history:
+            system_prompt = str(self._agent.instructions) if self._agent.instructions else ""
+            await self._enforce_context_limit(system_prompt)
+            # Generate session title on first user message
+            if self._session_history.get_prompt_window_start() == 0:
+                messages = self._session_history.get_messages()
+                if not messages:
+                    # First message in session - generate title asynchronously
+                    asyncio.create_task(self._update_session_title(message))
         try:
             result = await Runner.run(self._agent, ctx.full_prompt, hooks=ctx.hooks)
             response = result.final_output
             response_text = response.text if hasattr(response, "text") else str(response)
-            self._history_manager.add("user", ctx.raw_user_message)
-            self._history_manager.add("assistant", response_text)
+            # Add to history (session-aware or legacy)
+            if self._session_aware and self._session_history:
+                user_msg = Message.create("user", ctx.raw_user_message)
+                assistant_msg = Message.create("assistant", response_text)
+                self._session_history.add_messages([user_msg, assistant_msg])
+            else:
+                self._history_manager.add("user", ctx.raw_user_message)
+                self._history_manager.add("assistant", response_text)
             return {
                 "response": response_text,
                 "interaction": ctx.hooks.captured_interaction,
                 "memory_update": ctx.hooks.captured_memory_update,
             }
+        except openai.BadRequestError as e:
+            # Handle context_length_exceeded with emergency recovery (Stage 7)
+            if "context_length_exceeded" in str(e) and self._session_history:
+                logger.warning("Context length exceeded, attempting emergency truncation")
+                # Emergency: drop half the messages and retry
+                messages = self._session_history.get_prompt_messages()
+                new_start = len(self._session_history.get_messages()) - len(messages) // 2
+                self._session_history.set_prompt_window_start(new_start)
+                # Retry once
+                result = await Runner.run(self._agent, ctx.full_prompt, hooks=ctx.hooks)
+                response = result.final_output
+                response_text = response.text if hasattr(response, "text") else str(response)
+                user_msg = Message.create("user", ctx.raw_user_message)
+                assistant_msg = Message.create("assistant", response_text)
+                self._session_history.add_messages([user_msg, assistant_msg])
+                return {
+                    "response": response_text,
+                    "interaction": ctx.hooks.captured_interaction,
+                    "memory_update": ctx.hooks.captured_memory_update,
+                }
+            logger.error(f"Chat failed: {e}")
+            raise
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             raise
         finally:
             set_tool_progress_callback(None)
+
+    async def _update_session_title(self, first_message: str) -> None:
+        """Generate and update session title from first message.
+        Args:
+            first_message: First user message in the session.
+        """
+        if not self._session_manager or not self._current_session_id:
+            return
+        try:
+            title = await _generate_session_title(first_message)
+            self._session_manager.update_session_meta(self._current_session_id, title=title)
+            logger.debug(f"Updated session title: {title}")
+        except Exception as e:
+            logger.warning(f"Failed to generate session title: {e}")
 
     async def chat(
         self,
@@ -380,6 +611,15 @@ class BrandAdvisor:
         self._emit_skill_events(ctx.matched_skills)
         self._log_budget_warnings(ctx)
         self._setup_tool_callback()
+        # Session-aware mode: enforce context limits and generate title
+        if self._session_aware and self._session_history:
+            system_prompt = str(self._agent.instructions) if self._agent.instructions else ""
+            await self._enforce_context_limit(system_prompt)
+            # Generate session title on first user message
+            if self._session_history.get_prompt_window_start() == 0:
+                messages = self._session_history.get_messages()
+                if not messages:
+                    asyncio.create_task(self._update_session_title(message))
         response_chunks: list[str] = []
         try:
             async for chunk in Runner.run_streamed(self._agent, ctx.full_prompt, hooks=ctx.hooks):
@@ -387,8 +627,14 @@ class BrandAdvisor:
                     response_chunks.append(chunk.text)
                     yield chunk.text
             full_response = "".join(response_chunks)
-            self._history_manager.add("user", ctx.raw_user_message)
-            self._history_manager.add("assistant", full_response)
+            # Add to history (session-aware or legacy)
+            if self._session_aware and self._session_history:
+                user_msg = Message.create("user", ctx.raw_user_message)
+                assistant_msg = Message.create("assistant", full_response)
+                self._session_history.add_messages([user_msg, assistant_msg])
+            else:
+                self._history_manager.add("user", ctx.raw_user_message)
+                self._history_manager.add("assistant", full_response)
         except asyncio.CancelledError:
             logger.warning("Stream cancelled")
             raise
