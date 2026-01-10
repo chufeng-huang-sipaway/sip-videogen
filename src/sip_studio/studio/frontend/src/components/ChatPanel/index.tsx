@@ -15,12 +15,11 @@ import{MessageList}from'./MessageList'
 import{AttachmentChips}from'./AttachmentChips'
 import{ProjectSelector}from'./ProjectSelector'
 import{GenerationSettings}from'./GenerationSettings'
-import{TodoList}from'./TodoList'
 import{AutonomyToggle}from'./AutonomyToggle'
 import{ApprovalPrompt}from'./ApprovalPrompt'
 import{PanelModeToggle,type PanelMode}from'./PanelModeToggle'
 import{PlaygroundMode}from'./PlaygroundMode'
-import{ImageBatchCard}from'./ImageBatchCard'
+//ImageBatchCard removed - now handled by TodoList with virtual items
 import{resolveMentions}from'@/lib/mentionParser'
 import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
 import type{VideoAspectRatio}from'@/types/aspectRatio'
@@ -106,7 +105,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     isLoading,
     loadedSkills,
     thinkingSteps,
-    imageBatch,
+    //imageBatch removed - now handled by todoList with virtual items
     error,
     attachmentError,
     attachments,
@@ -407,9 +406,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         </div>
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
-            {todoList&&(<TodoList todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>)}
-            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} onRegenerate={regenerateMessage}/>
-            {isLoading&&(imageBatch.tickets.size>0||imageBatch.expectedCount>0)&&(<div className="mt-2"><ImageBatchCard tickets={imageBatch.tickets} expectedCount={imageBatch.expectedCount}/></div>)}
+            {/* TodoList rendered inline with message turn - now includes virtual items for image batches */}
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>
           </div>
         </ScrollArea>
         {/* Chips row */}

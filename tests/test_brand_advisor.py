@@ -309,9 +309,10 @@ class TestBrandAdvisor:
         assert advisor.agent.name == "Brand Marketing Advisor"
 
     def test_set_brand_clears_history(self) -> None:
-        """Test that switching brands clears conversation history by default."""
+        """Test that preserve_history=False clears and deletes history (for 'Create New Chat')."""
         with (
             patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+            patch("sip_studio.advisor.agent.get_brand_dir", return_value=None),
             patch("sip_studio.advisor.agent.set_active_brand"),
             patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
             patch("sip_studio.advisor.prompt_builder.load_brand", return_value=None),
@@ -322,27 +323,55 @@ class TestBrandAdvisor:
             advisor._history_manager.add("user", "test message")
             advisor._history_manager.add("assistant", "test response")
 
-            advisor.set_brand("new-brand")
+            # Explicitly clear history (simulates "Create New Chat")
+            advisor.set_brand("new-brand", preserve_history=False)
 
         assert advisor._history_manager.message_count == 0
         assert advisor.brand_slug == "new-brand"
 
-    def test_set_brand_preserve_history(self) -> None:
-        """Test that preserve_history=True keeps conversation history."""
-        with (
-            patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
-            patch("sip_studio.advisor.agent.set_active_brand"),
-            patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
-            patch("sip_studio.advisor.prompt_builder.load_brand", return_value=None),
-        ):
-            mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+    def test_set_brand_loads_history_from_disk(self) -> None:
+        """Test that preserve_history=True (default) loads history from new brand's disk file."""
+        import tempfile
+        from pathlib import Path
 
-            advisor = BrandAdvisor()
-            advisor._history_manager.add("user", "test message")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brand_dir = Path(tmpdir)
+            # Create a history file for the "new-brand"
+            history_data = {
+                "version": 1,
+                "summary": None,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "previous message",
+                        "timestamp": "2024-01-01T00:00:00",
+                    }
+                ],
+            }
+            import json
 
-            advisor.set_brand("new-brand", preserve_history=True)
+            (brand_dir / "chat_history.json").write_text(json.dumps(history_data))
 
-        assert advisor._history_manager.message_count == 1
+            with (
+                patch("sip_studio.advisor.agent.get_active_brand", return_value=None),
+                patch("sip_studio.advisor.agent.get_brand_dir", return_value=brand_dir),
+                patch("sip_studio.advisor.agent.set_active_brand"),
+                patch("sip_studio.advisor.prompt_builder.get_skills_registry") as mock_registry,
+                patch("sip_studio.advisor.prompt_builder.load_brand", return_value=None),
+            ):
+                mock_registry.return_value.format_for_prompt.return_value = "## Skills"
+
+                advisor = BrandAdvisor()
+                # Add message to current brand
+                advisor._history_manager.add("user", "test message")
+                assert advisor._history_manager.message_count == 1
+
+                # Switch to new brand - should load history from disk
+                advisor.set_brand("new-brand", preserve_history=True)
+
+            # Should have loaded the 1 message from disk
+            assert advisor._history_manager.message_count == 1
+            assert advisor.brand_slug == "new-brand"
 
     @pytest.mark.asyncio
     async def test_chat_injects_skill_instructions(self) -> None:

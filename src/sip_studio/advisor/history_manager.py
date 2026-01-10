@@ -1,21 +1,24 @@
 """Token-aware conversation history management.
-
 Manages conversation history with a token budget. When budget is exceeded,
 old messages are summarized rather than dropped entirely.
+Supports persistence to disk for history survival across app restarts.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from pathlib import Path
+from typing import Any, Literal
 
 from sip_studio.config.logging import get_logger
 
 logger = get_logger(__name__)
-
 __all__ = ["ConversationHistoryManager", "Message"]
+HISTORY_VERSION = 1
+HISTORY_FILENAME = "chat_history.json"
 
 
 @dataclass
@@ -26,57 +29,152 @@ class Message:
     content: str
     timestamp: datetime = field(default_factory=datetime.now)
 
+    def to_dict(self) -> dict[str, Any]:
+        return {"role": self.role, "content": self.content, "timestamp": self.timestamp.isoformat()}
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Message":
+        ts = datetime.fromisoformat(d["timestamp"]) if d.get("timestamp") else datetime.now()
+        return cls(role=d["role"], content=d["content"], timestamp=ts)
+
 
 class ConversationHistoryManager:
-    """Manages conversation history with token budget.
-
+    """Manages conversation history with token budget and optional persistence.
     When total tokens exceed the budget, old messages are summarized
-    to make room for new ones. This preserves context while staying
-    within limits.
-
+    to make room for new ones. This preserves context while staying within limits.
+    Supports auto-save to disk when brand_dir is provided.
     Usage:
         manager = ConversationHistoryManager(max_tokens=8000)
         manager.add("user", "Hello!")
         manager.add("assistant", "Hi there!")
-
         # Get formatted history for prompt
         history = manager.get_formatted(max_tokens=4000)
+        # With persistence:
+        manager = ConversationHistoryManager(max_tokens=8000, brand_dir=Path("/path/to/brand"))
+        manager.load_from_disk()  # Load existing history
+        manager.add("user", "Hello!")  # Auto-saves to disk
     """
 
     DEFAULT_MAX_TOKENS = 8000
-    SUMMARY_THRESHOLD = 10  # Summarize when more than this many messages
+    SUMMARY_THRESHOLD = 10
 
-    def __init__(self, max_tokens: int = DEFAULT_MAX_TOKENS):
+    def __init__(self, max_tokens: int = DEFAULT_MAX_TOKENS, brand_dir: Path | None = None):
         """Initialize the history manager.
-
         Args:
             max_tokens: Maximum tokens to keep in history.
+            brand_dir: Optional brand directory for auto-persistence.
         """
         if max_tokens < 100:
             max_tokens = 100
         self._messages: list[Message] = []
         self._max_tokens = max_tokens
-        self._summary: str | None = None  # Summary of old messages
+        self._summary: str | None = None
+        self._brand_dir = brand_dir
 
     @property
     def message_count(self) -> int:
         """Number of messages in history."""
         return len(self._messages)
 
-    def add(self, role: Literal["user", "assistant"], content: str) -> None:
-        """Add a message to history.
+    @property
+    def brand_dir(self) -> Path | None:
+        """Get the brand directory for persistence."""
+        return self._brand_dir
 
+    @brand_dir.setter
+    def brand_dir(self, value: Path | None) -> None:
+        """Set the brand directory for persistence."""
+        self._brand_dir = value
+
+    def add(self, role: Literal["user", "assistant"], content: str) -> None:
+        """Add a message to history. Auto-saves if brand_dir is set.
         Args:
             role: "user" or "assistant"
             content: Message content
         """
-        message = Message(role=role, content=content)
-        self._messages.append(message)
-
-        # Check if we need to compact
-        total_tokens = self._estimate_total_tokens()
-        if total_tokens > self._max_tokens:
+        msg = Message(role=role, content=content)
+        self._messages.append(msg)
+        total = self._estimate_total_tokens()
+        if total > self._max_tokens:
             self._compact()
+        if self._brand_dir:
+            self.save_to_disk()
+
+    def save_to_disk(self, brand_dir: Path | None = None) -> bool:
+        """Save history to disk.
+        Args:
+            brand_dir: Override brand directory (uses self._brand_dir if None)
+        Returns:
+            True if saved successfully, False otherwise.
+        """
+        d = brand_dir or self._brand_dir
+        if not d:
+            return False
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            fp = d / HISTORY_FILENAME
+            data = {
+                "version": HISTORY_VERSION,
+                "summary": self._summary,
+                "messages": [m.to_dict() for m in self._messages],
+            }
+            from sip_studio.utils.file_utils import write_atomically
+
+            write_atomically(fp, json.dumps(data, indent=2, ensure_ascii=False))
+            logger.debug(f"Saved {len(self._messages)} messages to {fp}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save history: {e}")
+            return False
+
+    def load_from_disk(self, brand_dir: Path | None = None) -> bool:
+        """Load history from disk.
+        Args:
+            brand_dir: Override brand directory (uses self._brand_dir if None)
+        Returns:
+            True if loaded successfully, False otherwise.
+        """
+        d = brand_dir or self._brand_dir
+        if not d:
+            return False
+        fp = d / HISTORY_FILENAME
+        if not fp.exists():
+            logger.debug(f"No history file at {fp}")
+            return False
+        try:
+            data = json.loads(fp.read_text(encoding="utf-8"))
+            v = data.get("version", 0)
+            if v != HISTORY_VERSION:
+                logger.warning(f"History version mismatch: {v} vs {HISTORY_VERSION}, clearing")
+                return False
+            self._summary = data.get("summary")
+            self._messages = [Message.from_dict(m) for m in data.get("messages", [])]
+            logger.info(f"Loaded {len(self._messages)} messages from {fp}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to load history: {e}")
+            return False
+
+    def delete_from_disk(self, brand_dir: Path | None = None) -> bool:
+        """Delete history file from disk.
+        Args:
+            brand_dir: Override brand directory (uses self._brand_dir if None)
+        Returns:
+            True if deleted successfully, False otherwise.
+        """
+        d = brand_dir or self._brand_dir
+        if not d:
+            return False
+        fp = d / HISTORY_FILENAME
+        if fp.exists():
+            try:
+                fp.unlink()
+                logger.debug(f"Deleted history file {fp}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to delete history: {e}")
+                return False
+        return True
 
     def get_formatted(self, max_tokens: int | None = None) -> str:
         """Get formatted history string for prompt injection.
@@ -111,10 +209,15 @@ class ConversationHistoryManager:
 
         return "\n\n".join(parts)
 
-    def clear(self) -> None:
-        """Clear all history."""
+    def clear(self, delete_file: bool = False) -> None:
+        """Clear all history.
+        Args:
+            delete_file: If True, also delete the history file from disk.
+        """
         self._messages.clear()
         self._summary = None
+        if delete_file and self._brand_dir:
+            self.delete_from_disk()
         logger.debug("Cleared conversation history")
 
     def _estimate_tokens(self, text: str) -> int:

@@ -3,8 +3,10 @@ export interface TodoItemData {
   id:string
   description:string
   status:'pending'|'in_progress'|'done'|'error'|'paused'
-  outputs?:Array<{path?:string;data?:string;type:string}>
+  outputs?:Array<{path?:string;data?:string;type:string;status?:'loading'|'completed'|'failed'|'cancelled';error?:string}>
   error?:string
+  //Image generation progress (merged from ImageBatchCard)
+  expectedOutputCount?:number
 }
 //Todo list data from backend
 export interface TodoListData {

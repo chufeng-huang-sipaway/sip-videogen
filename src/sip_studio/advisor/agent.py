@@ -25,7 +25,7 @@ from sip_studio.advisor.tools import (
     set_tool_progress_callback,
 )
 from sip_studio.brands.context import HierarchicalContextBuilder
-from sip_studio.brands.storage import get_active_brand, set_active_brand
+from sip_studio.brands.storage import get_active_brand, get_brand_dir, set_active_brand
 from sip_studio.config.constants import Limits
 from sip_studio.config.logging import get_logger
 
@@ -99,8 +99,17 @@ class BrandAdvisor:
             tools=ADVISOR_TOOLS,
         )
 
-        # Track conversation history with token-aware management
-        self._history_manager = ConversationHistoryManager(max_tokens=Limits.MAX_TOKENS_FULL)
+        # Get brand directory for history persistence
+        brand_dir = get_brand_dir(brand_slug) if brand_slug else None
+
+        # Track conversation history with token-aware management and persistence
+        self._history_manager = ConversationHistoryManager(
+            max_tokens=Limits.MAX_TOKENS_FULL, brand_dir=brand_dir
+        )
+
+        # Load existing history from disk if available
+        if brand_dir:
+            self._history_manager.load_from_disk()
 
         # Context budget manager for monitoring total token usage
         self._budget_manager = ContextBudgetManager()
@@ -112,20 +121,29 @@ class BrandAdvisor:
         """Access the underlying agent."""
         return self._agent
 
-    def set_brand(self, slug: str, preserve_history: bool = False) -> None:
+    def set_brand(self, slug: str, preserve_history: bool = True) -> None:
         """Switch to a different brand.
-
         Args:
             slug: Brand slug to switch to.
-            preserve_history: If False (default), clears conversation history
-                to prevent cross-brand contamination.
+            preserve_history: If True (default), loads the new brand's conversation
+                history from disk. If False, clears history completely.
         """
         set_active_brand(slug)
         self.brand_slug = slug
 
-        # Clear history to prevent cross-brand contamination
-        if not preserve_history:
-            self._history_manager.clear()
+        # Get new brand's directory
+        new_brand_dir = get_brand_dir(slug)
+
+        # Update history manager's brand directory
+        self._history_manager.brand_dir = new_brand_dir
+
+        if preserve_history:
+            # Load the new brand's history from disk (each brand has its own history)
+            self._history_manager.clear()  # Clear in-memory first
+            self._history_manager.load_from_disk()  # Load new brand's history
+        else:
+            # Explicitly clear (used by "Create New Chat")
+            self._history_manager.clear(delete_file=True)
 
         # Rebuild system prompt with new brand context
         self._agent = Agent(
@@ -430,9 +448,12 @@ class BrandAdvisor:
 
         return "\n".join(parts), matched_skills
 
-    def clear_history(self) -> None:
-        """Clear conversation history."""
-        self._history_manager.clear()
+    def clear_history(self, delete_file: bool = True) -> None:
+        """Clear conversation history.
+        Args:
+            delete_file: If True (default), also deletes the history file from disk.
+        """
+        self._history_manager.clear(delete_file=delete_file)
 
 
 # =============================================================================
