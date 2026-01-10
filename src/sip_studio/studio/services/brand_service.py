@@ -167,7 +167,9 @@ class BrandService:
                     brand_slug=slug, progress_callback=self._get_progress_callback()
                 )
             else:
-                self._state.advisor.set_brand(slug, preserve_history=False)
+                # preserve_history=True loads the new brand's history from disk
+                # Each brand has its own chat_history.json file
+                self._state.advisor.set_brand(slug, preserve_history=True)
             self._trigger_background_packaging_analysis(slug)
             return bridge_ok({"slug": slug})
         except Exception as e:

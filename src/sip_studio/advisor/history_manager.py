@@ -209,10 +209,15 @@ class ConversationHistoryManager:
 
         return "\n\n".join(parts)
 
-    def clear(self) -> None:
-        """Clear all history."""
+    def clear(self, delete_file: bool = False) -> None:
+        """Clear all history.
+        Args:
+            delete_file: If True, also delete the history file from disk.
+        """
         self._messages.clear()
         self._summary = None
+        if delete_file and self._brand_dir:
+            self.delete_from_disk()
         logger.debug("Cleared conversation history")
 
     def _estimate_tokens(self, text: str) -> int:
