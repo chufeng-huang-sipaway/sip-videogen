@@ -14,7 +14,7 @@ import{useDrag}from'@/context/DragContext'
 import{MessageInput,type MessageInputRef}from'./MessageInput'
 import{MessageList}from'./MessageList'
 import{AttachmentChips}from'./AttachmentChips'
-import{ProjectSelector}from'./ProjectSelector'
+import{ProjectChip}from'./ProjectChip'
 import{GenerationSettings}from'./GenerationSettings'
 import{AutonomyToggle}from'./AutonomyToggle'
 import{ApprovalPrompt}from'./ApprovalPrompt'
@@ -403,12 +403,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Assistant Mode - hidden when playground active (keeps state) */}
       <div className={panelMode==='assistant'?'flex flex-col flex-1 min-h-0':'hidden'}>
-        {/* Assistant subheader: Project selector + History + New Chat */}
+        {/* Assistant subheader: History + New Chat */}
         <div className="flex items-center justify-between px-4 pb-2">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={()=>setHistoryDrawerOpen(true)} disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><History className="w-3.5 h-3.5"/><span>History</span></Button>
-            <ProjectSelector projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>
-          </div>
+          <Button variant="ghost" size="sm" onClick={()=>setHistoryDrawerOpen(true)} disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><History className="w-3.5 h-3.5"/><span>History</span></Button>
           <Button variant="ghost" size="sm" onClick={async()=>{clearMessages();clearAttachments();clearStyleReferenceAttachments();setInputText('');await createSession()}} disabled={isLoading||!brandSlug} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5"/><span>New Chat</span></Button>
         </div>
         <ScrollArea className="flex-1">
@@ -423,6 +420,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         </div>
         {/* Controls row */}
         <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-2 py-1">
+          <ProjectChip projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>
           <GenerationSettings imageAspectRatio={imageAspectRatio} videoAspectRatio={videoAspectRatio as VideoAspectRatio} onImageAspectRatioChange={setImageAspectRatio} onVideoAspectRatioChange={setVideoAspectRatio} disabled={isLoading||!brandSlug}/>
           <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading||!brandSlug}/>
         </div>
