@@ -686,3 +686,11 @@ class StudioBridge:
     def load_session(self, session_id: str, limit: int = 50, before: str | None = None) -> dict:
         """Load session with messages (paginated)."""
         return self._session.load_session(session_id, limit, before)
+
+    def get_session_settings(self, session_id: str) -> dict:
+        """Get settings for a session."""
+        return self._session.get_session_settings(session_id)
+
+    def save_session_settings(self, session_id: str, settings: dict) -> dict:
+        """Save settings for a session."""
+        return self._session.save_session_settings(session_id, settings)

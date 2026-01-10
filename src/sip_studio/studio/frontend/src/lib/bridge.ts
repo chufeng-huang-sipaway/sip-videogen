@@ -592,6 +592,8 @@ interface PyWebViewAPI {
   update_session(session_id:string,title?:string,is_archived?:boolean):Promise<BridgeResponse<ChatSessionMeta>>
   delete_session(session_id:string):Promise<BridgeResponse<void>>
   load_session(session_id:string,limit?:number,before?:string):Promise<BridgeResponse<LoadSessionResponse>>
+  get_session_settings(session_id:string):Promise<BridgeResponse<ChatSessionSettings>>
+  save_session_settings(session_id:string,settings:ChatSessionSettings):Promise<BridgeResponse<void>>
 }
 //Quick generate result type
 export interface QuickGenerateResult {
@@ -873,4 +875,6 @@ export const bridge = {
   updateSession: (sessionId:string,title?:string,isArchived?:boolean)=>callBridge(()=>window.pywebview!.api.update_session(sessionId,title,isArchived)),
   deleteSession: (sessionId:string)=>callBridge(()=>window.pywebview!.api.delete_session(sessionId)),
   loadSession: (sessionId:string,limit?:number,before?:string)=>callBridge(()=>window.pywebview!.api.load_session(sessionId,limit,before)),
+  getSessionSettings: (sessionId:string)=>callBridge(()=>window.pywebview!.api.get_session_settings(sessionId)),
+  saveSessionSettings: (sessionId:string,settings:ChatSessionSettings)=>callBridge(()=>window.pywebview!.api.save_session_settings(sessionId,settings)),
 }
