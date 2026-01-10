@@ -15,7 +15,6 @@ import{MessageList}from'./MessageList'
 import{AttachmentChips}from'./AttachmentChips'
 import{ProjectSelector}from'./ProjectSelector'
 import{GenerationSettings}from'./GenerationSettings'
-import{TodoList}from'./TodoList'
 import{AutonomyToggle}from'./AutonomyToggle'
 import{ApprovalPrompt}from'./ApprovalPrompt'
 import{PanelModeToggle,type PanelMode}from'./PanelModeToggle'
@@ -407,8 +406,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         </div>
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
-            {todoList&&(<TodoList todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>)}
-            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} onRegenerate={regenerateMessage}/>
+            {/* TodoList is now rendered inline with the message turn via MessageList */}
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>
             {isLoading&&(imageBatch.tickets.size>0||imageBatch.expectedCount>0)&&(<div className="mt-2"><ImageBatchCard tickets={imageBatch.tickets} expectedCount={imageBatch.expectedCount}/></div>)}
           </div>
         </ScrollArea>

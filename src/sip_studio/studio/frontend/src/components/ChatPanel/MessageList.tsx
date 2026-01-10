@@ -3,12 +3,14 @@ import { Package, Paperclip, Play, Film, Layout, XCircle, RefreshCw, Download, C
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { type GeneratedVideo, type StyleReferenceSummary, type ProductEntry, type ThinkingStep, type GeneratedImage, type ImageGenerationMetadata } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
+import type { TodoListData } from '@/lib/types/todo'
 import { MarkdownContent } from './MarkdownContent'
 import { ExecutionTrace } from './ExecutionTrace'
 import { ThinkingTimeline } from './ThinkingTimeline'
 import { InteractionRenderer } from './InteractionRenderer'
 import { ChatImageGallery } from './ChatImageGallery'
 import { PromptDetailsModal } from './PromptDetailsModal'
+import { TodoList } from './TodoList'
 import { cn } from '@/lib/utils'
 import { useStyleReferences } from '@/context/StyleReferenceContext'
 import { Button } from '@/components/ui/button'
@@ -55,9 +57,16 @@ interface MessageListProps {
   styleReferences?: StyleReferenceSummary[]
   onInteractionSelect: (messageId: string, selection: string) => void
   onRegenerate?: (messageId: string) => void
+  //TodoList props for inline rendering
+  todoList?: TodoListData | null
+  isPaused?: boolean
+  onPause?: () => void
+  onResume?: () => void
+  onStop?: () => void
+  onNewDirection?: (msg: string) => void
 }
 
-function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails, liveThinkingSteps, liveSkills }: {
+function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails, liveThinkingSteps, liveSkills, todoList, isPaused, onPause, onResume, onStop, onNewDirection }: {
   message: Message;
   products: ProductEntry[];
   styleReferences?: StyleReferenceSummary[];
@@ -67,6 +76,13 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   onViewDetails?: (metadata: ImageGenerationMetadata) => void;
   liveThinkingSteps?: ThinkingStep[];
   liveSkills?: string[];
+  //TodoList props for inline rendering in 'sending' state
+  todoList?: TodoListData | null;
+  isPaused?: boolean;
+  onPause?: () => void;
+  onResume?: () => void;
+  onStop?: () => void;
+  onNewDirection?: (msg: string) => void;
 }) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
@@ -131,11 +147,15 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
     }
   }
 
-  // For 'sending' status, show the thinking timeline (loading state)
+  // For 'sending' status, show the thinking timeline (loading state) + inline TodoList
   if (message.status === 'sending') {
     return (
       <div className={cn('group relative flex w-full px-2 py-0 transition-colors duration-200 justify-start')}>
-        <div className="flex flex-col items-start w-full">
+        <div className="flex flex-col items-start w-full gap-3">
+          {/* Inline TodoList - appears with the turn where task was initiated */}
+          {todoList && onPause && onResume && onStop && onNewDirection && (
+            <TodoList todoList={todoList} isPaused={isPaused || false} onPause={onPause} onResume={onResume} onStop={onStop} onNewDirection={onNewDirection} />
+          )}
           <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} />
         </div>
       </div>
@@ -256,17 +276,19 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   )
 }
 
-export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, onInteractionSelect, onRegenerate }: MessageListProps) {
+export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, onInteractionSelect, onRegenerate, todoList, isPaused, onPause, onResume, onStop, onNewDirection }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [detailsMeta,setDetailsMeta]=useState<ImageGenerationMetadata|null>(null)
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinkingSteps])
   const { styleReferences: contextStyleRefs } = useStyleReferences()
   const allStyleRefs = styleReferences || contextStyleRefs
   if (messages.length === 0) return null
+  //Find the last message index (for passing todoList to 'sending' message only)
+  const lastIdx = messages.length - 1
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
-      {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills}/>
+      {messages.map((message, idx) => (
+        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills} todoList={idx === lastIdx ? todoList : undefined} isPaused={idx === lastIdx ? isPaused : undefined} onPause={idx === lastIdx ? onPause : undefined} onResume={idx === lastIdx ? onResume : undefined} onStop={idx === lastIdx ? onStop : undefined} onNewDirection={idx === lastIdx ? onNewDirection : undefined}/>
       ))}
       <div ref={bottomRef} className="h-px" />
       {/* Modal rendered ONCE at parent level */}
