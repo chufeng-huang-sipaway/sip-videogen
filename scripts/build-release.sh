@@ -7,9 +7,12 @@
 #   4. Runs a smoke test to verify the app launches
 #   5. Creates the DMG installer
 #   6. Validates DMG size to catch bloat
-# Usage: ./scripts/build-release.sh [version]
+# Usage: ./scripts/build-release.sh [-y] [version]
 # Examples: ./scripts/build-release.sh 0.9.0
+#           ./scripts/build-release.sh -y 0.9.0  (skip confirmation)
 set -e
+AUTO_CONFIRM=0
+if [ "$1" = "-y" ];then AUTO_CONFIRM=1;shift;fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 APP_NAME="Sip Studio"
@@ -200,10 +203,9 @@ main(){
     echo ""
     echo_step "Release version: $version"
     echo ""
-    read -p "Continue with version $version? [y/N] " confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]];then
-        echo "Aborted."
-        exit 0
+    if [ $AUTO_CONFIRM -eq 0 ];then
+        read -p "Continue with version $version? [y/N] " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]];then echo "Aborted.";exit 0;fi
     fi
     echo ""
     update_version "$version"
