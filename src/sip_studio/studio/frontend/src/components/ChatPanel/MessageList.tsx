@@ -152,11 +152,11 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
     return (
       <div className={cn('group relative flex w-full px-2 py-0 transition-colors duration-200 justify-start')}>
         <div className="flex flex-col items-start w-full gap-3">
-          {/* Inline TodoList - appears with the turn where task was initiated */}
+          <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} />
+          {/* TodoList appears after thinking timeline */}
           {todoList && onPause && onResume && onStop && onNewDirection && (
             <TodoList todoList={todoList} isPaused={isPaused || false} onPause={onPause} onResume={onResume} onStop={onStop} onNewDirection={onNewDirection} />
           )}
-          <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} />
         </div>
       </div>
     )

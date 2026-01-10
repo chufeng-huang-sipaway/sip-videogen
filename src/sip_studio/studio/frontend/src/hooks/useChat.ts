@@ -112,6 +112,12 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
         const newState={batchId:event.batchId,expectedCount:event.expectedCount,tickets:new Map<string,ImageProgressEvent>()}
         imageBatchRef.current=newState
         setImageBatch(newState)
+        //Update todo items with expected output counts if todo list exists
+        setTodoList(prev=>{
+          if(!prev||prev.items.length===0)return prev
+          const perItem=Math.ceil(event.expectedCount/prev.items.length)
+          return{...prev,items:prev.items.map((item,idx)=>({...item,expectedOutputCount:idx<prev.items.length-1?perItem:event.expectedCount-perItem*(prev.items.length-1)}))}
+        })
       }else if(event.type==='progress'){
         const current=imageBatchRef.current
         //Only accept events for current batch or if no batch set (backwards compat)
@@ -604,6 +610,26 @@ const clearMessages = useCallback(() => {
     setAutonomyMode(enabled)
   },[])
 
+//Compute display todo list - merges explicit todoList with imageBatch for unified UI
+  const displayTodoList=useCallback(():TodoListData|null=>{
+    //If explicit todo list exists, return it (already has expectedOutputCount set)
+    if(todoList)return todoList
+    //If no todo list but images generating, create virtual todo items from tickets
+    if(imageBatch.expectedCount>0||imageBatch.tickets.size>0){
+      const tickets=Array.from(imageBatch.tickets.values())
+      const total=Math.max(imageBatch.expectedCount,tickets.length)
+      const items:TodoItemData[]=[]
+      for(let i=0;i<total;i++){
+        const ticket=tickets[i]
+        const status=ticket?ticket.status==='completed'?'done':ticket.status==='failed'||ticket.status==='cancelled'||ticket.status==='timeout'?'error':'in_progress':'pending'
+        const outputs=ticket&&ticket.status==='completed'&&(ticket.rawPath||ticket.path)?[{path:ticket.rawPath||ticket.path,type:'image',status:'completed'as const}]:ticket&&(ticket.status==='failed'||ticket.status==='cancelled'||ticket.status==='timeout')?[{type:'image',status:ticket.status==='failed'?'failed'as const:'cancelled'as const,error:ticket.error}]:undefined
+        items.push({id:ticket?.ticketId||`virt-${i}`,description:`Image ${i+1}`,status,outputs,expectedOutputCount:ticket?undefined:1})
+      }
+      const allDone=items.every(i=>i.status==='done'||i.status==='error')
+      return{id:'virtual-batch',title:`Generating ${total} image${total>1?'s':''}`,items,createdAt:new Date().toISOString(),completedAt:allDone?new Date().toISOString():undefined}
+    }
+    return null
+  },[todoList,imageBatch])
 return {
     messages,
     isLoading,
@@ -611,15 +637,15 @@ return {
     progressType,
     loadedSkills,
     thinkingSteps,
-    //Image batch progress
+    //Image batch progress (raw data, kept for backwards compat)
     imageBatch,
     error,
     attachmentError,
     attachments,
     imageAspectRatio,
     videoAspectRatio,
-    //Todo list state and handlers
-    todoList,
+    //Todo list state and handlers - displayTodoList includes virtual items from imageBatch
+    todoList:displayTodoList(),
     isPaused,
     handlePause,
     handleResume,
