@@ -18,7 +18,6 @@ from sip_studio.advisor.tools import (
 from sip_studio.brands.memory import list_brand_assets, list_brand_videos
 from sip_studio.brands.storage import (
     get_active_brand,
-    get_active_project,
     get_brand_dir,
     set_active_project,
 )
@@ -178,14 +177,11 @@ class ChatService:
                 attached_products,
                 attached_style_references,
             )
-            if project_slug is not None:
-                logger.debug("chat(): Setting active project to %s", project_slug)
-                set_active_project(slug, project_slug)
-            effective_project = (
-                project_slug if project_slug is not None else get_active_project(slug)
-            )
-            if project_slug is None:
-                logger.info("chat(): effective_project from storage: %s", effective_project)
+            # Always sync storage with frontend's project selection (fixes stale project bug)
+            # This ensures tools like list_projects() see the correct active project
+            set_active_project(slug, project_slug)
+            effective_project = project_slug
+            logger.debug("chat(): active project set to %s", effective_project)
             brand_dir = get_brand_dir(slug)
             # Process attachments
             saved = asyncio.run(

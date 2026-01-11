@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
+from sip_studio.advisor.session_context_cache import invalidate_caches_for_brand
 from sip_studio.brands.models import ProjectFull, ProjectStatus
 from sip_studio.brands.storage import (
     count_project_assets,
@@ -136,6 +137,8 @@ class ProjectService:
                     return bridge_error(f"Invalid status: {status}")
             project.updated_at = datetime.utcnow()
             save_project(slug, project)
+            # Invalidate cached project context so agent sees updated name/instructions
+            invalidate_caches_for_brand(slug, f"project:{project_slug}")
             return bridge_ok(
                 {"slug": project.slug, "name": project.name, "status": project.status.value}
             )
@@ -154,6 +157,8 @@ class ProjectService:
             deleted = delete_project(slug, project_slug)
             if not deleted:
                 return bridge_error(f"Project '{project_slug}' not found")
+            # Invalidate cached project context after deletion
+            invalidate_caches_for_brand(slug, f"project:{project_slug}")
             return bridge_ok()
         except Exception as e:
             return bridge_error(str(e))
