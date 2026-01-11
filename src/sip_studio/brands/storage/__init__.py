@@ -83,6 +83,17 @@ __all__ = [
     "get_assets_dir",
     "list_assets",
     "save_asset",
+    # visual_directive
+    "get_visual_directive_path",
+    "load_visual_directive",
+    "save_visual_directive",
+    "delete_visual_directive",
+    "visual_directive_exists",
+    "get_feedback_log_path",
+    "load_feedback_log",
+    "save_feedback_log",
+    "add_feedback",
+    "get_unprocessed_feedback_count",
 ]
 # Re-export from submodules
 from .base import (
@@ -168,4 +179,16 @@ from .style_reference_storage import (
     save_style_reference_index,
     set_primary_style_reference_image,
     sync_style_reference_index,
+)
+from .visual_directive_storage import (
+    add_feedback,
+    delete_visual_directive,
+    get_feedback_log_path,
+    get_unprocessed_feedback_count,
+    get_visual_directive_path,
+    load_feedback_log,
+    load_visual_directive,
+    save_feedback_log,
+    save_visual_directive,
+    visual_directive_exists,
 )
