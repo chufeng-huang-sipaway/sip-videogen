@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sip_studio.advisor.agent import BrandAdvisor
+from sip_studio.advisor.session_manager import SessionManager
 from sip_studio.advisor.tools import (
     clear_tool_context,
     get_image_metadata,
@@ -91,8 +92,19 @@ class ChatService:
             active = get_active_brand()
             if not active:
                 return None, "No brand selected"
+            # Enable session-aware mode: get or create active session
+            mgr = SessionManager(active)
+            session = mgr.get_active_session()
+            session_id = session.id if session else None
+            if not session_id:
+                new_session = mgr.create_session()
+                session_id = new_session.id
+                logger.info(f"Auto-created session {session_id} for brand {active}")
             self._state.advisor = BrandAdvisor(
-                brand_slug=active, progress_callback=self._progress_callback
+                brand_slug=active,
+                progress_callback=self._progress_callback,
+                session_aware=True,
+                session_id=session_id,
             )
         return self._state.advisor, None
 
@@ -283,8 +295,18 @@ class ChatService:
             if not slug:
                 return bridge_error("No brand selected")
             if self._state.advisor is None:
+                # Enable session-aware mode
+                mgr = SessionManager(slug)
+                session = mgr.get_active_session()
+                session_id = session.id if session else None
+                if not session_id:
+                    new_session = mgr.create_session()
+                    session_id = new_session.id
                 self._state.advisor = BrandAdvisor(
-                    brand_slug=slug, progress_callback=self._progress_callback
+                    brand_slug=slug,
+                    progress_callback=self._progress_callback,
+                    session_aware=True,
+                    session_id=session_id,
                 )
             else:
                 self._state.advisor.set_brand(slug, preserve_history=True)

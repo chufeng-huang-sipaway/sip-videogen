@@ -208,7 +208,7 @@ class SessionMeta:
         return cls(
             id=d["id"],
             brand_slug=d["brand_slug"],
-            title=d.get("title", "New conversation"),
+            title=d.get("title") or "New conversation",
             created_at=d.get("created_at", utc_now_iso()),
             last_active_at=d.get("last_active_at", utc_now_iso()),
             updated_at=d.get("updated_at", utc_now_iso()),

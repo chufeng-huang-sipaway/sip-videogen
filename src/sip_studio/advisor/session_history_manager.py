@@ -257,6 +257,15 @@ class SessionHistoryManager:
         with session_lock(self.brand_slug, self.session_id):
             self._save()
 
+    def _generate_title(self, content: str, max_len: int = 50) -> str:
+        """Generate session title from message content."""
+        text = content.strip().split("\n")[0]
+        if len(text) <= max_len:
+            return text
+        # Truncate at word boundary
+        truncated = text[:max_len].rsplit(" ", 1)[0]
+        return truncated + "..." if truncated else text[:max_len] + "..."
+
     def add_message(self, message: Message) -> None:
         """Add a message and save."""
         self._ensure_loaded()
@@ -265,8 +274,15 @@ class SessionHistoryManager:
             self._save()
             # Update session meta
             preview = message.content[:100] if message.content else ""
+            new_count = len(self._messages)
+            # Auto-generate title on first user message
+            title = None
+            if message.role == "user" and new_count == 1:
+                current = self._session_manager.get_session(self.session_id)
+                if current and current.title == "New conversation":
+                    title = self._generate_title(message.content)
             self._session_manager.update_session_meta(
-                self.session_id, message_count=len(self._messages), preview=preview
+                self.session_id, message_count=new_count, preview=preview, title=title
             )
         # Check if compaction needed
         self._check_compaction()
@@ -275,12 +291,21 @@ class SessionHistoryManager:
         """Add multiple messages at once."""
         self._ensure_loaded()
         with session_lock(self.brand_slug, self.session_id):
+            was_empty = len(self._messages) == 0
             self._messages.extend(messages)
             self._save()
             if messages:
                 preview = messages[-1].content[:100] if messages[-1].content else ""
+                # Auto-generate title from first user message if adding to empty session
+                title = None
+                if was_empty:
+                    first_user = next((m for m in messages if m.role == "user"), None)
+                    if first_user:
+                        current = self._session_manager.get_session(self.session_id)
+                        if current and current.title == "New conversation":
+                            title = self._generate_title(first_user.content)
                 self._session_manager.update_session_meta(
-                    self.session_id, message_count=len(self._messages), preview=preview
+                    self.session_id, message_count=len(self._messages), preview=preview, title=title
                 )
         self._check_compaction()
 

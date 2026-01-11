@@ -59,12 +59,15 @@ class SessionService:
             logger.error(f"Failed to get active session: {e}")
             return bridge_error(str(e))
 
-    def create_session(self, title: str = "New conversation", settings: dict | None = None) -> dict:
+    def create_session(self, title: str | None = None, settings: dict | None = None) -> dict:
         """Create a new session."""
         try:
             mgr = self._get_manager()
             sess_settings = SessionSettings.from_dict(settings) if settings else SessionSettings()
-            session = mgr.create_session(settings=sess_settings, title=title)
+            # Handle JS undefined/null -> Python None
+            session = mgr.create_session(settings=sess_settings, title=title or "New conversation")
+            # Clear cached advisor so next chat uses new session
+            self._state.advisor = None
             return bridge_ok(_meta_to_dict(session))
         except Exception as e:
             logger.error(f"Failed to create session: {e}")
@@ -76,6 +79,8 @@ class SessionService:
             mgr = self._get_manager()
             if not mgr.set_active_session(session_id):
                 return bridge_error(f"Session '{session_id}' not found")
+            # Clear cached advisor so next chat uses new session
+            self._state.advisor = None
             return bridge_ok({"active_session_id": session_id})
         except Exception as e:
             logger.error(f"Failed to set active session: {e}")

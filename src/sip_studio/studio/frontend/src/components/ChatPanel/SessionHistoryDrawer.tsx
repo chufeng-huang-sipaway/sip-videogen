@@ -4,6 +4,22 @@ import{Button}from'@/components/ui/button'
 import{ScrollArea}from'@/components/ui/scroll-area'
 import{Input}from'@/components/ui/input'
 import type{ChatSessionMeta}from'@/lib/bridge'
+//Relative time formatting using Intl.RelativeTimeFormat
+function getRelativeTime(isoDate:string):string{
+  const d=new Date(isoDate),now=new Date()
+  const diffMs=now.getTime()-d.getTime()
+  const diffSec=Math.floor(diffMs/1000)
+  const diffMin=Math.floor(diffSec/60)
+  const diffHr=Math.floor(diffMin/60)
+  const diffDay=Math.floor(diffHr/24)
+  const rtf=new Intl.RelativeTimeFormat('en',{numeric:'auto'})
+  if(diffMin<1)return'just now'
+  if(diffMin<60)return rtf.format(-diffMin,'minute')
+  if(diffHr<24)return rtf.format(-diffHr,'hour')
+  if(diffDay<7)return rtf.format(-diffDay,'day')
+  if(diffDay<30)return rtf.format(-Math.floor(diffDay/7),'week')
+  return rtf.format(-Math.floor(diffDay/30),'month')
+}
 interface SessionHistoryDrawerProps{
   isOpen:boolean
   onClose:()=>void
@@ -31,10 +47,9 @@ function SessionItem({session,isActive,onSwitch,onDelete,onRename}:{session:Chat
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleSaveTitle}><Check className="w-3 h-3"/></Button>
             </div>
           ):(
-            <div className="font-medium text-sm truncate">{session.title}</div>
+            <div className="font-medium text-sm truncate">{session.title||'New conversation'}</div>
           )}
-          <div className="text-xs text-muted-foreground truncate">{session.preview||'No messages'}</div>
-          <div className="text-xs text-muted-foreground/60 mt-1">{session.messageCount} messages</div>
+          <div className="text-xs text-muted-foreground">{getRelativeTime(session.lastActiveAt)}</div>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e=>e.stopPropagation()}>
           <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={()=>{setEditTitle(session.title);setIsEditing(true)}}><Edit2 className="w-3 h-3"/></Button>
@@ -44,11 +59,10 @@ function SessionItem({session,isActive,onSwitch,onDelete,onRename}:{session:Chat
     </div>
   )
 }
-export function SessionHistoryDrawer({isOpen,onClose,sessionsByDate,activeSessionId,onSwitchSession,onDeleteSession,onRenameSession,onCreateSession,isLoading}:SessionHistoryDrawerProps){
+export function SessionHistoryDrawer({isOpen,onClose,sessionsByDate,activeSessionId,onSwitchSession,onDeleteSession,onRenameSession,isLoading}:SessionHistoryDrawerProps){
   const handleSwitch=useCallback(async(sessionId:string)=>{const ok=await onSwitchSession(sessionId);if(ok)onClose()},[onSwitchSession,onClose])
   const handleDelete=useCallback(async(sessionId:string)=>{if(confirm('Delete this conversation?'))await onDeleteSession(sessionId)},[onDeleteSession])
   const handleRename=useCallback(async(sessionId:string,title:string)=>{await onRenameSession(sessionId,title)},[onRenameSession])
-  const handleCreate=useCallback(async()=>{await onCreateSession();onClose()},[onCreateSession,onClose])
   if(!isOpen)return null
   const dateGroups=Object.entries(sessionsByDate)
   return(
@@ -61,10 +75,7 @@ export function SessionHistoryDrawer({isOpen,onClose,sessionsByDate,activeSessio
           <h2 className="font-semibold text-sm">Chat History</h2>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onClose}><X className="w-4 h-4"/></Button>
         </div>
-        <div className="px-4 py-2 border-b border-border">
-          <Button variant="outline" size="sm" className="w-full" onClick={handleCreate} disabled={isLoading}>New Conversation</Button>
-        </div>
-        <ScrollArea className="h-[calc(100%-100px)]">
+        <ScrollArea className="h-[calc(100%-50px)]">
           <div className="p-3 space-y-4">
             {isLoading?(
               <div className="text-sm text-muted-foreground text-center py-4">Loading...</div>
