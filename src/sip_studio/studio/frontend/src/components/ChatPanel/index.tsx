@@ -1,30 +1,30 @@
-import{useCallback,useState,useEffect,useMemo,useRef}from'react'
-import{useDropzone,type DropEvent,type FileRejection}from'react-dropzone'
-import{ScrollArea}from'@/components/ui/scroll-area'
-import{Alert,AlertDescription}from'@/components/ui/alert'
-import{Button}from'@/components/ui/button'
-import{AlertCircle,Upload,Plus,History}from'lucide-react'
-import{useChat}from'@/hooks/useChat'
-import{useChatSessions}from'@/hooks/useChatSessions'
-import{useProducts}from'@/context/ProductContext'
-import{useProjects}from'@/context/ProjectContext'
-import{useStyleReferences}from'@/context/StyleReferenceContext'
-import{useWorkstation}from'@/context/WorkstationContext'
-import{useDrag}from'@/context/DragContext'
-import{MessageInput,type MessageInputRef}from'./MessageInput'
-import{MessageList}from'./MessageList'
-import{AttachmentChips}from'./AttachmentChips'
-import{ProjectChip}from'./ProjectChip'
-import{GenerationSettings}from'./GenerationSettings'
-import{AutonomyToggle}from'./AutonomyToggle'
-import{ApprovalPrompt}from'./ApprovalPrompt'
-import{PanelModeToggle,type PanelMode}from'./PanelModeToggle'
-import{PlaygroundMode}from'./PlaygroundMode'
-import{SessionHistoryDrawer}from'./SessionHistoryDrawer'
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
+import { useDropzone, type DropEvent, type FileRejection } from 'react-dropzone'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { AlertCircle, Upload, Plus, History } from 'lucide-react'
+import { useChat } from '@/hooks/useChat'
+import { useChatSessions } from '@/hooks/useChatSessions'
+import { useProducts } from '@/context/ProductContext'
+import { useProjects } from '@/context/ProjectContext'
+import { useStyleReferences } from '@/context/StyleReferenceContext'
+import { useWorkstation } from '@/context/WorkstationContext'
+import { useDrag } from '@/context/DragContext'
+import { MessageInput, type MessageInputRef } from './MessageInput'
+import { MessageList } from './MessageList'
+import { AttachmentChips } from './AttachmentChips'
+import { ProjectChip } from './ProjectChip'
+import { GenerationSettings } from './GenerationSettings'
+import { AutonomyToggle } from './AutonomyToggle'
+import { ApprovalPrompt } from './ApprovalPrompt'
+import { PanelModeToggle, type PanelMode } from './PanelModeToggle'
+import { PlaygroundMode } from './PlaygroundMode'
+import { SessionHistoryPopover } from './SessionHistoryPopover'
 //ImageBatchCard removed - now handled by TodoList with virtual items
-import{resolveMentions}from'@/lib/mentionParser'
-import type{ImageStatusEntry,AttachedStyleReference}from'@/lib/bridge'
-import type{VideoAspectRatio}from'@/types/aspectRatio'
+import { resolveMentions } from '@/lib/mentionParser'
+import type { ImageStatusEntry, AttachedStyleReference } from '@/lib/bridge'
+import type { VideoAspectRatio } from '@/types/aspectRatio'
 
 interface ChatPanelProps {
   brandSlug: string | null
@@ -70,22 +70,21 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
-  const{sessionsByDate,activeSessionId,isLoading:sessionsLoading,createSession,switchSession,deleteSession:delSession,renameSession}=useChatSessions(brandSlug)
+  const { sessionsByDate, activeSessionId, isLoading: sessionsLoading, createSession, switchSession, deleteSession: delSession, renameSession } = useChatSessions(brandSlug)
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
   const [panelMode, setPanelMode] = useState<PanelMode>('assistant')
-  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
-  const messageInputRef=useRef<MessageInputRef>(null)
+  const messageInputRef = useRef<MessageInputRef>(null)
   //Compute combined attachments (Quick Insert + mentions) for display
-  const combinedAttachments=useMemo(()=>{
-    const mentionAtts=resolveMentions(inputText,products,styleReferences)
-    const allProductSlugs=[...new Set([...attachedProducts,...mentionAtts.products])]
-    const srMap=new Map<string,AttachedStyleReference>()
-    for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t)
-    for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t)
-    return{products:allProductSlugs,styleReferences:Array.from(srMap.values())}
-  },[inputText,products,styleReferences,attachedProducts,attachedStyleReferences])
+  const combinedAttachments = useMemo(() => {
+    const mentionAtts = resolveMentions(inputText, products, styleReferences)
+    const allProductSlugs = [...new Set([...attachedProducts, ...mentionAtts.products])]
+    const srMap = new Map<string, AttachedStyleReference>()
+    for (const t of mentionAtts.styleReferences) srMap.set(t.style_reference_slug, t)
+    for (const t of attachedStyleReferences) srMap.set(t.style_reference_slug, t)
+    return { products: allProductSlugs, styleReferences: Array.from(srMap.values()) }
+  }, [inputText, products, styleReferences, attachedProducts, attachedStyleReferences])
 
   const handleImagesGenerated = useCallback((images: ImageStatusEntry[]) => {
     const batch = images.map(img => ({
@@ -139,20 +138,20 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     handleSetAutonomyMode,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
   //Handle "Let me clarify" - skip approval and focus input
-  const handleLetMeClarify=useCallback(()=>{
+  const handleLetMeClarify = useCallback(() => {
     handleSkipApproval()
-    setTimeout(()=>messageInputRef.current?.focus(),100)
-  },[handleSkipApproval])
+    setTimeout(() => messageInputRef.current?.focus(), 100)
+  }, [handleSkipApproval])
   //Handle detach product - remove from Quick Insert AND from input text @mentions
-  const handleDetachProduct=useCallback((slug:string)=>{
+  const handleDetachProduct = useCallback((slug: string) => {
     detachProduct(slug)
-    setInputText(prev=>prev.replace(new RegExp(`@product:${slug}\\s*`,'gi'),'').trim())
-  },[detachProduct])
+    setInputText(prev => prev.replace(new RegExp(`@product:${slug}\\s*`, 'gi'), '').trim())
+  }, [detachProduct])
   //Handle detach style reference - remove from Quick Insert AND from input text @mentions
-  const handleDetachStyleReference=useCallback((slug:string)=>{
+  const handleDetachStyleReference = useCallback((slug: string) => {
     detachStyleReference(slug)
-    setInputText(prev=>prev.replace(new RegExp(`@style:${slug}\\s*`,'gi'),'').trim())
-  },[detachStyleReference])
+    setInputText(prev => prev.replace(new RegExp(`@style:${slug}\\s*`, 'gi'), '').trim())
+  }, [detachStyleReference])
 
   // Track drag state for both files and internal assets
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
@@ -376,7 +375,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Header - Mode tabs only (top level navigation) */}
       <div className="flex items-center justify-center px-6 pt-4 pb-2 bg-transparent z-10">
-        <PanelModeToggle value={panelMode} onChange={setPanelMode} disabled={!brandSlug}/>
+        <PanelModeToggle value={panelMode} onChange={setPanelMode} disabled={!brandSlug} />
       </div>
 
       {
@@ -402,41 +401,49 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
       }
 
       {/* Assistant Mode - hidden when playground active (keeps state) */}
-      <div className={panelMode==='assistant'?'flex flex-col flex-1 min-h-0':'hidden'}>
+      <div className={panelMode === 'assistant' ? 'flex flex-col flex-1 min-h-0' : 'hidden'}>
         {/* Assistant subheader: History + New Chat */}
         <div className="flex items-center justify-between px-4 pb-2">
-          <Button variant="ghost" size="sm" onClick={()=>setHistoryDrawerOpen(true)} disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><History className="w-3.5 h-3.5"/><span>History</span></Button>
-          <Button variant="ghost" size="sm" onClick={async()=>{clearMessages();clearAttachments();clearStyleReferenceAttachments();setInputText('');await createSession()}} disabled={isLoading||!brandSlug} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5"/><span>New Chat</span></Button>
+          <SessionHistoryPopover
+            sessionsByDate={sessionsByDate}
+            activeSessionId={activeSessionId}
+            onSwitchSession={switchSession}
+            onDeleteSession={delSession}
+            onRenameSession={renameSession}
+            onCreateSession={async () => { await createSession(); clearMessages(); clearAttachments(); clearStyleReferenceAttachments(); setInputText('') }}
+            isLoading={sessionsLoading}
+          >
+            <Button variant="ghost" size="sm" disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><History className="w-3.5 h-3.5" /><span>History</span></Button>
+          </SessionHistoryPopover>
+          <Button variant="ghost" size="sm" onClick={async () => { clearMessages(); clearAttachments(); clearStyleReferenceAttachments(); setInputText(''); await createSession() }} disabled={isLoading || !brandSlug} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5" /><span>New Chat</span></Button>
         </div>
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
             {/* TodoList rendered inline with message turn - now includes virtual items for image batches */}
-            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async(messageId,selection)=>{resolveInteraction(messageId);await sendMessage(selection,{image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection}/>
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async (messageId, selection) => { resolveInteraction(messageId); await sendMessage(selection, { image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio }); await refreshProducts() }} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection} />
           </div>
         </ScrollArea>
         {/* Chips row */}
         <div className="px-4 max-w-3xl mx-auto w-full">
-          <AttachmentChips products={products} attachedProductSlugs={combinedAttachments.products} onDetachProduct={handleDetachProduct} styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetachStyleReference={handleDetachStyleReference} attachments={attachments} onRemoveAttachment={removeAttachment}/>
+          <AttachmentChips products={products} attachedProductSlugs={combinedAttachments.products} onDetachProduct={handleDetachProduct} styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetachStyleReference={handleDetachStyleReference} attachments={attachments} onRemoveAttachment={removeAttachment} />
         </div>
         {/* Controls row */}
         <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-2 py-1">
-          <ProjectChip projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading||!brandSlug}/>
-          <GenerationSettings imageAspectRatio={imageAspectRatio} videoAspectRatio={videoAspectRatio as VideoAspectRatio} onImageAspectRatioChange={setImageAspectRatio} onVideoAspectRatioChange={setVideoAspectRatio} disabled={isLoading||!brandSlug}/>
-          <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading||!brandSlug}/>
+          <ProjectChip projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading || !brandSlug} />
+          <GenerationSettings imageAspectRatio={imageAspectRatio} videoAspectRatio={videoAspectRatio as VideoAspectRatio} onImageAspectRatioChange={setImageAspectRatio} onVideoAspectRatioChange={setVideoAspectRatio} disabled={isLoading || !brandSlug} />
+          <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading || !brandSlug} />
         </div>
         {/* Approval Prompt - Above input when pending */}
-        {pendingApproval&&(<div className="px-4 pb-2 w-full max-w-3xl mx-auto"><ApprovalPrompt request={pendingApproval} onApproveAll={handleApproveAll} onLetMeClarify={handleLetMeClarify}/></div>)}
+        {pendingApproval && (<div className="px-4 pb-2 w-full max-w-3xl mx-auto"><ApprovalPrompt request={pendingApproval} onApproveAll={handleApproveAll} onLetMeClarify={handleLetMeClarify} /></div>)}
         {/* Input Area - Clean, no gradient background */}
         <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
-          <MessageInput ref={messageInputRef} disabled={isLoading||!brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} onSend={async(text)=>{const mentionAtts=resolveMentions(text,products,styleReferences);const allProducts=[...new Set([...attachedProducts,...mentionAtts.products])];const srMap=new Map<string,AttachedStyleReference>();for(const t of mentionAtts.styleReferences)srMap.set(t.style_reference_slug,t);for(const t of attachedStyleReferences)srMap.set(t.style_reference_slug,t);const allStyleRefs=Array.from(srMap.values());await sendMessage(text,{project_slug:activeProject,attached_products:allProducts.length>0?allProducts:undefined,attached_style_references:allStyleRefs.length>0?allStyleRefs:undefined,image_aspect_ratio:imageAspectRatio,video_aspect_ratio:videoAspectRatio});await refreshProducts()}} canSendWithoutText={attachments.length>0} onSelectImages={handleSelectImages} hasProducts={products.length>0} hasStyleReferences={styleReferences.length>0}/>
+          <MessageInput ref={messageInputRef} disabled={isLoading || !brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} onSend={async (text) => { const mentionAtts = resolveMentions(text, products, styleReferences); const allProducts = [...new Set([...attachedProducts, ...mentionAtts.products])]; const srMap = new Map<string, AttachedStyleReference>(); for (const t of mentionAtts.styleReferences) srMap.set(t.style_reference_slug, t); for (const t of attachedStyleReferences) srMap.set(t.style_reference_slug, t); const allStyleRefs = Array.from(srMap.values()); await sendMessage(text, { project_slug: activeProject, attached_products: allProducts.length > 0 ? allProducts : undefined, attached_style_references: allStyleRefs.length > 0 ? allStyleRefs : undefined, image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio }); await refreshProducts() }} canSendWithoutText={attachments.length > 0} onSelectImages={handleSelectImages} hasProducts={products.length > 0} hasStyleReferences={styleReferences.length > 0} />
         </div>
       </div>
       {/* Playground Mode - hidden when assistant active (keeps state) */}
-      <div className={panelMode==='playground'?'flex flex-col flex-1 min-h-0':'hidden'}>
-        <PlaygroundMode brandSlug={brandSlug}/>
+      <div className={panelMode === 'playground' ? 'flex flex-col flex-1 min-h-0' : 'hidden'}>
+        <PlaygroundMode brandSlug={brandSlug} />
       </div>
-      {/* Session History Drawer */}
-      <SessionHistoryDrawer isOpen={historyDrawerOpen} onClose={()=>setHistoryDrawerOpen(false)} sessionsByDate={sessionsByDate} activeSessionId={activeSessionId} onSwitchSession={switchSession} onDeleteSession={delSession} onRenameSession={renameSession} onCreateSession={async()=>{await createSession();clearMessages();clearAttachments();clearStyleReferenceAttachments();setInputText('')}} isLoading={sessionsLoading}/>
-          </main >
+    </main >
   )
 }
