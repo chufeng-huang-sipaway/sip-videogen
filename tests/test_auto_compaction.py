@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from sip_studio.advisor.session_history_manager import (
-    TOKEN_SOFT_LIMIT,
     SessionHistoryManager,
     _fallback_summary,
     _format_messages,
@@ -347,15 +346,11 @@ class TestAutoCompactionTrigger:
             "sip_studio.advisor.session_history_manager.schedule_compaction", track_schedule
         )
 
-        # Mock token estimation to return high value
-        def high_tokens(_):
-            return TOKEN_SOFT_LIMIT + 100
-
-        monkeypatch.setattr(
-            "sip_studio.advisor.session_history_manager.estimate_messages_tokens", high_tokens
-        )
-        # Add enough messages to allow compaction (10+ required)
+        # Lower the compaction threshold for testing (200K is too high for unit test)
+        monkeypatch.setattr("sip_studio.advisor.session_history_manager.COMPACTION_THRESHOLD", 100)
+        # Add enough messages with sufficient content to exceed 100 token threshold
+        # At ~4 chars/token, we need 400+ chars total
         for i in range(15):
-            history.add_message(Message.create("user", f"M{i}"))
+            history.add_message(Message.create("user", f"Message content {i} " * 10))
         # schedule_compaction should have been called
         assert scheduled

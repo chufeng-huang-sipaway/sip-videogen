@@ -34,6 +34,10 @@ __all__ = [
     "safe_read",
     "brand_lock",
     "session_lock",
+    "get_sessions_dir",
+    "get_session_dir",
+    "get_session_index_path",
+    "get_messages_path",
 ]
 SCHEMA_VERSION = 1
 
@@ -181,9 +185,10 @@ class SessionMeta:
     message_count: int
     preview: str
     is_archived: bool = False
+    last_response_id: str | None = None  # OpenAI response ID for conversation continuity
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d = {
             "id": self.id,
             "brand_slug": self.brand_slug,
             "title": self.title,
@@ -194,6 +199,9 @@ class SessionMeta:
             "preview": self.preview,
             "is_archived": self.is_archived,
         }
+        if self.last_response_id:
+            d["last_response_id"] = self.last_response_id
+        return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "SessionMeta":
@@ -207,6 +215,7 @@ class SessionMeta:
             message_count=d.get("message_count", 0),
             preview=d.get("preview", ""),
             is_archived=d.get("is_archived", False),
+            last_response_id=d.get("last_response_id"),
         )
 
 
@@ -506,6 +515,24 @@ class SessionManager:
                         s.is_archived = is_archived
                     s.last_active_at = now
                     s.updated_at = now
+                    self._save_index(index)
+                    return True
+            return False
+
+    def update_session_response_id(self, session_id: str, response_id: str | None) -> bool:
+        """Update session's last response ID for conversation chaining.
+        Args:
+            session_id: Session ID to update.
+            response_id: OpenAI response ID, or None to reset chain.
+        Returns:
+            True if updated, False if session not found.
+        """
+        with brand_lock(self.brand_slug):
+            index = self._load_index()
+            for s in index.sessions:
+                if s.id == session_id:
+                    s.last_response_id = response_id
+                    s.updated_at = utc_now_iso()
                     self._save_index(index)
                     return True
             return False

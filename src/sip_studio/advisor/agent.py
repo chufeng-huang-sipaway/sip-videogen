@@ -268,6 +268,19 @@ class BrandAdvisor:
         logger.info(f"Created new session: {session.id}")
         return session.id
 
+    def _get_last_response_id(self) -> str | None:
+        """Get last response ID from current session for conversation chaining."""
+        if not self._session_manager or not self._current_session_id:
+            return None
+        session = self._session_manager.get_session(self._current_session_id)
+        return session.last_response_id if session else None
+
+    def _save_response_id(self, response_id: str | None) -> None:
+        """Save response ID to current session for conversation chaining."""
+        if not self._session_manager or not self._current_session_id:
+            return
+        self._session_manager.update_session_response_id(self._current_session_id, response_id)
+
     async def _enforce_context_limit(self, system_prompt: str) -> list[Message]:
         """Enforce hard context limit with compaction and emergency truncation.
         Per IMPLEMENTATION_PLAN.md Stage 7 - Hard context limit guardrail.
@@ -356,8 +369,9 @@ class BrandAdvisor:
         """
         raw_user_message = message
         skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
+        # In session-aware mode, server has history via previous_response_id - skip client history
         history_text = ""
-        if self._history_manager.message_count > 0:
+        if not self._session_aware and self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=Limits.MAX_TOKENS_COMPACT)
         # Build per-turn context (project + attached products + templates)
         turn_context = ""
@@ -375,7 +389,7 @@ class BrandAdvisor:
                 attached_style_references,
                 len(turn_context),
             )
-        # Set aspect ratios silently for tools to use (no injection into agent context)
+        # Set aspect ratios silently for tools to use
         if image_aspect_ratio:
             set_active_aspect_ratio(image_aspect_ratio)
         # Build augmented message with turn context prepended
@@ -386,7 +400,7 @@ class BrandAdvisor:
             )
         else:
             augmented_message = raw_user_message
-        # Check budget and trim if needed
+        # Check budget and trim if needed (skip history for session-aware mode)
         budget_result, _, trimmed_skills, trimmed_history, _ = self._budget_manager.check_and_trim(
             system_prompt=self._agent.instructions or "",
             skills_context=skills_context,
@@ -394,11 +408,11 @@ class BrandAdvisor:
             user_message=augmented_message,
         )
         system_prompt_trimmed = "trimmed system prompt" in (budget_result.warning_message or "")
-        # Build prompt with trimmed parts
+        # Build prompt - in session-aware mode, skip history (server has it)
         prompt_parts = []
         if trimmed_skills:
             prompt_parts.append(trimmed_skills)
-        if trimmed_history:
+        if trimmed_history and not self._session_aware:
             prompt_parts.append(trimmed_history)
         prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
@@ -501,10 +515,17 @@ class BrandAdvisor:
                 if not messages:
                     # First message in session - generate title asynchronously
                     asyncio.create_task(self._update_session_title(message))
+        # Get previous response ID for conversation chaining (session-aware mode)
+        prev_response_id = self._get_last_response_id() if self._session_aware else None
         try:
-            result = await Runner.run(self._agent, ctx.full_prompt, hooks=ctx.hooks)
+            result = await Runner.run(
+                self._agent, ctx.full_prompt, hooks=ctx.hooks, previous_response_id=prev_response_id
+            )
             response = result.final_output
             response_text = response.text if hasattr(response, "text") else str(response)
+            # Save response ID for conversation chaining
+            if self._session_aware and hasattr(result, "response_id"):
+                self._save_response_id(result.response_id)
             # Add to history (session-aware or legacy)
             if self._session_aware and self._session_history:
                 user_msg = Message.create("user", ctx.raw_user_message)
@@ -519,17 +540,20 @@ class BrandAdvisor:
                 "memory_update": ctx.hooks.captured_memory_update,
             }
         except openai.BadRequestError as e:
-            # Handle context_length_exceeded with emergency recovery (Stage 7)
+            # Handle context_length_exceeded with emergency recovery
             if "context_length_exceeded" in str(e) and self._session_history:
                 logger.warning("Context length exceeded, attempting emergency truncation")
-                # Emergency: drop half the messages and retry
                 messages = self._session_history.get_prompt_messages()
                 new_start = len(self._session_history.get_messages()) - len(messages) // 2
                 self._session_history.set_prompt_window_start(new_start)
-                # Retry once
+                # Reset response chain after emergency truncation
+                self._save_response_id(None)
+                # Retry without previous_response_id (fresh start with summary)
                 result = await Runner.run(self._agent, ctx.full_prompt, hooks=ctx.hooks)
                 response = result.final_output
                 response_text = response.text if hasattr(response, "text") else str(response)
+                if hasattr(result, "response_id"):
+                    self._save_response_id(result.response_id)
                 user_msg = Message.create("user", ctx.raw_user_message)
                 assistant_msg = Message.create("assistant", response_text)
                 self._session_history.add_messages([user_msg, assistant_msg])
@@ -620,13 +644,23 @@ class BrandAdvisor:
                 messages = self._session_history.get_messages()
                 if not messages:
                     asyncio.create_task(self._update_session_title(message))
+        # Get previous response ID for conversation chaining (session-aware mode)
+        prev_response_id = self._get_last_response_id() if self._session_aware else None
         response_chunks: list[str] = []
+        stream_result = None
         try:
-            async for chunk in Runner.run_streamed(self._agent, ctx.full_prompt, hooks=ctx.hooks):
+            stream = Runner.run_streamed(
+                self._agent, ctx.full_prompt, hooks=ctx.hooks, previous_response_id=prev_response_id
+            )
+            async for chunk in stream:
                 if hasattr(chunk, "text") and chunk.text:
                     response_chunks.append(chunk.text)
                     yield chunk.text
+            stream_result = stream
             full_response = "".join(response_chunks)
+            # Save response ID for conversation chaining (if available)
+            if self._session_aware and stream_result and hasattr(stream_result, "response_id"):
+                self._save_response_id(stream_result.response_id)
             # Add to history (session-aware or legacy)
             if self._session_aware and self._session_history:
                 user_msg = Message.create("user", ctx.raw_user_message)

@@ -33,6 +33,10 @@ __all__ = [
     "estimate_messages_tokens",
     "schedule_compaction",
     "cancel_compaction",
+    "COMPACTION_THRESHOLD",
+    "SUMMARY_TARGET_TOKENS",
+    "CHARS_PER_TOKEN",
+    # Legacy aliases for backward compatibility
     "TOKEN_SOFT_LIMIT",
     "TOKEN_HARD_LIMIT",
     "MAX_CONTEXT_LIMIT",
@@ -70,11 +74,16 @@ def estimate_messages_tokens(messages: list[Message]) -> int:
 
 # endregion
 # region Constants
-TOKEN_SOFT_LIMIT = 6000
-TOKEN_HARD_LIMIT = 8000
-TOKEN_SAFETY_MARGIN = 500
-SUMMARY_TOKEN_LIMIT = 1500
-MAX_CONTEXT_LIMIT = TOKEN_HARD_LIMIT - TOKEN_SAFETY_MARGIN  # 7500
+# GPT-5.1 has 272K context window - compact at ~75% to preserve context before server truncation
+COMPACTION_THRESHOLD = 200_000  # Trigger compaction at 200K tokens
+SUMMARY_TARGET_TOKENS = 2_000  # Target summary size
+CHARS_PER_TOKEN = 4  # Rough estimate for token counting
+# Legacy constants (kept for backward compatibility, will be removed)
+TOKEN_SOFT_LIMIT = COMPACTION_THRESHOLD  # Alias for old code
+TOKEN_HARD_LIMIT = 250_000  # Alias for old code
+TOKEN_SAFETY_MARGIN = 20_000
+SUMMARY_TOKEN_LIMIT = SUMMARY_TARGET_TOKENS
+MAX_CONTEXT_LIMIT = 250_000  # Server handles actual limit
 # endregion
 # region LLM Helpers
 _openai_client: AsyncOpenAI | None = None
@@ -328,13 +337,14 @@ class SessionHistoryManager:
         return messages_in_window >= 10
 
     def _check_compaction(self) -> None:
-        """Check if compaction should be triggered."""
+        """Check if compaction should be triggered at 200K threshold."""
         self._ensure_loaded()
-        prompt_messages = self._messages[self._prompt_window_start :]
-        token_count = estimate_messages_tokens(prompt_messages)
+        # Simple character-based estimation (~4 chars per token)
+        total_chars = sum(len(m.content) for m in self._messages)
         if self._summary:
-            token_count += self._summary_token_count
-        if token_count >= TOKEN_SOFT_LIMIT and self.can_compact():
+            total_chars += len(self._summary)
+        estimated_tokens = total_chars // CHARS_PER_TOKEN
+        if estimated_tokens >= COMPACTION_THRESHOLD and self.can_compact():
             schedule_compaction(self)
 
     def _calculate_compaction_boundary(self) -> int:
@@ -350,7 +360,7 @@ class SessionHistoryManager:
         return new_start
 
     async def _compact_with_llm(self) -> None:
-        """Compact with summary size management."""
+        """Compact with summary size management and reset response chain."""
         new_start = self._calculate_compaction_boundary()
         if new_start == self._prompt_window_start:
             return
@@ -364,8 +374,8 @@ class SessionHistoryManager:
             if combined_tokens > SUMMARY_TOKEN_LIMIT:
                 condensed = await self._summarize_summary(combined)
                 combined = (
-                    condensed if condensed else combined[: SUMMARY_TOKEN_LIMIT * 4]
-                )  # ~4 chars/token
+                    condensed if condensed else combined[: SUMMARY_TOKEN_LIMIT * CHARS_PER_TOKEN]
+                )
             self._summary = combined
             self._summary_token_count = count_tokens(combined)
         else:
@@ -373,7 +383,10 @@ class SessionHistoryManager:
             self._summary_token_count = count_tokens(new_summary)
         self._prompt_window_start = new_start
         self._save()
-        logger.info(f"Compacted session {self.session_id}, new window start: {new_start}")
+        # Reset response chain - next turn starts fresh with summary in system prompt
+        if self._session_manager:
+            self._session_manager.update_session_response_id(self.session_id, None)
+        logger.info(f"Compacted {self.session_id}, window={new_start}, chain reset")
 
     async def _summarize_summary(self, long_summary: str) -> str | None:
         """Re-summarize an overly long summary."""
