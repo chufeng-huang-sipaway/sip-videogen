@@ -14,11 +14,13 @@ from .context import (
     ProductContextBuilder,
     ProjectContextBuilder,
     StyleReferenceContextBuilder,
+    VisualDirectiveContextBuilder,
     build_brand_context,
     build_product_context,
     build_project_context,
     build_style_reference_context,
     build_turn_context,
+    build_visual_directive_context,
 )
 from .memory import (
     DetailType,
@@ -132,6 +134,9 @@ __all__ = [
     # Context Builder - Style Reference
     "StyleReferenceContextBuilder",
     "build_style_reference_context",
+    # Context Builder - Visual Directive
+    "VisualDirectiveContextBuilder",
+    "build_visual_directive_context",
 ]
 
 

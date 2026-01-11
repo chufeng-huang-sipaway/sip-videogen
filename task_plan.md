@@ -34,8 +34,8 @@ Plus: A new **Visual Directive** artifact that translates brand identity into vi
 - [x] Phase 2: Implement Visual Directive generation (from brand identity)
 - [x] Phase 3: Implement feedback pattern tracking
 - [x] Phase 4: Implement Visual Directive evolution (learning mechanism)
-- [ ] Phase 5: Implement two-phase prompt pipeline (Concept → Visual)
-- [ ] Phase 6: Integrate with existing image generation flow
+- [x] Phase 5: Implement two-phase prompt pipeline (Concept → Visual)
+- [x] Phase 6: Integrate with existing image generation flow
 - [ ] Phase 7: Update skills and documentation
 - [ ] Phase 8: Testing and validation
 
@@ -175,7 +175,7 @@ class FeedbackTracker:
 (None yet)
 
 ## Status
-**Currently in Phase 5** - Ready to implement two-phase prompt pipeline.
+**Currently in Phase 7** - Documentation and testing remaining.
 
 ## Completed Work
 
@@ -231,6 +231,32 @@ class FeedbackTracker:
 ├── feedback_log.json       # Learning: tracked corrections (NEW)
 └── assets/
 ```
+
+### Phase 5-6: Two-Phase Pipeline & Integration
+
+**Modified Files:**
+- `src/sip_studio/advisor/skills/image_prompt_engineering/SKILL.md`
+  - Added "Two-Phase Thinking Process" section
+  - Phase 1: CONCEPT (What's in the image) - Subject, Setting, Action, Product Placement
+  - Phase 2: VISUAL (How it looks) - Lighting, Color Grading, Mood, Composition
+  - Key rule: Visual styling can override Phase 1 for visual aspects
+  - Included example two-phase process walkthrough
+  - Added guidance for using Visual Directive in both phases
+
+- `src/sip_studio/brands/context.py`
+  - Added `VisualDirectiveContextBuilder` class
+  - Formats Visual Directive as agent context (target representation, color guidelines, mood, photography style, learned rules)
+  - Added `build_visual_directive_context()` convenience function
+  - Integrated into `HierarchicalContextBuilder.build_turn_context()`
+  - Visual Directive context injected after Project context, before Products
+
+- `src/sip_studio/brands/__init__.py`
+  - Exported `VisualDirectiveContextBuilder` and `build_visual_directive_context`
+
+**Integration Points:**
+- Visual Directive is now automatically included in per-turn context
+- `HierarchicalContextBuilder` has new `include_visual_directive=True` parameter
+- Learned rules are filtered by project scope when `project_slug` is provided
 
 ## Future Considerations
 1. How to surface learned rules to user in UI (future feature)

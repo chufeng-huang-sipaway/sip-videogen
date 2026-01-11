@@ -81,6 +81,61 @@ priority: high
 | "coffee shop, cozy, warm lighting, minimalist" | "A minimalist coffee shop interior with warm pendant lighting casting soft shadows on blonde wood tables. Morning sunlight streams through floor-to-ceiling windows." |
 | "dog, park, happy" | "A golden retriever puppy with floppy ears bounding through a sun-dappled meadow, tongue out, pure joy in motion." |
 
+## Two-Phase Thinking Process
+
+**CRITICAL**: Before crafting any image prompt, think in TWO distinct phases.
+
+### Phase 1: CONCEPT (Think First)
+Focus ONLY on **what's in the image** - no visual styling yet.
+
+**Determine:**
+- **Subject**: Who/what is the main subject? Be specific about age, appearance, clothing.
+- **Setting**: Where is this taking place? Environment, location, surroundings.
+- **Action**: What's happening? What is the subject doing?
+- **Product Placement**: Where/how do products appear? Position, interaction with scene.
+
+**Lock these decisions before moving to Phase 2.** The concept should be complete and unambiguous.
+
+### Phase 2: VISUAL (Think Second)
+Now focus ONLY on **how it looks** - apply visual styling to the locked concept.
+
+**Determine:**
+- **Lighting**: Direction, quality (soft/hard), color temperature.
+- **Color Grading**: Shadows, highlights, saturation, overall palette.
+- **Mood/Atmosphere**: Emotional quality the image should convey.
+- **Composition**: Framing, camera angle, depth of field.
+
+**Key Rule**: If Visual Directive or style reference specifies lighting/color that conflicts with Phase 1, the **visual styling wins**. Phase 2 can override Phase 1 for visual aspects only.
+
+### Example Two-Phase Process
+
+**User Request**: "Create a lifestyle image for our moisturizer targeting women 40+"
+
+**Phase 1 (Concept):**
+- Subject: Woman in her mid-40s, confident, established, wearing casual-elegant clothing
+- Setting: Bright bathroom with natural elements, plants, morning routine context
+- Action: Applying moisturizer, looking at mirror with satisfied expression
+- Product Placement: Moisturizer jar visible on counter, label facing camera
+
+**Phase 2 (Visual):**
+- Lighting: Soft natural window light from left, diffused
+- Color Grading: Warm, golden tones, lifted shadows (per brand directive)
+- Mood: Calm, self-care moment, spa-like serenity
+- Composition: Medium shot, shallow depth of field on product
+
+**Final Prompt**:
+"A confident woman in her mid-40s with natural gray-touched hair, wearing a cream cashmere robe, applies moisturizer in a bright bathroom with potted ferns. Morning sunlight streams through a frosted window, casting soft shadows. The moisturizer jar sits on a marble counter, label clearly visible. Warm, golden color grading with lifted shadows. Shallow depth of field draws focus to the product. Calm, spa-like atmosphere."
+
+### When Visual Directive Is Present
+
+If Visual Directive context is included, use it as your Phase 2 foundation:
+
+1. **Target Representation** → Informs Phase 1 subject choices (age, style, avoid list)
+2. **Color Guidelines** → Overrides any Phase 1 color assumptions
+3. **Mood Guidelines** → Sets Phase 2 lighting/atmosphere defaults
+4. **Photography Style** → Informs Phase 2 composition/DoF choices
+5. **Learned Rules** → Apply both Phase 1 and Phase 2 adjustments based on past feedback
+
 ## Advanced Prompting Techniques
 
 ### Texture & Material Details
