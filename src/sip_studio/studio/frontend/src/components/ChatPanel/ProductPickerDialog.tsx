@@ -105,7 +105,7 @@ export function ProductPickerDialog({
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+            className="w-full h-10 pl-10 pr-4 rounded-lg border border-border/40 bg-background shadow-sm text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50"
             autoFocus
           />
         </div>
@@ -124,11 +124,10 @@ export function ProductPickerDialog({
                   <button
                     key={product.slug}
                     onClick={() => handleSelect(product.slug)}
-                    className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
-                      isAttached
-                        ? 'bg-primary/10 hover:bg-primary/15'
-                        : 'hover:bg-muted'
-                    }`}
+                    className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${isAttached
+                        ? 'bg-primary/5 text-primary hover:bg-primary/10'
+                        : 'text-foreground hover:bg-muted/50'
+                      }`}
                   >
                     <ProductThumbnail path={product.primary_image} />
                     <div className="flex-1 min-w-0">
@@ -136,7 +135,7 @@ export function ProductPickerDialog({
                         {product.name}
                       </div>
                       {product.description && (
-                        <div className="text-xs text-muted-foreground truncate">
+                        <div className="text-xs text-muted-foreground truncate opacity-80">
                           {product.description}
                         </div>
                       )}

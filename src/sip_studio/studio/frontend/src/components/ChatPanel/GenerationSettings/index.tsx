@@ -19,25 +19,25 @@ function ImageRatioSelect({ value, onChange }: { value: AspectRatio, onChange: (
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <button type="button" className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-secondary/50 hover:bg-secondary border border-border/40 transition-all w-full justify-between">
-                    <div className="flex items-center gap-2">
+                <button type="button" className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-secondary/50 hover:bg-secondary border border-border/40 transition-all w-full justify-between group">
+                    <div className="flex items-center gap-2 text-muted-foreground group-hover:text-foreground">
                         <RatioIcon ratio={value} size={14} />
-                        <span>{value}</span>
+                        <span className="text-foreground">{value}</span>
                         <span className="text-xs text-muted-foreground">{ASPECT_RATIOS[value].hint}</span>
                     </div>
                     <ChevronDown className="h-3.5 w-3.5 opacity-50" />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-56 p-1.5">
+            <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-56 p-1.5 shadow-lg border-border/50">
                 {ratios.map(r => {
                     const { hint } = ASPECT_RATIOS[r]
                     const sel = value === r
-                    return (<DropdownMenuItem key={r} onClick={() => onChange(r)} className={cn("flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer", sel && "bg-accent")}>
+                    return (<DropdownMenuItem key={r} onClick={() => onChange(r)} className={cn("flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer", sel ? "bg-primary/5 text-primary focus:bg-primary/10" : "text-muted-foreground focus:bg-secondary/50")}>
                         <RatioIcon ratio={r} size={16} className="shrink-0" />
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">{r}</span>
-                                <span className="text-xs text-muted-foreground">{hint}</span>
+                                <span className={cn("text-sm font-medium", sel ? "text-primary" : "text-foreground")}>{r}</span>
+                                <span className="text-xs text-muted-foreground/70">{hint}</span>
                             </div>
                         </div>
                         {sel && <Check className="h-4 w-4 text-primary shrink-0" />}
@@ -48,10 +48,10 @@ function ImageRatioSelect({ value, onChange }: { value: AspectRatio, onChange: (
 //Video aspect ratio toggle
 function VideoRatioToggle({ value, onChange }: { value: VideoAspectRatio, onChange: (r: VideoAspectRatio) => void }) {
     const opts: VideoAspectRatio[] = ['16:9', '9:16']
-    return (<div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-white/50 dark:bg-white/10 border border-border/40 w-full">
+    return (<div className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-muted/40 border border-border/40 w-full">
         {opts.map(r => {
             const sel = value === r
-            return (<button key={r} type="button" onClick={() => onChange(r)} className={cn("flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-sm font-medium transition-all", sel ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            return (<button key={r} type="button" onClick={() => onChange(r)} className={cn("flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-sm font-medium transition-all", sel ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground")}>
                 <RatioIcon ratio={r} size={14} />
                 <span>{r}</span>
             </button>)
@@ -78,7 +78,7 @@ export function GenerationSettings({ imageAspectRatio, videoAspectRatio, onImage
                     <ChevronDown className="h-3 w-3 text-muted-foreground/50 ml-0.5" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent align="end" side="top" sideOffset={8} className="w-72 p-0">
+            <PopoverContent align="end" side="top" sideOffset={8} className="w-72 p-0 shadow-lg border-border/50">
                 <div className="p-4 space-y-4">
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Generation Defaults</div>
                     {/* Image settings */}
@@ -98,7 +98,7 @@ export function GenerationSettings({ imageAspectRatio, videoAspectRatio, onImage
                         <VideoRatioToggle value={videoAspectRatio} onChange={onVideoAspectRatioChange} />
                     </div>
                 </div>
-                <div className="px-4 py-3 bg-muted/30 border-t border-border/40 text-xs text-muted-foreground">
+                <div className="px-4 py-3 bg-muted/20 border-t border-border/40 text-xs text-muted-foreground">
                     These defaults apply when the assistant generates content.
                 </div>
             </PopoverContent>
