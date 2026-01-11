@@ -32,8 +32,8 @@ Plus: A new **Visual Directive** artifact that translates brand identity into vi
 
 - [x] Phase 1: Design Visual Directive schema and storage
 - [x] Phase 2: Implement Visual Directive generation (from brand identity)
-- [ ] Phase 3: Implement feedback pattern tracking
-- [ ] Phase 4: Implement Visual Directive evolution (learning mechanism)
+- [x] Phase 3: Implement feedback pattern tracking
+- [x] Phase 4: Implement Visual Directive evolution (learning mechanism)
 - [ ] Phase 5: Implement two-phase prompt pipeline (Concept → Visual)
 - [ ] Phase 6: Integrate with existing image generation flow
 - [ ] Phase 7: Update skills and documentation
@@ -175,7 +175,7 @@ class FeedbackTracker:
 (None yet)
 
 ## Status
-**Currently in Phase 3** - Ready to implement feedback pattern tracking.
+**Currently in Phase 5** - Ready to implement two-phase prompt pipeline.
 
 ## Completed Work
 
@@ -204,6 +204,23 @@ class FeedbackTracker:
 **Exports Updated:**
 - `src/sip_studio/brands/models/__init__.py`
 - `src/sip_studio/brands/storage/__init__.py`
+
+### Phase 3-4: Feedback Pattern Tracking & Learning
+
+**New Files Created:**
+- `src/sip_studio/brands/feedback_analyzer.py` - Pattern detection and learning
+  - `analyze_feedback_message()` - Detect if message is a correction
+  - `detect_patterns()` - Find patterns in feedback history
+  - `record_and_analyze_feedback()` - Main entry point for tracking
+  - `force_pattern_analysis()` - Manual pattern analysis trigger
+
+**How It Works:**
+1. User gives correction ("Make her older")
+2. `analyze_feedback_message()` categorizes it (subject_age)
+3. Records to `feedback_log.json`
+4. If 3+ unprocessed feedback, runs pattern detection
+5. Detected patterns become LearnedRules in VisualDirective
+6. Next image generation uses learned rules
 
 ## Storage Structure
 ```
