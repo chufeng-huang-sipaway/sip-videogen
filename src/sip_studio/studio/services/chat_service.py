@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sip_studio.advisor.agent import BrandAdvisor
+from sip_studio.advisor.session_manager import SessionManager
 from sip_studio.advisor.tools import (
     clear_tool_context,
     get_image_metadata,
@@ -18,7 +19,6 @@ from sip_studio.advisor.tools import (
 from sip_studio.brands.memory import list_brand_assets, list_brand_videos
 from sip_studio.brands.storage import (
     get_active_brand,
-    get_active_project,
     get_brand_dir,
     set_active_project,
 )
@@ -92,8 +92,19 @@ class ChatService:
             active = get_active_brand()
             if not active:
                 return None, "No brand selected"
+            # Enable session-aware mode: get or create active session
+            mgr = SessionManager(active)
+            session = mgr.get_active_session()
+            session_id = session.id if session else None
+            if not session_id:
+                new_session = mgr.create_session()
+                session_id = new_session.id
+                logger.info(f"Auto-created session {session_id} for brand {active}")
             self._state.advisor = BrandAdvisor(
-                brand_slug=active, progress_callback=self._progress_callback
+                brand_slug=active,
+                progress_callback=self._progress_callback,
+                session_aware=True,
+                session_id=session_id,
             )
         return self._state.advisor, None
 
@@ -178,14 +189,11 @@ class ChatService:
                 attached_products,
                 attached_style_references,
             )
-            if project_slug is not None:
-                logger.debug("chat(): Setting active project to %s", project_slug)
-                set_active_project(slug, project_slug)
-            effective_project = (
-                project_slug if project_slug is not None else get_active_project(slug)
-            )
-            if project_slug is None:
-                logger.info("chat(): effective_project from storage: %s", effective_project)
+            # Always sync storage with frontend's project selection (fixes stale project bug)
+            # This ensures tools like list_projects() see the correct active project
+            set_active_project(slug, project_slug)
+            effective_project = project_slug
+            logger.debug("chat(): active project set to %s", effective_project)
             brand_dir = get_brand_dir(slug)
             # Process attachments
             saved = asyncio.run(
@@ -287,8 +295,18 @@ class ChatService:
             if not slug:
                 return bridge_error("No brand selected")
             if self._state.advisor is None:
+                # Enable session-aware mode
+                mgr = SessionManager(slug)
+                session = mgr.get_active_session()
+                session_id = session.id if session else None
+                if not session_id:
+                    new_session = mgr.create_session()
+                    session_id = new_session.id
                 self._state.advisor = BrandAdvisor(
-                    brand_slug=slug, progress_callback=self._progress_callback
+                    brand_slug=slug,
+                    progress_callback=self._progress_callback,
+                    session_aware=True,
+                    session_id=session_id,
                 )
             else:
                 self._state.advisor.set_brand(slug, preserve_history=True)

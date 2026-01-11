@@ -179,7 +179,7 @@ class TestSetBrand:
         with patch("sip_studio.studio.services.brand_service.list_brands", return_value=entries):
             with patch("sip_studio.brands.storage.set_active_brand"):
                 service.set_brand("new-brand")
-        mock_advisor.set_brand.assert_called_once_with("new-brand", preserve_history=False)
+        mock_advisor.set_brand.assert_called_once_with("new-brand", preserve_history=True)
 
 
 # =============================================================================

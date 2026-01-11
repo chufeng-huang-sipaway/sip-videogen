@@ -583,6 +583,17 @@ interface PyWebViewAPI {
   set_autonomy_mode(enabled:boolean):Promise<BridgeResponse<{autonomy_mode:boolean}>>
   get_pending_approval():Promise<BridgeResponse<ApprovalRequestData|null>>
   respond_to_approval(approval_id:string,action:string,modified_prompt?:string):Promise<BridgeResponse<{responded:boolean}>>
+  //Session management methods
+  list_sessions(brand_slug?:string,include_archived?:boolean):Promise<BridgeResponse<{sessions:ChatSessionMeta[]}>>
+  get_session(session_id:string):Promise<BridgeResponse<ChatSessionMeta>>
+  get_active_session():Promise<BridgeResponse<ChatSessionMeta|null>>
+  create_session(title?:string,settings?:ChatSessionSettings):Promise<BridgeResponse<ChatSessionMeta>>
+  set_active_session(session_id:string):Promise<BridgeResponse<{active_session_id:string}>>
+  update_session(session_id:string,title?:string,is_archived?:boolean):Promise<BridgeResponse<ChatSessionMeta>>
+  delete_session(session_id:string):Promise<BridgeResponse<void>>
+  load_session(session_id:string,limit?:number,before?:string):Promise<BridgeResponse<LoadSessionResponse>>
+  get_session_settings(session_id:string):Promise<BridgeResponse<ChatSessionSettings>>
+  save_session_settings(session_id:string,settings:ChatSessionSettings):Promise<BridgeResponse<void>>
 }
 //Quick generate result type
 export interface QuickGenerateResult {
@@ -593,7 +604,43 @@ export interface QuickGenerateResult {
   requested:number
   error?:string
 }
-
+//Chat session types
+export interface ChatSessionMeta {
+  id:string
+  brandSlug:string
+  title:string
+  createdAt:string
+  lastActiveAt:string
+  updatedAt:string
+  messageCount:number
+  preview:string
+  isArchived:boolean
+}
+export interface ChatSessionSettings {
+  project_slug:string|null
+  image_aspect_ratio:string
+  video_aspect_ratio:string
+  attached_product_slugs:string[]
+  attached_style_references:Array<{style_reference_slug:string;strict:boolean}>
+}
+export interface ChatMessage {
+  id:string
+  role:'user'|'assistant'|'system'|'tool'
+  content:string
+  timestamp:string
+  toolCalls?:Array<{id:string;name:string;arguments:string}>
+  toolCallId?:string
+  attachments?:Array<{type:'image'|'file';url:string;name?:string}>
+  metadata?:Record<string,unknown>
+}
+export interface LoadSessionResponse {
+  session:ChatSessionMeta
+  settings:ChatSessionSettings
+  summary:string|null
+  messages:ChatMessage[]
+  hasMore:boolean
+  totalMessageCount:number
+}
 //Image progress event types for pool-based generation
 export type ImageProgressStatus='queued'|'processing'|'completed'|'failed'|'cancelled'|'timeout'
 export interface ImageBatchStartEvent{type:'batchStart';batchId:string;expectedCount:number}
@@ -819,4 +866,15 @@ export const bridge = {
   setAutonomyMode: (enabled:boolean)=>callBridge(()=>window.pywebview!.api.set_autonomy_mode(enabled)),
   getPendingApproval: async()=>callBridge(()=>window.pywebview!.api.get_pending_approval()),
   respondToApproval: (approvalId:string,action:'approve'|'approve_all'|'modify'|'skip',modifiedPrompt?:string)=>callBridge(()=>window.pywebview!.api.respond_to_approval(approvalId,action,modifiedPrompt)),
+  //Session management
+  listSessions: async(brandSlug?:string,includeArchived?:boolean)=>(await callBridge(()=>window.pywebview!.api.list_sessions(brandSlug,includeArchived))).sessions,
+  getSession: (sessionId:string)=>callBridge(()=>window.pywebview!.api.get_session(sessionId)),
+  getActiveSession: ()=>callBridge(()=>window.pywebview!.api.get_active_session()),
+  createSession: (title?:string,settings?:ChatSessionSettings)=>callBridge(()=>window.pywebview!.api.create_session(title,settings)),
+  setActiveSession: async(sessionId:string)=>(await callBridge(()=>window.pywebview!.api.set_active_session(sessionId))).active_session_id,
+  updateSession: (sessionId:string,title?:string,isArchived?:boolean)=>callBridge(()=>window.pywebview!.api.update_session(sessionId,title,isArchived)),
+  deleteSession: (sessionId:string)=>callBridge(()=>window.pywebview!.api.delete_session(sessionId)),
+  loadSession: (sessionId:string,limit?:number,before?:string)=>callBridge(()=>window.pywebview!.api.load_session(sessionId,limit,before)),
+  getSessionSettings: (sessionId:string)=>callBridge(()=>window.pywebview!.api.get_session_settings(sessionId)),
+  saveSessionSettings: (sessionId:string,settings:ChatSessionSettings)=>callBridge(()=>window.pywebview!.api.save_session_settings(sessionId,settings)),
 }

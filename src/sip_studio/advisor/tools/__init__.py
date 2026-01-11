@@ -122,6 +122,15 @@ __all__ = [
     "_MAX_DETAIL_LEN",
     "_MAX_STEP_LEN",
     "_impl_report_thinking",
+    # context_tools
+    "fetch_context_cached",
+    "get_cached_product_context",
+    "get_cached_style_reference_context",
+    "set_context_cache",
+    "get_context_cache",
+    "_impl_fetch_context_cached",
+    "_impl_get_cached_product_context",
+    "_impl_get_cached_style_reference_context",
     # aggregate
     "ADVISOR_TOOLS",
     # Re-exports for test patching compatibility
@@ -192,6 +201,16 @@ from .brand_tools import (
     list_products,
     list_projects,
     load_brand,
+)
+from .context_tools import (
+    _impl_fetch_context_cached,
+    _impl_get_cached_product_context,
+    _impl_get_cached_style_reference_context,
+    fetch_context_cached,
+    get_cached_product_context,
+    get_cached_style_reference_context,
+    get_context_cache,
+    set_context_cache,
 )
 
 # Export _impl_ functions for testing
@@ -331,4 +350,8 @@ ADVISOR_TOOLS = [
     add_todo_output,
     complete_todo_list,
     check_interrupt,
+    # context tools (lean context pattern)
+    fetch_context_cached,
+    get_cached_product_context,
+    get_cached_style_reference_context,
 ]
