@@ -136,12 +136,19 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     handleApproveAll,
     handleSkipApproval,
     handleSetAutonomyMode,
+    loadMessagesFromSession,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
   //Handle "Let me clarify" - skip approval and focus input
   const handleLetMeClarify = useCallback(() => {
     handleSkipApproval()
     setTimeout(() => messageInputRef.current?.focus(), 100)
   }, [handleSkipApproval])
+  //Handle session switch - load messages from selected session
+  const handleSwitchSession = useCallback(async (sessionId: string): Promise<boolean> => {
+    const data = await switchSession(sessionId)
+    if (data) { loadMessagesFromSession(data.messages); return true }
+    return false
+  }, [switchSession, loadMessagesFromSession])
   //Handle detach product - remove from Quick Insert AND from input text @mentions
   const handleDetachProduct = useCallback((slug: string) => {
     detachProduct(slug)
@@ -407,7 +414,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
           <SessionHistoryPopover
             sessionsByDate={sessionsByDate}
             activeSessionId={activeSessionId}
-            onSwitchSession={switchSession}
+            onSwitchSession={handleSwitchSession}
             onDeleteSession={delSession}
             onRenameSession={renameSession}
             onCreateSession={async () => { await createSession(); clearMessages(); clearAttachments(); clearStyleReferenceAttachments(); setInputText('') }}

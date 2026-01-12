@@ -120,6 +120,9 @@ class SessionService:
         Returns:
             Session data with settings, summary, and paginated messages
         """
+        # Handle None limit (can happen when JS passes undefined)
+        if limit is None:
+            limit = 50
         try:
             mgr = self._get_manager()
             session = mgr.get_session(session_id)
