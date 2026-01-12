@@ -25,7 +25,7 @@ export function TodoList({ todoList, isPaused, onStop }: TodoListProps) {
       isInterrupted && "border-warning/40"
     )}>
       {/* Header */}
-      <div className="flex flex-col gap-2 border-b border-border/30 px-4 py-3">
+      <div className="flex flex-col gap-2 px-4 pt-3 pb-2">
         <div className="flex items-center justify-between">
           <h3 className="text-[13px] font-semibold leading-tight text-foreground">{todoList.title}</h3>
           {isCompleted && <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">Done</span>}
@@ -38,12 +38,12 @@ export function TodoList({ todoList, isPaused, onStop }: TodoListProps) {
         </div>
       </div>
       {/* Items */}
-      <div className="flex flex-col gap-0.5 p-2">
+      <div className="flex flex-col gap-2 px-4 pb-3">
         {todoList.items.map(item => <TodoItem key={item.id} item={item} />)}
       </div>
       {/* Controls */}
       {showControls && (
-        <div className="px-3 pb-3 pt-1">
+        <div className="px-4 pb-3">
           <TodoControls onStop={onStop} />
         </div>
       )}
