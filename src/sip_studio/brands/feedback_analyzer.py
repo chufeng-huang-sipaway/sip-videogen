@@ -103,7 +103,7 @@ PATTERN_DETECTOR_INSTRUCTIONS = """\
 You analyze multiple feedback instances to detect patterns and generate learned rules.
 
 ## Your Task
-Given a list of feedback instances, determine:
+Given a list of feedback instances (each prefixed with [ID:xxx]), determine:
 1. Are there patterns (3+ similar corrections)?
 2. What rules should be learned from these patterns?
 3. Are the rules brand-level or project-specific?
@@ -113,13 +113,14 @@ Given a list of feedback instances, determine:
 - Be specific in rule text (actionable, not vague)
 - Consider if pattern appears across all projects (brand-level) or one project
 - A rule should prevent the same correction from being needed again
+- IMPORTANT: Include the exact feedback IDs (from [ID:xxx] prefix) in feedback_ids field
 
 ## Example Patterns
-Feedback: ["Make her older", "She looks too young", "More mature model please"]
-→ Rule: "Use models aged 35-45 for lifestyle images" (brand-level)
+Feedback: [ID:a1] "Make her older", [ID:b2] "She looks too young", [ID:c3] "More mature"
+→ Rule: "Use models aged 35-45 for lifestyle images" (brand-level, feedback_ids: [a1, b2, c3])
 
-Feedback: ["Warmer", "Too cold", "More golden tones"] (all in Christmas project)
-→ Rule: "Use warm, golden color temperature" (project: christmas-campaign)
+Feedback: [ID:d4] "Warmer", [ID:e5] "Too cold", [ID:f6] "Golden tones" (all Christmas)
+→ Rule: "Use warm, golden color temperature" (project: christmas, feedback_ids: [d4,e5,f6])
 """
 
 _pattern_detector = Agent(
@@ -167,10 +168,10 @@ async def detect_patterns(
         return PatternAnalysisResult(
             analysis_notes=f"Not enough feedback ({len(feedback_instances)} < {min_occurrences})"
         )
-    # Build prompt with feedback data
+    # Build prompt with feedback data (include IDs so LLM can return them)
     feedback_text = "\n".join(
         [
-            f"- [{f.category or 'uncategorized'}] {f.user_message} "
+            f"- [ID:{f.id}] [{f.category or 'uncategorized'}] {f.user_message} "
             f"(project: {f.project_slug or 'none'})"
             for f in feedback_instances
         ]

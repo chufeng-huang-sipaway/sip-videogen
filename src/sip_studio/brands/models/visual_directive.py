@@ -145,9 +145,13 @@ class VisualDirective(BaseModel):
 
     def add_learned_rule(self, rule: LearnedRule) -> None:
         """Add or update a learned rule."""
-        # Check for existing rule with same content
+        # Check for existing rule with same content (include project_slug for PROJECT scope)
         for i, r in enumerate(self.learned_rules):
-            if r.rule.lower() == rule.rule.lower() and r.scope == rule.scope:
+            if (
+                r.rule.lower() == rule.rule.lower()
+                and r.scope == rule.scope
+                and r.project_slug == rule.project_slug
+            ):
                 # Update existing
                 self.learned_rules[i].confidence = min(1.0, r.confidence + 0.1)
                 self.learned_rules[i].occurrences += 1
