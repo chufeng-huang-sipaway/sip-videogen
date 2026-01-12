@@ -433,12 +433,10 @@ class StyleReferenceContextBuilder:
     def _build_v2_context(self, name: str, slug: str, description: str, analysis) -> str:
         """Build context from V2 semantic analysis."""
         mode_label = "Strict" if self.strict else "Loose"
-        canvas = analysis.canvas
         style = analysis.style
         layout = analysis.layout
         scene = analysis.visual_scene
         # Summary info
-        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect"
         layout_info = f"**Layout**: {layout.structure}"
         mood_info = f"**Mood**: {style.mood}" if style.mood else ""
         # Visual treatments
@@ -458,7 +456,6 @@ class StyleReferenceContextBuilder:
 **Mode**: {mode_label}
 {tool_usage}
 
-{canvas_info}
 {layout_info}
 {mood_info}
 {treatments_info}
@@ -470,9 +467,7 @@ class StyleReferenceContextBuilder:
         """Build context from V3 color grading DNA analysis."""
         mode_label = "Strict" if self.strict else "Loose"
         cg = analysis.color_grading
-        canvas = analysis.canvas
         # Summary info - emphasize color grading
-        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect"
         film_info = f"**Film Look**: {cg.film_stock_reference}" if cg.film_stock_reference else ""
         temp_info = f"**Temperature**: {cg.color_temperature}" if cg.color_temperature else ""
         sig_info = (
@@ -491,7 +486,6 @@ class StyleReferenceContextBuilder:
 **Mode**: {mode_label}
 {tool_usage}
 
-{canvas_info}
 {film_info}
 {temp_info}
 {sig_info}
@@ -507,7 +501,7 @@ class StyleReferenceContextBuilder:
         message = analysis.message
         elements = analysis.elements
         product_slot = analysis.product_slot
-        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect, {canvas.background} background"
+        canvas_info = f"**Canvas**: {canvas.background} background" if canvas.background else ""
         palette_str = ", ".join(style.palette[:4]) if style.palette else "(not defined)"
         style_info = (
             f"**Style**: {style.mood} mood, {style.lighting} lighting\n**Palette**: {palette_str}"
