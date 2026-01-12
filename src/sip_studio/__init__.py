@@ -11,7 +11,7 @@ from sip_studio.exceptions import (
     ValidationError,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.9.4"
 
 __all__ = [
     "__version__",
