@@ -158,6 +158,12 @@ class StudioBridge:
     ) -> dict:
         return self._brand.create_brand_from_materials(description, images, documents)
 
+    def get_visual_directive(self) -> dict:
+        return self._brand.get_visual_directive()
+
+    def generate_visual_directive(self) -> dict:
+        return self._brand.generate_visual_directive()
+
     # ===========================================================================
     # Document Management
     # ===========================================================================
