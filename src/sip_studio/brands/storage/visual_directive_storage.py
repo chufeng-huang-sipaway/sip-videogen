@@ -27,13 +27,21 @@ def load_visual_directive(brand_slug: str) -> VisualDirective | None:
     Returns None if not found or brand doesn't exist."""
     p = get_visual_directive_path(brand_slug)
     if not p.exists():
-        logger.debug("Visual directive not found for brand: %s", brand_slug)
+        logger.info("[VisualDirective] File not found: %s", p)
         return None
     try:
         data = json.loads(p.read_text())
-        return VisualDirective.model_validate(data)
+        directive = VisualDirective.model_validate(data)
+        learned_count = len(directive.learned_rules)
+        logger.info(
+            "[VisualDirective] Loaded v%d for '%s' with %d learned rules",
+            directive.version,
+            brand_slug,
+            learned_count,
+        )
+        return directive
     except Exception as e:
-        logger.error("Failed to load visual directive for %s: %s", brand_slug, e)
+        logger.error("[VisualDirective] Failed to load for %s: %s", brand_slug, e)
         return None
 
 
@@ -41,12 +49,17 @@ def save_visual_directive(brand_slug: str, directive: VisualDirective) -> None:
     """Save visual directive for a brand."""
     bd = get_brand_dir(brand_slug)
     if not bd.exists():
-        logger.error("Brand directory does not exist: %s", brand_slug)
+        logger.error("[VisualDirective] Brand directory does not exist: %s", brand_slug)
         raise FileNotFoundError(f"Brand '{brand_slug}' does not exist")
     directive.updated_at = datetime.utcnow()
     p = get_visual_directive_path(brand_slug)
     write_atomically(p, directive.model_dump_json(indent=2))
-    logger.info("Saved visual directive for brand: %s (v%d)", brand_slug, directive.version)
+    logger.info(
+        "[VisualDirective] Saved v%d for '%s' (%d learned rules)",
+        directive.version,
+        brand_slug,
+        len(directive.learned_rules),
+    )
 
 
 def delete_visual_directive(brand_slug: str) -> bool:

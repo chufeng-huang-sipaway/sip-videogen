@@ -593,7 +593,14 @@ class VisualDirectiveContextBuilder:
         """
         d = self.directive
         if d is None:
+            logger.info("[VisualDirective] No directive found for brand '%s'", self.brand_slug)
             return ""
+        logger.info(
+            "[VisualDirective] Loading directive v%d for brand '%s' (project: %s)",
+            d.version,
+            self.brand_slug,
+            self.project_slug or "none",
+        )
         sections = ["### Visual Directive (Brand Visual Rules)"]
         # Target representation
         tr = d.target_representation
@@ -648,6 +655,21 @@ class VisualDirectiveContextBuilder:
             for r in rules[:7]:
                 scope_tag = f" [{r.project_slug}]" if r.scope.value == "project" else ""
                 sections.append(f"  - {r.rule}{scope_tag}")
+            logger.info("[VisualDirective] Including %d learned rules", len(rules[:7]))
+        # Log summary of what's included
+        has_target = bool(d.target_representation.description or d.target_representation.age_range)
+        has_color = bool(d.color_guidelines.temperature or d.color_guidelines.primary_palette)
+        has_mood = bool(d.mood_guidelines.primary_mood or d.mood_guidelines.lighting_preference)
+        has_style = bool(d.photography_style.style_description)
+        logger.info(
+            "[VisualDirective] Context built: target=%s, color=%s, mood=%s, style=%s, always=%d, never=%d",
+            has_target,
+            has_color,
+            has_mood,
+            has_style,
+            len(d.always_include),
+            len(d.never_include),
+        )
         return "\n".join(sections)
 
 
@@ -724,10 +746,16 @@ class HierarchicalContextBuilder:
                 pass
         # Visual Directive (brand visual rules for image generation)
         if self.include_visual_directive:
+            logger.info("[HierarchicalContext] Building Visual Directive context...")
             vd_builder = VisualDirectiveContextBuilder(self.brand_slug, self.project_slug)
             vd_context = vd_builder.build_context_section()
             if vd_context:
                 sections.append(vd_context)
+                logger.info(
+                    "[HierarchicalContext] Visual Directive injected (%d chars)", len(vd_context)
+                )
+            else:
+                logger.info("[HierarchicalContext] No Visual Directive to inject")
         settings = get_settings()
         specs_injection_enabled = settings.sip_product_specs_injection
         # Attached products

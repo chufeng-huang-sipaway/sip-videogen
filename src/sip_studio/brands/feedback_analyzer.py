@@ -221,10 +221,16 @@ async def record_and_analyze_feedback(
     # Step 1: Analyze the message
     if progress_callback:
         progress_callback("Analyzing feedback...")
+    logger.info("[FeedbackAnalyzer] Analyzing message: '%s...'", user_message[:50])
     analysis = await analyze_feedback_message(user_message)
     if not analysis.is_correction:
-        logger.debug("Message is not a correction: %s", user_message[:50])
+        logger.info("[FeedbackAnalyzer] Message is NOT a correction, skipping")
         return None
+    logger.info(
+        "[FeedbackAnalyzer] Detected correction: category=%s, intent='%s'",
+        analysis.category,
+        analysis.correction_intent,
+    )
     # Step 2: Record to feedback log
     import uuid
 
@@ -243,7 +249,8 @@ async def record_and_analyze_feedback(
     log.add_feedback(feedback)
     save_feedback_log(brand_slug, log)
     logger.info(
-        "Recorded feedback for %s: [%s] %s",
+        "[FeedbackAnalyzer] Recorded feedback #%d for '%s': [%s] %s",
+        len(log.instances),
         brand_slug,
         analysis.category,
         user_message[:50],
@@ -251,10 +258,13 @@ async def record_and_analyze_feedback(
     # Step 3: Check for patterns (if enough unprocessed feedback)
     if auto_update_directive:
         unprocessed = log.get_unprocessed()
+        logger.info("[FeedbackAnalyzer] Unprocessed feedback count: %d", len(unprocessed))
         if len(unprocessed) >= 3:
+            logger.info("[FeedbackAnalyzer] Threshold reached (3+), checking for patterns...")
             if progress_callback:
                 progress_callback("Checking for patterns...")
-            await _check_and_apply_patterns(brand_slug, log, progress_callback)
+            rules_added = await _check_and_apply_patterns(brand_slug, log, progress_callback)
+            logger.info("[FeedbackAnalyzer] Pattern analysis done: %d rules added", rules_added)
     return feedback
 
 
@@ -272,12 +282,16 @@ async def _check_and_apply_patterns(
     if len(unprocessed) < 3:
         return 0
     # Detect patterns
+    logger.info("[PatternDetector] Analyzing %d unprocessed feedback items...", len(unprocessed))
     result = await detect_patterns(unprocessed)
     if not result.patterns_found:
+        logger.info("[PatternDetector] No patterns found")
         return 0
+    logger.info("[PatternDetector] Found %d patterns!", len(result.patterns_found))
     # Load or create directive
     directive = load_visual_directive(brand_slug)
     if not directive:
+        logger.info("[PatternDetector] Creating new Visual Directive for brand")
         directive = VisualDirective()
     rules_added = 0
     for pattern in result.patterns_found:
@@ -296,10 +310,11 @@ async def _check_and_apply_patterns(
         # Mark feedback as processed
         log.mark_processed(pattern.feedback_ids, pattern.rule_text)
         logger.info(
-            "Added learned rule for %s: [%s] %s",
-            brand_slug,
+            "[PatternDetector] NEW LEARNED RULE: [%s] '%s' (scope=%s, confidence=%.1f)",
             pattern.category,
             pattern.rule_text,
+            scope.value,
+            pattern.confidence,
         )
     # Save updates
     log.last_pattern_analysis = datetime.utcnow()
