@@ -9,7 +9,6 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-import tiktoken
 from openai import AsyncOpenAI
 
 from sip_studio.advisor.session_manager import (
@@ -43,22 +42,16 @@ __all__ = [
     "SUMMARY_TOKEN_LIMIT",
 ]
 # region Token Counting
-_enc: tiktoken.Encoding | None = None
-
-
-def _get_encoder() -> tiktoken.Encoding:
-    global _enc
-    if _enc is None:
-        # Use cl100k_base which covers gpt-4o-mini and gpt-4o
-        _enc = tiktoken.get_encoding("cl100k_base")
-    return _enc
+# Use character-based approximation (~4 chars per token for English text)
+# This avoids tiktoken's runtime dependency on encoding data files
+CHARS_PER_TOKEN = 4
 
 
 def count_tokens(text: str) -> int:
-    """Count tokens in text using tiktoken."""
+    """Estimate tokens in text using character count (~4 chars/token)."""
     if not text:
         return 0
-    return len(_get_encoder().encode(text))
+    return len(text) // CHARS_PER_TOKEN
 
 
 def estimate_messages_tokens(messages: list[Message]) -> int:
@@ -77,7 +70,6 @@ def estimate_messages_tokens(messages: list[Message]) -> int:
 # GPT-5.1 has 272K context window - compact at ~75% to preserve context before server truncation
 COMPACTION_THRESHOLD = 200_000  # Trigger compaction at 200K tokens
 SUMMARY_TARGET_TOKENS = 2_000  # Target summary size
-CHARS_PER_TOKEN = 4  # Rough estimate for token counting
 # Legacy constants (kept for backward compatibility, will be removed)
 TOKEN_SOFT_LIMIT = COMPACTION_THRESHOLD  # Alias for old code
 TOKEN_HARD_LIMIT = 250_000  # Alias for old code
