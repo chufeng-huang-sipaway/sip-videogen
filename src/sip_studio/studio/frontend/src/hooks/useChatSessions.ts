@@ -36,8 +36,7 @@ export function useChatSessions(brandSlug:string|null){
       }
       const list=await bridge.listSessions(brandSlug,false)
       setSessions(list)
-      const active=await bridge.getActiveSession()
-      setActiveSessionId(active?.id||null)
+      //Don't auto-select session on load - start with empty chat, no highlight
     }catch(e){setError(e instanceof Error?e.message:'Failed to load sessions')}
     finally{setIsLoading(false)}
   },[brandSlug])
