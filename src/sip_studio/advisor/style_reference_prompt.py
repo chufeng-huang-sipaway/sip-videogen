@@ -71,7 +71,7 @@ Call `generate_image(style_ref_slug="...", prompt="...")`
 Style reference constraints are auto-applied to generation."""
     return f"""**STRICT MODE - EXACT REPRODUCTION**
 
-**Canvas**: {canvas.aspect_ratio}, background: {canvas.background}
+**Canvas**: background: {canvas.background}
 
 **Style Lock** (DO NOT MODIFY):
   - Palette: {palette_str}
@@ -93,7 +93,6 @@ Style reference constraints are auto-applied to generation."""
 
 def _build_loose_constraints(analysis: "StyleReferenceAnalysis", include_usage: bool) -> str:
     """Build loose mode constraints - preserve intent, allow variation."""
-    canvas = analysis.canvas
     message = analysis.message
     style = analysis.style
     elements = analysis.elements
@@ -130,8 +129,6 @@ def _build_loose_constraints(analysis: "StyleReferenceAnalysis", include_usage: 
 Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
     return f"""**LOOSE MODE - PRESERVE INTENT, ALLOW VARIATION**
 
-**Canvas**: {canvas.aspect_ratio} (preserve aspect ratio)
-
 **Message Intent** (MUST PRESERVE):
   - Intent: {message.intent}
   - Audience: {message.audience}
@@ -157,7 +154,6 @@ Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
 
 ✗ Do NOT change message intent
 ✗ Do NOT remove key elements
-✗ Do NOT change aspect ratio
 ✗ Do NOT reduce product prominence
 {usage_block}"""
 
@@ -211,7 +207,6 @@ def build_style_reference_constraints_v2(
 
 def _build_strict_v2(analysis: "StyleReferenceAnalysisV2", include_usage: bool) -> str:
     """Build strict V2 constraints - exact layout and visual style."""
-    canvas = analysis.canvas
     style = analysis.style
     layout = analysis.layout
     scene = analysis.visual_scene
@@ -236,8 +231,6 @@ def _build_strict_v2(analysis: "StyleReferenceAnalysisV2", include_usage: bool) 
 Call `generate_image(style_ref_slug="...", prompt="...")`
 Style reference constraints are auto-applied."""
     return f"""**STRICT MODE - EXACT REPRODUCTION**
-
-**Canvas**: {canvas.aspect_ratio} aspect ratio
 
 **Layout Structure**: {layout.structure}
   Hierarchy: {layout.hierarchy}
@@ -267,7 +260,6 @@ Style reference constraints are auto-applied."""
 
 def _build_loose_v2(analysis: "StyleReferenceAnalysisV2", include_usage: bool) -> str:
     """Build loose V2 constraints - flexible layout with preserved visual style."""
-    canvas = analysis.canvas
     style = analysis.style
     layout = analysis.layout
     scene = analysis.visual_scene
@@ -287,8 +279,6 @@ def _build_loose_v2(analysis: "StyleReferenceAnalysisV2", include_usage: bool) -
 **HOW TO USE**:
 Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
     return f"""**LOOSE MODE - PRESERVE INTENT, ALLOW VARIATION**
-
-**Canvas**: {canvas.aspect_ratio} (preserve aspect ratio)
 
 **Layout Intent**: {layout.structure}
   (Preserve general structure, exact positions can vary)
@@ -311,7 +301,6 @@ Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
 ✓ Lifestyle elements can vary
 ✓ Minor compositional adjustments allowed
 
-✗ Do NOT change aspect ratio
 ✗ Do NOT change the overall layout intent
 ✗ Do NOT lose the visual mood and atmosphere
 {usage_block}"""
@@ -389,7 +378,6 @@ def _build_strict_v3(analysis: "StyleReferenceAnalysisV3", include_usage: bool) 
     """Build strict V3 constraints - exact color grading reproduction."""
     cg = analysis.color_grading
     suggestions = analysis.style_suggestions
-    canvas = analysis.canvas
     color_block = _build_color_grading_constraints(cg)
     suggestions_block = _build_style_suggestions(suggestions)
     usage_block = ""
@@ -400,8 +388,6 @@ def _build_strict_v3(analysis: "StyleReferenceAnalysisV3", include_usage: bool) 
 Call `generate_image(style_ref_slug="...", prompt="...")`
 Color grading constraints are auto-applied."""
     return f"""**STRICT MODE - EXACT COLOR GRADING MATCH**
-
-**Canvas**: {canvas.aspect_ratio} aspect ratio
 
 {color_block}
 
@@ -420,7 +406,6 @@ def _build_loose_v3(analysis: "StyleReferenceAnalysisV3", include_usage: bool) -
     """Build loose V3 constraints - color family matching with flexibility."""
     cg = analysis.color_grading
     suggestions = analysis.style_suggestions
-    canvas = analysis.canvas
     color_block = _build_color_grading_constraints(cg)
     suggestions_block = _build_style_suggestions(suggestions)
     usage_block = ""
@@ -430,8 +415,6 @@ def _build_loose_v3(analysis: "StyleReferenceAnalysisV3", include_usage: bool) -
 **HOW TO USE**:
 Call `generate_image(style_ref_slug="...", prompt="...", strict=False)`"""
     return f"""**LOOSE MODE - COLOR FAMILY MATCHING**
-
-**Canvas**: {canvas.aspect_ratio} (preserve aspect ratio)
 
 {color_block}
 
