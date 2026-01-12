@@ -3,7 +3,6 @@ import type { TodoListData } from '@/lib/types/todo'
 import { TodoItem } from './TodoItem'
 import { TodoControls } from './TodoControls'
 import { cn } from '@/lib/utils'
-
 interface TodoListProps {
   todoList: TodoListData
   isPaused: boolean
@@ -12,73 +11,53 @@ interface TodoListProps {
   onStop: () => void
   onNewDirection: (msg: string) => void
 }
-
 export function TodoList({ todoList, isPaused, onStop }: TodoListProps) {
-  const doneCount = todoList.items.filter(i => i.status === 'done').length
+  const done = todoList.items.filter(i => i.status === 'done').length
   const total = todoList.items.length
   const isCompleted = !!todoList.completedAt
   const isInterrupted = !!todoList.interruptedAt
-
-  // Show controls if not completed AND not interrupted (pause is OK - not interrupted)
   const showControls = !isCompleted && !isInterrupted
-
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-white/20 shadow-xl transition-all max-w-md w-full",
-        "bg-background/80 backdrop-blur-md",
-        isCompleted && "opacity-80 grayscale-[0.5]",
-        isInterrupted && "border-warning/50 bg-warning/5"
-      )}
-    >
+    <div className={cn(
+      "relative overflow-hidden rounded-xl border border-border/50 shadow-md transition-all w-full",
+      "bg-background/90 backdrop-blur-sm",
+      isCompleted && "opacity-75",
+      isInterrupted && "border-warning/40"
+    )}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 p-4">
-        <div className="flex flex-col gap-0.5">
-          <h3 className="text-sm font-semibold leading-none tracking-tight text-foreground">
-            {todoList.title}
-          </h3>
-          <span className="text-[11px] text-muted-foreground">
-            {doneCount} of {total} items completed
-          </span>
+      <div className="flex items-center justify-between border-b border-border/30 px-3.5 py-2.5">
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <h3 className="text-[13px] font-semibold leading-tight text-foreground truncate">{todoList.title}</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground">{done}/{total}</span>
+            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }} />
+            </div>
+          </div>
         </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-2 shrink-0">
           {isCompleted && (
-            <span className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success ring-1 ring-inset ring-success/20">
-              Complete
-            </span>
+            <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">Done</span>
           )}
           {isInterrupted && (
-            <span className="inline-flex items-center rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning ring-1 ring-inset ring-warning/20">
-              Stopped
-            </span>
+            <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">Stopped</span>
           )}
           {isPaused && !isInterrupted && (
-            <span className="inline-flex items-center rounded-full bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-500 ring-1 ring-inset ring-brand-500/20">
-              Paused
-            </span>
+            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Paused</span>
           )}
           {!isCompleted && !isInterrupted && !isPaused && (
-            <span className="inline-flex items-center rounded-full bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-500 ring-1 ring-inset ring-brand-500/20">
-              In Progress
-            </span>
+            <span className="inline-flex items-center rounded-full bg-progress/10 px-2 py-0.5 text-[10px] font-medium text-progress">Working</span>
           )}
         </div>
       </div>
-
       {/* Items */}
-      <div className="flex flex-col gap-3 p-4">
-        {todoList.items.map(item => (
-          <TodoItem key={item.id} item={item} />
-        ))}
+      <div className="flex flex-col gap-0.5 p-2">
+        {todoList.items.map(item => <TodoItem key={item.id} item={item} />)}
       </div>
-
       {/* Controls */}
       {showControls && (
-        <div className="px-4 pb-4">
-          <TodoControls
-            onStop={onStop}
-          />
+        <div className="px-3 pb-3 pt-1">
+          <TodoControls onStop={onStop} />
         </div>
       )}
     </div>

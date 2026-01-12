@@ -204,6 +204,12 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setAttachments([])
     setAttachmentError(null)
     setIsLoading(false)
+    //Clear active generation state
+    setTodoList(null)
+    setIsPaused(false)
+    const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(emptyBatch)
+    imageBatchRef.current=emptyBatch
     //Load persisted preferences from backend config file
     if(brandSlug&&isPyWebView()){
       bridge.getChatPrefs(brandSlug).then(prefs=>{
@@ -351,7 +357,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setMessages(prev => [...prev, userMessage, assistantMessage])
     setIsLoading(true)
 
-    //Clear thinking steps, skills, and image batch at start
+    //Clear thinking steps, skills, image batch, and todo list at start
     setThinkingSteps([])
     thinkingStepsRef.current=[]
     setLoadedSkills([])
@@ -359,6 +365,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
     setImageBatch(emptyBatch)
     imageBatchRef.current=emptyBatch
+    setTodoList(null)
+    setIsPaused(false)
     //Try polling for progress (may not work due to PyWebView concurrency)
     if (isPyWebView()) {
       progressInterval.current = setInterval(async () => {
@@ -519,6 +527,12 @@ const clearMessages = useCallback(() => {
     setError(null)
     setAttachments([])
     setAttachmentError(null)
+    //Clear active generation state
+    setTodoList(null)
+    setIsPaused(false)
+    const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(emptyBatch)
+    imageBatchRef.current=emptyBatch
     //Preserve aspect ratio and generation mode (user preferences)
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
@@ -630,6 +644,12 @@ const clearMessages = useCallback(() => {
     setError(null)
     setAttachments([])
     setAttachmentError(null)
+    //Clear active generation state when switching sessions
+    setTodoList(null)
+    setIsPaused(false)
+    const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(emptyBatch)
+    imageBatchRef.current=emptyBatch
   },[])
 //Compute display todo list - merges explicit todoList with imageBatch for unified UI
   const displayTodoList=useCallback(():TodoListData|null=>{
