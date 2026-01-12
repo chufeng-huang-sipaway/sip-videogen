@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent, type ChatMessage } from '@/lib/bridge'
 import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
 import type{ApprovalRequestData}from'@/lib/types/approval'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
@@ -204,6 +204,12 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setAttachments([])
     setAttachmentError(null)
     setIsLoading(false)
+    //Clear active generation state
+    setTodoList(null)
+    setIsPaused(false)
+    const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(emptyBatch)
+    imageBatchRef.current=emptyBatch
     //Load persisted preferences from backend config file
     if(brandSlug&&isPyWebView()){
       bridge.getChatPrefs(brandSlug).then(prefs=>{
@@ -351,7 +357,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     setMessages(prev => [...prev, userMessage, assistantMessage])
     setIsLoading(true)
 
-    //Clear thinking steps, skills, and image batch at start
+    //Clear thinking steps, skills, image batch, and todo list at start
     setThinkingSteps([])
     thinkingStepsRef.current=[]
     setLoadedSkills([])
@@ -359,6 +365,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
     setImageBatch(emptyBatch)
     imageBatchRef.current=emptyBatch
+    setTodoList(null)
+    setIsPaused(false)
     //Try polling for progress (may not work due to PyWebView concurrency)
     if (isPyWebView()) {
       progressInterval.current = setInterval(async () => {
@@ -519,6 +527,12 @@ const clearMessages = useCallback(() => {
     setError(null)
     setAttachments([])
     setAttachmentError(null)
+    //Clear active generation state
+    setTodoList(null)
+    setIsPaused(false)
+    const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(emptyBatch)
+    imageBatchRef.current=emptyBatch
     //Preserve aspect ratio and generation mode (user preferences)
     if (isPyWebView()) bridge.clearChat().catch(() => {})
   }, [])
@@ -610,6 +624,33 @@ const clearMessages = useCallback(() => {
     setAutonomyMode(enabled)
   },[])
 
+//Load messages from a session response (for session switching)
+  const loadMessagesFromSession=useCallback((chatMessages:ChatMessage[])=>{
+    if(!chatMessages)return
+    const converted:Message[]=chatMessages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({
+      id:m.id,
+      role:m.role as 'user'|'assistant',
+      content:m.content,
+      images:m.metadata?.images as GeneratedImage[]||[],
+      videos:m.metadata?.videos as GeneratedVideo[]||undefined,
+      timestamp:new Date(m.timestamp),
+      status:'sent' as const,
+      executionTrace:m.metadata?.execution_trace as ExecutionEvent[]||undefined,
+      attachments:m.attachments?.map((a,i)=>({id:`att-${m.id}-${i}`,name:a.name||'attachment',path:a.url,source:'asset' as const})),
+      attachedProductSlugs:m.metadata?.attached_products as string[]||undefined,
+      attachedStyleReferences:m.metadata?.attached_style_references as AttachedStyleReference[]||undefined,
+    }))
+    setMessages(converted)
+    setError(null)
+    setAttachments([])
+    setAttachmentError(null)
+    //Clear active generation state when switching sessions
+    setTodoList(null)
+    setIsPaused(false)
+    const emptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
+    setImageBatch(emptyBatch)
+    imageBatchRef.current=emptyBatch
+  },[])
 //Compute display todo list - merges explicit todoList with imageBatch for unified UI
   const displayTodoList=useCallback(():TodoListData|null=>{
     //If explicit todo list exists, return it (already has expectedOutputCount set)
@@ -670,5 +711,6 @@ return {
     setAttachmentError,
     setImageAspectRatio: setImageAspectRatioWithPersist,
     setVideoAspectRatio: setVideoAspectRatioWithPersist,
+    loadMessagesFromSession,
   }
 }

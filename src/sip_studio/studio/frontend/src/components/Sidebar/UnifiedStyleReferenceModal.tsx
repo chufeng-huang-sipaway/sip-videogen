@@ -160,8 +160,6 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 {/*Reference Image*/}
 <div className="aspect-square rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
 {imageSrc?(<img src={imageSrc} alt={styleRef?.name} className="w-full h-full object-cover"/>):(<div className="w-full h-full flex items-center justify-center"><Layout className="h-12 w-12 text-neutral-400"/></div>)}</div>
-{/*Aspect Ratio Badge*/}
-{analysis?.canvas?.aspect_ratio&&(<div className="flex items-center gap-2"><span className="text-xs text-neutral-500 dark:text-neutral-400">Aspect Ratio:</span><span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{analysis.canvas.aspect_ratio}</span></div>)}
 {/*Attach Control*/}
 {!isAttached&&(<Button variant="default" size="sm" className="w-full" onClick={handleAttach}>Attach to Chat</Button>)}
 {/*Action Buttons*/}
@@ -247,7 +245,6 @@ return(<Dialog open={open} onOpenChange={handleClose}><DialogContent className="
 //V1 Fallback
 <Section title="Analysis (V1)"><InfoCard>
 <InfoRow label="Version" value="1.0 (Legacy)"/>
-<InfoRow label="Aspect Ratio" value={analysis.canvas?.aspect_ratio}/>
 <InfoRow label="Background" value={analysis.canvas?.background}/>
 {'style' in analysis&&analysis.style&&(<><InfoRow label="Mood" value={(analysis as any).style.mood}/><InfoRow label="Lighting" value={(analysis as any).style.lighting}/></>)}
 {'elements' in analysis&&(<InfoRow label="Elements" value={`${(analysis as any).elements?.length||0} defined`}/>)}

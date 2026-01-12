@@ -113,7 +113,6 @@ export interface ProjectFull {
 
 //Style Reference types
 export interface CanvasSpec {
-  aspect_ratio: string
   background: string
   width?: number | null
   height?: number | null
@@ -235,9 +234,9 @@ export interface StyleSuggestionsSpec {
 }
 export interface StyleReferenceAnalysisV3 {
   version: string
-  canvas: CanvasSpec
   color_grading: ColorGradingSpec
   style_suggestions: StyleSuggestionsSpec
+  canvas?: CanvasSpec | null
 }
 //Union type for all versions
 export type StyleReferenceAnalysis = StyleReferenceAnalysisV1 | StyleReferenceAnalysisV2 | StyleReferenceAnalysisV3

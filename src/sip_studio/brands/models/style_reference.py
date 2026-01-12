@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field, field_validator
 class CanvasSpec(BaseModel):
     """Canvas specification for template layout."""
 
-    aspect_ratio: str = Field(description="Aspect ratio, e.g., '1:1', '16:9', '9:16'")
     background: str = Field(default="", description="Background description or color")
     width: int | None = Field(default=None, description="Optional width in pixels")
     height: int | None = Field(default=None, description="Optional height in pixels")
@@ -292,7 +291,7 @@ class StyleReferenceAnalysisV2(BaseModel):
     DEPRECATED: Use StyleReferenceAnalysisV3 for new style references."""
 
     version: str = Field(default="2.0", description="Analysis schema version")
-    canvas: CanvasSpec = Field(description="Canvas spec (aspect_ratio, background)")
+    canvas: CanvasSpec = Field(description="Canvas spec (background)")
     style: StyleSpec = Field(
         default_factory=StyleSpec, description="Visual style (palette, mood, lighting)"
     )
@@ -393,7 +392,7 @@ class StyleReferenceAnalysisV3(BaseModel):
     style_suggestions: StyleSuggestionsSpec = Field(
         default_factory=StyleSuggestionsSpec, description="Optional style hints"
     )
-    canvas: CanvasSpec = Field(description="Canvas spec (aspect_ratio)")
+    canvas: CanvasSpec | None = Field(default=None, description="Canvas spec (optional)")
 
 
 class StyleReferenceSummary(BaseModel):

@@ -45,6 +45,17 @@ from .style_reference import (
     StyleSuggestionsSpec,
     VisualSceneSpec,
 )
+from .visual_directive import (
+    ColorGuidelines,
+    FeedbackInstance,
+    FeedbackLog,
+    LearnedRule,
+    MoodGuidelines,
+    PhotographyStyle,
+    RuleScope,
+    TargetRepresentation,
+    VisualDirective,
+)
 
 __all__ = [
     # Brand models (11)
@@ -93,4 +104,14 @@ __all__ = [
     "StyleSpec",
     "StyleSuggestionsSpec",
     "VisualSceneSpec",
+    # VisualDirective models (9)
+    "ColorGuidelines",
+    "FeedbackInstance",
+    "FeedbackLog",
+    "LearnedRule",
+    "MoodGuidelines",
+    "PhotographyStyle",
+    "RuleScope",
+    "TargetRepresentation",
+    "VisualDirective",
 ]

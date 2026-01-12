@@ -24,10 +24,12 @@ from sip_studio.brands.storage import (
     list_brands,
     load_brand,
     load_brand_summary,
+    load_visual_directive,
     restore_brand_backup,
     save_asset,
     save_brand,
     save_document,
+    visual_directive_exists,
 )
 from sip_studio.brands.storage import create_brand as storage_create_brand
 from sip_studio.brands.storage import delete_brand as storage_delete_brand
@@ -139,6 +141,51 @@ class BrandService:
         self._state.background_analysis_slug = slug
         threading.Thread(target=run, daemon=True).start()
 
+    def _trigger_background_visual_directive_generation(self, slug: str) -> None:
+        """Generate Visual Directive in background if brand has identity but no directive.
+        This ensures backward compatibility for existing brands."""
+        import threading
+
+        def run():
+            import asyncio
+
+            from sip_studio.brands.visual_directive_generator import (
+                generate_and_save_visual_directive,
+            )
+
+            try:
+                # Check if directive already exists
+                if visual_directive_exists(slug):
+                    logger.debug("[VisualDirective] Already exists for %s, skipping", slug)
+                    return
+                # Check if brand identity exists
+                identity = load_brand(slug)
+                if not identity:
+                    logger.debug("[VisualDirective] No identity for %s, skipping", slug)
+                    return
+                # Generate in background
+                logger.info("[VisualDirective] Auto-generating for brand: %s", slug)
+                asyncio.run(generate_and_save_visual_directive(slug, identity))
+                logger.info("[VisualDirective] Auto-generation complete for: %s", slug)
+            except Exception as e:
+                logger.warning("[VisualDirective] Background generation failed: %s", e)
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def _generate_visual_directive_sync(self, slug: str, identity: BrandIdentityFull) -> None:
+        """Generate Visual Directive synchronously (used during brand creation)."""
+        from sip_studio.brands.visual_directive_generator import (
+            generate_and_save_visual_directive,
+        )
+
+        try:
+            logger.info("[VisualDirective] Generating for new brand: %s", slug)
+            asyncio.run(generate_and_save_visual_directive(slug, identity))
+            logger.info("[VisualDirective] Generated for: %s", slug)
+        except Exception as e:
+            # Non-fatal: brand creation succeeds even if directive fails
+            logger.warning("[VisualDirective] Generation failed for %s: %s", slug, e)
+
     def get_brands(self) -> dict:
         """Get list of all available brands."""
         try:
@@ -171,6 +218,8 @@ class BrandService:
                 # Each brand has its own chat_history.json file
                 self._state.advisor.set_brand(slug, preserve_history=True)
             self._trigger_background_packaging_analysis(slug)
+            # Backward compatibility: auto-generate Visual Directive if missing
+            self._trigger_background_visual_directive_generation(slug)
             return bridge_ok({"slug": slug})
         except Exception as e:
             return bridge_error(str(e))
@@ -307,6 +356,8 @@ class BrandService:
             new_identity.slug = slug
             logger.info("AI completed! Brand name: %s", new_identity.core.name)
             save_brand(new_identity)
+            # Regenerate Visual Directive from updated identity
+            self._generate_visual_directive_sync(slug, new_identity)
             if self._state.advisor:
                 self._state.advisor.set_brand(slug, preserve_history=True)
             return bridge_ok(new_identity.model_dump(mode="json"))
@@ -483,6 +534,9 @@ class BrandService:
             slug = identity.slug
             # Persist materials
             self._persist_materials(slug, images, documents)
+            # Generate Visual Directive from the new identity
+            self._state.current_progress = "Generating Visual Directive..."
+            self._generate_visual_directive_sync(slug, identity)
             self._state.current_progress = ""
             logger.info("SUCCESS! Brand '%s' created", identity.core.name)
             return bridge_ok({"slug": slug, "name": identity.core.name})
@@ -494,3 +548,60 @@ class BrandService:
             logger.exception("Exception during brand creation: %s", e)
             self._state.current_progress = ""
             return bridge_error(f"Failed to create brand: {e}")
+
+    # ===========================================================================
+    # Visual Directive Management
+    # ===========================================================================
+    def get_visual_directive(self) -> dict:
+        """Get Visual Directive for the active brand."""
+        try:
+            slug = self._state.get_active_slug()
+            if not slug:
+                return bridge_error("No brand selected")
+            if not visual_directive_exists(slug):
+                return bridge_ok({"exists": False, "directive": None})
+            directive = load_visual_directive(slug)
+            if not directive:
+                return bridge_ok({"exists": False, "directive": None})
+            return bridge_ok(
+                {
+                    "exists": True,
+                    "directive": directive.model_dump(mode="json"),
+                }
+            )
+        except Exception as e:
+            return bridge_error(str(e))
+
+    def generate_visual_directive(self) -> dict:
+        """Generate Visual Directive from brand identity."""
+        from sip_studio.brands.visual_directive_generator import (
+            generate_and_save_visual_directive,
+        )
+
+        try:
+            slug = self._state.get_active_slug()
+            if not slug:
+                return bridge_error("No brand selected")
+            identity = load_brand(slug)
+            if not identity:
+                return bridge_error(f"Brand '{slug}' not found")
+            logger.info("[VisualDirective] Generating directive for brand: %s", slug)
+            self._state.current_progress = "Generating Visual Directive..."
+            directive = asyncio.run(generate_and_save_visual_directive(slug, identity))
+            self._state.current_progress = ""
+            logger.info(
+                "[VisualDirective] Generated v%d with %d always, %d never rules",
+                directive.version,
+                len(directive.always_include),
+                len(directive.never_include),
+            )
+            return bridge_ok(
+                {
+                    "directive": directive.model_dump(mode="json"),
+                    "message": "Visual Directive generated successfully",
+                }
+            )
+        except Exception as e:
+            self._state.current_progress = ""
+            logger.exception("[VisualDirective] Generation error: %s", e)
+            return bridge_error(str(e))

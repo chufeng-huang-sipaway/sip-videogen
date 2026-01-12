@@ -1,6 +1,6 @@
 
 import { useCallback, useState } from 'react'
-import { MessageSquare, Trash2, Edit2, Check, Search } from 'lucide-react'
+import { Trash2, Edit2, Check, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
@@ -50,11 +50,6 @@ function SessionItem({ session, isActive, onSwitch, onDelete, onRename }: { sess
             onClick={isEditing ? undefined : onSwitch}
         >
             <div className="flex items-start gap-3">
-                {/* Use primary color for active state to match Quick Create toggles */}
-                <MessageSquare
-                    className={`w-4 h-4 mt-0.5 shrink-0 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground'}`}
-                    strokeWidth={1.5}
-                />
                 <div className="flex-1 min-w-0">
                     {isEditing ? (
                         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>

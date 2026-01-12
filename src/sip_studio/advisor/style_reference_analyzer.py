@@ -27,7 +27,6 @@ Return a JSON object with this exact structure:
 {
   "version": "1.0",
   "canvas": {
-    "aspect_ratio": "1:1" | "16:9" | "9:16" | "4:5" | "...",
     "background": "description of background (color, gradient, texture)",
     "width": null,
     "height": null
@@ -107,12 +106,11 @@ Return a JSON object with this exact structure:
 }
 
 Analysis Instructions:
-1. Identify the aspect ratio by measuring the image dimensions
-2. Locate ALL visual elements (text, images, shapes, logos)
-3. For each element, estimate position/size as fractions (0-1) of canvas
-4. Identify the product area - where a product image should be placed
-5. Extract colors from the palette (use hex codes)
-6. Note the overall style, mood, and lighting
+1. Locate ALL visual elements (text, images, shapes, logos)
+2. For each element, estimate position/size as fractions (0-1) of canvas
+3. Identify the product area - where a product image should be placed
+4. Extract colors from the palette (use hex codes)
+5. Note the overall style, mood, and lighting
 
 If multiple images are provided, analyze them together to find the CONSENSUS layout pattern.
 Set product_slot to null if no clear product placement area exists.
@@ -176,12 +174,8 @@ async def analyze_style_reference(images: list[Path | bytes]) -> StyleReferenceA
         txt = _strip_md((resp.text or "").strip())
         data = json.loads(txt)
         analysis = StyleReferenceAnalysis(**data)
-        c, e, s = (
-            analysis.canvas.aspect_ratio,
-            len(analysis.elements),
-            analysis.product_slot is not None,
-        )
-        logger.info(f"Style reference analysis complete: canvas={c}, elements={e}, has_slot={s}")
+        e, s = (len(analysis.elements), analysis.product_slot is not None)
+        logger.info(f"Style reference analysis complete: elements={e}, has_slot={s}")
         return analysis
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse Gemini response as JSON: {e}")
@@ -211,7 +205,6 @@ Return a JSON object with this exact structure:
 {
   "version": "2.0",
   "canvas": {
-    "aspect_ratio": "1:1" | "16:9" | "9:16" | "4:5" | "...",
     "background": "description of background (color, gradient, texture)"
   },
   "style": {
@@ -300,9 +293,8 @@ async def analyze_style_reference_v2(images: list[Path | bytes]) -> StyleReferen
         txt = _strip_md((resp.text or "").strip())
         data = json.loads(txt)
         analysis = StyleReferenceAnalysisV2(**data)
-        c = analysis.canvas.aspect_ratio
         t = len(analysis.visual_scene.visual_treatments)
-        logger.info(f"V2 analysis complete: canvas={c}, treatments={t}")
+        logger.info(f"V2 analysis complete: treatments={t}")
         return analysis
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse V2 Gemini response as JSON: {e}")
@@ -342,9 +334,6 @@ Return a JSON object with this exact structure:
     "environment_tendency": "Common environment pattern if any - 'urban/industrial', 'studio', 'outdoor natural', 'coastal' (or empty if varies)",
     "mood": "Overall emotional tone - 'energetic', 'calm', 'premium', 'authentic', 'nostalgic'",
     "lighting_setup": "Typical lighting - 'natural diffused daylight', 'golden hour', 'studio softbox', 'mixed ambient'"
-  },
-  "canvas": {
-    "aspect_ratio": "Image aspect ratio - '1:1', '4:5', '16:9', '9:16', etc."
   }
 }
 

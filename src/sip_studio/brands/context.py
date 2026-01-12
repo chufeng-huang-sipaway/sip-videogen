@@ -21,6 +21,7 @@ from .storage import (
     load_product,
     load_project,
     load_style_reference,
+    load_visual_directive,
 )
 
 logger = get_logger(__name__)
@@ -432,12 +433,10 @@ class StyleReferenceContextBuilder:
     def _build_v2_context(self, name: str, slug: str, description: str, analysis) -> str:
         """Build context from V2 semantic analysis."""
         mode_label = "Strict" if self.strict else "Loose"
-        canvas = analysis.canvas
         style = analysis.style
         layout = analysis.layout
         scene = analysis.visual_scene
         # Summary info
-        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect"
         layout_info = f"**Layout**: {layout.structure}"
         mood_info = f"**Mood**: {style.mood}" if style.mood else ""
         # Visual treatments
@@ -457,7 +456,6 @@ class StyleReferenceContextBuilder:
 **Mode**: {mode_label}
 {tool_usage}
 
-{canvas_info}
 {layout_info}
 {mood_info}
 {treatments_info}
@@ -469,9 +467,7 @@ class StyleReferenceContextBuilder:
         """Build context from V3 color grading DNA analysis."""
         mode_label = "Strict" if self.strict else "Loose"
         cg = analysis.color_grading
-        canvas = analysis.canvas
         # Summary info - emphasize color grading
-        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect"
         film_info = f"**Film Look**: {cg.film_stock_reference}" if cg.film_stock_reference else ""
         temp_info = f"**Temperature**: {cg.color_temperature}" if cg.color_temperature else ""
         sig_info = (
@@ -490,7 +486,6 @@ class StyleReferenceContextBuilder:
 **Mode**: {mode_label}
 {tool_usage}
 
-{canvas_info}
 {film_info}
 {temp_info}
 {sig_info}
@@ -506,7 +501,7 @@ class StyleReferenceContextBuilder:
         message = analysis.message
         elements = analysis.elements
         product_slot = analysis.product_slot
-        canvas_info = f"**Canvas**: {canvas.aspect_ratio} aspect, {canvas.background} background"
+        canvas_info = f"**Canvas**: {canvas.background} background" if canvas.background else ""
         palette_str = ", ".join(style.palette[:4]) if style.palette else "(not defined)"
         style_info = (
             f"**Style**: {style.mood} mood, {style.lighting} lighting\n**Palette**: {palette_str}"
@@ -564,6 +559,127 @@ def build_style_reference_context(brand_slug: str, style_ref_slug: str, strict: 
 
 
 # =============================================================================
+# Visual Directive Context Builder
+# =============================================================================
+
+
+class VisualDirectiveContextBuilder:
+    """Builds Visual Directive context for image generation prompts.
+
+    Visual Directive contains translated brand identity rules specific to
+    image generation, plus learned rules from user feedback patterns.
+    """
+
+    def __init__(self, brand_slug: str, project_slug: str | None = None):
+        """Initialize with brand slug and optional project slug.
+        Args:
+            brand_slug: Brand identifier.
+            project_slug: If provided, includes project-specific learned rules.
+        """
+        self.brand_slug = brand_slug
+        self.project_slug = project_slug
+        self.directive = load_visual_directive(brand_slug)
+
+    def build_context_section(self) -> str:
+        """Build Visual Directive context section for prompts.
+        Returns:
+            Formatted string with visual rules, or empty string if no directive.
+        """
+        d = self.directive
+        if d is None:
+            logger.info("[VisualDirective] No directive found for brand '%s'", self.brand_slug)
+            return ""
+        logger.info(
+            "[VisualDirective] Loading directive v%d for brand '%s' (project: %s)",
+            d.version,
+            self.brand_slug,
+            self.project_slug or "none",
+        )
+        sections = ["### Visual Directive (Brand Visual Rules)"]
+        # Target representation
+        tr = d.target_representation
+        if tr.description or tr.age_range:
+            sections.append("**Target Representation**:")
+            if tr.description:
+                sections.append(f"  - {tr.description}")
+            if tr.age_range:
+                sections.append(f"  - Age range: {tr.age_range}")
+            if tr.style_descriptors:
+                sections.append(f"  - Style: {', '.join(tr.style_descriptors[:5])}")
+            if tr.avoid:
+                sections.append(f"  - AVOID: {', '.join(tr.avoid[:5])}")
+        # Color guidelines
+        cg = d.color_guidelines
+        if cg.temperature or cg.saturation or cg.primary_palette:
+            sections.append("**Color Guidelines**:")
+            if cg.temperature:
+                sections.append(f"  - Temperature: {cg.temperature}")
+            if cg.saturation:
+                sections.append(f"  - Saturation: {cg.saturation}")
+            if cg.primary_palette:
+                sections.append(f"  - Palette: {', '.join(cg.primary_palette[:4])}")
+            if cg.avoid_colors:
+                sections.append(f"  - AVOID: {', '.join(cg.avoid_colors[:4])}")
+        # Mood guidelines
+        mg = d.mood_guidelines
+        if mg.primary_mood or mg.lighting_preference:
+            sections.append("**Mood & Atmosphere**:")
+            if mg.primary_mood:
+                sections.append(f"  - Primary mood: {mg.primary_mood}")
+            if mg.lighting_preference:
+                sections.append(f"  - Lighting: {mg.lighting_preference}")
+            if mg.environment_feel:
+                sections.append(f"  - Environment: {mg.environment_feel}")
+        # Photography style
+        ps = d.photography_style
+        if ps.style_description:
+            sections.append("**Photography Style**:")
+            sections.append(f"  - {ps.style_description}")
+            if ps.depth_of_field:
+                sections.append(f"  - DoF: {ps.depth_of_field}")
+        # Hard rules
+        if d.always_include:
+            sections.append(f"**ALWAYS Include**: {', '.join(d.always_include[:5])}")
+        if d.never_include:
+            sections.append(f"**NEVER Include**: {', '.join(d.never_include[:5])}")
+        # Learned rules (filtered by project if applicable)
+        rules = d.get_rules_for_project(self.project_slug)
+        if rules:
+            sections.append("**Learned Preferences** (from past feedback):")
+            for r in rules[:7]:
+                scope_tag = f" [{r.project_slug}]" if r.scope.value == "project" else ""
+                sections.append(f"  - {r.rule}{scope_tag}")
+            logger.info("[VisualDirective] Including %d learned rules", len(rules[:7]))
+        # Log summary of what's included
+        has_target = bool(d.target_representation.description or d.target_representation.age_range)
+        has_color = bool(d.color_guidelines.temperature or d.color_guidelines.primary_palette)
+        has_mood = bool(d.mood_guidelines.primary_mood or d.mood_guidelines.lighting_preference)
+        has_style = bool(d.photography_style.style_description)
+        logger.info(
+            "[VisualDirective] Context built: target=%s, color=%s, mood=%s, style=%s, always=%d, never=%d",
+            has_target,
+            has_color,
+            has_mood,
+            has_style,
+            len(d.always_include),
+            len(d.never_include),
+        )
+        return "\n".join(sections)
+
+
+def build_visual_directive_context(brand_slug: str, project_slug: str | None = None) -> str:
+    """Convenience function to build Visual Directive context.
+    Args:
+        brand_slug: Brand identifier.
+        project_slug: Optional project slug for project-specific rules.
+    Returns:
+        Formatted Visual Directive context string, or empty if none exists.
+    """
+    builder = VisualDirectiveContextBuilder(brand_slug, project_slug)
+    return builder.build_context_section()
+
+
+# =============================================================================
 # Hierarchical Context Builder (Per-Turn Injection)
 # =============================================================================
 
@@ -585,24 +701,27 @@ class HierarchicalContextBuilder:
         product_slugs: list[str] | None = None,
         project_slug: str | None = None,
         attached_style_references: list[dict] | None = None,
+        include_visual_directive: bool = True,
     ):
         """Initialize with brand slug and optional products/project/style_references.
-
         Args:
             brand_slug: Brand identifier.
             product_slugs: List of product slugs to include (attached products).
             project_slug: Active project slug (if any).
             attached_style_references: List of style ref dicts with style_ref_slug and strict.
+            include_visual_directive: Whether to include Visual Directive in context.
         """
         self.brand_slug = brand_slug
         self.product_slugs = product_slugs or []
         self.project_slug = project_slug
         self.attached_style_references = attached_style_references or []
+        self.include_visual_directive = include_visual_directive
 
     def build_turn_context(self) -> str:
         """Build context to prepend to user message each turn.
         Returns formatted string with:
         - Project instructions (if project active)
+        - Visual Directive (brand visual rules + learned preferences)
         - Attached product descriptions + image paths (if products attached)
         - Multi-product accuracy requirements (if 2+ products attached)
         - Attached style reference layout constraints (if style references attached)
@@ -619,6 +738,18 @@ class HierarchicalContextBuilder:
                 sections.append(project_builder.build_context_section())
             except ValueError:
                 pass
+        # Visual Directive (brand visual rules for image generation)
+        if self.include_visual_directive:
+            logger.info("[HierarchicalContext] Building Visual Directive context...")
+            vd_builder = VisualDirectiveContextBuilder(self.brand_slug, self.project_slug)
+            vd_context = vd_builder.build_context_section()
+            if vd_context:
+                sections.append(vd_context)
+                logger.info(
+                    "[HierarchicalContext] Visual Directive injected (%d chars)", len(vd_context)
+                )
+            else:
+                logger.info("[HierarchicalContext] No Visual Directive to inject")
         settings = get_settings()
         specs_injection_enabled = settings.sip_product_specs_injection
         # Attached products

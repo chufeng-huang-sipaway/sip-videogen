@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import AsyncIterator
 
 import openai
-from agents import Agent, Runner
+from agents import Agent, MaxTurnsExceeded, Runner
 
 from sip_studio.advisor.context_budget import ContextBudgetManager
 from sip_studio.advisor.history_manager import ConversationHistoryManager
@@ -519,7 +519,11 @@ class BrandAdvisor:
         prev_response_id = self._get_last_response_id() if self._session_aware else None
         try:
             result = await Runner.run(
-                self._agent, ctx.full_prompt, hooks=ctx.hooks, previous_response_id=prev_response_id
+                self._agent,
+                ctx.full_prompt,
+                hooks=ctx.hooks,
+                previous_response_id=prev_response_id,
+                max_turns=25,
             )
             response = result.final_output
             response_text = response.text if hasattr(response, "text") else str(response)
@@ -549,7 +553,9 @@ class BrandAdvisor:
                 # Reset response chain after emergency truncation
                 self._save_response_id(None)
                 # Retry without previous_response_id (fresh start with summary)
-                result = await Runner.run(self._agent, ctx.full_prompt, hooks=ctx.hooks)
+                result = await Runner.run(
+                    self._agent, ctx.full_prompt, hooks=ctx.hooks, max_turns=25
+                )
                 response = result.final_output
                 response_text = response.text if hasattr(response, "text") else str(response)
                 if hasattr(result, "response_id"):
@@ -564,6 +570,12 @@ class BrandAdvisor:
                 }
             logger.error(f"Chat failed: {e}")
             raise
+        except MaxTurnsExceeded:
+            logger.error("Max turns exceeded - task too complex for single request")
+            raise RuntimeError(
+                "This task requires too many steps. Try requesting fewer images "
+                "or breaking the task into smaller parts."
+            ) from None
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             raise
@@ -650,7 +662,11 @@ class BrandAdvisor:
         stream_result = None
         try:
             stream = Runner.run_streamed(
-                self._agent, ctx.full_prompt, hooks=ctx.hooks, previous_response_id=prev_response_id
+                self._agent,
+                ctx.full_prompt,
+                hooks=ctx.hooks,
+                previous_response_id=prev_response_id,
+                max_turns=25,
             )
             async for chunk in stream:
                 if hasattr(chunk, "text") and chunk.text:
@@ -672,6 +688,12 @@ class BrandAdvisor:
         except asyncio.CancelledError:
             logger.warning("Stream cancelled")
             raise
+        except MaxTurnsExceeded:
+            logger.error("Max turns exceeded - task too complex for single request")
+            raise RuntimeError(
+                "This task requires too many steps. Try requesting fewer images "
+                "or breaking the task into smaller parts."
+            ) from None
         except Exception as e:
             logger.error(f"Stream chat failed: {e}")
             raise

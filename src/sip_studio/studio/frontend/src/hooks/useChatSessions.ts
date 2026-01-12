@@ -1,5 +1,5 @@
 import{useState,useCallback,useEffect}from'react'
-import{bridge,isPyWebView,waitForPyWebViewReady,type ChatSessionMeta}from'@/lib/bridge'
+import{bridge,isPyWebView,waitForPyWebViewReady,type ChatSessionMeta,type LoadSessionResponse}from'@/lib/bridge'
 /**Groups sessions by date category (Today, Yesterday, This Week, Older).
  *Backend guarantees ISO timestamps with Z suffix (UTC).*/
 function groupByDate(sessions:ChatSessionMeta[]):Record<string,ChatSessionMeta[]>{
@@ -50,13 +50,14 @@ export function useChatSessions(brandSlug:string|null){
       return session
     }catch(e){setError(e instanceof Error?e.message:'Failed to create session');return null}
   },[brandSlug,refresh])
-  const switchSession=useCallback(async(sessionId:string):Promise<boolean>=>{
-    if(!brandSlug||!isPyWebView())return false
+  const switchSession=useCallback(async(sessionId:string):Promise<LoadSessionResponse|null>=>{
+    if(!brandSlug||!isPyWebView())return null
     try{
       await bridge.setActiveSession(sessionId)
       setActiveSessionId(sessionId)
-      return true
-    }catch(e){setError(e instanceof Error?e.message:'Failed to switch session');return false}
+      const data=await bridge.loadSession(sessionId)
+      return data
+    }catch(e){setError(e instanceof Error?e.message:'Failed to switch session');return null}
   },[brandSlug])
   const deleteSession=useCallback(async(sessionId:string):Promise<boolean>=>{
     if(!brandSlug||!isPyWebView())return false
