@@ -1,6 +1,6 @@
 [project]
 name = "sip-studio"
-version = "0.9.5"
+version = "0.9.6"
 description = "Sip Studio - AI-powered brand management and video generation"
 readme = "README.md"
 requires-python = ">=3.11"
