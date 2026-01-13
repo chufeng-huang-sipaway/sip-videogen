@@ -4,7 +4,6 @@ import type {
   IdentitySection,
   SectionDataMap,
 } from '../types/brand-identity'
-import type{ApprovalRequestData}from'./types/approval'
 import { initConstants, type ConstantsPayload } from './constants'
 
 interface BridgeResponse<T> {
@@ -578,10 +577,6 @@ interface PyWebViewAPI {
   resume_task(): Promise<BridgeResponse<{ resumed: boolean }>>
   //Quick generator method
   quick_generate(prompt:string,product_slug?:string,style_reference_slug?:string,aspect_ratio?:string,count?:number):Promise<BridgeResponse<QuickGenerateResult>>
-  //Autonomy mode and approval methods
-  set_autonomy_mode(enabled:boolean):Promise<BridgeResponse<{autonomy_mode:boolean}>>
-  get_pending_approval():Promise<BridgeResponse<ApprovalRequestData|null>>
-  respond_to_approval(approval_id:string,action:string,modified_prompt?:string):Promise<BridgeResponse<{responded:boolean}>>
   //Session management methods
   list_sessions(brand_slug?:string,include_archived?:boolean):Promise<BridgeResponse<{sessions:ChatSessionMeta[]}>>
   get_session(session_id:string):Promise<BridgeResponse<ChatSessionMeta>>
@@ -861,10 +856,6 @@ export const bridge = {
   resumeTask: ()=>callBridge(()=>window.pywebview!.api.resume_task()),
   //Quick generator
   quickGenerate: (prompt:string,productSlug?:string,styleReferenceSlug?:string,aspectRatio:string='1:1',count:number=1)=>callBridge(()=>window.pywebview!.api.quick_generate(prompt,productSlug,styleReferenceSlug,aspectRatio,count)),
-  //Autonomy mode and approval
-  setAutonomyMode: (enabled:boolean)=>callBridge(()=>window.pywebview!.api.set_autonomy_mode(enabled)),
-  getPendingApproval: async()=>callBridge(()=>window.pywebview!.api.get_pending_approval()),
-  respondToApproval: (approvalId:string,action:'approve'|'approve_all'|'modify'|'skip',modifiedPrompt?:string)=>callBridge(()=>window.pywebview!.api.respond_to_approval(approvalId,action,modifiedPrompt)),
   //Session management
   listSessions: async(brandSlug?:string,includeArchived?:boolean)=>(await callBridge(()=>window.pywebview!.api.list_sessions(brandSlug,includeArchived))).sessions,
   getSession: (sessionId:string)=>callBridge(()=>window.pywebview!.api.get_session(sessionId)),
