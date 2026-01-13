@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import threading
-import time
-
-from sip_studio.studio.state import ApprovalRequest, BridgeState, TodoItem, TodoList
+from sip_studio.studio.state import BridgeState, TodoItem, TodoList
 
 
 class MockWindow:
@@ -171,107 +168,6 @@ def test_push_todo_completed():
 
 
 # =========================================================================
-# Autonomy and Approval Tests
-# =========================================================================
-def test_autonomy_mode():
-    state = BridgeState()
-    # Default is True (to avoid blocking when UI not ready)
-    assert state.is_autonomy_mode()
-    state.set_autonomy_mode(False)
-    assert not state.is_autonomy_mode()
-    state.set_autonomy_mode(True)
-    assert state.is_autonomy_mode()
-
-
-def test_approval_request_to_dict():
-    req = ApprovalRequest(
-        id="a1", action_type="generate_image", description="Test prompt", prompt="Generate a cat"
-    )
-    d = req.to_dict()
-    assert d["id"] == "a1"
-    assert d["actionType"] == "generate_image"
-    assert d["description"] == "Test prompt"
-    assert d["prompt"] == "Generate a cat"
-
-
-def test_wait_for_approval_approve():
-    state = BridgeState()
-    state.APPROVAL_TIMEOUT_SEC = 1.0
-    req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
-
-    def responder():
-        time.sleep(0.1)
-        state.respond_approval("approve")
-
-    t = threading.Thread(target=responder)
-    t.start()
-    result = state.wait_for_approval(req)
-    t.join()
-    assert result["action"] == "approve"
-    assert state.get_pending_approval() is None
-
-
-def test_wait_for_approval_modify():
-    state = BridgeState()
-    state.APPROVAL_TIMEOUT_SEC = 1.0
-    req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
-
-    def responder():
-        time.sleep(0.1)
-        state.respond_approval("modify", "New prompt")
-
-    t = threading.Thread(target=responder)
-    t.start()
-    result = state.wait_for_approval(req)
-    t.join()
-    assert result["action"] == "modify"
-    assert result["modified_prompt"] == "New prompt"
-
-
-def test_wait_for_approval_timeout():
-    state = BridgeState()
-    state.APPROVAL_TIMEOUT_SEC = 0.1
-    req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
-    result = state.wait_for_approval(req)
-    assert result["action"] == "timeout"
-
-
-def test_wait_for_approval_approve_all_enables_autonomy():
-    state = BridgeState()
-    state.APPROVAL_TIMEOUT_SEC = 1.0
-    # Start in supervised mode to test that approve_all enables autonomy
-    state.set_autonomy_mode(False)
-    req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
-    assert not state.is_autonomy_mode()
-
-    def responder():
-        time.sleep(0.1)
-        state.respond_approval("approve_all")
-
-    t = threading.Thread(target=responder)
-    t.start()
-    result = state.wait_for_approval(req)
-    t.join()
-    assert result["action"] == "approve_all"
-    assert state.is_autonomy_mode()
-
-
-def test_push_approval_request():
-    state = BridgeState()
-    state.window = MockWindow()
-    req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
-    state._push_approval_request(req)
-    assert any("__onApprovalRequest" in c for c in state.window.calls)
-
-
-def test_push_approval_cleared():
-    state = BridgeState()
-    state.window = MockWindow()
-    state._push_approval_cleared()
-    assert any("__onApprovalCleared" in c for c in state.window.calls)
-
-
-# =========================================================================
 # Interruption Tests
 # =========================================================================
 def test_interrupt_set_and_get():
@@ -324,20 +220,6 @@ def test_set_interrupt_with_push():
     state.set_interrupt_with_push("pause")
     assert state.get_interrupt() == "pause"
     assert any("__onInterruptStatus" in c for c in state.window.calls)
-
-
-def test_set_interrupt_with_push_stop_skips_pending_approval():
-    state = BridgeState()
-    state.window = MockWindow()
-    state.APPROVAL_TIMEOUT_SEC = 0.1
-    # Set up a pending approval
-    req = ApprovalRequest(id="a1", action_type="generate_image", description="Test")
-    state.set_pending_approval(req)
-    assert state.get_pending_approval() is not None
-    # Stop should auto-skip the pending approval by setting event
-    state.set_interrupt_with_push("stop")
-    # The approval_event should be set
-    assert state._approval_event.is_set()
 
 
 def test_set_interrupt_with_push_new_direction_marks_todo_interrupted():

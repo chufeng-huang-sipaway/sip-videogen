@@ -72,26 +72,6 @@ class TodoList:
 
 
 @dataclass
-class ApprovalRequest:
-    """Request for user approval before executing an action."""
-
-    id: str
-    action_type: str  # generate_image | create_style_reference | etc.
-    description: str
-    prompt: str | None = None
-    details: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "actionType": self.action_type,
-            "description": self.description,
-            "prompt": self.prompt,
-            "details": self.details,
-        }
-
-
-@dataclass
 class ThinkingStep:
     """Single thinking step from agent or tool.
     Attributes:
@@ -159,12 +139,6 @@ class BridgeState:
     # TodoList state
     _active_todo_list: TodoList | None = field(default=None, repr=False)
     _todo_seq: int = field(default=0, repr=False)
-    # Autonomy and approval state (default True to avoid blocking when UI not ready)
-    _autonomy_mode: bool = field(default=True, repr=False)
-    _pending_approval: ApprovalRequest | None = field(default=None, repr=False)
-    _approval_response: dict[str, Any] | None = field(default=None, repr=False)
-    _approval_event: threading.Event = field(default_factory=threading.Event, repr=False)
-    APPROVAL_TIMEOUT_SEC: float = 300.0  # 5 minutes, configurable for tests
     # Interruption state
     _interrupt_signal: str | None = field(default=None, repr=False)  # pause | stop | new_direction
     _new_direction_message: str | None = field(default=None, repr=False)
@@ -369,96 +343,6 @@ class BridgeState:
         self._push_todo_cleared()
 
     # =========================================================================
-    # Autonomy and Approval Management
-    # =========================================================================
-    def set_autonomy_mode(self, enabled: bool) -> None:
-        """Set autonomy mode."""
-        with self._lock:
-            self._autonomy_mode = enabled
-
-    def is_autonomy_mode(self) -> bool:
-        """Check if autonomy mode is enabled."""
-        with self._lock:
-            return self._autonomy_mode
-
-    def set_pending_approval(self, approval: ApprovalRequest | None) -> None:
-        """Set or clear pending approval request."""
-        with self._lock:
-            self._pending_approval = approval
-            self._approval_response = None
-        if approval:
-            self._push_approval_request(approval)
-
-    def get_pending_approval(self) -> ApprovalRequest | None:
-        """Get pending approval request."""
-        with self._lock:
-            return self._pending_approval
-
-    def set_approval_response(self, response: dict[str, Any]) -> None:
-        """Set approval response from user."""
-        with self._lock:
-            self._approval_response = response
-
-    def get_approval_response(self) -> dict[str, Any] | None:
-        """Get and clear approval response."""
-        with self._lock:
-            r = self._approval_response
-            self._approval_response = None
-            return r
-
-    def _push_approval_request(self, approval: ApprovalRequest) -> None:
-        """Push approval request to frontend."""
-        w = self.window
-        if not w or not hasattr(w, "evaluate_js"):
-            return
-        try:
-            import json
-
-            data = json.dumps(approval.to_dict())
-            w.evaluate_js(f"window.__onApprovalRequest&&window.__onApprovalRequest({data})")
-        except Exception:
-            pass
-
-    def _push_approval_cleared(self) -> None:
-        """Push approval cleared event to frontend."""
-        w = self.window
-        if not w or not hasattr(w, "evaluate_js"):
-            return
-        try:
-            w.evaluate_js("window.__onApprovalCleared&&window.__onApprovalCleared()")
-        except Exception:
-            pass
-
-    def wait_for_approval(self, request: ApprovalRequest) -> dict[str, Any]:
-        """Block until user responds to approval request. Thread-safe.
-        Returns: {"action": "approve|approve_all|modify|skip|timeout", "modified_prompt": str|None}
-        """
-        with self._lock:
-            self._pending_approval = request
-            self._approval_response = None
-            self._approval_event.clear()
-        self._push_approval_request(request)
-        signaled = self._approval_event.wait(timeout=self.APPROVAL_TIMEOUT_SEC)
-        with self._lock:
-            if not signaled:
-                self._pending_approval = None
-                self._push_approval_cleared()
-                return {"action": "timeout", "modified_prompt": None}
-            response = self._approval_response or {"action": "skip", "modified_prompt": None}
-            self._pending_approval = None
-            self._approval_response = None
-        self._push_approval_cleared()
-        if response.get("action") == "approve_all":
-            self.set_autonomy_mode(True)
-        return response
-
-    def respond_approval(self, action: str, modified_prompt: str | None = None) -> None:
-        """Set approval response and signal waiting thread."""
-        with self._lock:
-            self._approval_response = {"action": action, "modified_prompt": modified_prompt}
-            self._approval_event.set()
-
-    # =========================================================================
     # Interruption Management
     # =========================================================================
     def set_interrupt(self, signal: str | None, new_message: str | None = None) -> None:
@@ -503,15 +387,12 @@ class BridgeState:
 
     def set_interrupt_with_push(self, signal: str | None, new_message: str | None = None) -> None:
         """Set interrupt and push to frontend.
-        On stop/new_direction, auto-skip pending approval and mark todo as interrupted.
+        On stop/new_direction, mark todo as interrupted.
         Pause just sets the signal - doesn't mark todo as interrupted."""
         from datetime import datetime, timezone
 
         self.set_interrupt(signal, new_message)
         self._push_interrupt_status(signal)
-        # On stop/new_direction, auto-skip any pending approval to prevent hangs
-        if signal in ("stop", "new_direction") and self._pending_approval:
-            self.respond_approval("skip")
         # Mark todo list as interrupted ONLY for stop/new_direction (NOT pause)
         if signal in ("stop", "new_direction") and self._active_todo_list:
             with self._lock:

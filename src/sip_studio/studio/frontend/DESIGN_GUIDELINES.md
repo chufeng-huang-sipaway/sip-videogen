@@ -456,10 +456,8 @@ These implement specific UI patterns for the application.
 | `ProjectSelector` | `Sidebar/ProjectSelector.tsx` | Project selection dropdown |
 | `ProductsSection` | `Sidebar/ProductsSection.tsx` | Product list with add/delete |
 | `PanelModeToggle` | `ChatPanel/PanelModeToggle.tsx` | Creative Director / Quick Create toggle |
-| `AutonomyToggle` | `ChatPanel/AutonomyToggle.tsx` | Auto/Manual approval toggle |
 | `GenerationSettings` | `ChatPanel/GenerationSettings.tsx` | Aspect ratio and style settings |
 | `AttachmentChips` | `ChatPanel/AttachmentChips.tsx` | File/reference chips in message input |
-| `ApprovalPrompt` | `Assistant/ApprovalPrompt.tsx` | Agent action approval UI |
 | `EmptyState` | `Workstation/EmptyState.tsx` | Branded empty state with illustration |
 | `CreateBrandDialog` | `dialogs/CreateBrandDialog.tsx` | Multi-step brand creation wizard |
 | `CreateProjectDialog` | `dialogs/CreateProjectDialog.tsx` | Project creation form |

@@ -21,7 +21,6 @@ from .metadata import (
     store_image_metadata,
 )
 from .session import get_active_aspect_ratio
-from .todo_tools import get_tool_state
 
 logger = get_logger(__name__)
 
@@ -67,54 +66,6 @@ def _build_style_reference_image_label(style_ref_name: str, num_images: int) -> 
         f"- The PRODUCT reference images define WHAT to generate\n"
         f"- These style reference images define HOW it should look (color/mood only):"
     )
-
-
-def _request_approval_if_supervised(
-    prompt: str, action_type: str = "generate_image"
-) -> tuple[str, bool]:
-    """Check if approval needed and wait for it. Returns (prompt, should_proceed).
-    CRITICAL: This is enforced at chokepoint, NOT reliant on agent behavior.
-    Args:
-        prompt: The generation prompt
-        action_type: Type of action for approval display
-    Returns:
-        (prompt, True) - Proceed with (possibly modified) prompt
-        (prompt, False) - User skipped, do not proceed
-    Raises:
-        RuntimeError: If state not initialized (fail-closed, NOT fail-open)
-    """
-    from sip_studio.studio.state import ApprovalRequest
-
-    state = get_tool_state()
-    if not state:
-        # In autonomy mode by default if no state (e.g., quick generator)
-        return (prompt, True)
-    # In autonomy mode, skip approval
-    if state.is_autonomy_mode():
-        return (prompt, True)
-    # Check for interrupt before requesting approval
-    interrupt = state.get_interrupt()
-    if interrupt:
-        logger.info(f"Skipping approval due to interrupt: {interrupt}")
-        return (prompt, False)
-    # Request approval
-    request = ApprovalRequest(
-        id=str(uuid.uuid4())[:8],
-        action_type=action_type,
-        description=f"Generate image with prompt: {prompt[:100]}{'...' if len(prompt) > 100 else ''}",
-        prompt=prompt,
-    )
-    response = state.wait_for_approval(request)
-    action = response.get("action", "skip")
-    if action in ("approve", "approve_all"):
-        return (prompt, True)
-    elif action == "modify":
-        modified = response.get("modified_prompt", prompt)
-        logger.info(f"Prompt modified by user: {modified[:100]}...")
-        return (modified, True)
-    else:  # skip or timeout
-        logger.info(f"Generation skipped by user (action={action})")
-        return (prompt, False)
 
 
 async def _impl_generate_image(
@@ -825,9 +776,6 @@ async def generate_image(
     logger.warning(
         "[DEBUG] generate_image called - batch_id=%s, prompt=%s...", batch_id, prompt[:50]
     )
-    final_prompt, should_proceed = _request_approval_if_supervised(prompt)
-    if not should_proceed:
-        return "Image generation skipped by user"
     # Aspect ratio from user's UI settings (cannot be overridden)
     effective_ratio = validate_aspect_ratio(get_active_aspect_ratio()).value
     # Build config dict for pool
@@ -844,7 +792,7 @@ async def generate_image(
     }
     # Submit to pool for parallel execution
     pool = get_image_pool()
-    ticket_id = pool.submit(final_prompt, config, batch_id=batch_id)
+    ticket_id = pool.submit(prompt, config, batch_id=batch_id)
     logger.warning("[DEBUG] generate_image submitted ticket %s to pool, waiting...", ticket_id[:8])
     # Wait for ticket completion (runs in executor to not block event loop)
     loop = asyncio.get_event_loop()

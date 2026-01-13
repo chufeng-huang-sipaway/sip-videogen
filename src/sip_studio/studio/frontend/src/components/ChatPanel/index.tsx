@@ -16,8 +16,6 @@ import { MessageList } from './MessageList'
 import { AttachmentChips } from './AttachmentChips'
 import { ProjectChip } from './ProjectChip'
 import { GenerationSettings } from './GenerationSettings'
-import { AutonomyToggle } from './AutonomyToggle'
-import { ApprovalPrompt } from './ApprovalPrompt'
 import { PanelModeToggle, type PanelMode } from './PanelModeToggle'
 import { PlaygroundMode } from './PlaygroundMode'
 import { SessionHistoryPopover } from './SessionHistoryPopover'
@@ -127,22 +125,12 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     setVideoAspectRatio,
     todoList,
     isPaused,
-    pendingApproval,
-    autonomyMode,
     handlePause,
     handleResume,
     handleStop,
     handleNewDirection,
-    handleApproveAll,
-    handleSkipApproval,
-    handleSetAutonomyMode,
     loadMessagesFromSession,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
-  //Handle "Let me clarify" - skip approval and focus input
-  const handleLetMeClarify = useCallback(() => {
-    handleSkipApproval()
-    setTimeout(() => messageInputRef.current?.focus(), 100)
-  }, [handleSkipApproval])
   //Handle session switch - load messages from selected session
   const handleSwitchSession = useCallback(async (sessionId: string): Promise<boolean> => {
     const data = await switchSession(sessionId)
@@ -438,10 +426,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <div className="px-4 max-w-3xl mx-auto w-full flex items-center gap-2 py-1">
           <ProjectChip projects={projects} activeProject={activeProject} onSelect={setActiveProject} disabled={isLoading || !brandSlug} />
           <GenerationSettings imageAspectRatio={imageAspectRatio} videoAspectRatio={videoAspectRatio as VideoAspectRatio} onImageAspectRatioChange={setImageAspectRatio} onVideoAspectRatioChange={setVideoAspectRatio} disabled={isLoading || !brandSlug} />
-          <AutonomyToggle enabled={autonomyMode} onChange={handleSetAutonomyMode} disabled={isLoading || !brandSlug} />
         </div>
-        {/* Approval Prompt - Above input when pending */}
-        {pendingApproval && (<div className="px-4 pb-2 w-full max-w-3xl mx-auto"><ApprovalPrompt request={pendingApproval} onApproveAll={handleApproveAll} onLetMeClarify={handleLetMeClarify} /></div>)}
         {/* Input Area - Clean, no gradient background */}
         <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
           <MessageInput ref={messageInputRef} disabled={isLoading || !brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} onSend={async (text) => { const mentionAtts = resolveMentions(text, products, styleReferences); const allProducts = [...new Set([...attachedProducts, ...mentionAtts.products])]; const srMap = new Map<string, AttachedStyleReference>(); for (const t of mentionAtts.styleReferences) srMap.set(t.style_reference_slug, t); for (const t of attachedStyleReferences) srMap.set(t.style_reference_slug, t); const allStyleRefs = Array.from(srMap.values()); await sendMessage(text, { project_slug: activeProject, attached_products: allProducts.length > 0 ? allProducts : undefined, attached_style_references: allStyleRefs.length > 0 ? allStyleRefs : undefined, image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio }); for (const slug of mentionAtts.products) { if (!attachedProducts.includes(slug)) attachProduct(slug) } for (const sr of mentionAtts.styleReferences) { if (!attachedStyleReferences.some(t => t.style_reference_slug === sr.style_reference_slug)) attachStyleReference(sr.style_reference_slug, sr.strict) } await refreshProducts() }} canSendWithoutText={attachments.length > 0} onSelectImages={handleSelectImages} hasProducts={products.length > 0} hasStyleReferences={styleReferences.length > 0} />

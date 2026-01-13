@@ -543,48 +543,6 @@ class StudioBridge:
             return bridge_error(str(e))
 
     # ===========================================================================
-    # Autonomy and Approval Management
-    # ===========================================================================
-    def set_autonomy_mode(self, enabled: bool) -> dict:
-        """Toggle autonomy mode for chat interactions.
-        Args:
-            enabled: True for autonomous mode, False for supervised mode
-        Returns:
-            Dict with new autonomy mode state"""
-        self._state.set_autonomy_mode(enabled)
-        return bridge_ok({"autonomy_mode": enabled})
-
-    def get_pending_approval(self) -> dict:
-        """Get any pending approval request.
-        Returns:
-            Dict with pending approval request data or None"""
-        pending = self._state.get_pending_approval()
-        if pending:
-            return bridge_ok(pending.to_dict())
-        return bridge_ok(None)
-
-    def respond_to_approval(
-        self, approval_id: str, action: str, modified_prompt: str | None = None
-    ) -> dict:
-        """Respond to an agent's approval request.
-        Args:
-            approval_id: ID of the approval request (for validation)
-            action: User's response - 'approve', 'approve_all', 'modify', 'skip'
-            modified_prompt: Modified prompt if action is 'modify'
-        Returns:
-            Dict with response confirmation"""
-        valid_actions = {"approve", "approve_all", "modify", "skip"}
-        if action not in valid_actions:
-            return bridge_error(f"Invalid action: {action}. Must be one of: {valid_actions}")
-        pending = self._state.get_pending_approval()
-        if not pending:
-            return bridge_error("No pending approval request")
-        if pending.id != approval_id:
-            return bridge_error(f"Approval ID mismatch: expected {pending.id}, got {approval_id}")
-        self._state.respond_approval(action, modified_prompt)
-        return bridge_ok({"responded": True, "action": action})
-
-    # ===========================================================================
     # Interruption Management
     # ===========================================================================
     def interrupt_task(self, action: str, new_message: str | None = None) -> dict:
