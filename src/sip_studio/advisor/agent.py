@@ -369,9 +369,16 @@ class BrandAdvisor:
         """
         raw_user_message = message
         skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
-        # In session-aware mode, server has history via previous_response_id - skip client history
+        # Build history text - HYBRID APPROACH: include client history even in session-aware mode
+        # Server chain may summarize/lose details, so we send local history as backup
         history_text = ""
-        if not self._session_aware and self._history_manager.message_count > 0:
+        if self._session_aware and self._session_history:
+            messages = self._session_history.get_prompt_messages()
+            if messages:
+                history_text = self._format_session_history(
+                    messages, max_tokens=Limits.MAX_TOKENS_COMPACT
+                )
+        elif not self._session_aware and self._history_manager.message_count > 0:
             history_text = self._history_manager.get_formatted(max_tokens=Limits.MAX_TOKENS_COMPACT)
         # Build per-turn context (project + attached products + templates)
         turn_context = ""
@@ -408,11 +415,11 @@ class BrandAdvisor:
             user_message=augmented_message,
         )
         system_prompt_trimmed = "trimmed system prompt" in (budget_result.warning_message or "")
-        # Build prompt - in session-aware mode, skip history (server has it)
+        # Build prompt - include history as context backup (hybrid approach)
         prompt_parts = []
         if trimmed_skills:
             prompt_parts.append(trimmed_skills)
-        if trimmed_history and not self._session_aware:
+        if trimmed_history:
             prompt_parts.append(trimmed_history)
         prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
@@ -528,8 +535,8 @@ class BrandAdvisor:
             response = result.final_output
             response_text = response.text if hasattr(response, "text") else str(response)
             # Save response ID for conversation chaining
-            if self._session_aware and hasattr(result, "response_id"):
-                self._save_response_id(result.response_id)
+            if self._session_aware:
+                self._save_response_id(result.last_response_id)
             # Add to history (session-aware or legacy)
             if self._session_aware and self._session_history:
                 user_msg = Message.create("user", ctx.raw_user_message)
@@ -558,8 +565,7 @@ class BrandAdvisor:
                 )
                 response = result.final_output
                 response_text = response.text if hasattr(response, "text") else str(response)
-                if hasattr(result, "response_id"):
-                    self._save_response_id(result.response_id)
+                self._save_response_id(result.last_response_id)
                 user_msg = Message.create("user", ctx.raw_user_message)
                 assistant_msg = Message.create("assistant", response_text)
                 self._session_history.add_messages([user_msg, assistant_msg])
@@ -675,8 +681,8 @@ class BrandAdvisor:
             stream_result = stream
             full_response = "".join(response_chunks)
             # Save response ID for conversation chaining (if available)
-            if self._session_aware and stream_result and hasattr(stream_result, "response_id"):
-                self._save_response_id(stream_result.response_id)
+            if self._session_aware and stream_result:
+                self._save_response_id(getattr(stream_result, "last_response_id", None))
             # Add to history (session-aware or legacy)
             if self._session_aware and self._session_history:
                 user_msg = Message.create("user", ctx.raw_user_message)
@@ -702,16 +708,38 @@ class BrandAdvisor:
 
     def _format_history(self, max_turns: int = 10) -> str:
         """Format conversation history for prompt.
-
         Args:
             max_turns: Maximum conversation turns to include.
-
         Returns:
             Formatted history string.
         """
-        # Estimate ~400 tokens per turn (user + assistant)
         max_tokens = max_turns * 400
         return self._history_manager.get_formatted(max_tokens=max_tokens)
+
+    def _format_session_history(self, messages: list[Message], max_tokens: int = 8000) -> str:
+        """Format session messages for prompt injection.
+        Args:
+            messages: List of Message objects from SessionHistoryManager.
+            max_tokens: Maximum tokens to include.
+        Returns:
+            Formatted conversation history string.
+        """
+        if not messages:
+            return ""
+        parts = ["## Conversation History\n"]
+        current_tokens = 20
+        chars_per_token = 4
+        for msg in messages:
+            role = "User" if msg.role == "user" else "Assistant"
+            content = msg.content[:2000] if len(msg.content) > 2000 else msg.content
+            msg_text = f"{role}: {content}"
+            msg_tokens = len(msg_text) // chars_per_token
+            if current_tokens + msg_tokens > max_tokens:
+                parts.append("[... older messages truncated ...]")
+                break
+            parts.append(msg_text)
+            current_tokens += msg_tokens
+        return "\n\n".join(parts)
 
     def _get_relevant_skills_context(
         self, message: str, max_skills: int = 2
