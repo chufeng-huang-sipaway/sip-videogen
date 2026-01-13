@@ -13,7 +13,7 @@ kling:['1:1','16:9','9:16'],
 sora:['16:9','9:16']}
 export const DEFAULT_VIDEO_PROVIDER='veo'
 export const ASPECT_RATIOS:Record<AspectRatio,{label:string,w:number,h:number,hint:string}>={
-'1:1':{label:'Square',w:1,h:1,hint:'Instagram, Feed'},
+'1:1':{label:'Square',w:1,h:1,hint:'Square'},
 '16:9':{label:'Landscape',w:16,h:9,hint:'YouTube, Web'},
 '9:16':{label:'Portrait',w:9,h:16,hint:'TikTok, Reels'},
 '4:3':{label:'Classic',w:4,h:3,hint:'Presentation'},
