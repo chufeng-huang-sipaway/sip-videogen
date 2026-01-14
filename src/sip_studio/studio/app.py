@@ -181,6 +181,8 @@ def main():
     frontend = get_frontend_url()
     # Load persisted window position/size
     x, y, w, h = get_initial_window_config()
+    # Vibrancy (macOS only) - enables native window blur effects
+    is_macos = sys.platform == "darwin"
     window = webview.create_window(
         title="Sip Studio",
         url=frontend,
@@ -193,6 +195,8 @@ def main():
         resizable=True,
         frameless=False,
         text_select=True,
+        transparent=is_macos,
+        vibrancy=is_macos,
     )
     api.set_window(window)
     webview.start(debug=is_debug_mode(), http_server=True)

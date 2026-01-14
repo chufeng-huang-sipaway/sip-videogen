@@ -441,9 +441,12 @@ export interface UpdateSettings {
 export interface WindowBounds{x:number;y:number;width:number;height:number}
 export interface PanelWidths{sidebar?:number;chat?:number}
 export interface WindowState{version:number;bounds:WindowBounds;isMaximized:boolean;isFullscreen:boolean;panelWidths:PanelWidths}
+//Platform info types
+export interface PlatformInfo{vibrancy_enabled:boolean}
 
 interface PyWebViewAPI {
   get_constants(): Promise<BridgeResponse<ConstantsPayload>>
+  get_platform_info(): Promise<BridgeResponse<PlatformInfo>>
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
   save_api_keys(openai: string, gemini: string, firecrawl?: string): Promise<BridgeResponse<void>>
   get_chat_prefs(brand_slug: string): Promise<BridgeResponse<{ image_aspect_ratio?: string; video_aspect_ratio?: string; aspect_ratio?: string }>>
@@ -701,6 +704,7 @@ export async function fetchAndInitConstants(): Promise<boolean> {
 }
 
 export const bridge = {
+  getPlatformInfo: ()=>callBridge(()=>window.pywebview!.api.get_platform_info()),
   checkApiKeys: () => callBridge(() => window.pywebview!.api.check_api_keys()),
   saveApiKeys: (o: string, g: string, f?: string) => callBridge(() => window.pywebview!.api.save_api_keys(o, g, f || '')),
   getChatPrefs: (brandSlug: string) => callBridge(() => window.pywebview!.api.get_chat_prefs(brandSlug)),

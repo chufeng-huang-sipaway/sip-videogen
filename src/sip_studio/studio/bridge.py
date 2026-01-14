@@ -1,6 +1,7 @@
 """Python bridge exposed to JavaScript - thin facade delegating to services."""
 
 import json
+import sys
 
 from sip_studio.config.logging import get_logger
 
@@ -91,6 +92,13 @@ class StudioBridge:
                 "video_mime_types": VIDEO_MIME_TYPES,
             }
         )
+
+    # ===========================================================================
+    # Platform Information
+    # ===========================================================================
+    def get_platform_info(self) -> dict:
+        """Return platform info (vibrancy support, etc) for frontend."""
+        return bridge_ok({"vibrancy_enabled": sys.platform == "darwin"})
 
     # ===========================================================================
     # Configuration / Setup

@@ -90,6 +90,8 @@ function App() {
       }
       //Fetch constants from Python (single source of truth)
       await fetchAndInitConstants()
+      //Fetch platform info and set vibrancy attribute
+      try{const p=await bridge.getPlatformInfo();document.documentElement.dataset.vibrancy=String(p.vibrancy_enabled)}catch{}
       const status = await bridge.checkApiKeys()
       setNeedsSetup(!status.all_configured)
     }
