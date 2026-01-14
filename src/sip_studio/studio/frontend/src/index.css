@@ -232,9 +232,25 @@ body {
   overflow: hidden;
 }
 
-/* Base styles for cleaner typography */
-body {
-  font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+/* ========== Stage 1: CSS Foundation (macOS Native) ========== */
+/* Scoped cursor rules - native macOS behavior */
+body{cursor:default;}
+input,textarea,[contenteditable]{cursor:text;}
+a[href^="http"],a[href^="mailto"]{cursor:pointer;}
+button{cursor:default;}
+/* Scoped selection (class-based, not tag-based) */
+.select-none{-webkit-user-select:none;user-select:none;}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;}
+/* Prose content fully selectable including headings */
+.prose,.prose *,.message-content,.message-content *,[data-selectable],[data-selectable] *{-webkit-user-select:text;user-select:text;}
+/* System font + desktop density */
+body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:14px;font-feature-settings:"rlig" 1,"calt" 1,"ss01" 1;}
+/* Respect reduced motion preference */
+@media(prefers-reduced-motion:reduce){
+.animate-pulse,.animate-shimmer,.animate-step-breathing,.animate-progress-pulse,.animate-fade-in-up{animation:none!important;}
+.shimmer-overlay,.shimmer-sparkles,.sparkle{animation:none!important;opacity:0!important;}
+.quick-edit-btn{animation:none!important;}
+.magic-stop-btn{animation:none!important;}
 }
 
 /* Utilities for soft shadows */
