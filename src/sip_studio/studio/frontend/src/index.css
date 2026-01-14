@@ -235,6 +235,24 @@ body {
 /* ========== Stage 1: CSS Foundation (macOS Native) ========== */
 /* ========== Stage 4: Window Focus States ========== */
 /* ========== Stage 6: Typography System (macOS density) ========== */
+/* ========== Stage 11: Motion System ========== */
+/* Decision: CSS-only animations (no Framer Motion)
+ * Rationale: Current CSS is performant, no jank observed, bundle size matters
+ * prefers-reduced-motion already honored in this file */
+/* Stagger animation for lists - use with .motion-stagger parent and .motion-stagger-item children */
+.motion-stagger>.motion-stagger-item{opacity:0;transform:translateY(8px);animation:staggerFadeIn 0.3s ease-out forwards;}
+.motion-stagger>.motion-stagger-item:nth-child(1){animation-delay:0ms;}
+.motion-stagger>.motion-stagger-item:nth-child(2){animation-delay:50ms;}
+.motion-stagger>.motion-stagger-item:nth-child(3){animation-delay:100ms;}
+.motion-stagger>.motion-stagger-item:nth-child(4){animation-delay:150ms;}
+.motion-stagger>.motion-stagger-item:nth-child(5){animation-delay:200ms;}
+.motion-stagger>.motion-stagger-item:nth-child(6){animation-delay:250ms;}
+.motion-stagger>.motion-stagger-item:nth-child(7){animation-delay:300ms;}
+.motion-stagger>.motion-stagger-item:nth-child(8){animation-delay:350ms;}
+.motion-stagger>.motion-stagger-item:nth-child(n+9){animation-delay:400ms;}
+@keyframes staggerFadeIn{to{opacity:1;transform:translateY(0);}}
+/* Motion presets (CSS custom properties for reusable timing) */
+:root{--motion-duration-fast:150ms;--motion-duration-normal:200ms;--motion-duration-slow:300ms;--motion-ease-default:cubic-bezier(0.2,0,0.38,0.9);--motion-ease-expressive:cubic-bezier(0.4,0.14,0.3,1);}
 :root{--text-xs:0.6875rem;--text-sm:0.8125rem;--text-base:0.875rem;--text-lg:1rem;--text-xl:1.125rem;--leading-tight:1.25;--leading-normal:1.4;}
 /* Apply typography defaults */
 body{line-height:var(--leading-normal);}
@@ -268,6 +286,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size
 .shimmer-overlay,.shimmer-sparkles,.sparkle{animation:none!important;opacity:0!important;}
 .quick-edit-btn{animation:none!important;}
 .magic-stop-btn{animation:none!important;}
+/* Stage 11: Disable stagger animations */
+.motion-stagger>.motion-stagger-item{animation:none!important;opacity:1!important;transform:none!important;}
 }
 
 /* Utilities for soft shadows */
