@@ -8,6 +8,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useBrand } from '@/context/BrandContext'
 import { bridge, isPyWebView } from '@/lib/bridge'
 import { RegenerateConfirmDialog } from '@/components/BrandMemory/RegenerateConfirmDialog'
@@ -156,7 +157,7 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
 
               {/* Brand name / Loading state */}
               {isIdentityLoading ? (
-                <div className="h-4 w-24 bg-muted/50 rounded animate-pulse mb-2" />
+                <Skeleton className="h-4 w-24 mb-2" />
               ) : identity ? (
                 <p className="text-xs text-muted-foreground mb-2 truncate">
                   {identity.core.name}
@@ -171,7 +172,7 @@ export function BrandBrainCard({ onOpenBrandMemory }: BrandBrainCardProps) {
               {isIdentityLoading ? (
                 <div className="flex gap-1">
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} className="w-4 h-4 rounded-full bg-muted/50 animate-pulse" />
+                    <Skeleton key={i} className="w-4 h-4 rounded-full" />
                   ))}
                 </div>
               ) : brandColors.length > 0 ? (
