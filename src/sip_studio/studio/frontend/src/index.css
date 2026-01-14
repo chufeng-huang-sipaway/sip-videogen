@@ -234,6 +234,16 @@ body {
 
 /* ========== Stage 1: CSS Foundation (macOS Native) ========== */
 /* ========== Stage 4: Window Focus States ========== */
+/* ========== Stage 6: Typography System (macOS density) ========== */
+:root{--text-xs:0.6875rem;--text-sm:0.8125rem;--text-base:0.875rem;--text-lg:1rem;--text-xl:1.125rem;--leading-tight:1.25;--leading-normal:1.4;}
+/* Apply typography defaults */
+body{line-height:var(--leading-normal);}
+h1,h2,h3,h4,h5,h6{line-height:var(--leading-tight);font-weight:600;}
+h1{font-size:var(--text-xl);}
+h2{font-size:var(--text-lg);}
+h3,h4,h5,h6{font-size:var(--text-base);}
+label,.label{font-size:var(--text-sm);line-height:var(--leading-tight);}
+small,.text-xs{font-size:var(--text-xs);line-height:var(--leading-tight);}
 /* Grayscale accent colors when window unfocused (native macOS behavior) */
 [data-window-focused="false"]{--color-primary:hsl(0 0% 55%);--color-ring:hsl(0 0% 55%);--color-brand-500:hsl(0 0% 55%);--color-brand-600:hsl(0 0% 50%);--color-brand-700:hsl(0 0% 45%);}
 .dark [data-window-focused="false"]{--color-primary:hsl(0 0% 45%);--color-ring:hsl(0 0% 45%);--color-brand-500:hsl(0 0% 45%);--color-brand-600:hsl(0 0% 40%);--color-brand-700:hsl(0 0% 35%);}
