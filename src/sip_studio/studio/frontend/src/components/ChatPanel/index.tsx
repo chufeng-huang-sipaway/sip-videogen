@@ -28,11 +28,6 @@ interface ChatPanelProps {
   brandSlug: string | null
 }
 
-function getDataTransferTypes(dt: DataTransfer): string[] {
-  // `DataTransfer.types` is a `DOMStringList` in some WebKit environments (no `.includes`).
-  return Array.from(dt.types)
-}
-
 function looksLikeAssetPath(value: string): boolean {
   const v = value.trim()
   if (!v) return false
@@ -149,6 +144,8 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   }, [detachStyleReference])
 
   // Track drag state for both files and internal assets
+  // Use counter to handle child element enter/leave events (classic drag flicker fix)
+  const dragCounterRef = useRef(0)
   const [isInternalDragOver, setIsInternalDragOver] = useState(false)
 
 
@@ -209,38 +206,30 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     [addAttachmentReference, addFilesAsAttachments, brandSlug, setAttachmentError]
   )
 
-  // Handle native drag events for internal asset drags (not detected by react-dropzone)
-  const handleNativeDragOver = useCallback((e: React.DragEvent) => {
-    // Always allow drops when context drag is active (use getDragData for sync read)
-    if (getDragData()) {
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
-    const types = getDataTransferTypes(e.dataTransfer)
-    const hasFiles = (e.dataTransfer.files?.length ?? 0) > 0
-    const isFileDrag = hasFiles || types.includes('Files')
+  // Handle native drag events - use counter to prevent child element flicker
+  const handleNativeDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current++
+    if (dragCounterRef.current === 1) setIsInternalDragOver(true)
+  }, [])
 
-    // WebKit/PyWebView can omit custom types during dragover, which prevents `drop`
-    // unless we call `preventDefault()`. Treat any drag-without-files as internal.
-    if (!isFileDrag) {
-      e.preventDefault()
-      e.stopPropagation()
-      setIsInternalDragOver(true)
-    }
-  }, [getDragData])
+  const handleNativeDragOver = useCallback((e: React.DragEvent) => {
+    // Always preventDefault to allow drop and prevent browser opening file
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
 
   const handleNativeDragLeave = useCallback((e: React.DragEvent) => {
-    // Only reset if leaving the container entirely
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX
-    const y = e.clientY
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      setIsInternalDragOver(false)
-    }
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) setIsInternalDragOver(false)
   }, [])
 
   const handleNativeDrop = useCallback((e: React.DragEvent) => {
+    // Reset counter and state on drop
+    dragCounterRef.current = 0
     setIsInternalDragOver(false)
     const currentDrag = getDragData()
     if (currentDrag) {
@@ -344,6 +333,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   return (
     <main
       {...getRootProps({
+        onDragEnter: handleNativeDragEnter,
         onDragOver: handleNativeDragOver,
         onDragLeave: handleNativeDragLeave,
         onDrop: handleNativeDrop,
@@ -355,7 +345,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
 
       {/* Prominent drag overlay - handles drop directly, click to dismiss if stuck */}
       {showDragOverlay && (
-        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center transition-all duration-200 cursor-pointer" onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }} onDrop={handleNativeDrop} onClick={() => { clearDrag(); setIsInternalDragOver(false) }}>
+        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center transition-all duration-200 cursor-pointer" onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }} onDrop={handleNativeDrop} onClick={() => { clearDrag(); dragCounterRef.current = 0; setIsInternalDragOver(false) }}>
           <div className="bg-card text-card-foreground px-10 py-8 rounded-3xl shadow-float flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200 border border-border/20 pointer-events-none">
             <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center">
               <Upload className="h-8 w-8 text-foreground/50" strokeWidth={1.5} />

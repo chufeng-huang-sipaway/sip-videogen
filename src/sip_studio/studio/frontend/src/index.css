@@ -201,8 +201,9 @@
   background: rgba(18, 18, 18, 0.7);
   border-right: 1px solid rgba(255, 255, 255, 0.03);
 }
-/* Sidebar vibrancy - transparent when native vibrancy enabled (macOS), let system handle blur */
-[data-vibrancy="true"] .vibrancy-sidebar{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+/* Sidebar vibrancy - lighter bg when native vibrancy enabled (macOS), keep backdrop-filter for internal content */
+[data-vibrancy="true"] .vibrancy-sidebar{background:rgba(255,255,255,0.6)!important;backdrop-filter:blur(20px) saturate(120%)!important;-webkit-backdrop-filter:blur(20px) saturate(120%)!important;}
+.dark [data-vibrancy="true"] .vibrancy-sidebar,[data-vibrancy="true"].dark .vibrancy-sidebar{background:rgba(30,30,30,0.6)!important;}
 
 .glass-panel {
   background: rgba(255, 255, 255, 0.5);
