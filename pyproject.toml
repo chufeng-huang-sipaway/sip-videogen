@@ -34,6 +34,8 @@ dependencies = [
     "packaging>=23.0",
     "Pillow>=10.0.0",
     "firecrawl-py>=1.0.0",
+    "platformdirs>=4.0.0",
+    "screeninfo>=0.8.1",
 ]
 
 [project.urls]

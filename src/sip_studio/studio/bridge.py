@@ -32,6 +32,7 @@ from .utils.config_store import (
     save_chat_preferences,
 )
 from .utils.config_store import save_api_keys as do_save_api_keys
+from .utils.window_state import load_window_state, update_panel_widths, update_window_bounds
 
 logger = get_logger(__name__)
 
@@ -658,3 +659,26 @@ class StudioBridge:
     def save_session_settings(self, session_id: str, settings: dict) -> dict:
         """Save settings for a session."""
         return self._session.save_session_settings(session_id, settings)
+
+    # ===========================================================================
+    # Window State Persistence
+    # ===========================================================================
+    def get_window_state(self) -> dict:
+        """Get saved window state (bounds, panel widths)."""
+        return bridge_ok(load_window_state())
+
+    def save_window_bounds(self, bounds: dict) -> dict:
+        """Save window bounds (x, y, width, height)."""
+        try:
+            update_window_bounds(bounds)
+            return bridge_ok()
+        except Exception as e:
+            return bridge_error(str(e))
+
+    def save_panel_widths(self, widths: dict) -> dict:
+        """Save panel widths (sidebar, chat)."""
+        try:
+            update_panel_widths(widths)
+            return bridge_ok()
+        except Exception as e:
+            return bridge_error(str(e))
