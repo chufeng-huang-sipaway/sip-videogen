@@ -1,6 +1,7 @@
 """Pytest configuration and shared fixtures for sip-videogen tests."""
 
 import os
+import threading
 from pathlib import Path
 from typing import Generator
 from unittest.mock import MagicMock, patch
@@ -15,6 +16,43 @@ from sip_studio.models.script import (
     SharedElement,
     VideoScript,
 )
+
+
+# ============================================================================
+# Rate Limiter Fixtures
+# ============================================================================
+class _FakeClock:
+    """Fake clock for testing rate limiter without wall time."""
+
+    def __init__(self, start: float = 0.0):
+        self._time = start
+        self._lock = threading.Lock()
+
+    def now(self) -> float:
+        with self._lock:
+            return self._time
+
+    def advance(self, seconds: float):
+        with self._lock:
+            self._time += seconds
+
+    def sleep(self, seconds: float):
+        self.advance(seconds)
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset global rate limiter before each test with high quota.
+    Uses FakeClock to avoid real time waits. Ensures tests:
+    1. Don't interfere with each other via shared state
+    2. Run fast (no actual sleep() calls)
+    """
+    from sip_studio.studio.services.rate_limiter import get_rate_limiter
+
+    clock = _FakeClock()
+    get_rate_limiter(max_rpm=1000, time_fn=clock.now, sleep_fn=clock.sleep, _reset=True)
+    yield
+
 
 # ============================================================================
 # Environment Fixtures

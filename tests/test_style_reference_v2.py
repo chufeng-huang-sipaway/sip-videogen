@@ -53,14 +53,14 @@ class TestV2Models:
 
     def test_style_reference_analysis_v2_full(self):
         analysis = StyleReferenceAnalysisV2(
-            canvas=CanvasSpec(aspect_ratio="1:1", background="Light gray"),
+            canvas=CanvasSpec(background="Light gray"),
             style=StyleSpec(palette=["#F0F0F0", "#333333"], mood="Clean", lighting="Soft natural"),
             layout=LayoutStructureSpec(structure="Two-column split"),
             visual_scene=VisualSceneSpec(scene_description="Lifestyle product shot"),
             constraints=StyleReferenceConstraintsSpec(non_negotiables=["layout preserved"]),
         )
         assert analysis.version == "2.0"
-        assert analysis.canvas.aspect_ratio == "1:1"
+        assert analysis.canvas.background == "Light gray"
         assert analysis.style.mood == "Clean"
 
 
@@ -68,7 +68,7 @@ class TestV2ConstraintBuilder:
     @pytest.fixture
     def sample_v2_analysis(self):
         return StyleReferenceAnalysisV2(
-            canvas=CanvasSpec(aspect_ratio="1:1", background="Light gray"),
+            canvas=CanvasSpec(background="Light gray"),
             style=StyleSpec(
                 palette=["#F0F0F0", "#333333"], mood="Clean and healthy", lighting="Soft natural"
             ),
@@ -154,7 +154,7 @@ class TestV3Models:
 
     def test_style_reference_analysis_v3_full(self):
         analysis = StyleReferenceAnalysisV3(
-            canvas=CanvasSpec(aspect_ratio="4:5"),
+            canvas=CanvasSpec(background="white"),
             color_grading=ColorGradingSpec(
                 color_temperature="warm golden",
                 film_stock_reference="Kodak Portra 400",
@@ -163,7 +163,7 @@ class TestV3Models:
             style_suggestions=StyleSuggestionsSpec(mood="energetic"),
         )
         assert analysis.version == "3.0"
-        assert analysis.canvas.aspect_ratio == "4:5"
+        assert analysis.canvas.background == "white"
         assert "Portra" in analysis.color_grading.film_stock_reference
 
     def test_v3_backward_compat_with_none_fields(self):
@@ -177,7 +177,7 @@ class TestV3ConstraintBuilder:
     @pytest.fixture
     def sample_v3_analysis(self):
         return StyleReferenceAnalysisV3(
-            canvas=CanvasSpec(aspect_ratio="4:5"),
+            canvas=CanvasSpec(background="neutral"),
             color_grading=ColorGradingSpec(
                 color_temperature="warm golden (+500K)",
                 shadow_tint="warm brown shadows",

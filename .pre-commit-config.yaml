@@ -35,6 +35,16 @@ repos:
           - pydantic-settings>=2.0.0
           - types-Pillow
         exclude: ^(tests/|src/sip_videogen/studio/frontend/)
+  # Pytest - Run full test suite before commit
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: /opt/homebrew/bin/python3.11 -m pytest --tb=short -q
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
   # Frontend hooks (TypeScript/React)
   - repo: local
     hooks:
