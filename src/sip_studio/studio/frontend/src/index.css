@@ -233,6 +233,13 @@ body {
 }
 
 /* ========== Stage 1: CSS Foundation (macOS Native) ========== */
+/* ========== Stage 4: Window Focus States ========== */
+/* Grayscale accent colors when window unfocused (native macOS behavior) */
+[data-window-focused="false"]{--color-primary:hsl(0 0% 55%);--color-ring:hsl(0 0% 55%);--color-brand-500:hsl(0 0% 55%);--color-brand-600:hsl(0 0% 50%);--color-brand-700:hsl(0 0% 45%);}
+.dark [data-window-focused="false"]{--color-primary:hsl(0 0% 45%);--color-ring:hsl(0 0% 45%);--color-brand-500:hsl(0 0% 45%);--color-brand-600:hsl(0 0% 40%);--color-brand-700:hsl(0 0% 35%);}
+/* Focus rings grayscale when unfocused */
+[data-window-focused="false"] *:focus-visible{outline-color:hsl(0 0% 55%)!important;}
+.dark [data-window-focused="false"] *:focus-visible{outline-color:hsl(0 0% 45%)!important;}
 /* Scoped cursor rules - native macOS behavior */
 body{cursor:default;}
 input,textarea,[contenteditable]{cursor:text;}

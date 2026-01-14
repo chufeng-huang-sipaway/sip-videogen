@@ -16,11 +16,13 @@ import { ViewerProvider } from '@/context/ViewerContext'
 import { bridge, waitForPyWebViewReady, fetchAndInitConstants } from '@/lib/bridge'
 import type { UpdateCheckResult } from '@/lib/bridge'
 import { useTheme } from '@/hooks/useTheme'
+import { useWindowFocus } from '@/hooks/useWindowFocus'
 
 const SIDEBAR_COLLAPSED_KEY = 'sip-studio-sidebar-collapsed'
 
 function App() {
   useTheme()
+  useWindowFocus()
   const { activeBrand } = useBrand()
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
