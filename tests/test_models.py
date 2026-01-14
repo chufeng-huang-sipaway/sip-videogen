@@ -640,12 +640,12 @@ class TestAspectRatio:
         assert AspectRatio.SQUARE.value == "1:1"
         assert AspectRatio.LANDSCAPE_16_9.value == "16:9"
         assert AspectRatio.PORTRAIT_9_16.value == "9:16"
-        assert AspectRatio.CINEMATIC_5_3.value == "5:3"
-        assert AspectRatio.PORTRAIT_CINEMATIC_3_5.value == "3:5"
         assert AspectRatio.CLASSIC_4_3.value == "4:3"
         assert AspectRatio.PORTRAIT_CLASSIC_3_4.value == "3:4"
         assert AspectRatio.PHOTO_3_2.value == "3:2"
         assert AspectRatio.PORTRAIT_PHOTO_2_3.value == "2:3"
+        assert AspectRatio.PORTRAIT_4_5.value == "4:5"
+        assert AspectRatio.LANDSCAPE_5_4.value == "5:4"
 
     def test_default_aspect_ratio(self) -> None:
         """Test DEFAULT_ASPECT_RATIO is LANDSCAPE_16_9."""
@@ -672,12 +672,12 @@ class TestAspectRatio:
         assert validate_aspect_ratio("1:1") == AspectRatio.SQUARE
         assert validate_aspect_ratio("16:9") == AspectRatio.LANDSCAPE_16_9
         assert validate_aspect_ratio("9:16") == AspectRatio.PORTRAIT_9_16
-        assert validate_aspect_ratio("5:3") == AspectRatio.CINEMATIC_5_3
-        assert validate_aspect_ratio("3:5") == AspectRatio.PORTRAIT_CINEMATIC_3_5
         assert validate_aspect_ratio("4:3") == AspectRatio.CLASSIC_4_3
         assert validate_aspect_ratio("3:4") == AspectRatio.PORTRAIT_CLASSIC_3_4
         assert validate_aspect_ratio("3:2") == AspectRatio.PHOTO_3_2
         assert validate_aspect_ratio("2:3") == AspectRatio.PORTRAIT_PHOTO_2_3
+        assert validate_aspect_ratio("4:5") == AspectRatio.PORTRAIT_4_5
+        assert validate_aspect_ratio("5:4") == AspectRatio.LANDSCAPE_5_4
 
     def test_validate_aspect_ratio_none(self) -> None:
         """Test validate_aspect_ratio returns default for None."""
@@ -746,22 +746,22 @@ class TestAspectRatio:
 
     def test_veo_fallback_for_unsupported_ratios(self) -> None:
         """Test VEO falls back for unsupported ratios (only 16:9/9:16 supported)."""
-        # Cinematic ratios should fall back
-        ratio, fallback = get_supported_ratio(AspectRatio.CINEMATIC_5_3, "veo")
+        # Non-standard ratios should fall back
+        ratio, fallback = get_supported_ratio(AspectRatio.LANDSCAPE_5_4, "veo")
         assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
-        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_CINEMATIC_3_5, "veo")
+        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_4_5, "veo")
         assert ratio == AspectRatio.PORTRAIT_9_16
         assert fallback is True
 
-    def test_cinematic_fallback_on_kling(self) -> None:
-        """Test 5:3 and 3:5 fallback on Kling."""
-        # 5:3 (landscape) should fallback to 16:9
-        ratio, fallback = get_supported_ratio(AspectRatio.CINEMATIC_5_3, "kling")
+    def test_non_standard_fallback_on_kling(self) -> None:
+        """Test 5:4 and 4:5 fallback on Kling."""
+        # 5:4 (landscape) should fallback to 16:9
+        ratio, fallback = get_supported_ratio(AspectRatio.LANDSCAPE_5_4, "kling")
         assert ratio == AspectRatio.LANDSCAPE_16_9
         assert fallback is True
-        # 3:5 (portrait) should fallback to 9:16
-        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_CINEMATIC_3_5, "kling")
+        # 4:5 (portrait) should fallback to 9:16
+        ratio, fallback = get_supported_ratio(AspectRatio.PORTRAIT_4_5, "kling")
         assert ratio == AspectRatio.PORTRAIT_9_16
         assert fallback is True
 

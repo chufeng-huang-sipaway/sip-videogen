@@ -583,8 +583,8 @@ class TestPerTurnContextInjection:
         )
 
     @pytest.mark.asyncio
-    async def test_chat_without_project_products_still_injects_generation_mode(self) -> None:
-        """Test that chat always injects generation mode even without project/products."""
+    async def test_chat_without_project_products_passes_raw_message(self) -> None:
+        """Test that chat without project/products passes through raw user message."""
         mock_result = MagicMock()
         mock_result.final_output = "No context needed!"
 
@@ -604,10 +604,9 @@ class TestPerTurnContextInjection:
         # Builder should not be called when no project/products params
         mock_builder_class.assert_not_called()
 
-        # Prompt should contain generation mode (always injected by chat_with_metadata)
+        # Prompt should contain user's question (no injection when no context)
         call_args = mock_runner.run.call_args
         prompt = call_args[0][1]
-        assert "Generation Mode" in prompt
         assert "Just a simple question" in prompt
 
     @pytest.mark.asyncio
