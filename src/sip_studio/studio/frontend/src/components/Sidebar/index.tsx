@@ -50,7 +50,7 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
     }
   }, [isExpanded])
   const handleMouseEnter = () => { if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current); setIsHovering(true) }
-  const handleMouseLeave = () => { collapseTimeoutRef.current = setTimeout(() => setIsHovering(false), 100) }
+  const handleMouseLeave = () => { collapseTimeoutRef.current = setTimeout(() => { setIsHovering(false); setIsFocusWithin(false) }, 100) }
   const handleFocusIn = () => setIsFocusWithin(true)
   const handleFocusOut = (e: React.FocusEvent) => { if (!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget as Node)) setIsFocusWithin(false) }
   useEffect(() => () => { if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current) }, [])
