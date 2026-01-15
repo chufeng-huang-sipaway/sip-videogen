@@ -115,6 +115,18 @@ __all__ = [
     "_impl_add_todo_output",
     "_impl_complete_todo_list",
     "_impl_check_interrupt",
+    # task_tools (file-based)
+    "create_task_file",
+    "get_remaining_tasks",
+    "update_task",
+    "complete_task_file",
+    "_impl_create_task_file",
+    "_impl_get_remaining_tasks",
+    "_impl_update_task",
+    "_impl_complete_task_file",
+    "_get_tasks_path",
+    "_parse_tasks_file",
+    "_build_tasks_file",
     # utility_tools
     "fetch_url_content",
     "report_thinking",
@@ -280,6 +292,19 @@ from .style_reference_tools import (
     reanalyze_style_reference,
     update_style_reference,
 )
+from .task_tools import (
+    _build_tasks_file,
+    _get_tasks_path,
+    _impl_complete_task_file,
+    _impl_create_task_file,
+    _impl_get_remaining_tasks,
+    _impl_update_task,
+    _parse_tasks_file,
+    complete_task_file,
+    create_task_file,
+    get_remaining_tasks,
+    update_task,
+)
 from .todo_tools import (
     _impl_add_todo_output,
     _impl_check_interrupt,
@@ -350,6 +375,11 @@ ADVISOR_TOOLS = [
     add_todo_output,
     complete_todo_list,
     check_interrupt,
+    # task tools (file-based persistence)
+    create_task_file,
+    get_remaining_tasks,
+    update_task,
+    complete_task_file,
     # context tools (lean context pattern)
     fetch_context_cached,
     get_cached_product_context,

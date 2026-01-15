@@ -35,6 +35,7 @@ from ..utils.chat_utils import (
     process_attachments,
 )
 from ..utils.path_utils import resolve_assets_path, resolve_docs_path
+from .batch_executor import BatchDetector, BatchExecutor, TaskExtractor
 from .image_pool import get_image_pool
 
 logger = get_logger(__name__)
@@ -124,6 +125,25 @@ class ChatService:
         """Find newly created style references."""
         after = {t.slug for t in storage_list_style_references(slug)}
         return sorted(after - before)
+
+    def _get_conversation_history(self, advisor: BrandAdvisor) -> list[dict]:
+        """Get conversation history for batch detection."""
+        if advisor.session_history:
+            messages = advisor.session_history.get_messages()
+            return [{"role": m.role, "content": m.content} for m in messages[-10:]]
+        return []
+
+    def _batch_progress_callback(self, event_type: str, data: dict) -> None:
+        """Handle batch executor progress events."""
+        ts = int(time.time() * 1000)
+        self._state.execution_trace.append({"type": f"batch_{event_type}", "timestamp": ts, **data})
+        if event_type == "task_started":
+            self._state.current_progress = (
+                f"Task {data.get('number')}: {data.get('description', '')[:30]}"
+            )
+            self._state.current_progress_type = "batch_task"
+        elif event_type in ("task_completed", "task_failed"):
+            self._state.current_progress = ""
 
     def get_progress(self) -> dict:
         """Get current operation progress."""
@@ -220,11 +240,43 @@ class ChatService:
             logger.warning(
                 "[DEBUG] ChatService - set_current_batch_id(%s) called", self._current_batch_id
             )
-            # Run advisor - pass aspect ratios as passive defaults (not instructions)
+            # Check for batch request (e.g., "generate all of them")
             validated_image_ratio = validate_aspect_ratio(image_aspect_ratio)
             validated_video_ratio = (
                 video_aspect_ratio if video_aspect_ratio in ("16:9", "9:16") else "16:9"
             )
+            history = self._get_conversation_history(advisor)
+            if BatchDetector.is_batch_request(prepared, history):
+                tasks = asyncio.run(TaskExtractor.extract(prepared, history))
+                if len(tasks) >= 3:
+                    logger.info(f"[BATCH] Executing batch mode with {len(tasks)} tasks")
+                    executor = BatchExecutor(advisor, self._state, self._batch_progress_callback)
+                    batch_result = asyncio.run(
+                        executor.run(
+                            tasks,
+                            {
+                                "product_slugs": attached_products,
+                                "style_refs": attached_style_references,
+                                "aspect_ratio": validated_image_ratio.value,
+                                "project_slug": effective_project,
+                            },
+                        )
+                    )
+                    images = self._collect_new_images(slug, before_images)
+                    videos = self._collect_new_videos(slug, before_videos)
+                    style_refs = self._collect_new_style_references(slug, before_style_refs)
+                    return bridge_ok(
+                        {
+                            "response": batch_result.response,
+                            "images": images,
+                            "videos": videos,
+                            "style_references": style_refs,
+                            "execution_trace": self._state.execution_trace,
+                            "interaction": None,
+                            "memory_update": None,
+                        }
+                    )
+            # Run advisor - pass aspect ratios as passive defaults (not instructions)
             result = asyncio.run(
                 advisor.chat_with_metadata(
                     prepared,

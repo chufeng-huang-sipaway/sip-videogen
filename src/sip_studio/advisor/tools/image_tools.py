@@ -68,6 +68,42 @@ def _build_style_reference_image_label(style_ref_name: str, num_images: int) -> 
     )
 
 
+async def _summarize_generated_image(image_path: str) -> str:
+    """Use Gemini Flash to describe generated image in 2-3 sentences.
+    Returns brief description focusing on subject, lighting, mood.
+    Falls back to empty string on error (non-critical)."""
+    logger.info(f"[VISION_SUMMARY] Starting summarization for: {image_path}")
+    try:
+        from pathlib import Path
+
+        from google import genai
+        from google.genai import types
+
+        path = Path(image_path)
+        if not path.exists():
+            logger.warning(f"[VISION_SUMMARY] File not found: {image_path}")
+            return ""
+        client = genai.Client()
+        img_bytes = path.read_bytes()
+        logger.debug(f"[VISION_SUMMARY] Calling Gemini Flash with {len(img_bytes)} bytes")
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[
+                types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+                "Describe this image in 2-3 sentences. Focus on: subject, lighting, mood, composition. Be concise.",
+            ],
+            config=types.GenerateContentConfig(max_output_tokens=100, temperature=0.3),
+        )
+        summary = response.text.strip() if response.text else ""
+        logger.info(
+            f"[VISION_SUMMARY] ✅ Generated summary ({len(summary)} chars): {summary[:80]}..."
+        )
+        return summary
+    except Exception as e:
+        logger.warning(f"[VISION_SUMMARY] ⚠️ Failed (non-critical): {e}")
+        return ""
+
+
 async def _impl_generate_image(
     prompt: str,
     aspect_ratio: str = "1:1",
@@ -807,7 +843,13 @@ async def generate_image(
         return "Image generation was cancelled"
     if result.status == TicketStatus.TIMEOUT:
         return "Error: Image generation timed out"
-    return result.path or "Error: No image path returned"
+    if not result.path:
+        return "Error: No image path returned"
+    # Add vision summarization for context
+    summary = await _summarize_generated_image(result.path)
+    if summary:
+        return f"{result.path}\n\nGenerated: {summary}"
+    return result.path
 
 
 @function_tool
