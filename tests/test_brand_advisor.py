@@ -400,15 +400,16 @@ class TestBrandAdvisor:
             advisor = BrandAdvisor()
             await advisor.chat("Create a logo for my brand")
 
-        # Verify Runner.run was called with prompt containing skill instructions
+        # Verify Runner.run was called with prompt containing skill activation prompts
         call_args = mock_runner.run.call_args
         prompt = call_args[0][1]  # Second positional argument is the prompt
-        assert "## Relevant Skill Instructions" in prompt
+        # New progressive disclosure: uses activation prompts, not full instructions
+        assert "## Image Generation Workflow" in prompt
         assert "logo-design" in prompt
-        assert "Logo Design" in prompt
+        assert "activate_skill" in prompt
 
     def test_get_relevant_skills_context(self) -> None:
-        """Test that _get_relevant_skills_context returns formatted skill instructions."""
+        """Test _get_relevant_skills_context returns activation prompts."""
         from sip_studio.advisor.skills.registry import Skill
 
         mock_skill = Skill(
@@ -428,9 +429,10 @@ class TestBrandAdvisor:
             advisor = BrandAdvisor()
             context, matched_skills = advisor._get_relevant_skills_context("I want a mascot")
 
-        assert "## Relevant Skill Instructions" in context
+        # New progressive disclosure: activation prompts instead of full instructions
+        assert "## Image Generation Workflow" in context
         assert "mascot-generation" in context
-        assert "Mascot Generation" in context
+        assert "activate_skill" in context
         assert len(matched_skills) == 1
         assert matched_skills[0] == ("mascot-generation", "Create mascots")
 

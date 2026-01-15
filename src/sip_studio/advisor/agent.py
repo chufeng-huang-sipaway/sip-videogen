@@ -28,6 +28,7 @@ from sip_studio.advisor.session_manager import Message, SessionManager, SessionS
 from sip_studio.advisor.skills.registry import get_skills_registry
 from sip_studio.advisor.tools import (
     ADVISOR_TOOLS,
+    reset_workflow_state,
     set_active_aspect_ratio,
     set_tool_progress_callback,
 )
@@ -461,6 +462,20 @@ class BrandAdvisor:
             prompt_parts.append(trimmed_history)
         prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
+        # === DEBUG LOGGING: What's in the full prompt? ===
+        logger.warning("=" * 60)
+        logger.warning("[PROMPT_DEBUG] Full prompt to agent:")
+        logger.warning(
+            "[PROMPT_DEBUG] Has skills section: %s", "## Relevant Skill Instructions" in full_prompt
+        )
+        logger.warning("[PROMPT_DEBUG] Has image-composer: %s", "image-composer" in full_prompt)
+        logger.warning(
+            "[PROMPT_DEBUG] Has image-prompt-engineering: %s",
+            "image-prompt-engineering" in full_prompt,
+        )
+        logger.warning("[PROMPT_DEBUG] Prompt length: %d chars", len(full_prompt))
+        logger.warning("[PROMPT_DEBUG] First 500 chars:\n%s", full_prompt[:500])
+        logger.warning("=" * 60)
         hooks = AdvisorHooks(callback=self.progress_callback)
         return ChatContext(
             full_prompt=full_prompt,
@@ -539,6 +554,8 @@ class BrandAdvisor:
         Returns:
             Dict with response, interaction, and memory_update.
         """
+        # Reset skill workflow state for new turn (progressive disclosure)
+        reset_workflow_state()
         ctx = self._prepare_chat_context(
             message,
             project_slug,
@@ -788,38 +805,58 @@ class BrandAdvisor:
     def _get_relevant_skills_context(
         self, message: str, max_skills: int = 2
     ) -> tuple[str, list[tuple[str, str]]]:
-        """Find and format relevant skill instructions for the message.
-
+        """Find and format relevant skill ACTIVATION PROMPTS for the message.
+        Uses progressive disclosure: only inject condensed activation prompts (~200 tokens each)
+        instead of full instructions (10K+ chars). Agent must call activate_skill() to load full.
         Args:
             message: User message to match against skill triggers.
-            max_skills: Maximum number of skills to include (to limit context size).
-
+            max_skills: Maximum number of skills to include.
         Returns:
-            Tuple of (formatted skill instructions, list of (skill_name, description) tuples).
-            Returns ("", []) if no matches.
+            Tuple of (formatted activation prompts, list of (skill_name, description) tuples).
         """
         skills_registry = get_skills_registry()
         relevant_skills = skills_registry.find_relevant_skills(message)
-
         if not relevant_skills:
+            logger.info("[SKILL_CONTEXT] No skills matched - agent will use base instructions only")
             return "", []
-
-        # Limit to max_skills
         skills_to_use = relevant_skills[:max_skills]
-
-        # Collect skill info for progress reporting
         matched_skills = [(skill.name, skill.description) for skill in skills_to_use]
-
-        parts = ["## Relevant Skill Instructions\n"]
-        parts.append(
-            "The following skills are relevant to this request. Follow their guidelines:\n"
-        )
-
+        # Check if any workflow-required skills are matched
+        workflow_skills = [s for s in skills_to_use if s.workflow_required]
+        parts = ["## Image Generation Workflow\n"]
+        if workflow_skills:
+            parts.append("**MANDATORY**: For image generation, you MUST follow this workflow:\n")
+            parts.append(
+                "1. Call `activate_skill('image-composer')` to load composition guidelines"
+            )
+            parts.append(
+                "2. Create a structured visual brief (concept, subject, setting, lighting)"
+            )
+            parts.append(
+                "3. Call `activate_skill('image-prompt-engineering')` to load prompt guidelines"
+            )
+            parts.append("4. Craft your prompt using the 5-point formula (80+ words)")
+            parts.append("5. Call `generate_image` with your crafted prompt\n")
+            parts.append("**DO NOT** skip directly to generate_image with a simple prompt.\n")
+        parts.append("### Available Skills (call activate_skill to load full instructions)\n")
         for skill in skills_to_use:
-            parts.append(f"### {skill.name}\n")
-            parts.append(skill.instructions)
+            # Use activation_prompt if available, otherwise generate default
+            activation = skill.get_activation_prompt()
+            parts.append(f"**{skill.name}**")
+            parts.append(activation)
             parts.append("")
-
+            logger.info(
+                "[SKILL_CONTEXT] Skill '%s' activation prompt: %d chars (vs full: %d chars)",
+                skill.name,
+                len(activation),
+                len(skill.instructions),
+            )
+        total_chars = sum(len(p) for p in parts)
+        logger.info(
+            "[SKILL_CONTEXT] Total context: %d chars (saved ~%d chars)",
+            total_chars,
+            sum(len(s.instructions) for s in skills_to_use) - total_chars,
+        )
         return "\n".join(parts), matched_skills
 
     def clear_history(self, delete_file: bool = True) -> None:

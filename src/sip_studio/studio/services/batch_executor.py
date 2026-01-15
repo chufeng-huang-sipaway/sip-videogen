@@ -165,21 +165,49 @@ class TaskExtractor:
 class IdeaPlanner:
     """Plan a set of image concepts/prompts from a single user request."""
 
+    # Skill-enhanced prompt with composition + prompt engineering guidelines
     IDEAS_PROMPT = (
-        "You are planning image generation tasks for an AI creative studio.\n\n"
-        "User request:\n{user_message}\n\n"
-        "Brand / product context:\n{context}\n\n"
-        "Create EXACTLY {count} distinct image concepts.\n"
-        "Return ONLY valid JSON (no markdown) as an array of objects.\n"
-        "Each object MUST have:\n"
+        "You are an expert Image Composer and Prompt Engineer for an AI creative studio.\n\n"
+        "## YOUR WORKFLOW\n"
+        "For each concept, apply this two-phase process:\n\n"
+        "**Phase 1: COMPOSITION** (What's in the image)\n"
+        "- Subject: Who/what is the hero? Be specific about age, appearance, clothing\n"
+        "- Setting: Environment, location, context\n"
+        "- Action: What's happening? Product placement?\n"
+        "- Props: What supports the story without stealing focus?\n\n"
+        "**Phase 2: VISUAL** (How it looks)\n"
+        "- Lighting: Direction, quality (soft/hard), color temperature\n"
+        "- Colors: Brand colors, palette, contrast\n"
+        "- Composition: Framing, camera angle, depth of field\n"
+        "- Mood: Emotional quality to convey\n\n"
+        "## PROMPT ENGINEERING RULES\n"
+        "1. **Narrative descriptions**, NOT keyword lists\n"
+        "   BAD: 'coffee shop, cozy, warm lighting'\n"
+        "   GOOD: 'A minimalist coffee shop with warm pendant lighting'\n\n"
+        "2. **The 5-Point Formula** (ALL 5 REQUIRED):\n"
+        "   - Subject (WHAT): Hyper-specific\n"
+        "   - Setting (WHERE): Environment details\n"
+        "   - Style (HOW): ALWAYS specify - 'lifestyle photography', 'product shot'\n"
+        "   - Lighting (MOOD): 'soft window light, warm golden tones'\n"
+        "   - Composition (CAMERA): 'medium shot, eye-level, shallow DoF'\n\n"
+        "3. **Include texture/material details** (matte, glossy, frosted, wood grain)\n"
+        "4. **Minimum 80 words per prompt** - include ALL 5 formula points\n\n"
+        "## USER REQUEST\n{user_message}\n\n"
+        "## BRAND CONTEXT\n{context}\n\n"
+        "## TASK\n"
+        "Create EXACTLY {count} distinct image concepts. Each concept MUST:\n"
+        "- Follow the composition + visual framework above\n"
+        "- Have a narrative prompt (NOT keyword list)\n"
+        "- Be 80+ words with specific details\n\n"
+        "Return ONLY valid JSON (no markdown) as an array of objects:\n"
         '- "title": short human-friendly title (max 80 chars)\n'
-        '- "prompt": detailed image prompt (1-3 sentences). Do NOT mention aspect ratio.\n\n'
+        '- "prompt": detailed narrative prompt following the 5-point formula (80+ words)\n\n'
         "JSON array:"
     )
 
     @staticmethod
     async def plan(user_message: str, count: int, context: str = "") -> list[dict[str, str]]:
-        """Plan image concepts using GPT-4o-mini. Returns list of {title,prompt} dicts."""
+        """Plan image concepts using GPT-4o-mini with skill-enhanced prompting."""
         if count <= 0:
             return []
         try:
@@ -188,11 +216,14 @@ class IdeaPlanner:
             prompt = IdeaPlanner.IDEAS_PROMPT.format(
                 user_message=user_message[:4000], context=context[:4000], count=min(count, 20)
             )
+            logger.info(
+                "[BATCH] Using skill-enhanced IdeaPlanner (composition + prompt engineering)"
+            )
             resp = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.6,
-                max_tokens=1800,
+                temperature=0.7,
+                max_tokens=3000,  # Increased for 80+ word prompts
             )
             text = (resp.choices[0].message.content or "").strip()
             if not text:
@@ -215,6 +246,18 @@ class IdeaPlanner:
                 prompt_text = item.get("prompt")
                 if isinstance(title, str) and isinstance(prompt_text, str):
                     planned.append({"title": title.strip(), "prompt": prompt_text.strip()})
+            # Log prompt quality metrics
+            if planned:
+                avg_words = sum(len(p["prompt"].split()) for p in planned) / len(planned)
+                logger.info(
+                    "[BATCH] Generated %d concepts, avg prompt length: %.0f words",
+                    len(planned),
+                    avg_words,
+                )
+                for i, p in enumerate(planned[:3], 1):  # Log first 3 prompts for debugging
+                    logger.debug(
+                        "[BATCH] Concept %d (%s): %s...", i, p["title"][:30], p["prompt"][:100]
+                    )
             return planned[: min(count, 20)]
         except Exception as e:
             logger.error(f"[BATCH] Idea planning failed: {e}")

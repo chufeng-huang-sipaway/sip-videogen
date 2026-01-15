@@ -147,6 +147,15 @@ __all__ = [
     "_impl_fetch_context_cached",
     "_impl_get_cached_product_context",
     "_impl_get_cached_style_reference_context",
+    # skill_tools (progressive disclosure)
+    "activate_skill",
+    "mark_brief_complete",
+    "get_workflow_state",
+    "reset_workflow_state",
+    "check_image_workflow_compliance",
+    "mark_skill_activated",
+    "mark_composition_brief_produced",
+    "_impl_activate_skill",
     # aggregate
     "ADVISOR_TOOLS",
     # Re-exports for test patching compatibility
@@ -288,6 +297,16 @@ from .product_tools import (
     update_product_packaging_text,
 )
 from .session import get_active_aspect_ratio, set_active_aspect_ratio
+from .skill_tools import (
+    _impl_activate_skill,
+    activate_skill,
+    check_image_workflow_compliance,
+    get_workflow_state,
+    mark_brief_complete,
+    mark_composition_brief_produced,
+    mark_skill_activated,
+    reset_workflow_state,
+)
 from .style_reference_tools import (
     add_style_reference_image,
     create_style_reference,
@@ -392,4 +411,7 @@ ADVISOR_TOOLS = [
     fetch_context_cached,
     get_cached_product_context,
     get_cached_style_reference_context,
+    # skill tools (progressive disclosure)
+    activate_skill,
+    mark_brief_complete,
 ]
