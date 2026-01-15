@@ -33,8 +33,10 @@ __all__ = [
     "generate_image",
     "propose_images",
     "get_recent_generated_images",
+    "wait_for_batch_images",
     "_generate_output_filename",
     "_impl_generate_image",
+    "_impl_wait_for_batch_images",
     # video_tools
     "generate_video_clip",
     "_impl_generate_video_clip",
@@ -110,11 +112,25 @@ __all__ = [
     "set_current_batch_id",
     "get_current_batch_id",
     "batch_context",
+    "set_async_mode",
+    "get_async_mode",
     "_impl_create_todo_list",
     "_impl_update_todo_item",
     "_impl_add_todo_output",
     "_impl_complete_todo_list",
     "_impl_check_interrupt",
+    # task_tools (file-based)
+    "create_task_file",
+    "get_remaining_tasks",
+    "update_task",
+    "complete_task_file",
+    "_impl_create_task_file",
+    "_impl_get_remaining_tasks",
+    "_impl_update_task",
+    "_impl_complete_task_file",
+    "_get_tasks_path",
+    "_parse_tasks_file",
+    "_build_tasks_file",
     # utility_tools
     "fetch_url_content",
     "report_thinking",
@@ -226,9 +242,11 @@ from .file_tools import (
 from .image_tools import (
     _generate_output_filename,
     _impl_generate_image,
+    _impl_wait_for_batch_images,
     generate_image,
     get_recent_generated_images,
     propose_images,
+    wait_for_batch_images,
 )
 from .memory_tools import (
     emit_tool_thinking,
@@ -280,6 +298,19 @@ from .style_reference_tools import (
     reanalyze_style_reference,
     update_style_reference,
 )
+from .task_tools import (
+    _build_tasks_file,
+    _get_tasks_path,
+    _impl_complete_task_file,
+    _impl_create_task_file,
+    _impl_get_remaining_tasks,
+    _impl_update_task,
+    _parse_tasks_file,
+    complete_task_file,
+    create_task_file,
+    get_remaining_tasks,
+    update_task,
+)
 from .todo_tools import (
     _impl_add_todo_output,
     _impl_check_interrupt,
@@ -292,8 +323,10 @@ from .todo_tools import (
     clear_tool_context,
     complete_todo_list,
     create_todo_list,
+    get_async_mode,
     get_current_batch_id,
     get_tool_state,
+    set_async_mode,
     set_current_batch_id,
     set_tool_context,
     update_todo_item,
@@ -350,6 +383,11 @@ ADVISOR_TOOLS = [
     add_todo_output,
     complete_todo_list,
     check_interrupt,
+    # task tools (file-based persistence)
+    create_task_file,
+    get_remaining_tasks,
+    update_task,
+    complete_task_file,
     # context tools (lean context pattern)
     fetch_context_cached,
     get_cached_product_context,

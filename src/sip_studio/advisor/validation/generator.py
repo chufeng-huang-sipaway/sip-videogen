@@ -73,6 +73,13 @@ async def generate_with_validation(
     attempts_meta: list[dict] = []
     best: ValidationAttempt | None = None
     cp = prompt
+    # Emit thinking ONCE before retry loop (not per-attempt)
+    emit_tool_thinking(
+        "I'm generating your image...",
+        "This might take a moment",
+        expertise="Image Generation",
+        status="pending",
+    )
     for an in range(max_retries):
         anum = an + 1
         logger.info(f"Reference generation attempt {anum}/{max_retries}")
@@ -103,17 +110,11 @@ async def generate_with_validation(
                 for srb in style_ref_images_bytes:
                     contents.append(PILImage.open(io.BytesIO(srb)))
                 logger.info(f"Added {ni} style reference images for color grading")
-            # Emit baby steps to show sophisticated prompt engineering
-            emit_tool_thinking(
-                "I'm crafting the perfect prompt...",
-                "Adding your brand's visual identity",
-                expertise="Image Generation",
-            )
-            emit_tool_thinking(
-                "I'm generating your image now...",
-                "This might take a moment",
-                expertise="Image Generation",
-            )
+            # Only emit on retry (attempt 2+) to avoid repetition
+            if an > 0:
+                emit_tool_thinking(
+                    "Refining the prompt...", f"Attempt {anum}", expertise="Image Generation"
+                )
             # Generate image (rate-limited)
             resp = rate_limited_generate_content(
                 client,
@@ -303,6 +304,13 @@ async def generate_with_multi_validation(
         total_attempts=0,
         successful_attempt=None,
     )
+    # Emit thinking ONCE before retry loop (not per-attempt)
+    emit_tool_thinking(
+        "I'm generating your image...",
+        "This might take a moment",
+        expertise="Image Generation",
+        status="pending",
+    )
     for an in range(max_retries):
         anum = an + 1
         met.total_attempts = anum
@@ -343,17 +351,11 @@ async def generate_with_multi_validation(
                 for srb in style_ref_images_bytes:
                     contents.append(PILImage.open(io.BytesIO(srb)))
                 logger.info(f"Added {ni} style reference images for color grading")
-            # Emit baby steps to show sophisticated prompt engineering
-            emit_tool_thinking(
-                "I'm crafting the perfect prompt...",
-                "Balancing all your products in the scene",
-                expertise="Image Generation",
-            )
-            emit_tool_thinking(
-                "I'm generating your image now...",
-                "This might take a moment",
-                expertise="Image Generation",
-            )
+            # Only emit on retry (attempt 2+) to avoid repetition
+            if an > 0:
+                emit_tool_thinking(
+                    "Refining the prompt...", f"Attempt {anum}", expertise="Image Generation"
+                )
             # Generate image (rate-limited)
             resp = rate_limited_generate_content(
                 client,

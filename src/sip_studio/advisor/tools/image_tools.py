@@ -68,6 +68,42 @@ def _build_style_reference_image_label(style_ref_name: str, num_images: int) -> 
     )
 
 
+async def _summarize_generated_image(image_path: str) -> str:
+    """Use Gemini Flash to describe generated image in 2-3 sentences.
+    Returns brief description focusing on subject, lighting, mood.
+    Falls back to empty string on error (non-critical)."""
+    logger.info(f"[VISION_SUMMARY] Starting summarization for: {image_path}")
+    try:
+        from pathlib import Path
+
+        from google import genai
+        from google.genai import types
+
+        path = Path(image_path)
+        if not path.exists():
+            logger.warning(f"[VISION_SUMMARY] File not found: {image_path}")
+            return ""
+        client = genai.Client()
+        img_bytes = path.read_bytes()
+        logger.debug(f"[VISION_SUMMARY] Calling Gemini Flash with {len(img_bytes)} bytes")
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[
+                types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+                "Describe this image in 2-3 sentences. Focus on: subject, lighting, mood, composition. Be concise.",
+            ],
+            config=types.GenerateContentConfig(max_output_tokens=100, temperature=0.3),
+        )
+        summary = response.text.strip() if response.text else ""
+        logger.info(
+            f"[VISION_SUMMARY] ✅ Generated summary ({len(summary)} chars): {summary[:80]}..."
+        )
+        return summary
+    except Exception as e:
+        logger.warning(f"[VISION_SUMMARY] ⚠️ Failed (non-critical): {e}")
+        return ""
+
+
 async def _impl_generate_image(
     prompt: str,
     aspect_ratio: str = "1:1",
@@ -770,7 +806,7 @@ async def generate_image(
 
     from sip_studio.studio.services.image_pool import TicketStatus, get_image_pool
 
-    from .todo_tools import get_current_batch_id
+    from .todo_tools import get_async_mode, get_current_batch_id
 
     batch_id = get_current_batch_id()
     logger.warning(
@@ -793,8 +829,12 @@ async def generate_image(
     # Submit to pool for parallel execution
     pool = get_image_pool()
     ticket_id = pool.submit(prompt, config, batch_id=batch_id)
-    logger.warning("[DEBUG] generate_image submitted ticket %s to pool, waiting...", ticket_id[:8])
-    # Wait for ticket completion (runs in executor to not block event loop)
+    logger.warning("[DEBUG] generate_image submitted ticket %s to pool", ticket_id[:8])
+    # Async mode: return immediately without waiting (BatchExecutor will wait for batch)
+    if get_async_mode():
+        logger.info("[ASYNC] Returning ticket %s immediately (async mode)", ticket_id[:8])
+        return f"Image generation submitted (ticket: {ticket_id[:8]}). Will complete in batch."
+    # Sync mode: wait for this specific ticket
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(None, pool.wait_for_ticket, ticket_id, 180.0)
     logger.warning(
@@ -807,7 +847,66 @@ async def generate_image(
         return "Image generation was cancelled"
     if result.status == TicketStatus.TIMEOUT:
         return "Error: Image generation timed out"
-    return result.path or "Error: No image path returned"
+    if not result.path:
+        return "Error: No image path returned"
+    # Add vision summarization for context
+    summary = await _summarize_generated_image(result.path)
+    if summary:
+        return f"{result.path}\n\nGenerated: {summary}"
+    return result.path
+
+
+def _impl_wait_for_batch_images(timeout: float = 600.0) -> dict:
+    """Wait for all pending images in current batch. Returns batch result dict."""
+    from sip_studio.studio.services.image_pool import get_image_pool
+
+    from .todo_tools import get_current_batch_id
+
+    batch_id = get_current_batch_id()
+    if not batch_id:
+        return {"error": "No active batch", "completed": 0, "failed": 0, "results": []}
+    pool = get_image_pool()
+    result = pool.wait_for_batch(batch_id, timeout=timeout)
+    results = []
+    for ticket in result.tickets:
+        results.append(
+            {
+                "ticket_id": ticket.ticket_id,
+                "status": ticket.status.value,
+                "path": ticket.path,
+                "error": ticket.error,
+            }
+        )
+    return {
+        "batch_id": result.batch_id,
+        "completed": result.completed_count,
+        "failed": result.failed_count,
+        "cancelled": result.cancelled_count,
+        "results": results,
+    }
+
+
+@function_tool
+def wait_for_batch_images() -> str:
+    """Wait for all pending images in current batch to complete.
+    Use after submitting multiple images in async mode.
+    Returns:
+        Summary of batch completion with paths to generated images.
+    """
+    result = _impl_wait_for_batch_images()
+    if result.get("error"):
+        return f"Error: {result['error']}"
+    completed = result["completed"]
+    failed = result["failed"]
+    total = completed + failed + result.get("cancelled", 0)
+    paths = [r["path"] for r in result["results"] if r.get("path")]
+    errors = [r["error"] for r in result["results"] if r.get("error")]
+    response = f"Batch complete: {completed}/{total} images generated successfully."
+    if paths:
+        response += "\n\nGenerated images:\n" + "\n".join(f"- {p}" for p in paths)
+    if errors:
+        response += "\n\nErrors:\n" + "\n".join(f"- {e}" for e in errors[:3])
+    return response
 
 
 @function_tool

@@ -21,6 +21,18 @@ logger = get_logger(__name__)
 _tool_state: ContextVar["BridgeState|None"] = ContextVar("todo_tool_state", default=None)
 # Batch ID for image generation pool (async-safe via contextvars)
 _batch_id_var: ContextVar[str | None] = ContextVar("batch_id", default=None)
+# Async mode for batch image generation (skip per-image wait)
+_async_mode_var: ContextVar[bool] = ContextVar("async_mode", default=False)
+
+
+def set_async_mode(enabled: bool) -> None:
+    """Set async mode for image generation (used by BatchExecutor)."""
+    _async_mode_var.set(enabled)
+
+
+def get_async_mode() -> bool:
+    """Get current async mode state."""
+    return _async_mode_var.get()
 
 
 def set_current_batch_id(batch_id: str | None) -> None:

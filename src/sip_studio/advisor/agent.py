@@ -281,6 +281,44 @@ class BrandAdvisor:
             return
         self._session_manager.update_session_response_id(self._current_session_id, response_id)
 
+    def _estimate_task_count(self, prompt: str) -> int:
+        """Estimate task count from prompt for dynamic max_turns."""
+        import re
+
+        p = prompt.lower()
+        # Explicit number patterns
+        patterns = [
+            r"(\d+)\s*(?:images?|variations?|shots?|ideas?|concepts?|options?)",
+            r"(?:generate|create|make)\s+(\d+)",
+            r"(\d+)\s+(?:different|unique|distinct)",
+        ]
+        for pattern in patterns:
+            m = re.search(pattern, p)
+            if m:
+                count = min(int(m.group(1)), 20)
+                logger.info(f"[DYNAMIC_TURNS] Detected task count: {count} (pattern: '{pattern}')")
+                return count
+        # "all of them" patterns - default to 10 to ensure enough turns
+        all_patterns = [
+            r"(?:generate|create|make|do)\s+(?:all|them|these)",
+            r"all\s+(?:of\s+)?(?:them|these|the\s+images?)",
+            r"(?:every|each)\s+(?:one|image|idea)",
+        ]
+        for pattern in all_patterns:
+            if re.search(pattern, p):
+                logger.info(
+                    f"[DYNAMIC_TURNS] Detected 'all' pattern: '{pattern}' -> defaulting to 10 tasks"
+                )
+                return 10
+        logger.debug("[DYNAMIC_TURNS] No task count detected in prompt")
+        return 0
+
+    def _calculate_max_turns(self, task_count: int = 0) -> int:
+        """Dynamic turn limit: base 25 + 5 per task, capped at 100."""
+        max_turns = min(25 + (5 * task_count), 100)
+        logger.info(f"[DYNAMIC_TURNS] Calculated max_turns: {max_turns} (base=25 + 5×{task_count})")
+        return max_turns
+
     async def _enforce_context_limit(self, system_prompt: str) -> list[Message]:
         """Enforce hard context limit with compaction and emergency truncation.
         Per IMPLEMENTATION_PLAN.md Stage 7 - Hard context limit guardrail.
@@ -524,13 +562,16 @@ class BrandAdvisor:
                     asyncio.create_task(self._update_session_title(message))
         # Get previous response ID for conversation chaining (session-aware mode)
         prev_response_id = self._get_last_response_id() if self._session_aware else None
+        # Dynamic max_turns based on estimated task count
+        task_count = self._estimate_task_count(ctx.full_prompt)
+        max_turns = self._calculate_max_turns(task_count)
         try:
             result = await Runner.run(
                 self._agent,
                 ctx.full_prompt,
                 hooks=ctx.hooks,
                 previous_response_id=prev_response_id,
-                max_turns=25,
+                max_turns=max_turns,
             )
             response = result.final_output
             response_text = response.text if hasattr(response, "text") else str(response)
@@ -561,7 +602,7 @@ class BrandAdvisor:
                 self._save_response_id(None)
                 # Retry without previous_response_id (fresh start with summary)
                 result = await Runner.run(
-                    self._agent, ctx.full_prompt, hooks=ctx.hooks, max_turns=25
+                    self._agent, ctx.full_prompt, hooks=ctx.hooks, max_turns=max_turns
                 )
                 response = result.final_output
                 response_text = response.text if hasattr(response, "text") else str(response)
@@ -664,6 +705,9 @@ class BrandAdvisor:
                     asyncio.create_task(self._update_session_title(message))
         # Get previous response ID for conversation chaining (session-aware mode)
         prev_response_id = self._get_last_response_id() if self._session_aware else None
+        # Dynamic max_turns based on estimated task count
+        task_count = self._estimate_task_count(ctx.full_prompt)
+        max_turns = self._calculate_max_turns(task_count)
         response_chunks: list[str] = []
         stream_result = None
         try:
@@ -672,7 +716,7 @@ class BrandAdvisor:
                 ctx.full_prompt,
                 hooks=ctx.hooks,
                 previous_response_id=prev_response_id,
-                max_turns=25,
+                max_turns=max_turns,
             )
             async for chunk in stream:
                 if hasattr(chunk, "text") and chunk.text:
