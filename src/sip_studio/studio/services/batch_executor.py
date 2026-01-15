@@ -92,13 +92,15 @@ class BatchDetector:
 
     @staticmethod
     def _has_numbered_list(history: list[dict]) -> bool:
-        """Check if last assistant message contains numbered list."""
+        """Check if last assistant message contains a task list (numbered or bulleted)."""
         for msg in reversed(history):
             if msg.get("role") == "assistant":
                 content = msg.get("content", "")
-                # Look for numbered list patterns: "1.", "2.", etc.
-                matches = re.findall(r"^\s*\d+\.\s+.+", content, re.MULTILINE)
-                if len(matches) >= 3:
+                # Look for numbered list patterns: "1.", "2.", "1)", etc.
+                numbered = re.findall(r"^\s*\d+[\.\)]\s+.+", content, re.MULTILINE)
+                # Look for bullet list patterns: "-", "*", "•"
+                bullets = re.findall(r"^\s*(?:[-*•])\s+.+", content, re.MULTILINE)
+                if len(numbered) + len(bullets) >= 3:
                     return True
                 break
         return False
@@ -160,6 +162,65 @@ class TaskExtractor:
             return []
 
 
+class IdeaPlanner:
+    """Plan a set of image concepts/prompts from a single user request."""
+
+    IDEAS_PROMPT = (
+        "You are planning image generation tasks for an AI creative studio.\n\n"
+        "User request:\n{user_message}\n\n"
+        "Brand / product context:\n{context}\n\n"
+        "Create EXACTLY {count} distinct image concepts.\n"
+        "Return ONLY valid JSON (no markdown) as an array of objects.\n"
+        "Each object MUST have:\n"
+        '- "title": short human-friendly title (max 80 chars)\n'
+        '- "prompt": detailed image prompt (1-3 sentences). Do NOT mention aspect ratio.\n\n'
+        "JSON array:"
+    )
+
+    @staticmethod
+    async def plan(user_message: str, count: int, context: str = "") -> list[dict[str, str]]:
+        """Plan image concepts using GPT-4o-mini. Returns list of {title,prompt} dicts."""
+        if count <= 0:
+            return []
+        try:
+            settings = get_settings()
+            client = OpenAI(api_key=settings.openai_api_key)
+            prompt = IdeaPlanner.IDEAS_PROMPT.format(
+                user_message=user_message[:4000], context=context[:4000], count=min(count, 20)
+            )
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.6,
+                max_tokens=1800,
+            )
+            text = (resp.choices[0].message.content or "").strip()
+            if not text:
+                return []
+            raw = text
+            if not raw.lstrip().startswith("["):
+                match = re.search(r"\[.*\]", raw, re.DOTALL)
+                if not match:
+                    logger.warning(f"[BATCH] Failed to parse idea plan JSON from: {raw[:200]}")
+                    return []
+                raw = match.group()
+            ideas = json.loads(raw)
+            if not isinstance(ideas, list):
+                return []
+            planned: list[dict[str, str]] = []
+            for item in ideas:
+                if not isinstance(item, dict):
+                    continue
+                title = item.get("title")
+                prompt_text = item.get("prompt")
+                if isinstance(title, str) and isinstance(prompt_text, str):
+                    planned.append({"title": title.strip(), "prompt": prompt_text.strip()})
+            return planned[: min(count, 20)]
+        except Exception as e:
+            logger.error(f"[BATCH] Idea planning failed: {e}")
+            return []
+
+
 class BatchExecutor:
     """Execute multi-task requests in controlled loop."""
 
@@ -191,13 +252,17 @@ class BatchExecutor:
         try:
             # Create task file
             title = f"{len(tasks)} Batch Tasks"
-            numbered = [f"{i+1}. {t}" for i, t in enumerate(tasks)]
-            _impl_create_task_file(title, numbered)
+            cleaned_tasks = [re.sub(r"^\s*\d+[\.\)]\s+", "", t).strip() for t in tasks]
+            created_msg = _impl_create_task_file(title, cleaned_tasks)
+            if not created_msg.startswith("Created task file"):
+                logger.warning(f"[BATCH] Failed to create task file: {created_msg}")
+                result.response = created_msg
+                return result
             logger.info(f"[BATCH] Created task file with {len(tasks)} tasks")
             self._emit_progress("batch_started", {"total": len(tasks), "title": title})
             # Phase 1: Submit all tasks (non-blocking with async mode)
             submitted_count = 0
-            for i, task_desc in enumerate(tasks):
+            for i, task_desc in enumerate(cleaned_tasks):
                 task_num = i + 1
                 if self.state.get_interrupt():
                     logger.info(f"[BATCH] Interrupted at task {task_num}")

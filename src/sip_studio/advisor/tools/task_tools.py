@@ -18,6 +18,58 @@ from .todo_tools import get_tool_state
 
 logger = get_logger(__name__)
 TASKS_FILENAME = "TASKS.md"
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+
+def _output_type_for_path(path: str) -> str:
+    """Best-effort guess for output media type (used by UI)."""
+    try:
+        ext = Path(path).suffix.lower()
+        return "image" if ext in _IMAGE_EXTS else "file"
+    except Exception:
+        return "file"
+
+
+def _push_todo_list_from_task_data(data: dict) -> None:
+    """Push the current TASKS.md state to the UI TodoList (best-effort).
+
+    Frontend clears TodoList at the start of every send. If we only emit incremental
+    updates (TodoUpdate), the UI may never re-hydrate the list. This method ensures
+    the full list is re-sent whenever we read/update TASKS.md.
+    """
+    state = get_tool_state()
+    if not state:
+        return
+    try:
+        from sip_studio.studio.state import TodoItem, TodoList
+
+        tasks = data.get("tasks", []) or []
+        todo_items: list[TodoItem] = []
+        for t in tasks:
+            num = int(t.get("number", 0) or 0)
+            desc = str(t.get("description", "") or "")
+            done = bool(t.get("done", False))
+            output = t.get("output")
+            outputs = (
+                [{"path": output, "type": _output_type_for_path(str(output))}] if output else []
+            )
+            todo_items.append(
+                TodoItem(
+                    id=f"task-{num}",
+                    description=desc,
+                    status="done" if done else "pending",
+                    outputs=outputs,
+                )
+            )
+        todo = TodoList(
+            id="file-tasks",
+            title=str(data.get("title") or "Tasks"),
+            items=todo_items,
+            created_at=str(data.get("created") or datetime.now(timezone.utc).isoformat()),
+        )
+        state.set_todo_list(todo)
+    except Exception as e:
+        logger.debug(f"[TASK_TOOLS] Failed to push todo list from TASKS.md: {e}")
 
 
 def _get_tasks_path() -> Path | None:
@@ -172,6 +224,7 @@ def _impl_create_task_file(title: str, items: list[str], context: str | None = N
                     logger.info(
                         f"[TASK_TOOLS] Active task file exists with {len(pending)} pending tasks"
                     )
+                    _push_todo_list_from_task_data(existing_data)
                     return f"Active task file exists with {len(pending)} pending tasks. Call get_remaining_tasks() to see them and continue, or complete_task_file() to finish first."
                 else:
                     # All done but not archived - archive it
@@ -223,6 +276,7 @@ def _impl_get_remaining_tasks() -> str:
     try:
         content = path.read_text()
         data = _parse_tasks_file(content)
+        _push_todo_list_from_task_data(data)
         pending = [t for t in data["tasks"] if not t["done"]]
         done = [t for t in data["tasks"] if t["done"]]
         total = len(data["tasks"])
@@ -270,11 +324,9 @@ def _impl_update_task(task_number: int, done: bool = False, output_path: str | N
         )
         write_atomically(path, new_content)
         logger.info(f"[TASK_TOOLS] ✅ Task #{task_number}: {old_status} -> {status_str}")
-        state = get_tool_state()
-        if state:
-            ui_status = "done" if done else "pending"
-            outputs = [{"path": output_path, "type": "image"}] if output_path else None
-            state.update_todo_item(f"task-{task_number}", ui_status, outputs=outputs)
+        # Re-push full todo list to keep UI hydrated across turns.
+        # (TodoUpdate deltas are dropped if frontend cleared its local todoList state.)
+        _push_todo_list_from_task_data(data)
         return f"Task {task_number} marked as {status_str}"
     except Exception as e:
         logger.error(f"[TASK_TOOLS] Failed to update task: {e}")
