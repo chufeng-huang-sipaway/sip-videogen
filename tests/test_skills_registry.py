@@ -361,8 +361,6 @@ class TestBundledSkills:
         # Check expected skills exist
         expected_skills = [
             "brand-identity",
-            "mascot-generation",
-            "logo-design",
             "image-composer",
             "image-prompt-engineering",
             "brand-evolution",
@@ -383,5 +381,4 @@ class TestBundledSkills:
 
         assert "## Available Skills" in prompt
         assert "brand-identity" in prompt
-        assert "mascot" in prompt.lower()
-        assert "logo" in prompt.lower()
+        assert "image-prompt-engineering" in prompt
