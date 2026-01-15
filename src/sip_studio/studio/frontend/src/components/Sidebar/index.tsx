@@ -50,7 +50,7 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
     }
   }, [isExpanded])
   const handleMouseEnter = () => { if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current); setIsHovering(true) }
-  const handleMouseLeave = () => { collapseTimeoutRef.current = setTimeout(() => setIsHovering(false), 100) }
+  const handleMouseLeave = () => { collapseTimeoutRef.current = setTimeout(() => { setIsHovering(false); setIsFocusWithin(false) }, 100) }
   const handleFocusIn = () => setIsFocusWithin(true)
   const handleFocusOut = (e: React.FocusEvent) => { if (!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget as Node)) setIsFocusWithin(false) }
   useEffect(() => () => { if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current) }, [])
@@ -74,7 +74,7 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
   return (
     <TooltipProvider delayDuration={300}>
       <div className="relative flex-shrink-0 h-full z-50" style={{ width: SIDEBAR_COLLAPSED_WIDTH }} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("absolute left-0 top-0 h-full flex flex-col overflow-hidden border-r backdrop-blur-sm", isExpanded ? "w-[280px] bg-background/95 border-transparent shadow-[4px_0_24px_rgba(0,0,0,0.02)]" : "w-[72px] bg-background/50 border-border/10")} style={{ transition: widthTransition, willChange: 'width, box-shadow, background-color, border-color' }}>
+        <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("vibrancy-sidebar absolute left-0 top-0 h-full flex flex-col overflow-hidden border-r backdrop-blur-sm", isExpanded ? "w-[280px] bg-background/95 border-transparent shadow-[4px_0_24px_rgba(0,0,0,0.02)]" : "w-[72px] bg-background/50 border-border/10")} style={{ transition: widthTransition, willChange: 'width, box-shadow, background-color, border-color' }}>
           {/* Header - icons stay, labels fade */}
           <div className="flex-shrink-0 pt-4 pb-2 px-3 space-y-2">
             <BrandSelector compact={!isExpanded} showContent={showContent} allowTooltips={allowTooltips} />

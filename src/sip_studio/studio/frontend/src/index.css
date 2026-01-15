@@ -28,6 +28,16 @@
   --color-progress-foreground: #ffffff;
   --color-progress-a10: rgba(59,130,246,0.1);
   --color-progress-a20: rgba(59,130,246,0.2);
+  /* Warning - orange for caution states (macOS semantic) */
+  --color-warning: #f97316;
+  --color-warning-foreground: #ffffff;
+  --color-warning-a10: rgba(249,115,22,0.1);
+  --color-warning-a20: rgba(249,115,22,0.2);
+  /* Info - sky blue for informational messages */
+  --color-info: #0ea5e9;
+  --color-info-foreground: #ffffff;
+  --color-info-a10: rgba(14,165,233,0.1);
+  --color-info-a20: rgba(14,165,233,0.2);
   --color-secondary: hsl(240 5% 96%);
   /* Very light gray for fills */
   --color-secondary-foreground: hsl(240 5% 15%);
@@ -45,10 +55,12 @@
   --color-ring: #ed0942;
   --radius: 0.85rem;
   /* Slightly friendlier rounding */
-  /* Custom Shadow Utilities */
+  /* Custom Shadow Utilities - depth hierarchy */
   --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 8px -2px rgba(0, 0, 0, 0.02);
   --shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.04);
   --shadow-hover: 0 8px 32px -6px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 8px 30px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  --shadow-elevated-alt: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 8px -1px rgba(0, 0, 0, 0.04);
   /* Animation keyframes */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
@@ -82,6 +94,16 @@
   --color-progress-foreground: #ffffff;
   --color-progress-a10: rgba(96,165,250,0.12);
   --color-progress-a20: rgba(96,165,250,0.24);
+  /* Warning - lighter orange for dark mode */
+  --color-warning: #fb923c;
+  --color-warning-foreground: #ffffff;
+  --color-warning-a10: rgba(251,146,60,0.12);
+  --color-warning-a20: rgba(251,146,60,0.24);
+  /* Info - lighter sky for dark mode */
+  --color-info: #38bdf8;
+  --color-info-foreground: #ffffff;
+  --color-info-a10: rgba(56,189,248,0.12);
+  --color-info-a20: rgba(56,189,248,0.24);
   --color-secondary: hsl(240 4% 16%);
   --color-secondary-foreground: hsl(0 0% 98%);
   --color-muted: hsl(240 4% 16%);
@@ -155,28 +177,13 @@
 }
 .animate-progress-pulse { animation: progress-pulse 2s ease-in-out infinite; }
 
-/* Scrollbar refinement */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.12);
-}
+/* Scrollbar - macOS Monterey+ style (auto-hide, 6px width) */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.2);border-radius:10px;transition:background 0.2s ease;}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.35);}
+.dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);}
+.dark ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25);}
 
 /* Glassmorphism Utilities */
 .glass {
@@ -196,13 +203,14 @@
   backdrop-filter: blur(32px) saturate(140%);
   -webkit-backdrop-filter: blur(32px) saturate(140%);
   border-right: 1px solid rgba(0, 0, 0, 0.03);
-  /* Extremely subtle border */
 }
-
 .dark .glass-sidebar {
   background: rgba(18, 18, 18, 0.7);
   border-right: 1px solid rgba(255, 255, 255, 0.03);
 }
+/* Sidebar vibrancy - lighter bg when native vibrancy enabled (macOS), keep backdrop-filter for internal content */
+[data-vibrancy="true"] .vibrancy-sidebar{background:rgba(255,255,255,0.6)!important;backdrop-filter:blur(20px) saturate(120%)!important;-webkit-backdrop-filter:blur(20px) saturate(120%)!important;}
+.dark [data-vibrancy="true"] .vibrancy-sidebar,[data-vibrancy="true"].dark .vibrancy-sidebar{background:rgba(30,30,30,0.6)!important;}
 
 .glass-panel {
   background: rgba(255, 255, 255, 0.5);
@@ -224,6 +232,11 @@
   background: rgba(30, 30, 30, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+/* Standardized blur scale (use for new components) */
+.blur-light{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.blur-medium{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+.blur-heavy{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+.blur-extra{backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);}
 
 /* Prevent elastic scrolling/bounce on macOS */
 html,
@@ -232,19 +245,69 @@ body {
   overflow: hidden;
 }
 
-/* Base styles for cleaner typography */
-body {
-  font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+/* ========== Stage 1: CSS Foundation (macOS Native) ========== */
+/* ========== Stage 4: Window Focus States ========== */
+/* ========== Stage 6: Typography System (macOS density) ========== */
+/* ========== Stage 11: Motion System ========== */
+/* Decision: CSS-only animations (no Framer Motion)
+ * Rationale: Current CSS is performant, no jank observed, bundle size matters
+ * prefers-reduced-motion already honored in this file */
+/* Stagger animation for lists - use with .motion-stagger parent and .motion-stagger-item children */
+.motion-stagger>.motion-stagger-item{opacity:0;transform:translateY(8px);animation:staggerFadeIn 0.3s ease-out forwards;}
+.motion-stagger>.motion-stagger-item:nth-child(1){animation-delay:0ms;}
+.motion-stagger>.motion-stagger-item:nth-child(2){animation-delay:50ms;}
+.motion-stagger>.motion-stagger-item:nth-child(3){animation-delay:100ms;}
+.motion-stagger>.motion-stagger-item:nth-child(4){animation-delay:150ms;}
+.motion-stagger>.motion-stagger-item:nth-child(5){animation-delay:200ms;}
+.motion-stagger>.motion-stagger-item:nth-child(6){animation-delay:250ms;}
+.motion-stagger>.motion-stagger-item:nth-child(7){animation-delay:300ms;}
+.motion-stagger>.motion-stagger-item:nth-child(8){animation-delay:350ms;}
+.motion-stagger>.motion-stagger-item:nth-child(n+9){animation-delay:400ms;}
+@keyframes staggerFadeIn{to{opacity:1;transform:translateY(0);}}
+/* Motion presets (CSS custom properties for reusable timing) */
+:root{--motion-duration-fast:150ms;--motion-duration-normal:200ms;--motion-duration-slow:300ms;--motion-ease-default:cubic-bezier(0.2,0,0.38,0.9);--motion-ease-expressive:cubic-bezier(0.4,0.14,0.3,1);}
+:root{--text-xs:0.6875rem;--text-sm:0.8125rem;--text-base:0.875rem;--text-lg:1rem;--text-xl:1.125rem;--leading-tight:1.25;--leading-normal:1.4;}
+/* Apply typography defaults */
+body{line-height:var(--leading-normal);}
+h1,h2,h3,h4,h5,h6{line-height:var(--leading-tight);font-weight:600;}
+h1{font-size:var(--text-xl);}
+h2{font-size:var(--text-lg);}
+h3,h4,h5,h6{font-size:var(--text-base);}
+label,.label{font-size:var(--text-sm);line-height:var(--leading-tight);}
+small,.text-xs{font-size:var(--text-xs);line-height:var(--leading-tight);}
+/* Grayscale accent colors when window unfocused (native macOS behavior) */
+[data-window-focused="false"]{--color-primary:hsl(0 0% 55%);--color-ring:hsl(0 0% 55%);--color-brand-500:hsl(0 0% 55%);--color-brand-600:hsl(0 0% 50%);--color-brand-700:hsl(0 0% 45%);}
+.dark [data-window-focused="false"]{--color-primary:hsl(0 0% 45%);--color-ring:hsl(0 0% 45%);--color-brand-500:hsl(0 0% 45%);--color-brand-600:hsl(0 0% 40%);--color-brand-700:hsl(0 0% 35%);}
+/* Focus rings grayscale when unfocused */
+[data-window-focused="false"] *:focus-visible{outline-color:hsl(0 0% 55%)!important;}
+.dark [data-window-focused="false"] *:focus-visible{outline-color:hsl(0 0% 45%)!important;}
+/* Scoped cursor rules - native macOS behavior */
+body{cursor:default;}
+input,textarea,[contenteditable]{cursor:text;}
+a[href^="http"],a[href^="mailto"]{cursor:pointer;}
+button{cursor:default;}
+/* Scoped selection (class-based, not tag-based) */
+.select-none{-webkit-user-select:none;user-select:none;}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;}
+/* Prose content fully selectable including headings */
+.prose,.prose *,.message-content,.message-content *,[data-selectable],[data-selectable] *{-webkit-user-select:text;user-select:text;}
+/* System font + desktop density */
+body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:14px;font-feature-settings:"rlig" 1,"calt" 1,"ss01" 1;}
+/* Respect reduced motion preference */
+@media(prefers-reduced-motion:reduce){
+.animate-pulse,.animate-shimmer,.animate-step-breathing,.animate-progress-pulse,.animate-fade-in-up{animation:none!important;}
+.shimmer-overlay,.shimmer-sparkles,.sparkle{animation:none!important;opacity:0!important;}
+.quick-edit-btn{animation:none!important;}
+.magic-stop-btn{animation:none!important;}
+/* Stage 11: Disable stagger animations */
+.motion-stagger>.motion-stagger-item{animation:none!important;opacity:1!important;transform:none!important;}
 }
 
-/* Utilities for soft shadows */
-.shadow-soft {
-  box-shadow: var(--shadow-soft);
-}
-
-.shadow-float {
-  box-shadow: var(--shadow-float);
-}
+/* Utilities for soft shadows - depth hierarchy */
+.shadow-soft{box-shadow:var(--shadow-soft);}
+.shadow-float{box-shadow:var(--shadow-float);}
+.shadow-elevated{box-shadow:var(--shadow-elevated);}
+.shadow-elevated-alt{box-shadow:var(--shadow-elevated-alt);}
 
 /* Sidebar floating overlay shadow - soft, diffused for depth */
 .sidebar-float-shadow {

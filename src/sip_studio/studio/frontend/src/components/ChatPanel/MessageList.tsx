@@ -180,8 +180,8 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
         })()}
         {/* Message Content */}
         {isUser?(
-          <div className="relative px-5 py-3 rounded-2xl text-sm leading-relaxed bg-secondary/80 text-foreground font-normal rounded-tr-sm">
-            <p className="whitespace-pre-wrap">{message.content}</p>
+          <div className="relative px-5 py-3 rounded-2xl text-sm leading-relaxed bg-secondary/80 text-foreground font-normal rounded-tr-sm overflow-hidden break-words">
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
           </div>
         ):(
           <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-p:my-2 prose-li:my-0.5 text-foreground/90 px-1 overflow-hidden break-words">

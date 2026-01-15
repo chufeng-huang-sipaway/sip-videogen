@@ -437,8 +437,16 @@ export interface UpdateSettings {
   skipped_version?: string
 }
 
+//Window state types
+export interface WindowBounds{x:number;y:number;width:number;height:number}
+export interface PanelWidths{sidebar?:number;chat?:number}
+export interface WindowState{version:number;bounds:WindowBounds;isMaximized:boolean;isFullscreen:boolean;panelWidths:PanelWidths}
+//Platform info types
+export interface PlatformInfo{vibrancy_enabled:boolean}
+
 interface PyWebViewAPI {
   get_constants(): Promise<BridgeResponse<ConstantsPayload>>
+  get_platform_info(): Promise<BridgeResponse<PlatformInfo>>
   check_api_keys(): Promise<BridgeResponse<ApiKeyStatus>>
   save_api_keys(openai: string, gemini: string, firecrawl?: string): Promise<BridgeResponse<void>>
   get_chat_prefs(brand_slug: string): Promise<BridgeResponse<{ image_aspect_ratio?: string; video_aspect_ratio?: string; aspect_ratio?: string }>>
@@ -588,6 +596,10 @@ interface PyWebViewAPI {
   load_session(session_id:string,limit?:number,before?:string):Promise<BridgeResponse<LoadSessionResponse>>
   get_session_settings(session_id:string):Promise<BridgeResponse<ChatSessionSettings>>
   save_session_settings(session_id:string,settings:ChatSessionSettings):Promise<BridgeResponse<void>>
+  //Window state persistence
+  get_window_state():Promise<BridgeResponse<WindowState>>
+  save_window_bounds(bounds:WindowBounds):Promise<BridgeResponse<void>>
+  save_panel_widths(widths:PanelWidths):Promise<BridgeResponse<void>>
 }
 //Quick generate result type
 export interface QuickGenerateResult {
@@ -692,6 +704,7 @@ export async function fetchAndInitConstants(): Promise<boolean> {
 }
 
 export const bridge = {
+  getPlatformInfo: ()=>callBridge(()=>window.pywebview!.api.get_platform_info()),
   checkApiKeys: () => callBridge(() => window.pywebview!.api.check_api_keys()),
   saveApiKeys: (o: string, g: string, f?: string) => callBridge(() => window.pywebview!.api.save_api_keys(o, g, f || '')),
   getChatPrefs: (brandSlug: string) => callBridge(() => window.pywebview!.api.get_chat_prefs(brandSlug)),
@@ -867,4 +880,8 @@ export const bridge = {
   loadSession: (sessionId:string,limit?:number,before?:string)=>callBridge(()=>window.pywebview!.api.load_session(sessionId,limit,before)),
   getSessionSettings: (sessionId:string)=>callBridge(()=>window.pywebview!.api.get_session_settings(sessionId)),
   saveSessionSettings: (sessionId:string,settings:ChatSessionSettings)=>callBridge(()=>window.pywebview!.api.save_session_settings(sessionId,settings)),
+  //Window state persistence
+  getWindowState: ()=>callBridge(()=>window.pywebview!.api.get_window_state()),
+  saveWindowBounds: (bounds:WindowBounds)=>callBridge(()=>window.pywebview!.api.save_window_bounds(bounds)),
+  savePanelWidths: (widths:PanelWidths)=>callBridge(()=>window.pywebview!.api.save_panel_widths(widths)),
 }

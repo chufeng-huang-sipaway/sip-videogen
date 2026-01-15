@@ -173,26 +173,31 @@ def main():
     except ImportError:
         logger.error("pywebview is not installed. Run: pip install pywebview>=5.0")
         sys.exit(1)
-
     _patch_pywebview_cocoa_drag()
-
     from sip_studio.studio.bridge import StudioBridge
+    from sip_studio.studio.utils.window_state import get_initial_window_config
 
     api = StudioBridge()
     frontend = get_frontend_url()
-
+    # Load persisted window position/size
+    x, y, w, h = get_initial_window_config()
+    # Vibrancy (macOS only) - enables native window blur effects
+    is_macos = sys.platform == "darwin"
     window = webview.create_window(
         title="Sip Studio",
         url=frontend,
         js_api=api,
-        width=1400,
-        height=900,
+        x=x,
+        y=y,
+        width=w,
+        height=h,
         min_size=(900, 600),
         resizable=True,
         frameless=False,
         text_select=True,
+        transparent=is_macos,
+        vibrancy=is_macos,
     )
-
     api.set_window(window)
     webview.start(debug=is_debug_mode(), http_server=True)
 
