@@ -176,6 +176,18 @@
   50% { box-shadow: 0 0 0 4px rgba(59,130,246,0.08); }
 }
 .animate-progress-pulse { animation: progress-pulse 2s ease-in-out infinite; }
+/* Todo progress bar breathing - gentle opacity pulse */
+@keyframes todo-bar-breathing {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-todo-bar-breathing { animation: todo-bar-breathing 2s ease-in-out infinite; }
+/* Working badge breathing - subtle scale + opacity */
+@keyframes badge-breathing {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+.animate-badge-breathing { animation: badge-breathing 2s ease-in-out infinite; }
 
 /* Scrollbar - macOS Monterey+ style (auto-hide, 6px width) */
 ::-webkit-scrollbar{width:6px;height:6px;}
@@ -295,7 +307,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;}
 body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:14px;font-feature-settings:"rlig" 1,"calt" 1,"ss01" 1;}
 /* Respect reduced motion preference */
 @media(prefers-reduced-motion:reduce){
-.animate-pulse,.animate-shimmer,.animate-step-breathing,.animate-progress-pulse,.animate-fade-in-up{animation:none!important;}
+.animate-pulse,.animate-shimmer,.animate-step-breathing,.animate-progress-pulse,.animate-fade-in-up,.animate-todo-bar-breathing,.animate-badge-breathing{animation:none!important;}
 .shimmer-overlay,.shimmer-sparkles,.sparkle{animation:none!important;opacity:0!important;}
 .quick-edit-btn{animation:none!important;}
 .magic-stop-btn{animation:none!important;}

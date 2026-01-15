@@ -29,8 +29,16 @@ interface SidebarProps { collapsed: boolean; onToggleCollapse: () => void; onOpe
 export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: SidebarProps) {
   const [isHovering, setIsHovering] = useState(false)
   const [isFocusWithin, setIsFocusWithin] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const collapseTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const isExpanded = !collapsed || isHovering || isFocusWithin
+  const dropdownTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  //Handle dropdown open/close with grace period on close
+  const handleDropdownOpenChange = (open: boolean) => {
+    if (dropdownTimeoutRef.current) clearTimeout(dropdownTimeoutRef.current)
+    if (open) { setIsDropdownOpen(true) }
+    else { dropdownTimeoutRef.current = setTimeout(() => setIsDropdownOpen(false), 200) }
+  }
+  const isExpanded = !collapsed || isHovering || isFocusWithin || isDropdownOpen
   //Delayed content visibility for sequenced animation
   const [showContent, setShowContent] = useState(isExpanded)
   //Delay tooltips after collapse to prevent lingering tooltips
@@ -53,7 +61,7 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
   const handleMouseLeave = () => { collapseTimeoutRef.current = setTimeout(() => { setIsHovering(false); setIsFocusWithin(false) }, 100) }
   const handleFocusIn = () => setIsFocusWithin(true)
   const handleFocusOut = (e: React.FocusEvent) => { if (!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget as Node)) setIsFocusWithin(false) }
-  useEffect(() => () => { if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current) }, [])
+  useEffect(() => () => { if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current); if (dropdownTimeoutRef.current) clearTimeout(dropdownTimeoutRef.current) }, [])
   const { activeBrand } = useBrand()
   const { products } = useProducts()
   const { styleReferences } = useStyleReferences()
@@ -77,7 +85,7 @@ export function Sidebar({ collapsed, onToggleCollapse: _, onOpenBrandMemory }: S
         <aside onFocus={handleFocusIn} onBlur={handleFocusOut} className={cn("vibrancy-sidebar absolute left-0 top-0 h-full flex flex-col overflow-hidden border-r backdrop-blur-sm", isExpanded ? "w-[280px] bg-background/95 border-transparent shadow-[4px_0_24px_rgba(0,0,0,0.02)]" : "w-[72px] bg-background/50 border-border/10")} style={{ transition: widthTransition, willChange: 'width, box-shadow, background-color, border-color' }}>
           {/* Header - icons stay, labels fade */}
           <div className="flex-shrink-0 pt-4 pb-2 px-3 space-y-2">
-            <BrandSelector compact={!isExpanded} showContent={showContent} allowTooltips={allowTooltips} />
+            <BrandSelector compact={!isExpanded} showContent={showContent} allowTooltips={allowTooltips} onDropdownOpenChange={handleDropdownOpenChange} />
             <Tooltip open={!isExpanded && allowTooltips ? undefined : false}><TooltipTrigger asChild><Button variant="ghost" className={cn("w-full justify-start gap-3 h-10 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl font-medium overflow-hidden", !activeBrand && "opacity-50 pointer-events-none", isExpanded ? "px-3" : "px-[14px]")} onClick={onOpenBrandMemory}><Brain className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} /><span className="text-sm whitespace-nowrap" style={{ transition: contentTransition, opacity: showContent ? 1 : 0, visibility: showContent ? 'visible' : 'hidden', transform: showContent ? 'translateX(0)' : 'translateX(-8px)' }}>Brand Profile</span></Button></TooltipTrigger>{!isExpanded && <TooltipContent side="right">Brand Profile</TooltipContent>}</Tooltip>
           </div>
           {/* Separator - fades with content */}

@@ -18,14 +18,17 @@ const CONTENT_DURATION = 150
 const WIDTH_DURATION = 250
 const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)'
 
-interface BrandSelectorProps { compact?: boolean; showContent?: boolean; allowTooltips?: boolean }
+interface BrandSelectorProps { compact?: boolean; showContent?: boolean; allowTooltips?: boolean; onDropdownOpenChange?: (open: boolean) => void }
 
-export function BrandSelector({ compact, showContent = true, allowTooltips = true }: BrandSelectorProps) {
+export function BrandSelector({ compact, showContent = true, allowTooltips = true, onDropdownOpenChange }: BrandSelectorProps) {
   const { brands, activeBrand, isLoading, selectBrand, refresh } = useBrand()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const handleDropdownChange = (open: boolean) => { setDropdownOpen(open); onDropdownOpenChange?.(open) }
   //Delay the compact morph on collapse so the label can fade out first (prevents text/avatar overlap).
   const [visualCompact, setVisualCompact] = useState(Boolean(compact))
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const currentBrand = brands.find(b => b.slug === activeBrand)
   const getInitials = (name: string) => { const words = name.split(/\s+/); if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase(); return name.slice(0, 2).toUpperCase() }
 
@@ -34,12 +37,14 @@ export function BrandSelector({ compact, showContent = true, allowTooltips = tru
 
   useEffect(() => {
     const shouldBeCompact = Boolean(compact)
+    setIsTransitioning(true)
+    const endTransition = setTimeout(() => setIsTransitioning(false), WIDTH_DURATION)
     if (!shouldBeCompact) {
       setVisualCompact(false)
-      return
+      return () => clearTimeout(endTransition)
     }
     const t = setTimeout(() => setVisualCompact(true), CONTENT_DURATION)
-    return () => clearTimeout(t)
+    return () => { clearTimeout(t); clearTimeout(endTransition) }
   }, [compact])
 
   if (isLoading) {
@@ -85,13 +90,13 @@ export function BrandSelector({ compact, showContent = true, allowTooltips = tru
   //Unified structure - same DOM, CSS handles compact/expanded with sequenced timing
   const showLabels = showContent && !visualCompact
   return (
-    <DropdownMenu>
-      <Tooltip open={compact && allowTooltips ? undefined : false}>
+    <DropdownMenu open={dropdownOpen} onOpenChange={handleDropdownChange}>
+      <Tooltip open={visualCompact && allowTooltips && !dropdownOpen ? undefined : false}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className={cn("justify-start rounded-2xl bg-gradient-to-br from-white to-neutral-50 dark:from-neutral-900 dark:to-neutral-950 border border-white/20 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden", visualCompact ? "w-12 h-12 p-0" : "w-full h-auto py-3.5 px-3")} style={{ transition: sizeTransition }}>
+            <Button variant="ghost" className={cn("justify-start rounded-2xl bg-gradient-to-br from-white to-neutral-50 dark:from-neutral-900 dark:to-neutral-950 border border-white/20 overflow-hidden", !isTransitioning && "shadow-sm hover:shadow-md", visualCompact ? "w-12 h-12 p-0" : "w-full h-auto py-3.5 px-3")} style={{ transition: `${sizeTransition}, box-shadow 150ms ease` }}>
               <div className="flex items-center gap-3 text-left">
-                <div className={cn("rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center font-bold shrink-0 shadow-inner", visualCompact ? "w-12 h-12 text-base" : "w-10 h-10 text-sm")} style={{ transition: sizeTransition }}>{currentBrand ? getInitials(currentBrand.name) : <Building2 className="w-5 h-5" />}</div>
+                <div className={cn("rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center font-bold shrink-0", !isTransitioning && "shadow-inner", visualCompact ? "w-12 h-12 text-base" : "w-10 h-10 text-sm")} style={{ transition: sizeTransition }}>{currentBrand ? getInitials(currentBrand.name) : <Building2 className="w-5 h-5" />}</div>
                 {!visualCompact && (
                   <div className="flex-1 min-w-0" style={{ transition: contentTransition, opacity: showLabels ? 1 : 0, visibility: showLabels ? 'visible' : 'hidden', transform: 'translateX(0)' }}>
                     <div className="font-semibold text-sm truncate leading-none mb-1">{currentBrand?.name || 'Select Brand'}</div>

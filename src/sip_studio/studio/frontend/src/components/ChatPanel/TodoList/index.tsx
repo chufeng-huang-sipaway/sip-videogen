@@ -31,10 +31,10 @@ export function TodoList({ todoList, isPaused, onStop }: TodoListProps) {
           {isCompleted && <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">Done</span>}
           {isInterrupted && <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">Stopped</span>}
           {isPaused && !isInterrupted && <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Paused</span>}
-          {!isCompleted && !isInterrupted && !isPaused && <span className="inline-flex items-center rounded-full bg-progress/10 px-2 py-0.5 text-[10px] font-medium text-progress">Working</span>}
+          {!isCompleted && !isInterrupted && !isPaused && <span className="inline-flex items-center rounded-full bg-progress/10 px-2 py-0.5 text-[10px] font-medium text-progress animate-badge-breathing">Working</span>}
         </div>
         <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }} />
+          <div className={cn("h-full bg-success rounded-full transition-all duration-500",showControls && "animate-todo-bar-breathing")} style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }} />
         </div>
       </div>
       {/* Items */}
