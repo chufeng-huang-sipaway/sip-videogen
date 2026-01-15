@@ -14,9 +14,10 @@ from openai import OpenAI
 from sip_studio.advisor.tools import (
     _impl_complete_task_file,
     _impl_create_task_file,
-    _impl_get_remaining_tasks,
     _impl_update_task,
+    set_async_mode,
 )
+from sip_studio.advisor.tools.image_tools import _impl_wait_for_batch_images
 from sip_studio.config.logging import get_logger
 from sip_studio.config.settings import get_settings
 
@@ -170,7 +171,10 @@ class BatchExecutor:
         self.progress_callback = progress_callback
 
     async def run(self, tasks: list[str], context: dict) -> BatchResult:
-        """Execute tasks one by one with service-controlled loop.
+        """Execute tasks with parallel image generation.
+        Phase 1: Submit all tasks (async mode - generate_image returns immediately)
+        Phase 2: Wait for all images to complete
+        Phase 3: Process results and update task statuses
         Args:
             tasks: List of task descriptions
             context: Dict with product_slugs, style_refs, aspect_ratio, project_slug
@@ -181,50 +185,59 @@ class BatchExecutor:
         if not tasks:
             result.response = "No tasks to execute."
             return result
-        # Create task file
-        title = f"{len(tasks)} Batch Tasks"
-        numbered = [f"{i+1}. {t}" for i, t in enumerate(tasks)]
-        _impl_create_task_file(title, numbered)
-        logger.info(f"[BATCH] Created task file with {len(tasks)} tasks")
-        self._emit_progress("batch_started", {"total": len(tasks), "title": title})
-        # Execute each task
-        for i, task_desc in enumerate(tasks):
-            task_num = i + 1
-            # Check for interrupt
-            if self.state.get_interrupt():
-                logger.info(f"[BATCH] Interrupted at task {task_num}")
-                break
-            self._emit_progress("task_started", {"number": task_num, "description": task_desc})
-            # Mark as in_progress (pending in task file)
-            _impl_update_task(task_num, done=False)
-            # Try to execute with retries
-            task_result = await self._execute_single_task(task_num, task_desc, context)
-            result.results.append(task_result)
-            if task_result.status == "done":
-                result.completed += 1
-                _impl_update_task(task_num, done=True, output_path=task_result.output_path)
-                self._emit_progress(
-                    "task_completed", {"number": task_num, "output": task_result.output_path}
-                )
-            else:
-                result.failed += 1
-                # Leave as pending (done=False), error tracked in result
-                self._emit_progress("task_failed", {"number": task_num, "error": task_result.error})
-            # Check remaining
-            remaining = _impl_get_remaining_tasks()
-            logger.info(f"[BATCH] {remaining}")
-        # Complete task file
-        summary = f"Completed {result.completed}/{result.total} tasks"
-        if result.failed > 0:
-            summary += f" ({result.failed} failed)"
-        _impl_complete_task_file(summary)
-        self._emit_progress(
-            "batch_completed",
-            {"completed": result.completed, "failed": result.failed, "total": result.total},
-        )
-        # Build response
-        result.response = self._build_response(result)
-        return result
+        # Enable async mode for parallel image submission
+        set_async_mode(True)
+        logger.info("[BATCH] Enabled async mode for parallel image generation")
+        try:
+            # Create task file
+            title = f"{len(tasks)} Batch Tasks"
+            numbered = [f"{i+1}. {t}" for i, t in enumerate(tasks)]
+            _impl_create_task_file(title, numbered)
+            logger.info(f"[BATCH] Created task file with {len(tasks)} tasks")
+            self._emit_progress("batch_started", {"total": len(tasks), "title": title})
+            # Phase 1: Submit all tasks (non-blocking with async mode)
+            submitted_count = 0
+            for i, task_desc in enumerate(tasks):
+                task_num = i + 1
+                if self.state.get_interrupt():
+                    logger.info(f"[BATCH] Interrupted at task {task_num}")
+                    break
+                self._emit_progress("task_started", {"number": task_num, "description": task_desc})
+                _impl_update_task(task_num, done=False)
+                # Execute task - with async mode, generate_image returns immediately
+                task_result = await self._execute_single_task(task_num, task_desc, context)
+                result.results.append(task_result)
+                submitted_count += 1
+            # Phase 2: Wait for all images to complete
+            logger.info(
+                f"[BATCH] {submitted_count} tasks submitted, waiting for batch completion..."
+            )
+            self._emit_progress("batch_waiting", {"message": "Generating images in parallel..."})
+            batch_result = _impl_wait_for_batch_images(timeout=600.0)
+            # Phase 3: Process results
+            completed_paths = [r["path"] for r in batch_result.get("results", []) if r.get("path")]
+            failed_count = batch_result.get("failed", 0)
+            result.completed = len(completed_paths)
+            result.failed = failed_count
+            # Update task statuses based on batch results
+            for i, path in enumerate(completed_paths):
+                if i < len(tasks):
+                    _impl_update_task(i + 1, done=True, output_path=path)
+                    self._emit_progress("task_completed", {"number": i + 1, "output": path})
+            # Complete task file
+            summary = f"Completed {result.completed}/{result.total} tasks"
+            if result.failed > 0:
+                summary += f" ({result.failed} failed)"
+            _impl_complete_task_file(summary)
+            self._emit_progress(
+                "batch_completed",
+                {"completed": result.completed, "failed": result.failed, "total": result.total},
+            )
+            result.response = self._build_response(result)
+            return result
+        finally:
+            set_async_mode(False)
+            logger.info("[BATCH] Disabled async mode")
 
     async def _execute_single_task(
         self, task_num: int, task_desc: str, context: dict

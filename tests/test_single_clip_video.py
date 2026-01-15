@@ -114,7 +114,9 @@ class TestGenerateVideoClip:
 
         from sip_studio.advisor.tools import _impl_generate_video_clip
 
-        with patch("sip_studio.advisor.tools.get_active_brand", return_value=None):
+        with patch(
+            "sip_studio.advisor.tools.video_tools._common.get_active_brand", return_value=None
+        ):
             result = asyncio.run(_impl_generate_video_clip(prompt="Test prompt"))
         assert "No active brand selected" in result
 

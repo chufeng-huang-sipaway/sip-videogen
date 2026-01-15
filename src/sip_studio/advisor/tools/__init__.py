@@ -33,8 +33,10 @@ __all__ = [
     "generate_image",
     "propose_images",
     "get_recent_generated_images",
+    "wait_for_batch_images",
     "_generate_output_filename",
     "_impl_generate_image",
+    "_impl_wait_for_batch_images",
     # video_tools
     "generate_video_clip",
     "_impl_generate_video_clip",
@@ -110,6 +112,8 @@ __all__ = [
     "set_current_batch_id",
     "get_current_batch_id",
     "batch_context",
+    "set_async_mode",
+    "get_async_mode",
     "_impl_create_todo_list",
     "_impl_update_todo_item",
     "_impl_add_todo_output",
@@ -238,9 +242,11 @@ from .file_tools import (
 from .image_tools import (
     _generate_output_filename,
     _impl_generate_image,
+    _impl_wait_for_batch_images,
     generate_image,
     get_recent_generated_images,
     propose_images,
+    wait_for_batch_images,
 )
 from .memory_tools import (
     emit_tool_thinking,
@@ -317,8 +323,10 @@ from .todo_tools import (
     clear_tool_context,
     complete_todo_list,
     create_todo_list,
+    get_async_mode,
     get_current_batch_id,
     get_tool_state,
+    set_async_mode,
     set_current_batch_id,
     set_tool_context,
     update_todo_item,

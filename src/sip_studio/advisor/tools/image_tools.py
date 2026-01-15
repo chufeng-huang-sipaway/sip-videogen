@@ -806,7 +806,7 @@ async def generate_image(
 
     from sip_studio.studio.services.image_pool import TicketStatus, get_image_pool
 
-    from .todo_tools import get_current_batch_id
+    from .todo_tools import get_async_mode, get_current_batch_id
 
     batch_id = get_current_batch_id()
     logger.warning(
@@ -829,8 +829,12 @@ async def generate_image(
     # Submit to pool for parallel execution
     pool = get_image_pool()
     ticket_id = pool.submit(prompt, config, batch_id=batch_id)
-    logger.warning("[DEBUG] generate_image submitted ticket %s to pool, waiting...", ticket_id[:8])
-    # Wait for ticket completion (runs in executor to not block event loop)
+    logger.warning("[DEBUG] generate_image submitted ticket %s to pool", ticket_id[:8])
+    # Async mode: return immediately without waiting (BatchExecutor will wait for batch)
+    if get_async_mode():
+        logger.info("[ASYNC] Returning ticket %s immediately (async mode)", ticket_id[:8])
+        return f"Image generation submitted (ticket: {ticket_id[:8]}). Will complete in batch."
+    # Sync mode: wait for this specific ticket
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(None, pool.wait_for_ticket, ticket_id, 180.0)
     logger.warning(
@@ -850,6 +854,59 @@ async def generate_image(
     if summary:
         return f"{result.path}\n\nGenerated: {summary}"
     return result.path
+
+
+def _impl_wait_for_batch_images(timeout: float = 600.0) -> dict:
+    """Wait for all pending images in current batch. Returns batch result dict."""
+    from sip_studio.studio.services.image_pool import get_image_pool
+
+    from .todo_tools import get_current_batch_id
+
+    batch_id = get_current_batch_id()
+    if not batch_id:
+        return {"error": "No active batch", "completed": 0, "failed": 0, "results": []}
+    pool = get_image_pool()
+    result = pool.wait_for_batch(batch_id, timeout=timeout)
+    results = []
+    for ticket in result.tickets:
+        results.append(
+            {
+                "ticket_id": ticket.ticket_id,
+                "status": ticket.status.value,
+                "path": ticket.path,
+                "error": ticket.error,
+            }
+        )
+    return {
+        "batch_id": result.batch_id,
+        "completed": result.completed_count,
+        "failed": result.failed_count,
+        "cancelled": result.cancelled_count,
+        "results": results,
+    }
+
+
+@function_tool
+def wait_for_batch_images() -> str:
+    """Wait for all pending images in current batch to complete.
+    Use after submitting multiple images in async mode.
+    Returns:
+        Summary of batch completion with paths to generated images.
+    """
+    result = _impl_wait_for_batch_images()
+    if result.get("error"):
+        return f"Error: {result['error']}"
+    completed = result["completed"]
+    failed = result["failed"]
+    total = completed + failed + result.get("cancelled", 0)
+    paths = [r["path"] for r in result["results"] if r.get("path")]
+    errors = [r["error"] for r in result["results"] if r.get("error")]
+    response = f"Batch complete: {completed}/{total} images generated successfully."
+    if paths:
+        response += "\n\nGenerated images:\n" + "\n".join(f"- {p}" for p in paths)
+    if errors:
+        response += "\n\nErrors:\n" + "\n".join(f"- {e}" for e in errors[:3])
+    return response
 
 
 @function_tool
