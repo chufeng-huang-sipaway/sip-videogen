@@ -28,6 +28,16 @@
   --color-progress-foreground: #ffffff;
   --color-progress-a10: rgba(59,130,246,0.1);
   --color-progress-a20: rgba(59,130,246,0.2);
+  /* Warning - orange for caution states (macOS semantic) */
+  --color-warning: #f97316;
+  --color-warning-foreground: #ffffff;
+  --color-warning-a10: rgba(249,115,22,0.1);
+  --color-warning-a20: rgba(249,115,22,0.2);
+  /* Info - sky blue for informational messages */
+  --color-info: #0ea5e9;
+  --color-info-foreground: #ffffff;
+  --color-info-a10: rgba(14,165,233,0.1);
+  --color-info-a20: rgba(14,165,233,0.2);
   --color-secondary: hsl(240 5% 96%);
   /* Very light gray for fills */
   --color-secondary-foreground: hsl(240 5% 15%);
@@ -45,10 +55,12 @@
   --color-ring: #ed0942;
   --radius: 0.85rem;
   /* Slightly friendlier rounding */
-  /* Custom Shadow Utilities */
+  /* Custom Shadow Utilities - depth hierarchy */
   --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 8px -2px rgba(0, 0, 0, 0.02);
   --shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.04);
   --shadow-hover: 0 8px 32px -6px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 8px 30px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  --shadow-elevated-alt: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 8px -1px rgba(0, 0, 0, 0.04);
   /* Animation keyframes */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
@@ -82,6 +94,16 @@
   --color-progress-foreground: #ffffff;
   --color-progress-a10: rgba(96,165,250,0.12);
   --color-progress-a20: rgba(96,165,250,0.24);
+  /* Warning - lighter orange for dark mode */
+  --color-warning: #fb923c;
+  --color-warning-foreground: #ffffff;
+  --color-warning-a10: rgba(251,146,60,0.12);
+  --color-warning-a20: rgba(251,146,60,0.24);
+  /* Info - lighter sky for dark mode */
+  --color-info: #38bdf8;
+  --color-info-foreground: #ffffff;
+  --color-info-a10: rgba(56,189,248,0.12);
+  --color-info-a20: rgba(56,189,248,0.24);
   --color-secondary: hsl(240 4% 16%);
   --color-secondary-foreground: hsl(0 0% 98%);
   --color-muted: hsl(240 4% 16%);
@@ -155,28 +177,13 @@
 }
 .animate-progress-pulse { animation: progress-pulse 2s ease-in-out infinite; }
 
-/* Scrollbar refinement */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.12);
-}
+/* Scrollbar - macOS Monterey+ style (auto-hide, 6px width) */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.2);border-radius:10px;transition:background 0.2s ease;}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.35);}
+.dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);}
+.dark ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25);}
 
 /* Glassmorphism Utilities */
 .glass {
@@ -225,6 +232,11 @@
   background: rgba(30, 30, 30, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+/* Standardized blur scale (use for new components) */
+.blur-light{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.blur-medium{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+.blur-heavy{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+.blur-extra{backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);}
 
 /* Prevent elastic scrolling/bounce on macOS */
 html,
@@ -291,14 +303,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size
 .motion-stagger>.motion-stagger-item{animation:none!important;opacity:1!important;transform:none!important;}
 }
 
-/* Utilities for soft shadows */
-.shadow-soft {
-  box-shadow: var(--shadow-soft);
-}
-
-.shadow-float {
-  box-shadow: var(--shadow-float);
-}
+/* Utilities for soft shadows - depth hierarchy */
+.shadow-soft{box-shadow:var(--shadow-soft);}
+.shadow-float{box-shadow:var(--shadow-float);}
+.shadow-elevated{box-shadow:var(--shadow-elevated);}
+.shadow-elevated-alt{box-shadow:var(--shadow-elevated-alt);}
 
 /* Sidebar floating overlay shadow - soft, diffused for depth */
 .sidebar-float-shadow {

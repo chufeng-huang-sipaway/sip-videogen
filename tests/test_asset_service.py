@@ -69,7 +69,10 @@ class TestGetAssets:
 
     def test_error_when_no_slug(self, service):
         """Should return error when no slug provided."""
-        result = service.get_assets(None)
+        # Ensure no cached slug and mock storage to return None
+        service._state._cache_valid = False
+        with patch("sip_studio.brands.storage.get_active_brand", return_value=None):
+            result = service.get_assets(None)
         assert not result["success"]
         # Implementation may return "Brand slug required" or legacy "No brand selected"
         assert "slug" in result["error"].lower() or "No brand selected" in result["error"]

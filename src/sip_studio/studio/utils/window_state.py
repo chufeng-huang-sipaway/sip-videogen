@@ -113,8 +113,28 @@ def update_panel_widths(widths: dict) -> None:
     save_window_state(state)
 
 
-def get_initial_window_config() -> tuple[int, int, int, int]:
-    """Get initial window position and size. Returns (x, y, width, height)."""
+def get_initial_window_config() -> tuple[int | None, int | None, int, int]:
+    """Get initial window position and size. Returns (x, y, width, height).
+    Returns None for x/y to use OS default positioning when saved state unreliable."""
     state = load_window_state()
     b = state.get("bounds", _DEFAULT_BOUNDS)
-    return (b.get("x", 100), b.get("y", 100), b.get("width", 1400), b.get("height", 900))
+    w, h = b.get("width", 1400), b.get("height", 900)
+    # Only restore position if we successfully verified it's on a visible monitor
+    try:
+        from screeninfo import get_monitors
+
+        monitors = list(get_monitors())
+        if not monitors:
+            return (None, None, w, h)
+        x, y = b.get("x"), b.get("y")
+        if x is None or y is None:
+            return (None, None, w, h)
+        # Verify position overlaps at least one monitor
+        for m in monitors:
+            if x < m.x + m.width and x + w > m.x and y < m.y + m.height and y + h > m.y:
+                return (x, y, w, h)
+        # Not visible - use default positioning
+        return (None, None, w, h)
+    except Exception:
+        # screeninfo failed - use default positioning
+        return (None, None, w, h)
