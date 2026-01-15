@@ -13,6 +13,7 @@ from pathlib import Path
 from sip_studio.advisor.agent import BrandAdvisor
 from sip_studio.advisor.session_manager import SessionManager
 from sip_studio.advisor.tools import (
+    _impl_archive_existing_tasks,
     _impl_complete_task_file,
     _impl_create_task_file,
     _impl_update_task,
@@ -267,6 +268,9 @@ class ChatService:
             slug = self._state.get_active_slug()
             if not slug:
                 return bridge_error("No brand selected")
+            # Archive any existing TASKS.md from previous conversation to start fresh
+            set_tool_context(self._state)
+            _impl_archive_existing_tasks()
             logger.info(
                 "chat(): slug=%s, project_slug=%s, attached_products=%s, attached_style_refs=%s",
                 slug,
@@ -298,8 +302,6 @@ class ChatService:
             before_images = {a["path"] for a in list_brand_assets(slug, category="generated")}
             before_videos = {a["path"] for a in list_brand_videos(slug)}
             before_style_refs = {t.slug for t in storage_list_style_references(slug)}
-            # Set tool context for todo tools (uses contextvars for thread safety)
-            set_tool_context(self._state)
             # Set batch ID for image pool (uses contextvars)
             set_current_batch_id(self._current_batch_id)
             logger.warning(

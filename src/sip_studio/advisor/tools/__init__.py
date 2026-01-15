@@ -128,6 +128,7 @@ __all__ = [
     "_impl_get_remaining_tasks",
     "_impl_update_task",
     "_impl_complete_task_file",
+    "_impl_archive_existing_tasks",
     "_get_tasks_path",
     "_parse_tasks_file",
     "_build_tasks_file",
@@ -320,6 +321,7 @@ from .style_reference_tools import (
 from .task_tools import (
     _build_tasks_file,
     _get_tasks_path,
+    _impl_archive_existing_tasks,
     _impl_complete_task_file,
     _impl_create_task_file,
     _impl_get_remaining_tasks,

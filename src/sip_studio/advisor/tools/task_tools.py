@@ -202,6 +202,38 @@ def _auto_archive_stale_file(path: Path, data: dict) -> str:
     return str(archive_path)
 
 
+def _impl_archive_existing_tasks() -> str | None:
+    """Archive any existing TASKS.md file at start of new chat turn.
+    Called by ChatService to ensure each conversation starts fresh.
+    Returns archive path if archived, None if no file existed."""
+    path = _get_tasks_path()
+    if not path or not path.exists():
+        return None
+    try:
+        content = path.read_text()
+        data = _parse_tasks_file(content)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        archive_path = path.parent / f"TASKS_{ts}.md"
+        archive_content = _build_tasks_file(
+            data.get("title", "Untitled"),
+            data.get("tasks", []),
+            data.get("context"),
+            "ARCHIVED_NEW_TURN",
+            data.get("created"),
+        )
+        write_atomically(archive_path, archive_content)
+        path.unlink()
+        logger.info(f"[TASK_TOOLS] 🗄️ Archived previous task file: {archive_path}")
+        # Clear todo list state in UI
+        state = get_tool_state()
+        if state:
+            state.clear_todo_list()
+        return str(archive_path)
+    except Exception as e:
+        logger.warning(f"[TASK_TOOLS] Failed to archive existing tasks: {e}")
+        return None
+
+
 def _impl_create_task_file(title: str, items: list[str], context: str | None = None) -> str:
     """Implementation of create_task_file for testing."""
     logger.info(f"[TASK_TOOLS] create_task_file called: title='{title}', items={len(items)}")
