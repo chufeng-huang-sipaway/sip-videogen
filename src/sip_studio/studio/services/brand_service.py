@@ -191,8 +191,21 @@ class BrandService:
         try:
             self._sync_brand_index()
             entries = list_brands()
+            # Auto-create sample brand for new users
+            if not entries:
+                from sip_studio.brands.sample_brand import ensure_sample_brand
+
+                if ensure_sample_brand():
+                    entries = list_brands()
             brands = [{"slug": e.slug, "name": e.name, "category": e.category} for e in entries]
             active = self._state.get_active_slug()
+            # Auto-select sample brand for new users
+            if not active and any(e.slug == "sample-brand" for e in entries):
+                from sip_studio.brands.storage import set_active_brand
+
+                set_active_brand("sample-brand")
+                self._state.set_active_slug("sample-brand")
+                active = "sample-brand"
             logger.info("Found %d brands: %s", len(brands), [b["slug"] for b in brands])
             logger.info("Active brand: %s", active)
             return bridge_ok({"brands": brands, "active": active})
