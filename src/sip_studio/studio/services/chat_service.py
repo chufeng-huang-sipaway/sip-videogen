@@ -537,6 +537,8 @@ class ChatService:
                     "\n\n---\n\n"
                 )
             # Prepend research context to the message if enabled
+            # Store original message for history display (without system context)
+            display_message = prepared
             if research_context:
                 prepared = research_context + prepared
                 logger.info(
@@ -553,6 +555,7 @@ class ChatService:
                     image_aspect_ratio=validated_image_ratio.value,
                     video_aspect_ratio=validated_video_ratio,
                     extra_tools=extra_tools if extra_tools else None,
+                    display_message=display_message if research_context else None,
                 )
             )
             response = result["response"]

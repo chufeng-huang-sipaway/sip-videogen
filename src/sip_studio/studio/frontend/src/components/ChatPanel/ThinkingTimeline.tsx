@@ -1,6 +1,6 @@
 //ThinkingTimeline - Flat single-level timeline for agent reasoning steps
 import { useState, useEffect } from 'react'
-import { Loader2, CheckCircle2, ChevronRight } from 'lucide-react'
+import { Loader2, CheckCircle2, ChevronRight, Globe } from 'lucide-react'
 import type { ThinkingStep, ImageGenerationMetadata } from '@/lib/bridge'
 import { cn } from '@/lib/utils'
 //Expertise -> emoji mapping
@@ -13,14 +13,23 @@ return(<div className={cn('flex items-center gap-2 py-0.5 text-xs',isActive&&'an
 <span className="flex-shrink-0">{emoji}</span>
 <span className="flex-1">{step.step}</span>
 </div>)}
-interface Props{steps:ThinkingStep[];isGenerating:boolean;skills?:string[];imageMetadata?:ImageGenerationMetadata|null;onViewFullDetails?:()=>void}
-export function ThinkingTimeline({steps,isGenerating,imageMetadata}:Props){
+//Web search breathing badge - shows when web search mode is active during generation
+function WebSearchBadge(){return(
+<div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500 text-[11px] font-medium animate-pulse">
+<Globe className="h-3 w-3"/>
+<span>Searching</span>
+</div>)}
+interface Props{steps:ThinkingStep[];isGenerating:boolean;skills?:string[];imageMetadata?:ImageGenerationMetadata|null;onViewFullDetails?:()=>void;webSearchActive?:boolean}
+export function ThinkingTimeline({steps,isGenerating,imageMetadata,webSearchActive}:Props){
 const [expanded,setExpanded]=useState(true)
 useEffect(()=>{if(!isGenerating&&steps.length>0)setExpanded(false)},[isGenerating,steps.length])
 useEffect(()=>{if(isGenerating)setExpanded(true)},[isGenerating])
 if(steps.length===0&&!imageMetadata){
 if(!isGenerating)return null
-return<div className="flex items-center gap-2 text-xs text-muted-foreground py-1"><Loader2 className="h-3 w-3 animate-spin"/><span>Thinking...</span></div>
+return(<div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+{webSearchActive&&<WebSearchBadge/>}
+<Loader2 className="h-3 w-3 animate-spin"/><span>Thinking...</span>
+</div>)
 }
 const sorted=[...steps].sort((a,b)=>(a.seq??0)-(b.seq??0))
 const effectiveActive=isGenerating&&sorted.length>0?sorted.length-1:-1
@@ -34,6 +43,7 @@ return(<button type="button" onClick={()=>setExpanded(true)} className="flex ite
 </button>)}
 //Expanded flat timeline
 return(<div className={cn('py-1 pl-3',sorted.length>1&&'border-l-2 border-border/50')} role="list" aria-label="Agent thinking steps">
+{webSearchActive&&isGenerating&&<div className="mb-1"><WebSearchBadge/></div>}
 {sorted.map((s,i)=><TimelineStep key={s.id} step={s} isActive={i===effectiveActive} isFailed={s.status==='failed'}/>)}
 {!isGenerating&&expanded&&sorted.length>1&&<button type="button" onClick={()=>setExpanded(false)} className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors mt-1">Hide</button>}
 </div>)}

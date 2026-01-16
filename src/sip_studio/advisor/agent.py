@@ -394,19 +394,24 @@ class BrandAdvisor:
         attached_style_references: list[dict] | None = None,
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
+        display_message: str | None = None,
     ) -> ChatContext:
         """Prepare all context needed for a chat turn.
         Args:
-            message: User message to process.
+            message: User message to process (may include system context).
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
             attached_style_references: List of style reference dicts with style_ref_slug and strict.
             image_aspect_ratio: Default aspect ratio for image generation (passive, used by tools).
             video_aspect_ratio: Default aspect ratio for video generation (passive, used by tools).
+            display_message: Original user message for history storage (without system context).
         Returns:
             ChatContext with prepared prompt and metadata.
         """
-        raw_user_message = message
+        # Use message (may include research context) for building prompt to LLM
+        # Use display_message (clean) for storing in history
+        prompt_message = message
+        raw_user_message = display_message or message
         skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
         # Build history text - HYBRID APPROACH: include client history even in session-aware mode
         # Server chain may summarize/lose details, so we send local history as backup
@@ -439,13 +444,14 @@ class BrandAdvisor:
         if image_aspect_ratio:
             set_active_aspect_ratio(image_aspect_ratio)
         # Build augmented message with turn context prepended
+        # Use prompt_message (has research context) for LLM, not raw_user_message (for history)
         if turn_context:
             augmented_message = (
                 f"## Current Context\n\n{turn_context}\n\n---\n\n"
-                f"## User Request\n\n{raw_user_message}"
+                f"## User Request\n\n{prompt_message}"
             )
         else:
-            augmented_message = raw_user_message
+            augmented_message = prompt_message
         # Check budget and trim if needed (skip history for session-aware mode)
         budget_result, _, trimmed_skills, trimmed_history, _ = self._budget_manager.check_and_trim(
             system_prompt=self._agent.instructions or "",
@@ -536,16 +542,18 @@ class BrandAdvisor:
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
         extra_tools: list | None = None,
+        display_message: str | None = None,
     ) -> dict:
         """Send a message and get a response plus UI metadata.
         Args:
-            message: User message to process.
+            message: User message to process (may include system context like research mode).
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
             attached_style_references: Style reference dicts with style_ref_slug and strict.
             image_aspect_ratio: Default image aspect ratio (passive, used by tools).
             video_aspect_ratio: Default video aspect ratio (passive, used by tools).
             extra_tools: Optional list of additional tools to include (e.g., research tools).
+            display_message: Original user message for history storage (without system context).
         Returns:
             Dict with response, interaction, and memory_update.
         """
@@ -558,6 +566,7 @@ class BrandAdvisor:
             attached_style_references,
             image_aspect_ratio,
             video_aspect_ratio,
+            display_message=display_message,
         )
         self._emit_skill_events(ctx.matched_skills)
         self._log_budget_warnings(ctx)
