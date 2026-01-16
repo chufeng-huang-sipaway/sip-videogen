@@ -303,3 +303,156 @@ class TestResearchStorage:
         pl = storage.load_pending()
         assert pl.version == 1
         assert len(pl.jobs) == 0
+
+
+# ResearchService tests
+class TestResearchService:
+    @pytest.fixture
+    def svc_mock_state(self):
+        """Create mock BridgeState."""
+        from unittest.mock import MagicMock
+
+        state = MagicMock()
+        state.get_active_slug.return_value = "test-brand"
+        return state
+
+    @pytest.fixture
+    def service(self, tmp_path, monkeypatch, svc_mock_state):
+        """Create ResearchService with temp storage."""
+        monkeypatch.setattr("sip_studio.research.storage._get_research_dir", lambda: tmp_path)
+        from sip_studio.studio.services.research_service import ResearchService
+
+        return ResearchService(svc_mock_state)
+
+    def test_find_cached_research_miss(self, service):
+        """Test cache miss returns None."""
+        result = service.find_cached_research("some query", "test-brand")
+        assert result is None
+
+    def test_find_cached_research_hit(self, service):
+        """Test cache hit after adding entry."""
+        service._storage.add_entry(
+            "luxury coffee trends",
+            category="trends",
+            brand_slug="test-brand",
+            summary="Coffee trends summary",
+            sources=[],
+        )
+        result = service.find_cached_research("coffee trends", "test-brand")
+        assert result is not None
+        assert "coffee" in result.summary.lower()
+
+    def test_get_research_entry_not_found(self, service):
+        """Test getting non-existent entry."""
+        result = service.get_research_entry("nonexistent")
+        assert not result["success"]
+        assert "not found" in result["error"]
+
+    def test_get_research_entry_found(self, service):
+        """Test getting existing entry."""
+        entry = service._storage.add_entry(
+            "test query", category="trends", brand_slug=None, summary="Test summary", sources=[]
+        )
+        result = service.get_research_entry(entry.id)
+        assert result["success"]
+        assert result["data"]["summary"] == "Test summary"
+
+    def test_list_research_empty(self, service):
+        """Test listing with no entries."""
+        result = service.list_research()
+        assert result["success"]
+        assert len(result["data"]["entries"]) == 0
+
+    def test_list_research_filtered_by_brand(self, service):
+        """Test listing filtered by brand."""
+        service._storage.add_entry(
+            "q1", category="trends", brand_slug="brand-a", summary="A", sources=[]
+        )
+        service._storage.add_entry(
+            "q2", category="trends", brand_slug="brand-b", summary="B", sources=[]
+        )
+        result = service.list_research(brand_slug="brand-a")
+        assert result["success"]
+        assert len(result["data"]["entries"]) == 1
+        assert result["data"]["entries"][0]["brandSlug"] == "brand-a"
+
+    def test_list_research_filtered_by_category(self, service):
+        """Test listing filtered by category."""
+        service._storage.add_entry(
+            "q1", category="trends", brand_slug=None, summary="Trends", sources=[]
+        )
+        service._storage.add_entry(
+            "q2", category="techniques", brand_slug=None, summary="Tech", sources=[]
+        )
+        result = service.list_research(category="techniques")
+        assert result["success"]
+        assert len(result["data"]["entries"]) == 1
+        assert result["data"]["entries"][0]["category"] == "techniques"
+
+    def test_cleanup_expired(self, service):
+        """Test cleanup removes expired entries."""
+        service._storage.add_entry(
+            "fresh", category="trends", brand_slug=None, summary="Fresh", sources=[]
+        )
+        # Add expired entry manually
+        reg = service._storage.load_registry()
+        old = ResearchEntry(id="old1", query="old", keywords=["old"], category="trends", ttl_days=1)
+        old.created_at = datetime.utcnow() - timedelta(days=5)
+        reg.entries.append(old)
+        service._storage.save_registry(reg)
+        result = service.cleanup_expired()
+        assert result["success"]
+        assert result["data"]["removed"] == 1
+
+    def test_find_research_bridge_method(self, service):
+        """Test find_research bridge method."""
+        result = service.find_research("nonexistent query")
+        assert result["success"]
+        assert not result["data"]["found"]
+        service._storage.add_entry(
+            "coffee trends",
+            category="trends",
+            brand_slug="test-brand",
+            summary="Coffee!",
+            sources=[],
+        )
+        result = service.find_research("coffee trends")
+        assert result["success"]
+        assert result["data"]["found"]
+        assert "Coffee" in result["data"]["entry"]["summary"]
+
+    def test_pending_research_lifecycle(self, service):
+        """Test pending research add/get/remove."""
+        # Add pending job
+        service._storage.add_pending("resp123", "test query", "test-brand", "session1")
+        # Get pending via bridge method
+        result = service.get_pending_research()
+        assert result["success"]
+        assert len(result["data"]["jobs"]) == 1
+        assert result["data"]["jobs"][0]["responseId"] == "resp123"
+        # Cancel pending
+        result = service.cancel_research("resp123")
+        assert result["success"]
+        assert result["data"]["cancelled"]
+        # Verify removed
+        result = service.get_pending_research()
+        assert len(result["data"]["jobs"]) == 0
+
+    def test_get_pending_for_session(self, service):
+        """Test getting pending jobs for a specific session."""
+        service._storage.add_pending("r1", "q1", None, "sess1")
+        service._storage.add_pending("r2", "q2", None, "sess2")
+        service._storage.add_pending("r3", "q3", None, "sess1")
+        jobs = service.get_pending_for_session("sess1")
+        assert len(jobs) == 2
+
+    def test_build_research_query(self):
+        """Test query building from clarification answers."""
+        from sip_studio.studio.services.research_service import _build_research_query
+
+        q = _build_research_query("luxury packaging", {"focus": "visual", "depth": "thorough"})
+        assert "luxury packaging" in q
+        assert "visual" in q
+        assert "comprehensive" in q.lower()
+        q2 = _build_research_query("test", {"focus": "custom:specific detail"})
+        assert "specific detail" in q2

@@ -16,6 +16,7 @@ __all__ = [
     "ImageStatusService",
     "ProductService",
     "ProjectService",
+    "ResearchService",
     "StyleReferenceService",
     "UpdateService",
 ]
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from .image_status import ImageStatusService as ImageStatusService
     from .product_service import ProductService as ProductService
     from .project_service import ProjectService as ProjectService
+    from .research_service import ResearchService as ResearchService
     from .style_reference_service import StyleReferenceService as StyleReferenceService
     from .update_service import UpdateService as UpdateService
 
@@ -61,6 +63,10 @@ def __getattr__(name: str):
         from .project_service import ProjectService
 
         return ProjectService
+    if name == "ResearchService":
+        from .research_service import ResearchService
+
+        return ResearchService
     if name == "StyleReferenceService":
         from .style_reference_service import StyleReferenceService
 
