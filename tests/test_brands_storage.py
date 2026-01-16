@@ -1459,3 +1459,617 @@ class TestProjectAssets:
         summary = save_project("test-brand", sample_project)
 
         assert summary.asset_count == 2
+
+
+# =============================================================================
+# Stage 0: Characterization Tests for Base Class Refactoring
+# =============================================================================
+# These tests document the exact current behavior of the storage modules
+# to ensure the base class refactoring does not introduce regressions.
+
+
+@pytest.fixture
+def sample_style_reference():
+    """Create a sample style reference for testing."""
+    from sip_studio.brands.models import StyleReferenceFull
+
+    return StyleReferenceFull(
+        slug="hero-centered",
+        name="Hero Centered Layout",
+        description="Centered hero image with text overlay",
+    )
+
+
+class TestCharacterizationCreateSaveSemantics:
+    """Tests documenting create vs save behavior differences."""
+
+    def test_create_duplicate_raises_error_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify create_product raises DuplicateEntityError for existing product."""
+        from sip_studio.exceptions import DuplicateEntityError
+
+        create_brand(sample_brand_identity)
+        create_product("test-brand", sample_product)
+        with pytest.raises(DuplicateEntityError):
+            create_product("test-brand", sample_product)
+
+    def test_create_duplicate_raises_error_project(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_project: ProjectFull,
+    ) -> None:
+        """Verify create_project raises DuplicateEntityError for existing project."""
+        from sip_studio.exceptions import DuplicateEntityError
+
+        create_brand(sample_brand_identity)
+        create_project("test-brand", sample_project)
+        with pytest.raises(DuplicateEntityError):
+            create_project("test-brand", sample_project)
+
+    def test_create_duplicate_raises_error_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify create_style_reference raises DuplicateEntityError."""
+        from sip_studio.brands.storage import create_style_reference
+        from sip_studio.exceptions import DuplicateEntityError
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", sample_style_reference)
+        with pytest.raises(DuplicateEntityError):
+            create_style_reference("test-brand", sample_style_reference)
+
+    def test_save_nonexistent_creates_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify save_product creates product if not exists."""
+        create_brand(sample_brand_identity)
+        summary = save_product("test-brand", sample_product)
+        assert summary.slug == "night-cream"
+        assert load_product("test-brand", "night-cream") is not None
+
+    def test_save_nonexistent_creates_project(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_project: ProjectFull,
+    ) -> None:
+        """Verify save_project creates project if not exists."""
+        create_brand(sample_brand_identity)
+        summary = save_project("test-brand", sample_project)
+        assert summary.slug == "christmas-campaign"
+        assert load_project("test-brand", "christmas-campaign") is not None
+
+    def test_save_nonexistent_creates_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify save_style_reference creates if not exists."""
+        from sip_studio.brands.storage import load_style_reference, save_style_reference
+
+        create_brand(sample_brand_identity)
+        summary = save_style_reference("test-brand", sample_style_reference)
+        assert summary.slug == "hero-centered"
+        assert load_style_reference("test-brand", "hero-centered") is not None
+
+    def test_save_existing_overwrites_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify save_product overwrites existing product."""
+        create_brand(sample_brand_identity)
+        create_product("test-brand", sample_product)
+        sample_product.description = "Updated description"
+        save_product("test-brand", sample_product)
+        loaded = load_product("test-brand", "night-cream")
+        assert loaded.description == "Updated description"
+
+    def test_save_existing_overwrites_project(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_project: ProjectFull,
+    ) -> None:
+        """Verify save_project overwrites existing project."""
+        create_brand(sample_brand_identity)
+        create_project("test-brand", sample_project)
+        sample_project.instructions = "Updated instructions"
+        save_project("test-brand", sample_project)
+        loaded = load_project("test-brand", "christmas-campaign")
+        assert loaded.instructions == "Updated instructions"
+
+    def test_save_existing_overwrites_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify save_style_reference overwrites existing."""
+        from sip_studio.brands.storage import (
+            create_style_reference,
+            load_style_reference,
+            save_style_reference,
+        )
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", sample_style_reference)
+        sample_style_reference.description = "Updated description"
+        save_style_reference("test-brand", sample_style_reference)
+        loaded = load_style_reference("test-brand", "hero-centered")
+        assert loaded.description == "Updated description"
+
+
+class TestCharacterizationTimestampHandling:
+    """Tests documenting timestamp behavior."""
+
+    def test_create_sets_timestamps_product(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify create_product preserves entity timestamps (set at model creation)."""
+        from datetime import datetime
+
+        create_brand(sample_brand_identity)
+        before = datetime.utcnow()
+        prod = ProductFull(slug="test-prod", name="Test", description="Test")
+        after = datetime.utcnow()
+        create_product("test-brand", prod)
+        loaded = load_product("test-brand", "test-prod")
+        # Timestamps are set when model is created, not when create_product is called
+        assert before <= loaded.created_at <= after
+        assert before <= loaded.updated_at <= after
+
+    def test_save_updates_updated_at_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify save_product updates updated_at timestamp."""
+        import time
+
+        create_brand(sample_brand_identity)
+        create_product("test-brand", sample_product)
+        first = load_product("test-brand", "night-cream")
+        first_updated = first.updated_at
+        time.sleep(0.01)
+        sample_product.description = "Changed"
+        save_product("test-brand", sample_product)
+        second = load_product("test-brand", "night-cream")
+        assert second.updated_at > first_updated
+
+    def test_save_updates_updated_at_project(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_project: ProjectFull,
+    ) -> None:
+        """Verify save_project updates updated_at timestamp."""
+        import time
+
+        create_brand(sample_brand_identity)
+        create_project("test-brand", sample_project)
+        first = load_project("test-brand", "christmas-campaign")
+        first_updated = first.updated_at
+        time.sleep(0.01)
+        sample_project.instructions = "Changed"
+        save_project("test-brand", sample_project)
+        second = load_project("test-brand", "christmas-campaign")
+        assert second.updated_at > first_updated
+
+    def test_save_updates_updated_at_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify save_style_reference updates updated_at."""
+        import time
+
+        from sip_studio.brands.storage import (
+            create_style_reference,
+            load_style_reference,
+            save_style_reference,
+        )
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", sample_style_reference)
+        first = load_style_reference("test-brand", "hero-centered")
+        first_updated = first.updated_at
+        time.sleep(0.01)
+        sample_style_reference.description = "Changed"
+        save_style_reference("test-brand", sample_style_reference)
+        second = load_style_reference("test-brand", "hero-centered")
+        assert second.updated_at > first_updated
+
+
+class TestCharacterizationIndexBehavior:
+    """Tests documenting index add/replace behavior."""
+
+    def test_index_add_replaces_existing_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify ProductIndex.add_product replaces existing entry."""
+        from sip_studio.brands.models import ProductIndex, ProductSummary
+
+        idx = ProductIndex()
+        s1 = ProductSummary(slug="test", name="Original", description="D")
+        s2 = ProductSummary(slug="test", name="Updated", description="D")
+        idx.add_product(s1)
+        idx.add_product(s2)
+        assert len(idx.products) == 1
+        assert idx.products[0].name == "Updated"
+
+    def test_index_add_replaces_existing_project(self, temp_brands_dir: Path) -> None:
+        """Verify ProjectIndex.add_project replaces existing entry."""
+        from sip_studio.brands.models import ProjectIndex, ProjectSummary
+
+        idx = ProjectIndex()
+        s1 = ProjectSummary(slug="test", name="Original")
+        s2 = ProjectSummary(slug="test", name="Updated")
+        idx.add_project(s1)
+        idx.add_project(s2)
+        assert len(idx.projects) == 1
+        assert idx.projects[0].name == "Updated"
+
+    def test_index_add_replaces_existing_style_reference(self, temp_brands_dir: Path) -> None:
+        """Verify StyleReferenceIndex.add_style_reference replaces existing."""
+        from sip_studio.brands.models import StyleReferenceIndex, StyleReferenceSummary
+
+        idx = StyleReferenceIndex()
+        s1 = StyleReferenceSummary(slug="test", name="Original")
+        s2 = StyleReferenceSummary(slug="test", name="Updated")
+        idx.add_style_reference(s1)
+        idx.add_style_reference(s2)
+        assert len(idx.style_references) == 1
+        assert idx.style_references[0].name == "Updated"
+
+    def test_list_sorted_by_name_case_insensitive_product(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify list_products sorts case-insensitively by name."""
+        create_brand(sample_brand_identity)
+        create_product("test-brand", ProductFull(slug="z-prod", name="Zebra", description="D"))
+        create_product("test-brand", ProductFull(slug="a-prod", name="alpha", description="D"))
+        create_product("test-brand", ProductFull(slug="m-prod", name="Middle", description="D"))
+        products = list_products("test-brand")
+        names = [p.name for p in products]
+        assert names == ["alpha", "Middle", "Zebra"]
+
+    def test_list_sorted_by_name_case_insensitive_project(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify list_projects sorts case-insensitively by name."""
+        create_brand(sample_brand_identity)
+        create_project("test-brand", ProjectFull(slug="z-proj", name="Zebra"))
+        create_project("test-brand", ProjectFull(slug="a-proj", name="alpha"))
+        create_project("test-brand", ProjectFull(slug="m-proj", name="Middle"))
+        projects = list_projects("test-brand")
+        names = [p.name for p in projects]
+        assert names == ["alpha", "Middle", "Zebra"]
+
+    def test_list_sorted_by_name_case_insensitive_style_reference(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify list_style_references sorts case-insensitively by name."""
+        from sip_studio.brands.models import StyleReferenceFull
+        from sip_studio.brands.storage import create_style_reference, list_style_references
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", StyleReferenceFull(slug="z-ref", name="Zebra"))
+        create_style_reference("test-brand", StyleReferenceFull(slug="a-ref", name="alpha"))
+        create_style_reference("test-brand", StyleReferenceFull(slug="m-ref", name="Middle"))
+        refs = list_style_references("test-brand")
+        names = [r.name for r in refs]
+        assert names == ["alpha", "Middle", "Zebra"]
+
+
+class TestCharacterizationNotFoundHandling:
+    """Tests documenting not-found behavior."""
+
+    def test_load_nonexistent_returns_none_product(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify load_product returns None for nonexistent."""
+        create_brand(sample_brand_identity)
+        assert load_product("test-brand", "nonexistent") is None
+
+    def test_load_nonexistent_returns_none_project(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify load_project returns None for nonexistent."""
+        create_brand(sample_brand_identity)
+        assert load_project("test-brand", "nonexistent") is None
+
+    def test_load_nonexistent_returns_none_style_reference(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify load_style_reference returns None for nonexistent."""
+        from sip_studio.brands.storage import load_style_reference
+
+        create_brand(sample_brand_identity)
+        assert load_style_reference("test-brand", "nonexistent") is None
+
+    def test_load_corrupted_json_returns_none_product(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify load_product returns None for corrupted JSON."""
+        create_brand(sample_brand_identity)
+        prod_dir = temp_brands_dir / "test-brand" / "products" / "bad-product"
+        prod_dir.mkdir(parents=True)
+        (prod_dir / "product_full.json").write_text("not valid json")
+        assert load_product("test-brand", "bad-product") is None
+
+    def test_load_corrupted_json_returns_none_project(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify load_project returns None for corrupted JSON."""
+        create_brand(sample_brand_identity)
+        proj_dir = temp_brands_dir / "test-brand" / "projects" / "bad-project"
+        proj_dir.mkdir(parents=True)
+        (proj_dir / "project_full.json").write_text("not valid json")
+        assert load_project("test-brand", "bad-project") is None
+
+    def test_load_corrupted_json_returns_none_style_reference(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify load_style_reference returns None for corrupted JSON."""
+        from sip_studio.brands.storage import load_style_reference
+
+        create_brand(sample_brand_identity)
+        ref_dir = temp_brands_dir / "test-brand" / "style_references" / "bad-ref"
+        ref_dir.mkdir(parents=True)
+        (ref_dir / "style_reference_full.json").write_text("not valid json")
+        assert load_style_reference("test-brand", "bad-ref") is None
+
+    def test_delete_nonexistent_returns_false_product(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify delete_product returns False for nonexistent."""
+        create_brand(sample_brand_identity)
+        assert delete_product("test-brand", "nonexistent") is False
+
+    def test_delete_nonexistent_returns_false_project(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify delete_project returns False for nonexistent."""
+        create_brand(sample_brand_identity)
+        assert delete_project("test-brand", "nonexistent") is False
+
+    def test_delete_nonexistent_returns_false_style_reference(
+        self, temp_brands_dir: Path, sample_brand_identity: BrandIdentityFull
+    ) -> None:
+        """Verify delete_style_reference returns False for nonexistent."""
+        from sip_studio.brands.storage import delete_style_reference
+
+        create_brand(sample_brand_identity)
+        assert delete_style_reference("test-brand", "nonexistent") is False
+
+
+class TestCharacterizationImageOperations:
+    """Tests documenting image management behavior."""
+
+    def test_add_image_sets_primary_if_first_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify add_product_image sets primary_image if first."""
+        create_brand(sample_brand_identity)
+        create_product("test-brand", sample_product)
+        path = add_product_image("test-brand", "night-cream", "first.png", b"data")
+        prod = load_product("test-brand", "night-cream")
+        assert prod.primary_image == path
+
+    def test_add_image_sets_primary_if_first_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify add_style_reference_image sets primary_image if first."""
+        from sip_studio.brands.storage import (
+            add_style_reference_image,
+            create_style_reference,
+            load_style_reference,
+        )
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", sample_style_reference)
+        path = add_style_reference_image("test-brand", "hero-centered", "first.png", b"data")
+        ref = load_style_reference("test-brand", "hero-centered")
+        assert ref.primary_image == path
+
+    def test_delete_primary_falls_back_to_next_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify deleting primary image falls back to next available."""
+        create_brand(sample_brand_identity)
+        create_product("test-brand", sample_product)
+        add_product_image("test-brand", "night-cream", "first.png", b"data1")
+        add_product_image("test-brand", "night-cream", "second.png", b"data2")
+        delete_product_image("test-brand", "night-cream", "first.png")
+        prod = load_product("test-brand", "night-cream")
+        assert prod.primary_image == "products/night-cream/images/second.png"
+
+    def test_delete_primary_falls_back_to_next_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify deleting primary falls back to next for style reference."""
+        from sip_studio.brands.storage import (
+            add_style_reference_image,
+            create_style_reference,
+            delete_style_reference_image,
+            load_style_reference,
+        )
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", sample_style_reference)
+        add_style_reference_image("test-brand", "hero-centered", "first.png", b"data1")
+        add_style_reference_image("test-brand", "hero-centered", "second.png", b"data2")
+        delete_style_reference_image("test-brand", "hero-centered", "first.png")
+        ref = load_style_reference("test-brand", "hero-centered")
+        assert ref.primary_image == "style_references/hero-centered/images/second.png"
+
+    def test_delete_only_image_clears_primary_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify deleting only image sets primary to empty string."""
+        create_brand(sample_brand_identity)
+        create_product("test-brand", sample_product)
+        add_product_image("test-brand", "night-cream", "only.png", b"data")
+        delete_product_image("test-brand", "night-cream", "only.png")
+        prod = load_product("test-brand", "night-cream")
+        assert prod.primary_image == ""
+
+    def test_delete_only_image_clears_primary_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify deleting only image sets primary to empty for style ref."""
+        from sip_studio.brands.storage import (
+            add_style_reference_image,
+            create_style_reference,
+            delete_style_reference_image,
+            load_style_reference,
+        )
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", sample_style_reference)
+        add_style_reference_image("test-brand", "hero-centered", "only.png", b"data")
+        delete_style_reference_image("test-brand", "hero-centered", "only.png")
+        ref = load_style_reference("test-brand", "hero-centered")
+        assert ref.primary_image == ""
+
+    def test_set_primary_nonexistent_returns_false_product(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_product: ProductFull,
+    ) -> None:
+        """Verify set_primary returns False if image not in product."""
+        create_brand(sample_brand_identity)
+        create_product("test-brand", sample_product)
+        result = set_primary_product_image(
+            "test-brand", "night-cream", "products/night-cream/images/nonexistent.png"
+        )
+        assert result is False
+
+    def test_set_primary_nonexistent_returns_false_style_reference(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_style_reference,
+    ) -> None:
+        """Verify set_primary returns False if image not in style ref."""
+        from sip_studio.brands.storage import (
+            create_style_reference,
+            set_primary_style_reference_image,
+        )
+
+        create_brand(sample_brand_identity)
+        create_style_reference("test-brand", sample_style_reference)
+        result = set_primary_style_reference_image(
+            "test-brand", "hero-centered", "style_references/hero-centered/images/nonexistent.png"
+        )
+        assert result is False
+
+
+class TestCharacterizationProjectAssetCount:
+    """Tests documenting project asset_count behavior."""
+
+    def test_project_summary_has_asset_count(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_project: ProjectFull,
+    ) -> None:
+        """Verify ProjectSummary includes asset_count field."""
+        create_brand(sample_brand_identity)
+        summary = create_project("test-brand", sample_project)
+        assert hasattr(summary, "asset_count")
+        assert summary.asset_count == 0
+
+    def test_list_projects_uses_cached_asset_count(
+        self,
+        temp_brands_dir: Path,
+        sample_brand_identity: BrandIdentityFull,
+        sample_project: ProjectFull,
+    ) -> None:
+        """Verify list_projects returns cached asset_count from index.
+        Note: asset_count in index is only updated on save, not on list.
+        """
+        create_brand(sample_brand_identity)
+        create_project("test-brand", sample_project)
+        # Create assets after project creation
+        generated_dir = temp_brands_dir / "test-brand" / "assets" / "generated"
+        generated_dir.mkdir(parents=True)
+        (generated_dir / "christmas-campaign__asset1.png").write_bytes(b"fake")
+        # list_projects returns index value (0), not recalculated
+        projects = list_projects("test-brand")
+        assert projects[0].asset_count == 0
+        # After save, asset_count is recalculated
+        sample_project.instructions = "Updated"
+        save_project("test-brand", sample_project)
+        projects = list_projects("test-brand")
+        assert projects[0].asset_count == 1
+
+
+class TestCharacterizationBrandNotFound:
+    """Tests documenting BrandNotFoundError behavior."""
+
+    def test_create_product_brand_not_found(
+        self, temp_brands_dir: Path, sample_product: ProductFull
+    ) -> None:
+        """Verify create_product raises BrandNotFoundError."""
+        from sip_studio.exceptions import BrandNotFoundError
+
+        with pytest.raises(BrandNotFoundError):
+            create_product("nonexistent-brand", sample_product)
+
+    def test_create_project_brand_not_found(
+        self, temp_brands_dir: Path, sample_project: ProjectFull
+    ) -> None:
+        """Verify create_project raises BrandNotFoundError."""
+        from sip_studio.exceptions import BrandNotFoundError
+
+        with pytest.raises(BrandNotFoundError):
+            create_project("nonexistent-brand", sample_project)
+
+    def test_create_style_reference_brand_not_found(
+        self, temp_brands_dir: Path, sample_style_reference
+    ) -> None:
+        """Verify create_style_reference raises BrandNotFoundError."""
+        from sip_studio.brands.storage import create_style_reference
+        from sip_studio.exceptions import BrandNotFoundError
+
+        with pytest.raises(BrandNotFoundError):
+            create_style_reference("nonexistent-brand", sample_style_reference)

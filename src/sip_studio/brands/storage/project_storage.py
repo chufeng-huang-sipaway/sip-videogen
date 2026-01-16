@@ -2,61 +2,17 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import shutil
-from datetime import datetime
 from pathlib import Path
 
 from sip_studio.constants import ALLOWED_IMAGE_EXTS, ALLOWED_VIDEO_EXTS
-from sip_studio.exceptions import BrandNotFoundError, DuplicateEntityError, ProjectNotFoundError
-from sip_studio.utils.file_utils import write_atomically
+from sip_studio.exceptions import ProjectNotFoundError
 
 from ..models import ProjectFull, ProjectIndex, ProjectSummary
 from .base import get_brand_dir
+from .base_entity import BaseEntityStorage
 
 logger = logging.getLogger(__name__)
-
-
-def get_projects_dir(brand_slug: str) -> Path:
-    """Get the projects directory for a brand."""
-    return get_brand_dir(brand_slug) / "projects"
-
-
-def get_project_dir(brand_slug: str, project_slug: str) -> Path:
-    """Get the directory for a specific project."""
-    return get_projects_dir(brand_slug) / project_slug
-
-
-def get_project_index_path(brand_slug: str) -> Path:
-    """Get the path to the project index file for a brand."""
-    return get_projects_dir(brand_slug) / "index.json"
-
-
-def load_project_index(brand_slug: str) -> ProjectIndex:
-    """Load the project index for a brand."""
-    ip = get_project_index_path(brand_slug)
-    if ip.exists():
-        try:
-            data = json.loads(ip.read_text())
-            idx = ProjectIndex.model_validate(data)
-            logger.debug(
-                "Loaded project index for %s with %d projects", brand_slug, len(idx.projects)
-            )
-            return idx
-        except json.JSONDecodeError as e:
-            logger.warning("Invalid JSON in project index for %s: %s", brand_slug, e)
-        except Exception as e:
-            logger.warning("Failed to load project index for %s: %s", brand_slug, e)
-    logger.debug("Creating new project index for %s", brand_slug)
-    return ProjectIndex()
-
-
-def save_project_index(brand_slug: str, index: ProjectIndex) -> None:
-    """Save the project index for a brand atomically."""
-    ip = get_project_index_path(brand_slug)
-    write_atomically(ip, index.model_dump_json(indent=2))
-    logger.debug("Saved project index for %s with %d projects", brand_slug, len(index.projects))
 
 
 def count_project_assets(brand_slug: str, project_slug: str) -> int:
@@ -96,131 +52,103 @@ def list_project_assets(brand_slug: str, project_slug: str) -> list[str]:
     return assets
 
 
-def create_project(brand_slug: str, project: ProjectFull) -> ProjectSummary:
-    """Create a new project for a brand.
-    Args:
-        brand_slug: Brand identifier.
-        project: Complete project data.
-    Returns:
-        ProjectSummary extracted from the project.
-    Raises:
-        BrandNotFoundError: If brand doesn't exist.
-        DuplicateEntityError: If project already exists.
-    """
-    bd = get_brand_dir(brand_slug)
-    if not bd.exists():
-        raise BrandNotFoundError(f"Brand '{brand_slug}' not found")
-    pd = get_project_dir(brand_slug, project.slug)
-    if pd.exists():
-        raise DuplicateEntityError(
-            f"Project '{project.slug}' already exists in brand '{brand_slug}'"
-        )
-    # Create directory
-    pd.mkdir(parents=True, exist_ok=True)
-    # Save project files atomically (asset_count is 0 for new projects)
-    ac = count_project_assets(brand_slug, project.slug)
-    summary = project.to_summary(asset_count=ac)
-    write_atomically(pd / "project.json", summary.model_dump_json(indent=2))
-    write_atomically(pd / "project_full.json", project.model_dump_json(indent=2))
-    # Update index
-    idx = load_project_index(brand_slug)
-    idx.add_project(summary)
-    save_project_index(brand_slug, idx)
-    logger.info("Created project %s for brand %s", project.slug, brand_slug)
-    return summary
+class ProjectStorage(BaseEntityStorage[ProjectSummary, ProjectFull, ProjectIndex]):
+    """Storage implementation for projects."""
+
+    @property
+    def dir_name(self) -> str:
+        return "projects"
+
+    @property
+    def file_prefix(self) -> str:
+        return "project"
+
+    @property
+    def summary_type(self) -> type[ProjectSummary]:
+        return ProjectSummary
+
+    @property
+    def full_type(self) -> type[ProjectFull]:
+        return ProjectFull
+
+    @property
+    def index_type(self) -> type[ProjectIndex]:
+        return ProjectIndex
+
+    # Index adapters
+    def _index_add(self, index: ProjectIndex, summary: ProjectSummary) -> None:
+        index.add_project(summary)
+
+    def _index_remove(self, index: ProjectIndex, slug: str) -> bool:
+        return index.remove_project(slug)
+
+    def _index_list(self, index: ProjectIndex) -> list[ProjectSummary]:
+        return index.projects
+
+    # Entity adapters
+    def _to_summary(self, entity: ProjectFull, brand_slug: str) -> ProjectSummary:
+        ac = count_project_assets(brand_slug, entity.slug)
+        return entity.to_summary(asset_count=ac)
+
+    def _not_found_error(self, brand_slug: str, slug: str) -> Exception:
+        return ProjectNotFoundError(f"Project '{slug}' not found in brand '{brand_slug}'")
 
 
-def load_project(brand_slug: str, project_slug: str) -> ProjectFull | None:
-    """Load a project's full details from disk.
-    Args:
-        brand_slug: Brand identifier.
-        project_slug: Project identifier.
-    Returns:
-        ProjectFull or None if not found.
-    """
-    pd = get_project_dir(brand_slug, project_slug)
-    pp = pd / "project_full.json"
-    if not pp.exists():
-        logger.debug("Project not found: %s/%s", brand_slug, project_slug)
-        return None
-    try:
-        data = json.loads(pp.read_text())
-        return ProjectFull.model_validate(data)
-    except Exception as e:
-        logger.error("Failed to load project %s/%s: %s", brand_slug, project_slug, e)
-        return None
+# Module-level singleton
+_st = ProjectStorage()
 
 
-def load_project_summary(brand_slug: str, project_slug: str) -> ProjectSummary | None:
-    """Load just the project summary (L0 layer).
-    This is faster than load_project() when you only need the summary.
-    """
-    pd = get_project_dir(brand_slug, project_slug)
-    sp = pd / "project.json"
-    if not sp.exists():
-        return None
-    try:
-        data = json.loads(sp.read_text())
-        return ProjectSummary.model_validate(data)
-    except Exception as e:
-        logger.error("Failed to load project summary %s/%s: %s", brand_slug, project_slug, e)
-        return None
+# Path helpers (backward compat)
+def get_projects_dir(bs: str) -> Path:
+    return _st.get_entities_dir(bs)
 
 
-def save_project(brand_slug: str, project: ProjectFull) -> ProjectSummary:
-    """Save/update a project.
-    Args:
-        brand_slug: Brand identifier.
-        project: Updated project data.
-    Returns:
-        Updated ProjectSummary.
-    """
-    pd = get_project_dir(brand_slug, project.slug)
-    if not pd.exists():
-        return create_project(brand_slug, project)
-    # Update timestamp
-    project.updated_at = datetime.utcnow()
-    # Save files atomically (recalculate asset_count)
-    ac = count_project_assets(brand_slug, project.slug)
-    summary = project.to_summary(asset_count=ac)
-    write_atomically(pd / "project.json", summary.model_dump_json(indent=2))
-    write_atomically(pd / "project_full.json", project.model_dump_json(indent=2))
-    # Update index
-    idx = load_project_index(brand_slug)
-    idx.add_project(summary)
-    save_project_index(brand_slug, idx)
-    logger.info("Saved project %s for brand %s", project.slug, brand_slug)
-    return summary
+def get_project_dir(bs: str, ps: str) -> Path:
+    return _st.get_entity_dir(bs, ps)
 
 
-def delete_project(brand_slug: str, project_slug: str) -> bool:
-    """Delete a project and its metadata (not generated assets).
-    Note: Generated assets in assets/generated/ are NOT deleted,
-    only the project metadata in projects/{slug}/.
-    Returns:
-        True if project was deleted, False if not found.
-    """
-    pd = get_project_dir(brand_slug, project_slug)
-    if not pd.exists():
-        return False
-    shutil.rmtree(pd)
-    # Update index
-    idx = load_project_index(brand_slug)
-    idx.remove_project(project_slug)
-    save_project_index(brand_slug, idx)
-    logger.info("Deleted project %s from brand %s", project_slug, brand_slug)
-    return True
+def get_project_index_path(bs: str) -> Path:
+    return _st.get_index_path(bs)
 
 
-def list_projects(brand_slug: str) -> list[ProjectSummary]:
-    """List all projects for a brand, sorted by name."""
-    idx = load_project_index(brand_slug)
-    return sorted(idx.projects, key=lambda p: p.name.lower())
+# Index operations (backward compat)
+def load_project_index(bs: str) -> ProjectIndex:
+    return _st.load_index(bs)
 
 
+def save_project_index(bs: str, idx: ProjectIndex) -> None:
+    _st.save_index(bs, idx)
+
+
+# CRUD operations (backward compat)
+def create_project(bs: str, p: ProjectFull) -> ProjectSummary:
+    return _st.create(bs, p)
+
+
+def load_project(bs: str, ps: str) -> ProjectFull | None:
+    return _st.load(bs, ps)
+
+
+def load_project_summary(bs: str, ps: str) -> ProjectSummary | None:
+    return _st.load_summary(bs, ps)
+
+
+def save_project(bs: str, p: ProjectFull) -> ProjectSummary:
+    return _st.save(bs, p)
+
+
+def delete_project(bs: str, ps: str) -> bool:
+    return _st.delete(bs, ps)
+
+
+def list_projects(bs: str) -> list[ProjectSummary]:
+    return _st.list_all(bs)
+
+
+# Active project operations (project-specific, not in base)
 def get_active_project(brand_slug: str) -> str | None:
     """Get the slug of the currently active project for a brand."""
-    idx = load_project_index(brand_slug)
+    idx = _st.load_index(brand_slug)
     logger.debug(
         "get_active_project(%s) -> %s (from index with %d projects)",
         brand_slug,
@@ -238,9 +166,9 @@ def set_active_project(brand_slug: str, project_slug: str | None) -> None:
     Raises:
         ProjectNotFoundError: If project doesn't exist (when setting non-None).
     """
-    idx = load_project_index(brand_slug)
+    idx = _st.load_index(brand_slug)
     if project_slug and not idx.get_project(project_slug):
         raise ProjectNotFoundError(f"Project '{project_slug}' not found in brand '{brand_slug}'")
     idx.active_project = project_slug
-    save_project_index(brand_slug, idx)
+    _st.save_index(brand_slug, idx)
     logger.info("Active project for brand %s set to: %s", brand_slug, project_slug or "(none)")
