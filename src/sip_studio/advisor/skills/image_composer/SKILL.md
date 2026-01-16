@@ -21,6 +21,35 @@ tools_required:
   - generate_image
   - load_brand
   - list_files
+workflow_required: true
+activation_prompt: |
+  ## Image Composer - MANDATORY WORKFLOW
+
+  Before calling generate_image, you MUST create a structured visual brief:
+
+  **Step 1: Concept** (What's in the image)
+  - Subject: Who/what is the hero? Age, appearance, clothing if person
+  - Setting: Environment, location, context
+  - Action: What's happening? Product placement?
+
+  **Step 2: Visual** (How it looks)
+  - Lighting: Direction, quality (soft/hard), color temperature
+  - Colors: Brand colors, palette, contrast
+  - Composition: Framing, camera angle, depth of field
+  - Mood: Emotional quality to convey
+
+  **Output Format** - Produce this brief BEFORE generate_image:
+  ```
+  ## Visual Brief
+  **Concept**: [1-2 sentences describing scene]
+  **Subject**: [specific details]
+  **Setting**: [environment]
+  **Lighting**: [type, direction, mood]
+  **Colors**: [palette]
+  **Composition**: [framing, angle]
+  ```
+
+  Call `activate_skill("image-composer")` for full composition guidelines.
 ---
 
 # Image Composer Skill

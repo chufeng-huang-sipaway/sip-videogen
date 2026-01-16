@@ -31,58 +31,52 @@ class Skill:
     triggers: List[str] = field(default_factory=list)
     tools_required: List[str] = field(default_factory=list)
     instructions: str = ""
+    activation_prompt: str = ""  # Condensed version for progressive disclosure
+    workflow_required: bool = False  # If True, must be activated before generate_image
     path: Path | None = None
 
     @classmethod
     def from_file(cls, path: Path) -> "Skill":
-        """Load a skill from a SKILL.md file.
-
-        Args:
-            path: Path to the SKILL.md file.
-
-        Returns:
-            Loaded Skill instance.
-
-        Raises:
-            ValueError: If the file format is invalid.
-        """
+        """Load a skill from a SKILL.md file."""
         content = path.read_text(encoding="utf-8")
-
-        # Parse YAML frontmatter
         frontmatter_match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
         if not frontmatter_match:
             raise ValueError(f"Invalid SKILL.md format (missing frontmatter): {path}")
-
         frontmatter_str = frontmatter_match.group(1)
         instructions = content[frontmatter_match.end() :].strip()
-
         try:
             frontmatter = yaml.safe_load(frontmatter_str)
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML frontmatter in {path}: {e}") from e
-
         if not isinstance(frontmatter, dict):
             raise ValueError(f"Frontmatter must be a dictionary in {path}")
-
         return cls(
             name=frontmatter.get("name", path.parent.name),
             description=frontmatter.get("description", ""),
             triggers=frontmatter.get("triggers", []),
             tools_required=frontmatter.get("tools_required", []),
             instructions=instructions,
+            activation_prompt=frontmatter.get("activation_prompt", ""),
+            workflow_required=frontmatter.get("workflow_required", False),
             path=path,
         )
 
     def format_summary(self) -> str:
-        """Format skill as a short summary for the system prompt.
-
-        Returns:
-            One-line skill summary with name and description.
-        """
+        """Format skill as a short summary for the system prompt."""
         triggers_str = ", ".join(self.triggers[:3]) if self.triggers else ""
         if triggers_str:
             return f"- **{self.name}**: {self.description} (triggers: {triggers_str})"
         return f"- **{self.name}**: {self.description}"
+
+    def get_activation_prompt(self) -> str:
+        """Get condensed activation prompt for progressive disclosure.
+        Falls back to description if no activation_prompt defined."""
+        if self.activation_prompt:
+            return self.activation_prompt
+        return (
+            f"Skill '{self.name}': {self.description}. "
+            f"Call activate_skill('{self.name}') to load full instructions."
+        )
 
 
 class SkillsRegistry:
@@ -177,27 +171,33 @@ class SkillsRegistry:
 
     def find_relevant_skills(self, user_message: str) -> List[Skill]:
         """Find skills that might be relevant to a user message.
-
         This is a simple keyword-based match. The LLM ultimately decides
         which skills to apply.
-
         Args:
             user_message: The user's message text.
-
         Returns:
             List of potentially relevant skills.
         """
         self.load()
         message_lower = user_message.lower()
         relevant = []
-
         for skill in self._skills.values():
             # Check if any triggers match
             for trigger in skill.triggers:
                 if trigger.lower() in message_lower:
                     relevant.append(skill)
+                    logger.info(
+                        "[SKILL_MATCH] Matched skill '%s' via trigger '%s'", skill.name, trigger
+                    )
                     break
-
+        if relevant:
+            logger.info(
+                "[SKILL_MATCH] Total %d skills matched: %s",
+                len(relevant),
+                [s.name for s in relevant],
+            )
+        else:
+            logger.info("[SKILL_MATCH] No skills matched for message: %s...", user_message[:80])
         return relevant
 
 

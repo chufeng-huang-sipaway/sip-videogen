@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from openai import OpenAI
@@ -15,11 +17,13 @@ from sip_studio.advisor.tools import (
     _impl_complete_task_file,
     _impl_create_task_file,
     _impl_update_task,
+    get_current_batch_id,
     set_async_mode,
 )
-from sip_studio.advisor.tools.image_tools import _impl_wait_for_batch_images
 from sip_studio.config.logging import get_logger
 from sip_studio.config.settings import get_settings
+
+from .image_pool import TicketStatus, get_image_pool
 
 if TYPE_CHECKING:
     from sip_studio.advisor.agent import BrandAdvisor
@@ -165,21 +169,49 @@ class TaskExtractor:
 class IdeaPlanner:
     """Plan a set of image concepts/prompts from a single user request."""
 
+    # Skill-enhanced prompt with composition + prompt engineering guidelines
     IDEAS_PROMPT = (
-        "You are planning image generation tasks for an AI creative studio.\n\n"
-        "User request:\n{user_message}\n\n"
-        "Brand / product context:\n{context}\n\n"
-        "Create EXACTLY {count} distinct image concepts.\n"
-        "Return ONLY valid JSON (no markdown) as an array of objects.\n"
-        "Each object MUST have:\n"
+        "You are an expert Image Composer and Prompt Engineer for an AI creative studio.\n\n"
+        "## YOUR WORKFLOW\n"
+        "For each concept, apply this two-phase process:\n\n"
+        "**Phase 1: COMPOSITION** (What's in the image)\n"
+        "- Subject: Who/what is the hero? Be specific about age, appearance, clothing\n"
+        "- Setting: Environment, location, context\n"
+        "- Action: What's happening? Product placement?\n"
+        "- Props: What supports the story without stealing focus?\n\n"
+        "**Phase 2: VISUAL** (How it looks)\n"
+        "- Lighting: Direction, quality (soft/hard), color temperature\n"
+        "- Colors: Brand colors, palette, contrast\n"
+        "- Composition: Framing, camera angle, depth of field\n"
+        "- Mood: Emotional quality to convey\n\n"
+        "## PROMPT ENGINEERING RULES\n"
+        "1. **Narrative descriptions**, NOT keyword lists\n"
+        "   BAD: 'coffee shop, cozy, warm lighting'\n"
+        "   GOOD: 'A minimalist coffee shop with warm pendant lighting'\n\n"
+        "2. **The 5-Point Formula** (ALL 5 REQUIRED):\n"
+        "   - Subject (WHAT): Hyper-specific\n"
+        "   - Setting (WHERE): Environment details\n"
+        "   - Style (HOW): ALWAYS specify - 'lifestyle photography', 'product shot'\n"
+        "   - Lighting (MOOD): 'soft window light, warm golden tones'\n"
+        "   - Composition (CAMERA): 'medium shot, eye-level, shallow DoF'\n\n"
+        "3. **Include texture/material details** (matte, glossy, frosted, wood grain)\n"
+        "4. **Minimum 80 words per prompt** - include ALL 5 formula points\n\n"
+        "## USER REQUEST\n{user_message}\n\n"
+        "## BRAND CONTEXT\n{context}\n\n"
+        "## TASK\n"
+        "Create EXACTLY {count} distinct image concepts. Each concept MUST:\n"
+        "- Follow the composition + visual framework above\n"
+        "- Have a narrative prompt (NOT keyword list)\n"
+        "- Be 80+ words with specific details\n\n"
+        "Return ONLY valid JSON (no markdown) as an array of objects:\n"
         '- "title": short human-friendly title (max 80 chars)\n'
-        '- "prompt": detailed image prompt (1-3 sentences). Do NOT mention aspect ratio.\n\n'
+        '- "prompt": detailed narrative prompt following the 5-point formula (80+ words)\n\n'
         "JSON array:"
     )
 
     @staticmethod
     async def plan(user_message: str, count: int, context: str = "") -> list[dict[str, str]]:
-        """Plan image concepts using GPT-4o-mini. Returns list of {title,prompt} dicts."""
+        """Plan image concepts using GPT-4o-mini with skill-enhanced prompting."""
         if count <= 0:
             return []
         try:
@@ -188,11 +220,14 @@ class IdeaPlanner:
             prompt = IdeaPlanner.IDEAS_PROMPT.format(
                 user_message=user_message[:4000], context=context[:4000], count=min(count, 20)
             )
+            logger.info(
+                "[BATCH] Using skill-enhanced IdeaPlanner (composition + prompt engineering)"
+            )
             resp = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.6,
-                max_tokens=1800,
+                temperature=0.7,
+                max_tokens=3000,  # Increased for 80+ word prompts
             )
             text = (resp.choices[0].message.content or "").strip()
             if not text:
@@ -215,6 +250,18 @@ class IdeaPlanner:
                 prompt_text = item.get("prompt")
                 if isinstance(title, str) and isinstance(prompt_text, str):
                     planned.append({"title": title.strip(), "prompt": prompt_text.strip()})
+            # Log prompt quality metrics
+            if planned:
+                avg_words = sum(len(p["prompt"].split()) for p in planned) / len(planned)
+                logger.info(
+                    "[BATCH] Generated %d concepts, avg prompt length: %.0f words",
+                    len(planned),
+                    avg_words,
+                )
+                for i, p in enumerate(planned[:3], 1):  # Log first 3 prompts for debugging
+                    logger.debug(
+                        "[BATCH] Concept %d (%s): %s...", i, p["title"][:30], p["prompt"][:100]
+                    )
             return planned[: min(count, 20)]
         except Exception as e:
             logger.error(f"[BATCH] Idea planning failed: {e}")
@@ -234,8 +281,8 @@ class BatchExecutor:
     async def run(self, tasks: list[str], context: dict) -> BatchResult:
         """Execute tasks with parallel image generation.
         Phase 1: Submit all tasks (async mode - generate_image returns immediately)
-        Phase 2: Wait for all images to complete
-        Phase 3: Process results and update task statuses
+        Phase 2: Poll ticket completion and mark tasks done as each image finishes
+        Phase 3: Finalize task file and return summary
         Args:
             tasks: List of task descriptions
             context: Dict with product_slugs, style_refs, aspect_ratio, project_slug
@@ -273,22 +320,76 @@ class BatchExecutor:
                 task_result = await self._execute_single_task(task_num, task_desc, context)
                 result.results.append(task_result)
                 submitted_count += 1
-            # Phase 2: Wait for all images to complete
-            logger.info(
-                f"[BATCH] {submitted_count} tasks submitted, waiting for batch completion..."
-            )
+            # Phase 2/3: Update tasks as images finish (do not wait for full batch).
+            logger.info(f"[BATCH] {submitted_count} tasks submitted, waiting for completion...")
             self._emit_progress("batch_waiting", {"message": "Generating images in parallel..."})
-            batch_result = _impl_wait_for_batch_images(timeout=600.0)
-            # Phase 3: Process results
-            completed_paths = [r["path"] for r in batch_result.get("results", []) if r.get("path")]
-            failed_count = batch_result.get("failed", 0)
-            result.completed = len(completed_paths)
-            result.failed = failed_count
-            # Update task statuses based on batch results
-            for i, path in enumerate(completed_paths):
-                if i < len(tasks):
-                    _impl_update_task(i + 1, done=True, output_path=path)
-                    self._emit_progress("task_completed", {"number": i + 1, "output": path})
+            batch_id = get_current_batch_id()
+            if not batch_id:
+                logger.warning("[BATCH] No current batch id - cannot track image completion")
+                result.completed = 0
+                result.failed = submitted_count
+            else:
+                brand_dir, _err = self.state.get_brand_dir()
+                pool = get_image_pool()
+                # Discover submitted tickets for this batch (in submission order).
+                snapshot = pool.wait_for_batch(batch_id, timeout=0.01)
+                ticket_ids = [t.ticket_id for t in snapshot.tickets]
+                # Map ticket -> task number (best-effort by order).
+                id_to_task = {
+                    tid: idx + 1 for idx, tid in enumerate(ticket_ids[: len(cleaned_tasks)])
+                }
+                pending = set(ticket_ids)
+                completed = 0
+                failed = 0
+                start = time.time()
+                timeout_s = 600.0
+                while pending and (time.time() - start) < timeout_s:
+                    # Cooperative interruption: stop cancels outstanding tickets.
+                    if self.state.get_interrupt() in ("stop", "new_direction"):
+                        pool.cancel_batch(batch_id)
+                        break
+                    for tid in list(pending):
+                        res = pool.wait_for_ticket(tid, timeout=0.2)
+                        if not res.status.is_terminal():
+                            continue
+                        pending.discard(tid)
+                        ticket_task_num = id_to_task.get(tid)
+                        if ticket_task_num is None:
+                            continue
+                        if res.status == TicketStatus.COMPLETED and res.path:
+                            output_path = res.path
+                            if brand_dir:
+                                try:
+                                    p = Path(res.path)
+                                    if p.is_absolute():
+                                        output_path = p.resolve().relative_to(brand_dir).as_posix()
+                                except Exception:
+                                    output_path = res.path
+                            _impl_update_task(ticket_task_num, done=True, output_path=output_path)
+                            self._emit_progress(
+                                "task_completed",
+                                {"number": ticket_task_num, "output": output_path},
+                            )
+                            completed += 1
+                        elif res.status in (
+                            TicketStatus.FAILED,
+                            TicketStatus.CANCELLED,
+                            TicketStatus.TIMEOUT,
+                        ):
+                            failed += 1
+                            self._emit_progress(
+                                "task_failed",
+                                {
+                                    "number": ticket_task_num,
+                                    "error": res.error or res.status.value,
+                                },
+                            )
+                    if pending:
+                        time.sleep(0.2)
+                # Any tasks that never submitted a ticket count as failed.
+                missing = max(0, min(len(cleaned_tasks), submitted_count) - len(ticket_ids))
+                result.completed = completed
+                result.failed = failed + missing
             # Complete task file
             summary = f"Completed {result.completed}/{result.total} tasks"
             if result.failed > 0:

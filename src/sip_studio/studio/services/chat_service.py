@@ -13,6 +13,7 @@ from pathlib import Path
 from sip_studio.advisor.agent import BrandAdvisor
 from sip_studio.advisor.session_manager import SessionManager
 from sip_studio.advisor.tools import (
+    _impl_archive_existing_tasks,
     _impl_complete_task_file,
     _impl_create_task_file,
     _impl_update_task,
@@ -176,16 +177,26 @@ class ChatService:
             return
 
     def _detect_idea_batch_request(self, message: str) -> int | None:
-        """Detect single-turn requests like: 'give me 5 ideas and generate images for each'."""
+        """Detect single-turn requests like: 'give me 5 images' or
+        'give me 5 ideas and generate images for each'."""
         msg = message.lower()
-        if not re.search(r"\b(idea|ideas|concept|concepts|options)\b", msg):
-            return None
-        if not re.search(r"\b(generate|create|make|render|produce|execute)\b", msg):
-            return None
         if not re.search(r"\b(images?|shots?|photos?|visuals?)\b", msg):
             return None
-        # Prefer explicit counts, fallback to 5
-        m = re.search(r"(\d+)\s*(?:ideas?|concepts?|options?)", msg)
+        # Must look like a request to provide/generate images (avoid false positives like
+        # "I uploaded 5 images")
+        if not re.search(
+            r"\b(generate|create|make|render|produce|execute|give|show|provide|send|deliver)\b",
+            msg,
+        ):
+            return None
+        # Prefer explicit counts for images/ideas
+        m = re.search(r"(\d+)\s*(?:image\s*sets?|images?|shots?|photos?|visuals?)\b", msg)
+        if m:
+            try:
+                return max(1, min(int(m.group(1)), 20))
+            except Exception:
+                pass
+        m = re.search(r"(\d+)\s*(?:ideas?|concepts?|options?)\b", msg)
         if m:
             try:
                 return max(1, min(int(m.group(1)), 20))
@@ -204,11 +215,25 @@ class ChatService:
             "ten": 10,
         }
         m = re.search(
-            r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\b\s*(?:ideas?|concepts?)", msg
+            r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\b\s*(?:image\s*sets?|images?|shots?|photos?|visuals?)\b",
+            msg,
         )
         if m:
             return words.get(m.group(1), 5)
-        return 5
+        m = re.search(
+            r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\b\s*(?:ideas?|concepts?)\b",
+            msg,
+        )
+        if m:
+            return words.get(m.group(1), 5)
+        # No explicit count: only trigger batch mode if the user clearly asked for multiple.
+        if re.search(r"\b(ideas?|concepts?|options?)\b", msg):
+            return 5
+        if re.search(r"\b(images|shots|photos|visuals)\b", msg) and re.search(
+            r"\b(a few|some|several|multiple|all)\b", msg
+        ):
+            return 5
+        return None
 
     def _relativize_output_path(self, brand_dir: Path, raw_path: str | None) -> str | None:
         """Convert absolute paths under brand dir to stable relative paths (assets/...)."""
@@ -267,6 +292,9 @@ class ChatService:
             slug = self._state.get_active_slug()
             if not slug:
                 return bridge_error("No brand selected")
+            # Archive any existing TASKS.md from previous conversation to start fresh
+            set_tool_context(self._state)
+            _impl_archive_existing_tasks()
             logger.info(
                 "chat(): slug=%s, project_slug=%s, attached_products=%s, attached_style_refs=%s",
                 slug,
@@ -298,8 +326,6 @@ class ChatService:
             before_images = {a["path"] for a in list_brand_assets(slug, category="generated")}
             before_videos = {a["path"] for a in list_brand_videos(slug)}
             before_style_refs = {t.slug for t in storage_list_style_references(slug)}
-            # Set tool context for todo tools (uses contextvars for thread safety)
-            set_tool_context(self._state)
             # Set batch ID for image pool (uses contextvars)
             set_current_batch_id(self._current_batch_id)
             logger.warning(

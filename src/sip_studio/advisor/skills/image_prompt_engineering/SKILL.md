@@ -2,70 +2,46 @@
 name: image-prompt-engineering
 description: Craft effective prompts for Gemini image generation - MUST READ before any generate_image call
 triggers:
-  #Core image generation
   - image
   - generate_image
   - generate image
-  - generate an image
   - create image
-  - create an image
   - make image
-  - make an image
-  - make me an image
-  - image generation
   - lifestyle image
   - product image
   - hero image
   - picture
   - photo
-  - photograph
   - visual
-  - artwork
-  - graphic
-  - illustration
-  - render
-  #Infographics and diagrams
   - infographic
-  - diagram
-  - chart
-  #Layout and sketches (specific phrases)
-  - sketch layout
-  - wireframe
-  - layout mockup
-  - blueprint
-  - schematic
-  - follow this layout
-  - based on this sketch
-  - turn this wireframe
-  #Editing (specific phrases to avoid false positives on code/API tasks)
-  - remove background
-  - colorize image
-  - colorize photo
-  - enhance image
-  - photo enhancement
   - edit image
-  - edit photo
-  - edit this image
-  - quick edit
-  - restore photo
-  - restore image
-  - cleanup image
-  - clean up photo
-  - relight photo
-  - relight image
-  - change background
-  - replace background
-  - change the background
-  - replace the background
-  #Dimensional conversion
+  - remove background
   - 3D render
-  - 3D mockup
-  - 2D to 3D
-  - 3D to 2D
-  - dimensional conversion
 tools_required:
   - generate_image
 priority: high
+workflow_required: true
+activation_prompt: |
+  ## Prompt Engineering - MANDATORY FORMAT
+
+  After composing your visual brief, translate it to a Gemini-optimized prompt:
+
+  **The 5-Point Formula**:
+  1. **Subject** (WHAT): Hyper-specific - "a frosted glass bottle with copper cap" not "a bottle"
+  2. **Setting** (WHERE): Environment details - "on marble counter in bright Scandinavian kitchen"
+  3. **Style** (HOW): Medium - "editorial product photography", "flat vector illustration"
+  4. **Lighting** (MOOD): Emotional quality - "soft diffused window light, warm golden tones"
+  5. **Composition** (CAMERA): Framing - "45-degree overhead, shallow depth of field"
+
+  **Critical Rules**:
+  - Narrative descriptions, NOT keyword lists
+  - "A frosted glass bottle..." NOT "bottle, glass, frosted, minimalist"
+  - Include texture/material details for realism
+  - Quote exact text with typography: **"BRAND NAME"** in bold serif
+
+  **Minimum prompt length**: 80+ words (your current prompts are ~100 words - good)
+
+  Call `activate_skill("image-prompt-engineering")` for advanced techniques.
 ---
 
 # Image Prompt Engineering

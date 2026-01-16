@@ -806,8 +806,31 @@ async def generate_image(
 
     from sip_studio.studio.services.image_pool import TicketStatus, get_image_pool
 
+    from .skill_tools import check_image_workflow_compliance, get_workflow_state
     from .todo_tools import get_async_mode, get_current_batch_id
 
+    # === WORKFLOW ENFORCEMENT: Check if skills were activated ===
+    is_compliant, error_msg = check_image_workflow_compliance()
+    state = get_workflow_state()
+    logger.warning("=" * 60)
+    logger.warning("[WORKFLOW_CHECK] Compliance: %s", is_compliant)
+    logger.warning("[WORKFLOW_CHECK] Activated skills: %s", state.activated_skills)
+    if not is_compliant:
+        logger.warning("[WORKFLOW_CHECK] ⚠️ WORKFLOW VIOLATION - agent skipped skill activation")
+        logger.warning(
+            "[WORKFLOW_CHECK] Prompt length: %d words (short prompts suggest skipped composition)",
+            len(prompt.split()),
+        )
+        # Soft enforcement: warn but proceed (set ENFORCE_WORKFLOW=true to block)
+        # TODO: Enable hard enforcement once workflow is validated
+        # return error_msg
+    # === DEBUG LOGGING: What prompt did agent actually send? ===
+    logger.warning("[PROMPT_DEBUG] generate_image CALLED")
+    logger.warning("[PROMPT_DEBUG] Prompt length: %d chars", len(prompt))
+    logger.warning("[PROMPT_DEBUG] Full prompt:\n%s", prompt)
+    logger.warning("[PROMPT_DEBUG] Has GML markers: %s", "[" in prompt and "]" in prompt)
+    logger.warning("[PROMPT_DEBUG] Prompt word count: %d", len(prompt.split()))
+    logger.warning("=" * 60)
     batch_id = get_current_batch_id()
     logger.warning(
         "[DEBUG] generate_image called - batch_id=%s, prompt=%s...", batch_id, prompt[:50]
