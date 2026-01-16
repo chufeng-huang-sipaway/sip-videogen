@@ -1,4 +1,4 @@
-"""Research service for web search and deep research."""
+"""Research service for web search and deep research using Gemini."""
 
 from __future__ import annotations
 
@@ -6,7 +6,10 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import errors as genai_errors
+from google.genai import types
+from packaging.version import Version
 
 from sip_studio.research.models import (
     ClarificationResponse,
@@ -20,36 +23,66 @@ from ..utils.bridge_types import bridge_error, bridge_ok
 
 if TYPE_CHECKING:
     from ..state import BridgeState
+
 log = logging.getLogger(__name__)
-# Default models
-WEB_SEARCH_MODEL = "gpt-4.1"
-DEEP_RESEARCH_MODEL = "o4-mini-deep-research-2025-06-26"
+
+# Version check - interactions API requires 1.55.0+
+MIN_GENAI_VERSION = "1.55.0"
+_genai_version = getattr(genai, "__version__", "0.0.0")
+if Version(_genai_version) < Version(MIN_GENAI_VERSION):
+    log.warning(
+        "google-genai version %s is below minimum %s. "
+        "Deep research may not work. Please upgrade: pip install 'google-genai>=%s'",
+        _genai_version,
+        MIN_GENAI_VERSION,
+        MIN_GENAI_VERSION,
+    )
+# Gemini models and agents
+WEB_SEARCH_MODEL = "gemini-2.5-flash"
+DEEP_RESEARCH_AGENT = "deep-research-pro-preview-12-2025"
 # Polling config
 MAX_POLL_DURATION = 45 * 60  # 45 minutes max
 INITIAL_POLL_DELAY = 5  # seconds
 MAX_POLL_DELAY = 30  # seconds
 
 
-def _extract_research_result(response) -> tuple[str, list[ResearchSource]]:
-    """Extract text and sources from Responses API output."""
-    text_parts = []
+def _extract_grounding_sources(response) -> tuple[str, list[ResearchSource]]:
+    """Extract text and sources from Gemini grounding response."""
+    text = response.text or ""
     sources = []
-    for item in getattr(response, "output", []):
-        if hasattr(item, "content"):
-            for c in item.content:
-                if hasattr(c, "text"):
-                    text_parts.append(c.text)
-                if hasattr(c, "annotations"):
-                    for ann in c.annotations:
-                        if hasattr(ann, "url"):
-                            sources.append(
-                                ResearchSource(
-                                    url=ann.url,
-                                    title=getattr(ann, "title", ""),
-                                    snippet=getattr(ann, "text", ""),
-                                )
-                            )
-    return "\n\n".join(text_parts), sources
+    if response.candidates and len(response.candidates) > 0:
+        gm = getattr(response.candidates[0], "grounding_metadata", None)
+        if gm:
+            for chunk in getattr(gm, "grounding_chunks", []) or []:
+                web = getattr(chunk, "web", None)
+                if web:
+                    sources.append(
+                        ResearchSource(
+                            url=getattr(web, "uri", ""), title=getattr(web, "title", ""), snippet=""
+                        )
+                    )
+    return text, sources
+
+
+def _extract_deep_research_result(interaction) -> tuple[str, list[ResearchSource]]:
+    """Extract text and sources from deep research interaction."""
+    text = ""
+    sources = []
+    if interaction.outputs and len(interaction.outputs) > 0:
+        last_output = interaction.outputs[-1]
+        text = getattr(last_output, "text", "") or ""
+    # Deep research may include grounding in metadata
+    if hasattr(interaction, "grounding_metadata") and interaction.grounding_metadata:
+        gm = interaction.grounding_metadata
+        for chunk in getattr(gm, "grounding_chunks", []) or []:
+            web = getattr(chunk, "web", None)
+            if web:
+                sources.append(
+                    ResearchSource(
+                        url=getattr(web, "uri", ""), title=getattr(web, "title", ""), snippet=""
+                    )
+                )
+    return text, sources
 
 
 def _build_research_query(original: str, answers: dict[str, str]) -> str:
@@ -69,20 +102,20 @@ def _build_research_query(original: str, answers: dict[str, str]) -> str:
 
 
 class ResearchService:
-    """Research caching, web search, and deep research job management."""
+    """Research caching, web search, and deep research job management using Gemini."""
 
     def __init__(self, state: BridgeState):
         self._state = state
         self._storage = ResearchStorage()
-        self._client: AsyncOpenAI | None = None
+        self._client: genai.Client | None = None
 
-    def _get_client(self) -> AsyncOpenAI:
-        """Lazily create OpenAI client."""
+    def _get_client(self) -> genai.Client:
+        """Lazily create Gemini client."""
         if self._client is None:
             from sip_studio.config.settings import get_settings
 
             settings = get_settings()
-            self._client = AsyncOpenAI(api_key=settings.openai_api_key)
+            self._client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
         return self._client
 
     # Cache operations
@@ -97,7 +130,7 @@ class ResearchService:
         entry = self._storage.get_entry(entry_id)
         if not entry:
             return bridge_error(f"Research entry not found: {entry_id}")
-        return bridge_ok(entry.model_dump(by_alias=True))
+        return bridge_ok(entry.model_dump(by_alias=True, mode="json"))
 
     def get_full_report(self, entry_id: str) -> dict:
         """Get full report content for an entry."""
@@ -115,56 +148,70 @@ class ResearchService:
         if category:
             entries = [e for e in entries if e.category == category]
         entries = [e for e in entries if not e.is_expired()]
-        return bridge_ok({"entries": [e.model_dump(by_alias=True) for e in entries]})
+        return bridge_ok({"entries": [e.model_dump(by_alias=True, mode="json") for e in entries]})
 
     def cleanup_expired(self) -> dict:
         """Remove expired research entries."""
         count = self._storage.cleanup_expired()
         return bridge_ok({"removed": count})
 
-    # Web search (immediate)
+    # Web search (immediate) using Gemini grounding
     async def trigger_web_search(self, query: str) -> str:
-        """Immediate web search using OpenAI web_search_preview tool."""
+        """Immediate web search using Gemini grounding with Google Search."""
         client = self._get_client()
         try:
-            response = await client.responses.create(
+            response = await asyncio.to_thread(
+                client.models.generate_content,
                 model=WEB_SEARCH_MODEL,
-                input=[{"role": "user", "content": query}],
-                tools=[{"type": "web_search_preview"}],
+                contents=query,
+                config=types.GenerateContentConfig(
+                    tools=[types.Tool(google_search=types.GoogleSearch())]
+                ),
             )
-            text, sources = _extract_research_result(response)
+            text, sources = _extract_grounding_sources(response)
             if not text:
                 return "No results found for query."
             sources_str = "\n".join(f"- [{s.title or s.url}]({s.url})" for s in sources[:10])
             return f"{text}\n\nSources:\n{sources_str}" if sources_str else text
+        except genai_errors.ClientError as e:
+            log.exception("Gemini client error in web search: %s", e)
+            return f"Web search failed: {e}"
+        except genai_errors.ServerError as e:
+            log.exception("Gemini server error in web search: %s", e)
+            return f"Web search temporarily unavailable: {e}"
         except Exception as e:
             log.exception("Web search failed: %s", e)
             return f"Web search failed: {e}"
 
-    # Deep research (background)
+    # Deep research (background) using Gemini interactions
     async def trigger_deep_research(
         self, query: str, brand_slug: str | None, session_id: str
     ) -> str:
-        """Start deep research in background mode. Returns response_id for polling."""
+        """Start deep research in background mode. Returns interaction_id for polling."""
         client = self._get_client()
         try:
-            response = await client.responses.create(
-                model=DEEP_RESEARCH_MODEL,
-                input=[{"role": "user", "content": query}],
-                reasoning={"summary": "auto"},
-                tools=[{"type": "web_search_preview"}],
+            interaction = await asyncio.to_thread(
+                client.interactions.create,  # type: ignore[attr-defined]
+                input=query,
+                agent=DEEP_RESEARCH_AGENT,
                 background=True,
             )
-            response_id = response.id
+            interaction_id = interaction.id
             self._storage.add_pending(
-                response_id=response_id,
+                response_id=interaction_id,
                 query=query,
                 brand_slug=brand_slug,
                 session_id=session_id,
                 estimated_minutes=15,
             )
-            log.info("Started deep research: %s", response_id)
-            return response_id
+            log.info("Started deep research: %s", interaction_id)
+            return interaction_id
+        except genai_errors.ClientError as e:
+            log.exception("Gemini client error starting deep research: %s", e)
+            raise
+        except genai_errors.ServerError as e:
+            log.exception("Gemini server error starting deep research: %s", e)
+            raise
         except Exception as e:
             log.exception("Failed to start deep research: %s", e)
             raise
@@ -173,18 +220,14 @@ class ResearchService:
         """Poll a pending research job. If complete, saves to cache."""
         client = self._get_client()
         try:
-            response = await client.responses.retrieve(response_id)
-            raw_status = response.status
+            interaction = await asyncio.to_thread(client.interactions.get, response_id)  # type: ignore[attr-defined]
+            raw_status = interaction.status
             if raw_status == "queued":
-                return ResearchResult(
-                    status="queued", progress_percent=getattr(response, "progress", None)
-                )
+                return ResearchResult(status="queued", progress_percent=None)
             if raw_status == "in_progress":
-                return ResearchResult(
-                    status="in_progress", progress_percent=getattr(response, "progress", None)
-                )
+                return ResearchResult(status="in_progress", progress_percent=None)
             if raw_status == "completed":
-                text, sources = _extract_research_result(response)
+                text, sources = _extract_deep_research_result(interaction)
                 # Get pending info for category/brand
                 pending = self._storage.get_pending(response_id)
                 if pending:
@@ -204,9 +247,15 @@ class ResearchService:
                     full_report=text if len(text) > 2000 else None,
                 )
             # Failed
-            error = getattr(response, "error", None) or "Unknown error"
+            error = getattr(interaction, "error", None) or "Unknown error"
             self._storage.remove_pending(response_id)
             return ResearchResult(status="failed", error=str(error))
+        except genai_errors.ClientError as e:
+            log.exception("Gemini client error polling research: %s", e)
+            return ResearchResult(status="failed", error=str(e))
+        except genai_errors.ServerError as e:
+            log.exception("Gemini server error polling research: %s", e)
+            return ResearchResult(status="failed", error=str(e))
         except Exception as e:
             log.exception("Poll failed: %s", e)
             return ResearchResult(status="failed", error=str(e))
@@ -215,12 +264,12 @@ class ResearchService:
     def get_pending_for_session(self, session_id: str) -> list:
         """Get pending jobs for a specific session."""
         jobs = self._storage.get_pending_by_session(session_id)
-        return [j.model_dump(by_alias=True) for j in jobs]
+        return [j.model_dump(by_alias=True, mode="json") for j in jobs]
 
     def recover_pending_research(self) -> list:
         """Get all pending jobs for recovery."""
         jobs = self._storage.get_all_pending()
-        return [j.model_dump(by_alias=True) for j in jobs]
+        return [j.model_dump(by_alias=True, mode="json") for j in jobs]
 
     def cancel_pending(self, response_id: str) -> bool:
         """Remove from pending (can't actually cancel API job)."""
@@ -252,7 +301,7 @@ class ResearchService:
         entry = self.find_cached_research(query, brand_slug, category)
         if not entry:
             return bridge_ok({"found": False})
-        return bridge_ok({"found": True, "entry": entry.model_dump(by_alias=True)})
+        return bridge_ok({"found": True, "entry": entry.model_dump(by_alias=True, mode="json")})
 
     def start_web_search(self, query: str) -> dict:
         """Trigger web search (bridge method)."""
