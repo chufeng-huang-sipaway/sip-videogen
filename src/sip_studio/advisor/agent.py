@@ -462,20 +462,13 @@ class BrandAdvisor:
             prompt_parts.append(trimmed_history)
         prompt_parts.append(f"User: {augmented_message}")
         full_prompt = "\n\n".join(prompt_parts)
-        # === DEBUG LOGGING: What's in the full prompt? ===
-        logger.warning("=" * 60)
-        logger.warning("[PROMPT_DEBUG] Full prompt to agent:")
-        logger.warning(
-            "[PROMPT_DEBUG] Has skills section: %s", "## Relevant Skill Instructions" in full_prompt
-        )
-        logger.warning("[PROMPT_DEBUG] Has image-composer: %s", "image-composer" in full_prompt)
-        logger.warning(
-            "[PROMPT_DEBUG] Has image-prompt-engineering: %s",
+        # Debug logging for prompt inspection
+        logger.debug(
+            "[PROMPT_DEBUG] len=%d composer=%s prompt-eng=%s",
+            len(full_prompt),
+            "image-composer" in full_prompt,
             "image-prompt-engineering" in full_prompt,
         )
-        logger.warning("[PROMPT_DEBUG] Prompt length: %d chars", len(full_prompt))
-        logger.warning("[PROMPT_DEBUG] First 500 chars:\n%s", full_prompt[:500])
-        logger.warning("=" * 60)
         hooks = AdvisorHooks(callback=self.progress_callback)
         return ChatContext(
             full_prompt=full_prompt,

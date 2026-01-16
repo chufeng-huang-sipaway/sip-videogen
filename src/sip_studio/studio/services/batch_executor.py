@@ -4,6 +4,7 @@ Moves execution control from LLM to service layer to prevent refusals.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -385,7 +386,7 @@ class BatchExecutor:
                                 },
                             )
                     if pending:
-                        time.sleep(0.2)
+                        await asyncio.sleep(0.2)
                 # Any tasks that never submitted a ticket count as failed.
                 missing = max(0, min(len(cleaned_tasks), submitted_count) - len(ticket_ids))
                 result.completed = completed

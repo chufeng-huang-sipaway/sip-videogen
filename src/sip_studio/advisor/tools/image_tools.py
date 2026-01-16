@@ -571,6 +571,7 @@ async def _impl_generate_image(
         expertise="Image Generation",
         status="pending",
     )
+    client = None
     try:
         client = genai.Client(api_key=settings.gemini_api_key, vertexai=False)
         if validate_identity and reference_image_bytes:
@@ -772,6 +773,13 @@ async def _impl_generate_image(
             step_id=step_id,
         )
         return f"Error generating image: {str(e)}"
+    finally:
+        # Ensure GenAI client is properly closed to avoid async task warnings
+        if client is not None and hasattr(client, "aclose"):
+            try:
+                await client.aclose()  # type: ignore[attr-defined]
+            except Exception:
+                pass  # Ignore cleanup errors
 
 
 @function_tool
@@ -809,32 +817,26 @@ async def generate_image(
     from .skill_tools import check_image_workflow_compliance, get_workflow_state
     from .todo_tools import get_async_mode, get_current_batch_id
 
-    # === WORKFLOW ENFORCEMENT: Check if skills were activated ===
+    # Workflow enforcement: check if skills were activated
     is_compliant, error_msg = check_image_workflow_compliance()
     state = get_workflow_state()
-    logger.warning("=" * 60)
-    logger.warning("[WORKFLOW_CHECK] Compliance: %s", is_compliant)
-    logger.warning("[WORKFLOW_CHECK] Activated skills: %s", state.activated_skills)
+    logger.debug(
+        "[WORKFLOW_CHECK] Compliance: %s, activated: %s", is_compliant, state.activated_skills
+    )
     if not is_compliant:
-        logger.warning("[WORKFLOW_CHECK] ⚠️ WORKFLOW VIOLATION - agent skipped skill activation")
-        logger.warning(
-            "[WORKFLOW_CHECK] Prompt length: %d words (short prompts suggest skipped composition)",
+        logger.info(
+            "[WORKFLOW_CHECK] Workflow violation - agent skipped skill activation (prompt: %d words)",
             len(prompt.split()),
         )
-        # Soft enforcement: warn but proceed (set ENFORCE_WORKFLOW=true to block)
-        # TODO: Enable hard enforcement once workflow is validated
+        # Soft enforcement: warn but proceed (TODO: enable hard enforcement)
         # return error_msg
-    # === DEBUG LOGGING: What prompt did agent actually send? ===
-    logger.warning("[PROMPT_DEBUG] generate_image CALLED")
-    logger.warning("[PROMPT_DEBUG] Prompt length: %d chars", len(prompt))
-    logger.warning("[PROMPT_DEBUG] Full prompt:\n%s", prompt)
-    logger.warning("[PROMPT_DEBUG] Has GML markers: %s", "[" in prompt and "]" in prompt)
-    logger.warning("[PROMPT_DEBUG] Prompt word count: %d", len(prompt.split()))
-    logger.warning("=" * 60)
-    batch_id = get_current_batch_id()
-    logger.warning(
-        "[DEBUG] generate_image called - batch_id=%s, prompt=%s...", batch_id, prompt[:50]
+    logger.debug(
+        "[PROMPT_DEBUG] generate_image called - %d chars, %d words",
+        len(prompt),
+        len(prompt.split()),
     )
+    batch_id = get_current_batch_id()
+    logger.debug("[BATCH] generate_image batch_id=%s, prompt=%s...", batch_id, prompt[:50])
     # Aspect ratio from user's UI settings (cannot be overridden)
     effective_ratio = validate_aspect_ratio(get_active_aspect_ratio()).value
     # Build config dict for pool
@@ -852,7 +854,7 @@ async def generate_image(
     # Submit to pool for parallel execution
     pool = get_image_pool()
     ticket_id = pool.submit(prompt, config, batch_id=batch_id)
-    logger.warning("[DEBUG] generate_image submitted ticket %s to pool", ticket_id[:8])
+    logger.debug("[IMAGE] submitted ticket %s to pool", ticket_id[:8])
     # Async mode: return immediately without waiting (BatchExecutor will wait for batch)
     if get_async_mode():
         logger.info("[ASYNC] Returning ticket %s immediately (async mode)", ticket_id[:8])
@@ -860,9 +862,7 @@ async def generate_image(
     # Sync mode: wait for this specific ticket
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(None, pool.wait_for_ticket, ticket_id, 180.0)
-    logger.warning(
-        "[DEBUG] generate_image ticket %s completed - status=%s", ticket_id[:8], result.status.value
-    )
+    logger.debug("[IMAGE] ticket %s completed status=%s", ticket_id[:8], result.status.value)
     # Handle result
     if result.status == TicketStatus.FAILED:
         return f"Error generating image: {result.error}"
