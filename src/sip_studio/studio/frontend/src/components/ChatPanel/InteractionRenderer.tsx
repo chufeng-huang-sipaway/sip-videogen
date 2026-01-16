@@ -37,7 +37,7 @@ if(interaction.type==='image_select'){return(
 </div>
 </div>)}
 if(interaction.type==='deep_research_clarification'){return(<ClarificationPanel interaction={interaction} onSubmit={(resp)=>{
-  bridge.executeDeepResearch(resp,interaction.query).then(()=>onSelect('__research_started__')).catch(e=>onSelect(`__research_error__:${e.message}`))
+  bridge.executeDeepResearch(resp,interaction.query).then(r=>{onSelect(`__research_started__:${r.response_id}:${interaction.query}`)}).catch(e=>onSelect(`__research_error__:${e.message}`))
 }} onCancel={()=>onSelect('__cancelled__')} disabled={disabled}/>)}
 return null}
 //ClarificationPanel component for deep research confirmation

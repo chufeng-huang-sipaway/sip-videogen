@@ -19,6 +19,7 @@ import { GenerationSettings } from './GenerationSettings'
 import { PanelModeToggle, type PanelMode } from './PanelModeToggle'
 import { PlaygroundMode } from './PlaygroundMode'
 import { SessionHistoryPopover } from './SessionHistoryPopover'
+import { ResearchProgress } from './ResearchProgress'
 //ImageBatchCard removed - now handled by TodoList with virtual items
 import { resolveMentions } from '@/lib/mentionParser'
 import type { ImageStatusEntry, AttachedStyleReference } from '@/lib/bridge'
@@ -129,6 +130,9 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     deepResearchEnabled,
     setWebSearchEnabled,
     setDeepResearchEnabled,
+    pendingResearch,
+    startResearchPolling,
+    dismissResearch,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
   //Handle session switch - load messages from selected session
   const handleSwitchSession = useCallback(async (sessionId: string): Promise<boolean> => {
@@ -409,9 +413,25 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
             {/* TodoList rendered inline with message turn - now includes virtual items for image batches */}
-            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async (messageId, selection) => { resolveInteraction(messageId); await sendMessage(selection, { image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio }); await refreshProducts() }} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection} />
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async (messageId, selection) => {
+              resolveInteraction(messageId)
+              //Handle research started - start polling instead of sending message
+              if(selection.startsWith('__research_started__:')){
+                const parts=selection.slice('__research_started__:'.length).split(':')
+                const responseId=parts[0]
+                const query=parts.slice(1).join(':')
+                startResearchPolling(responseId,{responseId,query,brandSlug,sessionId:activeSessionId||'',startedAt:new Date().toISOString(),estimatedMinutes:15})
+                return
+              }
+              if(selection==='__cancelled__')return
+              if(selection.startsWith('__research_error__:'))return
+              await sendMessage(selection, { image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio })
+              await refreshProducts()
+            }} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection} />
           </div>
         </ScrollArea>
+        {/* Research progress indicator */}
+        {pendingResearch&&(<div className="px-4 pb-2 max-w-3xl mx-auto w-full"><ResearchProgress research={pendingResearch} onDismiss={dismissResearch}/></div>)}
         {/* Chips row */}
         <div className="px-4 max-w-3xl mx-auto w-full">
           <AttachmentChips products={products} attachedProductSlugs={combinedAttachments.products} onDetachProduct={handleDetachProduct} styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetachStyleReference={handleDetachStyleReference} attachments={attachments} onRemoveAttachment={removeAttachment} />

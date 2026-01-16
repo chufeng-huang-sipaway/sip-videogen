@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent, type ChatMessage } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent, type ChatMessage, type PendingResearch } from '@/lib/bridge'
 import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
 import { DEFAULT_ASPECT_RATIO, DEFAULT_VIDEO_ASPECT_RATIO, type AspectRatio, type VideoAspectRatio } from '@/types/aspectRatio'
@@ -77,6 +77,9 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   //Research toggle state
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
   const [deepResearchEnabled, setDeepResearchEnabled] = useState(false)
+  //Pending research polling state
+  const [pendingResearch, setPendingResearch] = useState<(PendingResearch&{status?:string;progressPercent?:number|null})|null>(null)
+  const researchPollRef = useRef<ReturnType<typeof setTimeout>|null>(null)
   //Todo list state
   const [todoList,setTodoList]=useState<TodoListData|null>(null)
   const [isPaused,setIsPaused]=useState(false)
@@ -178,6 +181,40 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   useEffect(() => {
     attachmentsRef.current = attachments
   }, [attachments])
+  //Research polling with exponential backoff
+  const startResearchPolling = useCallback((responseId:string,initial:PendingResearch)=>{
+    let delay=5000
+    const poll=async()=>{
+      try{
+        const result=await bridge.pollResearch(responseId)
+        if(result.status==='completed'){
+          setPendingResearch(prev=>prev?{...prev,status:'completed',progressPercent:100}:null)
+          //Add completed research to messages as assistant message
+          if(result.finalSummary){
+            const researchMsg:Message={id:generateId(),role:'assistant',content:`**Deep Research Complete**\n\n${result.finalSummary}`,images:[],timestamp:new Date(),status:'sent'}
+            setMessages(prev=>[...prev,researchMsg])
+          }
+          return
+        }
+        if(result.status==='failed'){
+          setPendingResearch(prev=>prev?{...prev,status:'failed'}:null)
+          return
+        }
+        //Update progress and continue polling
+        setPendingResearch(prev=>prev?{...prev,status:result.status,progressPercent:result.progressPercent??null}:null)
+        delay=Math.min(delay*1.5,30000)//Backoff 5s->30s max
+        researchPollRef.current=setTimeout(poll,delay)
+      }catch{setPendingResearch(prev=>prev?{...prev,status:'failed'}:null)}
+    }
+    setPendingResearch({...initial,status:'in_progress'})
+    poll()
+  },[])
+  const dismissResearch=useCallback(()=>{
+    if(researchPollRef.current)clearTimeout(researchPollRef.current)
+    setPendingResearch(null)
+  },[])
+  //Cleanup research polling on unmount
+  useEffect(()=>{return()=>{if(researchPollRef.current)clearTimeout(researchPollRef.current)}},[])
 
 //Clear messages when brand changes, load persisted preferences from backend
   useEffect(() => {
@@ -654,6 +691,10 @@ return {
     deepResearchEnabled,
     setWebSearchEnabled,
     setDeepResearchEnabled,
+    //Pending research state and handlers
+    pendingResearch,
+    startResearchPolling,
+    dismissResearch,
     //Todo list state and handlers - displayTodoList includes virtual items from imageBatch
     todoList:displayTodoList(),
     isPaused,

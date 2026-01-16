@@ -8,7 +8,7 @@ import { BrandMemory } from '@/components/BrandMemory'
 import { CommandPalette } from '@/components/CommandPalette'
 import { SettingsDialog } from '@/components/Settings/SettingsDialog'
 import { CreateProjectDialog } from '@/components/Sidebar/CreateProjectDialog'
-import { Toaster } from '@/components/ui/toaster'
+import { Toaster, toast } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useBrand } from '@/context/BrandContext'
 import { DragProvider } from '@/context/DragContext'
@@ -94,6 +94,14 @@ function App() {
       try{const p=await bridge.getPlatformInfo();document.documentElement.dataset.vibrancy=String(p.vibrancy_enabled)}catch{}
       const status = await bridge.checkApiKeys()
       setNeedsSetup(!status.all_configured)
+      //Check for pending research from previous session
+      try{
+        const jobs=await bridge.getPendingResearch()
+        if(jobs.length>0){
+          //Notify user about pending research - they can check in chat for status
+          toast.info(`${jobs.length} deep research job${jobs.length>1?'s':''} still in progress`,{description:'Open chat to view status',duration:8000})
+        }
+      }catch{}
     }
     run().catch(() => setNeedsSetup(false))
   }, [])
