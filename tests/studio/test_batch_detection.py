@@ -24,4 +24,8 @@ def test_detect_idea_batch_request_parses_count():
 def test_detect_idea_batch_request_requires_generate_and_images():
     svc = ChatService(BridgeState())
     assert svc._detect_idea_batch_request("Give me five ideas about a product") is None
-    assert svc._detect_idea_batch_request("Generate 5 images of the product") is None
+    assert svc._detect_idea_batch_request("Generate an image of the product") is None
+    assert svc._detect_idea_batch_request("I uploaded 5 images of the product") is None
+    assert svc._detect_idea_batch_request("Generate 5 images of the product") == 5
+    assert svc._detect_idea_batch_request("Give me 5 images of the product") == 5
+    assert svc._detect_idea_batch_request("Show me some images of the product") == 5

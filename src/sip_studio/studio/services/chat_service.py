@@ -177,16 +177,26 @@ class ChatService:
             return
 
     def _detect_idea_batch_request(self, message: str) -> int | None:
-        """Detect single-turn requests like: 'give me 5 ideas and generate images for each'."""
+        """Detect single-turn requests like: 'give me 5 images' or
+        'give me 5 ideas and generate images for each'."""
         msg = message.lower()
-        if not re.search(r"\b(idea|ideas|concept|concepts|options)\b", msg):
-            return None
-        if not re.search(r"\b(generate|create|make|render|produce|execute)\b", msg):
-            return None
         if not re.search(r"\b(images?|shots?|photos?|visuals?)\b", msg):
             return None
-        # Prefer explicit counts, fallback to 5
-        m = re.search(r"(\d+)\s*(?:ideas?|concepts?|options?)", msg)
+        # Must look like a request to provide/generate images (avoid false positives like
+        # "I uploaded 5 images")
+        if not re.search(
+            r"\b(generate|create|make|render|produce|execute|give|show|provide|send|deliver)\b",
+            msg,
+        ):
+            return None
+        # Prefer explicit counts for images/ideas
+        m = re.search(r"(\d+)\s*(?:image\s*sets?|images?|shots?|photos?|visuals?)\b", msg)
+        if m:
+            try:
+                return max(1, min(int(m.group(1)), 20))
+            except Exception:
+                pass
+        m = re.search(r"(\d+)\s*(?:ideas?|concepts?|options?)\b", msg)
         if m:
             try:
                 return max(1, min(int(m.group(1)), 20))
@@ -205,11 +215,25 @@ class ChatService:
             "ten": 10,
         }
         m = re.search(
-            r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\b\s*(?:ideas?|concepts?)", msg
+            r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\b\s*(?:image\s*sets?|images?|shots?|photos?|visuals?)\b",
+            msg,
         )
         if m:
             return words.get(m.group(1), 5)
-        return 5
+        m = re.search(
+            r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\b\s*(?:ideas?|concepts?)\b",
+            msg,
+        )
+        if m:
+            return words.get(m.group(1), 5)
+        # No explicit count: only trigger batch mode if the user clearly asked for multiple.
+        if re.search(r"\b(ideas?|concepts?|options?)\b", msg):
+            return 5
+        if re.search(r"\b(images|shots|photos|visuals)\b", msg) and re.search(
+            r"\b(a few|some|several|multiple|all)\b", msg
+        ):
+            return 5
+        return None
 
     def _relativize_output_path(self, brand_dir: Path, raw_path: str | None) -> str | None:
         """Convert absolute paths under brand dir to stable relative paths (assets/...)."""
