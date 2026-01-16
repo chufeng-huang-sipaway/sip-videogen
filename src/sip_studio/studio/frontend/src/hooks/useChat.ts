@@ -74,6 +74,9 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [imageAspectRatio, setImageAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const [videoAspectRatio, setVideoAspectRatio] = useState<VideoAspectRatio>(DEFAULT_VIDEO_ASPECT_RATIO)
+  //Research toggle state
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false)
+  const [deepResearchEnabled, setDeepResearchEnabled] = useState(false)
   //Todo list state
   const [todoList,setTodoList]=useState<TodoListData|null>(null)
   const [isPaused,setIsPaused]=useState(false)
@@ -644,6 +647,11 @@ return {
     attachments,
     imageAspectRatio,
     videoAspectRatio,
+    //Research toggle state
+    webSearchEnabled,
+    deepResearchEnabled,
+    setWebSearchEnabled,
+    setDeepResearchEnabled,
     //Todo list state and handlers - displayTodoList includes virtual items from imageBatch
     todoList:displayTodoList(),
     isPaused,

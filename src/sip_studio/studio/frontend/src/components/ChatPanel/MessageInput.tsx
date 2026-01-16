@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { ArrowUp, Plus, Image, Square, Loader2 } from 'lucide-react'
+import { ArrowUp, Plus, Image, Square, Loader2, Globe, Telescope } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { QuickInsertPopover } from './QuickInsertPopover'
 import { MentionAutocomplete, type MentionAutocompleteRef } from './MentionAutocomplete'
@@ -17,9 +18,13 @@ interface MessageInputProps {
     isGenerating?: boolean
     onCancel?: () => void
     onMessageChange?: (text: string) => void
+    webSearchEnabled?: boolean
+    deepResearchEnabled?: boolean
+    onWebSearchToggle?: () => void
+    onDeepResearchToggle?: () => void
 }
 export interface MessageInputRef { focus: () => void }
-export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(function MessageInput({ disabled, placeholder, onSend, canSendWithoutText = false, onSelectImages, hasProducts = false, hasStyleReferences = false, isGenerating = false, onCancel, onMessageChange }, ref) {
+export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(function MessageInput({ disabled, placeholder, onSend, canSendWithoutText = false, onSelectImages, hasProducts = false, hasStyleReferences = false, isGenerating = false, onCancel, onMessageChange, webSearchEnabled = false, deepResearchEnabled = false, onWebSearchToggle, onDeepResearchToggle }, ref) {
     const [message, setMessage] = useState('')
     const [popoverOpen, setPopoverOpen] = useState(false)
     const [showMention, setShowMention] = useState(false)
@@ -178,6 +183,50 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(funct
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
+
+                {/* Research toggle buttons */}
+                <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onWebSearchToggle}
+                                disabled={disabled}
+                                className={cn(
+                                    "h-8 w-8 shrink-0 rounded-full transition-all",
+                                    webSearchEnabled && "bg-brand-500/15 text-brand-500 hover:bg-brand-500/25"
+                                )}
+                            >
+                                <Globe className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                            {webSearchEnabled ? "Web search enabled" : "Enable web search"}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onDeepResearchToggle}
+                                disabled={disabled}
+                                className={cn(
+                                    "h-8 w-8 shrink-0 rounded-full transition-all",
+                                    deepResearchEnabled && "bg-brand-500/15 text-brand-500 hover:bg-brand-500/25"
+                                )}
+                            >
+                                <Telescope className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                            {deepResearchEnabled ? "Deep research enabled" : "Enable deep research"}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
 
                 <textarea
                     ref={textareaRef}
