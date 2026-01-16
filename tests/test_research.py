@@ -456,3 +456,140 @@ class TestResearchService:
         assert "comprehensive" in q.lower()
         q2 = _build_research_query("test", {"focus": "custom:specific detail"})
         assert "specific detail" in q2
+
+
+# Research tools tests
+class TestResearchTools:
+    @pytest.fixture(autouse=True)
+    def setup_tools(self, tmp_path, monkeypatch):
+        """Set up research tools with mocked service."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setattr("sip_studio.research.storage._get_research_dir", lambda: tmp_path)
+        # Import the module first, then patch on the imported module object
+        from sip_studio.advisor.tools import _common, research_tools
+
+        monkeypatch.setattr(_common, "get_active_brand", lambda: "test-brand")
+        mock_state = MagicMock()
+        mock_state.get_active_slug.return_value = "test-brand"
+        from sip_studio.studio.services.research_service import ResearchService
+
+        self.service = ResearchService(mock_state)
+        research_tools.set_research_service_factory(lambda: self.service)
+        yield
+        research_tools.set_research_service_factory(None)
+
+    def test_get_pending_research_clarification_initially_none(self):
+        """Test that pending clarification is None initially."""
+        from sip_studio.advisor.tools.research_tools import get_pending_research_clarification
+
+        assert get_pending_research_clarification() is None
+
+    def test_request_deep_research_sets_clarification(self):
+        """Test that request_deep_research sets pending clarification."""
+        from sip_studio.advisor.tools.research_tools import (
+            _impl_request_deep_research,
+            get_pending_research_clarification,
+        )
+
+        result = _impl_request_deep_research(
+            "luxury coffee trends", "User wants to know about trends"
+        )
+        assert "[Presenting deep research options" in result
+        clarification = get_pending_research_clarification()
+        assert clarification is not None
+        assert clarification["type"] == "deep_research_clarification"
+        assert clarification["query"] == "luxury coffee trends"
+        assert len(clarification["questions"]) == 2
+        # Verify questions have expected structure
+        q1 = clarification["questions"][0]
+        assert q1["id"] == "focus"
+        assert q1["allowCustom"] is True
+        assert len(q1["options"]) == 3
+
+    def test_get_pending_clears_after_read(self):
+        """Test that get_pending_research_clarification clears after read."""
+        from sip_studio.advisor.tools.research_tools import (
+            _impl_request_deep_research,
+            get_pending_research_clarification,
+        )
+
+        _impl_request_deep_research("test", "context")
+        assert get_pending_research_clarification() is not None
+        assert get_pending_research_clarification() is None
+
+    def test_search_research_cache_no_results(self):
+        """Test search cache with no matching results."""
+        from sip_studio.advisor.tools.research_tools import _impl_search_research_cache
+
+        result = _impl_search_research_cache(["nonexistent", "keywords"])
+        assert "No cached research found" in result
+
+    def test_search_research_cache_with_results(self):
+        """Test search cache with matching results."""
+        self.service._storage.add_entry(
+            "coffee packaging trends",
+            category="trends",
+            brand_slug="test-brand",
+            summary="Coffee packaging is trending toward minimalism.",
+            sources=[ResearchSource(url="https://example.com", title="Source", snippet="")],
+        )
+        from sip_studio.advisor.tools.research_tools import _impl_search_research_cache
+
+        result = _impl_search_research_cache(["coffee", "trends"])
+        assert "minimalism" in result
+        assert "Source" in result or "example.com" in result
+
+    def test_web_search_checks_cache_first(self, monkeypatch):
+        """Test that web_search checks cache before making API call."""
+        self.service._storage.add_entry(
+            "luxury skincare trends",
+            category="trends",
+            brand_slug="test-brand",
+            summary="Cached skincare trends result.",
+            sources=[ResearchSource(url="https://cached.com", title="Cached", snippet="")],
+        )
+        from sip_studio.advisor.tools.research_tools import _impl_web_search
+
+        result = _impl_web_search("skincare trends")
+        assert "[From cache" in result
+        assert "Cached skincare trends result" in result
+
+    def test_research_tools_list_contains_all_tools(self):
+        """Test that RESEARCH_TOOLS list contains expected tools."""
+        from sip_studio.advisor.tools.research_tools import RESEARCH_TOOLS
+
+        assert len(RESEARCH_TOOLS) == 4
+        tool_names = [t.name for t in RESEARCH_TOOLS]
+        assert "web_search" in tool_names
+        assert "request_deep_research" in tool_names
+        assert "get_research_status" in tool_names
+        assert "search_research_cache" in tool_names
+
+    def test_function_tool_decorators(self):
+        """Test that tools are properly decorated as function_tools."""
+        from sip_studio.advisor.tools.research_tools import (
+            get_research_status,
+            request_deep_research,
+            search_research_cache,
+            web_search,
+        )
+
+        # function_tool decorated functions have a 'name' attribute
+        assert hasattr(web_search, "name")
+        assert hasattr(request_deep_research, "name")
+        assert hasattr(get_research_status, "name")
+        assert hasattr(search_research_cache, "name")
+
+    def test_set_research_service_factory_none_raises(self):
+        """Test that calling tools without factory raises error."""
+        from sip_studio.advisor.tools.research_tools import (
+            _get_research_service,
+            set_research_service_factory,
+        )
+
+        set_research_service_factory(None)
+        with pytest.raises(RuntimeError, match="factory not set"):
+            _get_research_service()
+        # Restore for other tests
+        set_research_service_factory(lambda: self.service)

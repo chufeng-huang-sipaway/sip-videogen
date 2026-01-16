@@ -157,6 +157,18 @@ __all__ = [
     "mark_skill_activated",
     "mark_composition_brief_produced",
     "_impl_activate_skill",
+    # research_tools
+    "web_search",
+    "request_deep_research",
+    "get_research_status",
+    "search_research_cache",
+    "get_pending_research_clarification",
+    "set_research_service_factory",
+    "RESEARCH_TOOLS",
+    "_impl_web_search",
+    "_impl_request_deep_research",
+    "_impl_get_research_status",
+    "_impl_search_research_cache",
     # aggregate
     "ADVISOR_TOOLS",
     # Re-exports for test patching compatibility
@@ -296,6 +308,19 @@ from .product_tools import (
     set_product_primary_image,
     update_product,
     update_product_packaging_text,
+)
+from .research_tools import (
+    RESEARCH_TOOLS,
+    _impl_get_research_status,
+    _impl_request_deep_research,
+    _impl_search_research_cache,
+    _impl_web_search,
+    get_pending_research_clarification,
+    get_research_status,
+    request_deep_research,
+    search_research_cache,
+    set_research_service_factory,
+    web_search,
 )
 from .session import get_active_aspect_ratio, set_active_aspect_ratio
 from .skill_tools import (
