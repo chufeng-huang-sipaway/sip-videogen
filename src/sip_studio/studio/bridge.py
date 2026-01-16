@@ -21,6 +21,7 @@ from .services.image_pool import get_image_pool
 from .services.image_status import ImageStatusService
 from .services.product_service import ProductService
 from .services.project_service import ProjectService
+from .services.research_service import ResearchService
 from .services.session_service import SessionService
 from .services.style_reference_service import StyleReferenceService
 from .services.update_service import UpdateService
@@ -55,10 +56,15 @@ class StudioBridge:
         self._update = UpdateService(self._state)
         self._image_status = ImageStatusService(self._state)
         self._session = SessionService(self._state)
+        self._research = ResearchService(self._state)
         self._window = None
         # Initialize image pool with progress callback
         self._image_pool = get_image_pool()
         self._image_pool.set_progress_callback(self._on_image_progress)
+        # Set up research service factory for agent tools
+        from sip_studio.advisor.tools import set_research_service_factory
+
+        set_research_service_factory(lambda: self._research)
 
     def _on_image_progress(self, payload: dict):
         """Called from pool thread - dispatch to UI thread via PyWebView."""
@@ -392,6 +398,8 @@ class StudioBridge:
         attached_style_references: list[dict] | None = None,
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
+        web_search_enabled: bool = False,
+        deep_research_enabled: bool = False,
     ) -> dict:
         logger.info("[Bridge.chat] attached_style_references=%s", attached_style_references)
         return self._chat.chat(
@@ -402,6 +410,8 @@ class StudioBridge:
             attached_style_references,
             image_aspect_ratio,
             video_aspect_ratio,
+            web_search_enabled,
+            deep_research_enabled,
         )
 
     def clear_chat(self) -> dict:
@@ -690,3 +700,32 @@ class StudioBridge:
             return bridge_ok()
         except Exception as e:
             return bridge_error(str(e))
+
+    # ===========================================================================
+    # Research Management
+    # ===========================================================================
+    def get_pending_research(self) -> dict:
+        """Get all pending research jobs for recovery."""
+        return self._research.get_pending_research()
+
+    def poll_research(self, response_id: str) -> dict:
+        """Poll a specific research job."""
+        return self._research.poll_research(response_id)
+
+    def cancel_research(self, response_id: str) -> dict:
+        """Cancel/dismiss a pending research job."""
+        return self._research.cancel_research(response_id)
+
+    def execute_deep_research(self, clarification_response: dict, original_query: str) -> dict:
+        """Execute deep research after user confirms clarification."""
+        session = self._session.get_active_session()
+        sid = session.get("data", {}).get("id", "") if session.get("success") else ""
+        return self._research.execute_deep_research(clarification_response, original_query, sid)
+
+    def find_research(self, query: str, category: str | None = None) -> dict:
+        """Find cached research by query."""
+        return self._research.find_research(query, category)
+
+    def list_research(self, brand_slug: str | None = None, category: str | None = None) -> dict:
+        """List cached research entries."""
+        return self._research.list_research(brand_slug, category)

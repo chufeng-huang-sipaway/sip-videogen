@@ -535,6 +535,7 @@ class BrandAdvisor:
         attached_style_references: list[dict] | None = None,
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
+        extra_tools: list | None = None,
     ) -> dict:
         """Send a message and get a response plus UI metadata.
         Args:
@@ -544,6 +545,7 @@ class BrandAdvisor:
             attached_style_references: Style reference dicts with style_ref_slug and strict.
             image_aspect_ratio: Default image aspect ratio (passive, used by tools).
             video_aspect_ratio: Default video aspect ratio (passive, used by tools).
+            extra_tools: Optional list of additional tools to include (e.g., research tools).
         Returns:
             Dict with response, interaction, and memory_update.
         """
@@ -575,9 +577,18 @@ class BrandAdvisor:
         # Dynamic max_turns based on estimated task count
         task_count = self._estimate_task_count(ctx.full_prompt)
         max_turns = self._calculate_max_turns(task_count)
+        # Use agent with extra tools if provided
+        agent_to_run = self._agent
+        if extra_tools:
+            agent_to_run = Agent(
+                name=self._agent.name,
+                model=self._agent.model,
+                instructions=self._agent.instructions,
+                tools=list(ADVISOR_TOOLS) + list(extra_tools),
+            )
         try:
             result = await Runner.run(
-                self._agent,
+                agent_to_run,
                 ctx.full_prompt,
                 hooks=ctx.hooks,
                 previous_response_id=prev_response_id,

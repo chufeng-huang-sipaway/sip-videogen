@@ -278,6 +278,8 @@ export interface ChatContext {
   attached_style_references?: AttachedStyleReference[]
   image_aspect_ratio?: AspectRatio
   video_aspect_ratio?: VideoAspectRatio
+  web_search_enabled?: boolean
+  deep_research_enabled?: boolean
 }
 
 interface ApiKeyStatus {
@@ -302,6 +304,48 @@ export interface ImageSelectInteraction {
 }
 
 export type Interaction = ChoiceInteraction | ImageSelectInteraction
+
+// Research clarification types
+export interface ClarificationOption {value:string;label:string;recommended:boolean}
+export interface ClarificationQuestion {id:string;question:string;options:ClarificationOption[];allowCustom:boolean}
+export interface DeepResearchClarification {
+  type:'deep_research_clarification'
+  contextSummary:string
+  questions:ClarificationQuestion[]
+  estimatedDuration:string
+  query:string
+}
+export interface ClarificationResponse {answers:Record<string,string>;confirmed:boolean}
+export interface PendingResearch {
+  responseId:string
+  query:string
+  brandSlug:string|null
+  sessionId:string
+  startedAt:string
+  estimatedMinutes:number
+}
+export interface ResearchResult {
+  status:'queued'|'in_progress'|'completed'|'failed'
+  progressPercent?:number|null
+  partialSummary?:string|null
+  finalSummary?:string|null
+  sources?:ResearchSource[]
+  fullReport?:string|null
+  error?:string|null
+}
+export interface ResearchSource {url:string;title:string;snippet:string}
+export interface ResearchEntry {
+  id:string
+  query:string
+  keywords:string[]
+  category:'trends'|'brand_analysis'|'techniques'
+  brandSlug:string|null
+  createdAt:string
+  ttlDays:number
+  summary:string
+  sources:ResearchSource[]
+  fullReportPath:string
+}
 
 export interface ChatAttachment {
   name: string
@@ -405,6 +449,7 @@ interface ChatResponse {
   execution_trace: ExecutionEvent[]
   interaction?: Interaction | null
   memory_update?: { message: string } | null
+  research_clarification?: DeepResearchClarification | null
 }
 
 // Update system types
@@ -491,10 +536,19 @@ interface PyWebViewAPI {
     attached_products?: string[],
     attached_style_references?: AttachedStyleReference[],
     image_aspect_ratio?: string,
-    video_aspect_ratio?: string
+    video_aspect_ratio?: string,
+    web_search_enabled?: boolean,
+    deep_research_enabled?: boolean
   ): Promise<BridgeResponse<ChatResponse>>
   clear_chat(): Promise<BridgeResponse<void>>
   refresh_brand_memory(): Promise<BridgeResponse<{ message: string }>>
+  //Research methods
+  get_pending_research(): Promise<BridgeResponse<{jobs:PendingResearch[]}>>
+  poll_research(response_id:string): Promise<BridgeResponse<ResearchResult>>
+  cancel_research(response_id:string): Promise<BridgeResponse<{cancelled:boolean}>>
+  execute_deep_research(clarification_response:ClarificationResponse,original_query:string): Promise<BridgeResponse<{response_id:string;status:string}>>
+  find_research(query:string,category?:string): Promise<BridgeResponse<{found:boolean;entry?:ResearchEntry}>>
+  list_research(brand_slug?:string,category?:string): Promise<BridgeResponse<{entries:ResearchEntry[]}>>
 
   // Product methods
   get_products(brand_slug?: string): Promise<BridgeResponse<{ products: ProductEntry[] }>>
@@ -753,11 +807,20 @@ export const bridge = {
         context?.attached_products,
         context?.attached_style_references,
         context?.image_aspect_ratio || '16:9',
-        context?.video_aspect_ratio || '16:9'
+        context?.video_aspect_ratio || '16:9',
+        context?.web_search_enabled || false,
+        context?.deep_research_enabled || false
       )
     ),
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
   refreshBrandMemory: () => callBridge(() => window.pywebview!.api.refresh_brand_memory()),
+  //Research methods
+  getPendingResearch: async()=>(await callBridge(()=>window.pywebview!.api.get_pending_research())).jobs,
+  pollResearch: (responseId:string)=>callBridge(()=>window.pywebview!.api.poll_research(responseId)),
+  cancelResearch: async(responseId:string)=>(await callBridge(()=>window.pywebview!.api.cancel_research(responseId))).cancelled,
+  executeDeepResearch: (response:ClarificationResponse,originalQuery:string)=>callBridge(()=>window.pywebview!.api.execute_deep_research(response,originalQuery)),
+  findResearch: (query:string,category?:string)=>callBridge(()=>window.pywebview!.api.find_research(query,category)),
+  listResearch: async(brandSlug?:string,category?:string)=>(await callBridge(()=>window.pywebview!.api.list_research(brandSlug,category))).entries,
 
   // Products
   getProducts: async (brandSlug?: string) =>

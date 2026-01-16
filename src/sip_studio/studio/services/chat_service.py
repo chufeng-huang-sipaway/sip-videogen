@@ -19,6 +19,7 @@ from sip_studio.advisor.tools import (
     _impl_update_task,
     clear_tool_context,
     get_image_metadata,
+    get_pending_research_clarification,
     get_video_metadata,
     set_current_batch_id,
     set_tool_context,
@@ -255,6 +256,8 @@ class ChatService:
         attached_style_references: list[dict] | None = None,
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
+        web_search_enabled: bool = False,
+        deep_research_enabled: bool = False,
     ) -> dict:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace = []
@@ -488,6 +491,16 @@ class ChatService:
                             "memory_update": None,
                         }
                     )
+            # Build extra tools list based on research flags
+            extra_tools = []
+            if web_search_enabled or deep_research_enabled:
+                from sip_studio.advisor.tools import search_research_cache, web_search
+
+                extra_tools.extend([web_search, search_research_cache])
+            if deep_research_enabled:
+                from sip_studio.advisor.tools import get_research_status, request_deep_research
+
+                extra_tools.extend([request_deep_research, get_research_status])
             # Run advisor - pass aspect ratios as passive defaults (not instructions)
             result = asyncio.run(
                 advisor.chat_with_metadata(
@@ -497,11 +510,14 @@ class ChatService:
                     attached_style_references=attached_style_references,
                     image_aspect_ratio=validated_image_ratio.value,
                     video_aspect_ratio=validated_video_ratio,
+                    extra_tools=extra_tools if extra_tools else None,
                 )
             )
             response = result["response"]
             interaction = result.get("interaction")
             memory_update = result.get("memory_update")
+            # Check for research clarification (similar to interaction capture)
+            research_clarification = get_pending_research_clarification()
             images = self._collect_new_images(slug, before_images)
             videos = self._collect_new_videos(slug, before_videos)
             style_refs = self._collect_new_style_references(slug, before_style_refs)
@@ -524,6 +540,7 @@ class ChatService:
                     "execution_trace": self._state.execution_trace,
                     "interaction": interaction,
                     "memory_update": memory_update,
+                    "research_clarification": research_clarification,
                 }
             )
         except Exception as e:
