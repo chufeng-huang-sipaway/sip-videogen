@@ -1,10 +1,12 @@
 """Skill activation tools for progressive disclosure architecture.
 This module provides tools for on-demand skill loading and workflow tracking.
 Skills are loaded lazily to reduce context pollution.
+Uses contextvars for thread-safe per-session state access.
 """
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 
 from agents import function_tool
@@ -24,21 +26,24 @@ class SkillWorkflowState:
     prompt_crafted: bool = False
 
 
-_workflow_state: SkillWorkflowState | None = None
+# Thread-safe per-turn state using contextvars (NOT module globals)
+_workflow_state_var: ContextVar[SkillWorkflowState | None] = ContextVar(
+    "skill_workflow_state", default=None
+)
 
 
 def get_workflow_state() -> SkillWorkflowState:
     """Get current workflow state (creates new if none)."""
-    global _workflow_state
-    if _workflow_state is None:
-        _workflow_state = SkillWorkflowState()
-    return _workflow_state
+    state = _workflow_state_var.get()
+    if state is None:
+        state = SkillWorkflowState()
+        _workflow_state_var.set(state)
+    return state
 
 
 def reset_workflow_state() -> None:
     """Reset workflow state for new turn."""
-    global _workflow_state
-    _workflow_state = SkillWorkflowState()
+    _workflow_state_var.set(SkillWorkflowState())
     logger.info("[SKILL_WORKFLOW] State reset for new turn")
 
 
@@ -66,15 +71,16 @@ def mark_prompt_crafted() -> None:
 
 def check_image_workflow_compliance() -> tuple[bool, str]:
     """Check if workflow requirements are met for generate_image.
+    Validates both image-composer and image-prompt-engineering were activated.
     Returns:
         Tuple of (is_compliant, error_message)
     """
     state = get_workflow_state()
-    # Check if image-composer was activated
-    if "image-composer" not in state.activated_skills:
+    required = ["image-composer", "image-prompt-engineering"]
+    missing = [s for s in required if s not in state.activated_skills]
+    if missing:
         return False, (
-            "Workflow violation: You must call activate_skill('image-composer') "
-            "and create a visual brief BEFORE calling generate_image.\n\n"
+            f"Workflow violation: Missing skill activation: {missing}\n\n"
             "Required workflow:\n"
             "1. activate_skill('image-composer') -> read composition guidelines\n"
             "2. Produce a structured visual brief\n"
@@ -82,7 +88,6 @@ def check_image_workflow_compliance() -> tuple[bool, str]:
             "4. Craft your prompt following the 5-point formula\n"
             "5. Call generate_image with your crafted prompt"
         )
-    # Workflow is compliant (we trust agent followed instructions after activation)
     return True, ""
 
 

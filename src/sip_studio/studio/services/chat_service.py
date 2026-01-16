@@ -262,10 +262,7 @@ class ChatService:
         run_id = self._state.start_chat_turn()
         # Cancel previous batch if exists (user sent new message)
         pool = get_image_pool()
-        logger.warning(
-            "[DEBUG] ChatService.chat() - getting image pool, previous batch_id=%s",
-            self._current_batch_id,
-        )
+        logger.debug("[CHAT] previous batch_id=%s", self._current_batch_id)
         if self._current_batch_id:
             cancelled = pool.cancel_batch(self._current_batch_id)
             pool.cleanup_batch(self._current_batch_id)
@@ -274,7 +271,7 @@ class ChatService:
             self._current_batch_id = None
         # Generate new batch ID for this chat turn
         self._current_batch_id = str(uuid.uuid4())
-        logger.warning("[DEBUG] ChatService.chat() - new batch_id=%s", self._current_batch_id)
+        logger.debug("[CHAT] new batch_id=%s", self._current_batch_id)
         initial_step = ThinkingStep(
             id=f"initial-{run_id[:8]}",
             run_id=run_id,
@@ -328,9 +325,7 @@ class ChatService:
             before_style_refs = {t.slug for t in storage_list_style_references(slug)}
             # Set batch ID for image pool (uses contextvars)
             set_current_batch_id(self._current_batch_id)
-            logger.warning(
-                "[DEBUG] ChatService - set_current_batch_id(%s) called", self._current_batch_id
-            )
+            logger.debug("[CHAT] set_current_batch_id(%s)", self._current_batch_id)
             validated_image_ratio = validate_aspect_ratio(image_aspect_ratio)
             validated_video_ratio = (
                 video_aspect_ratio if video_aspect_ratio in ("16:9", "9:16") else "16:9"
