@@ -29,6 +29,7 @@ activation_prompt: |
 
   **Step 1: Concept** (What's in the image)
   - Subject: Who/what is the hero? Age, appearance, clothing if person
+    - **NEVER name real people** - use "the model in the product image" or generic descriptions
   - Setting: Environment, location, context
   - Action: What's happening? Product placement?
 
@@ -104,6 +105,11 @@ For each image, work through these elements systematically:
 **Key Questions:**
 - Who or what is the hero? (product, person, scenario)
 - What framing best serves the story?
+
+**⚠️ Real People Policy:**
+- Never name real people (politicians, celebrities, public figures) - Gemini will refuse
+- If product has a human model: refer as "the person/model in the product image"
+- If request references news about real people: capture the mood/scenario without naming individuals
 
 **Options:**
 | Framing | Best For |
