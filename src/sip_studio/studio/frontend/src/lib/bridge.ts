@@ -303,7 +303,7 @@ export interface ImageSelectInteraction {
   labels: string[]
 }
 
-export type Interaction = ChoiceInteraction | ImageSelectInteraction
+export type Interaction = ChoiceInteraction | ImageSelectInteraction | DeepResearchClarification
 
 // Research clarification types
 export interface ClarificationOption {value:string;label:string;recommended:boolean}

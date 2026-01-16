@@ -416,9 +416,11 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       const stepsFromTrace = (result.execution_trace || []).filter(e => e.type === 'thinking_step').map((e, i) => ({ id: `trace-${e.timestamp}-${i}`, step: e.message, detail: e.detail, timestamp: e.timestamp }))
       //Persist skills with message (use ref for latest values)
       const finalSkills = loadedSkillsRef.current.length > 0 ? [...loadedSkillsRef.current] : undefined
+      //Use research_clarification as interaction if present (extends Interaction union)
+      const finalInteraction = result.research_clarification || result.interaction
       setMessages(prev => prev.map(m =>
         m.id === assistantId
-          ? { ...m, content: result.response, images: result.images, videos: result.videos || [], executionTrace: result.execution_trace || [], interaction: result.interaction, memoryUpdate: result.memory_update, status: 'sent', thinkingSteps: stepsFromTrace, loadedSkills: finalSkills }
+          ? { ...m, content: result.response, images: result.images, videos: result.videos || [], executionTrace: result.execution_trace || [], interaction: finalInteraction, memoryUpdate: result.memory_update, status: 'sent', thinkingSteps: stepsFromTrace, loadedSkills: finalSkills }
           : m
       ))
       setAttachments([])
