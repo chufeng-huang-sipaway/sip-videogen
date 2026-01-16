@@ -266,6 +266,9 @@ class BrandIndex(BaseModel):
         default_factory=list, description="List of registered brands"
     )
     active_brand: str | None = Field(default=None, description="Slug of the currently active brand")
+    sample_brand_offered: bool = Field(
+        default=False, description="One-time migration flag: sample brand was offered to user"
+    )
 
     def get_brand(self, slug: str) -> BrandIndexEntry | None:
         """Find a brand by slug."""

@@ -190,16 +190,14 @@ class BrandService:
         """Get list of all available brands."""
         try:
             self._sync_brand_index()
-            entries = list_brands()
-            # Auto-create sample brand for new users
-            if not entries:
-                from sip_studio.brands.sample_brand import ensure_sample_brand
+            # One-time migration: ensure sample brand exists for all users
+            from sip_studio.brands.sample_brand import ensure_sample_brand
 
-                if ensure_sample_brand():
-                    entries = list_brands()
+            ensure_sample_brand()
+            entries = list_brands()
             brands = [{"slug": e.slug, "name": e.name, "category": e.category} for e in entries]
             active = self._state.get_active_slug()
-            # Auto-select sample brand for new users
+            # Auto-select sample brand if no brand is active
             if not active and any(e.slug == "sample-brand" for e in entries):
                 from sip_studio.brands.storage import set_active_brand
 
