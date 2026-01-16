@@ -33,9 +33,11 @@ interface SessionHistoryPopoverProps {
     onRenameSession: (sessionId: string, newTitle: string) => Promise<boolean>
     onCreateSession?: () => Promise<void>
     isLoading?: boolean
+    isUnread?: (sessionId: string) => boolean
+    onMarkRead?: (sessionId: string) => void
 }
 
-function SessionItem({ session, isActive, onSwitch, onDelete, onRename }: { session: ChatSessionMeta; isActive: boolean; onSwitch: () => void; onDelete: () => void; onRename: (title: string) => void }) {
+function SessionItem({ session, isActive, isUnread, onSwitch, onDelete, onRename }: { session: ChatSessionMeta; isActive: boolean; isUnread?: boolean; onSwitch: () => void; onDelete: () => void; onRename: (title: string) => void }) {
     const [isEditing, setIsEditing] = useState(false)
     const [editTitle, setEditTitle] = useState(session.title)
     const handleSaveTitle = () => { if (editTitle.trim() && editTitle !== session.title) onRename(editTitle.trim()); setIsEditing(false) }
@@ -50,6 +52,7 @@ function SessionItem({ session, isActive, onSwitch, onDelete, onRename }: { sess
             onClick={isEditing ? undefined : onSwitch}
         >
             <div className="flex items-start gap-3">
+                {isUnread&&!isActive&&<span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full"/>}
                 <div className="flex-1 min-w-0">
                     {isEditing ? (
                         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
@@ -85,14 +88,14 @@ function SessionItem({ session, isActive, onSwitch, onDelete, onRename }: { sess
     )
 }
 
-export function SessionHistoryPopover({ children, sessionsByDate, activeSessionId, onSwitchSession, onDeleteSession, onRenameSession, isLoading }: SessionHistoryPopoverProps) {
+export function SessionHistoryPopover({ children, sessionsByDate, activeSessionId, onSwitchSession, onDeleteSession, onRenameSession, isLoading, isUnread, onMarkRead }: SessionHistoryPopoverProps) {
     const [open, setOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
 
     const handleSwitch = useCallback(async (sessionId: string) => {
         const ok = await onSwitchSession(sessionId)
-        if (ok) setOpen(false)
-    }, [onSwitchSession])
+        if (ok) { onMarkRead?.(sessionId); setOpen(false) }
+    }, [onSwitchSession, onMarkRead])
 
     const handleDelete = useCallback(async (sessionId: string) => {
         if (confirm('Delete this conversation?')) await onDeleteSession(sessionId)
@@ -144,7 +147,7 @@ export function SessionHistoryPopover({ children, sessionsByDate, activeSessionI
                                     <div className="px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 mt-2">{date}</div>
                                     <div className="space-y-0.5">
                                         {sessions.map(s => (
-                                            <SessionItem key={s.id} session={s} isActive={s.id === activeSessionId} onSwitch={() => handleSwitch(s.id)} onDelete={() => handleDelete(s.id)} onRename={t => handleRename(s.id, t)} />
+                                            <SessionItem key={s.id} session={s} isActive={s.id === activeSessionId} isUnread={isUnread?.(s.id)} onSwitch={() => handleSwitch(s.id)} onDelete={() => handleDelete(s.id)} onRename={t => handleRename(s.id, t)} />
                                         ))}
                                     </div>
                                 </div>

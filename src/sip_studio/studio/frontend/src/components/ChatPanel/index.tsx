@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { AlertCircle, Upload, Plus, History } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useChatSessions } from '@/hooks/useChatSessions'
+import { useUnreadSessions } from '@/hooks/useUnreadSessions'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
 import { useStyleReferences } from '@/context/StyleReferenceContext'
@@ -65,6 +66,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
   const { sessionsByDate, activeSessionId, isLoading: sessionsLoading, createSession, switchSession, deleteSession: delSession, renameSession } = useChatSessions(brandSlug)
+  const { hasUnread, isUnread, markUnread, markRead } = useUnreadSessions()
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
@@ -133,7 +135,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     pendingResearch,
     startResearchPolling,
     dismissResearch,
-  } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
+  } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated, onResearchCompleted: (sessionId) => { if(sessionId&&sessionId!==activeSessionId)markUnread(sessionId) } })
   //Handle session switch - load messages from selected session
   const handleSwitchSession = useCallback(async (sessionId: string): Promise<boolean> => {
     const data = await switchSession(sessionId)
@@ -405,8 +407,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             onRenameSession={renameSession}
             onCreateSession={async () => { await createSession(); clearMessages(); clearAttachments(); clearStyleReferenceAttachments(); setInputText('') }}
             isLoading={sessionsLoading}
+            isUnread={isUnread}
+            onMarkRead={markRead}
           >
-            <Button variant="ghost" size="sm" disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><History className="w-3.5 h-3.5" /><span>History</span></Button>
+            <Button variant="ghost" size="sm" disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground relative"><History className="w-3.5 h-3.5" /><span>History</span>{hasUnread&&<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full"/>}</Button>
           </SessionHistoryPopover>
           <Button variant="ghost" size="sm" onClick={async () => { clearMessages(); clearAttachments(); clearStyleReferenceAttachments(); setInputText(''); await createSession() }} disabled={isLoading || !brandSlug} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5" /><span>New Chat</span></Button>
         </div>

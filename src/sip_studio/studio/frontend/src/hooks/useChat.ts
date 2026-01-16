@@ -55,6 +55,7 @@ interface UseChatOptions {
   onStyleReferencesCreated?: (slugs: string[]) => void
   onImagesGenerated?: (images: ImageStatusEntry[]) => void
   onVideosGenerated?: (videos: WorkstationMedia[]) => void
+  onResearchCompleted?: (sessionId: string) => void
 }
 
 export function useChat(brandSlug: string | null, options?: UseChatOptions) {
@@ -194,6 +195,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
             const researchMsg:Message={id:generateId(),role:'assistant',content:`**Deep Research Complete**\n\n${result.finalSummary}`,images:[],timestamp:new Date(),status:'sent'}
             setMessages(prev=>[...prev,researchMsg])
           }
+          //Notify completion for unread tracking
+          if(initial.sessionId&&options?.onResearchCompleted)options.onResearchCompleted(initial.sessionId)
           return
         }
         if(result.status==='failed'){
