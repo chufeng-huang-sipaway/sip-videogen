@@ -579,12 +579,31 @@ class BrandAdvisor:
         max_turns = self._calculate_max_turns(task_count)
         # Use agent with extra tools if provided
         agent_to_run = self._agent
+        # DEBUG: Log extra_tools received
+        logger.info(
+            "[BrandAdvisor.chat_with_metadata] extra_tools received: %s",
+            [t.name if hasattr(t, "name") else str(t) for t in extra_tools]
+            if extra_tools
+            else None,
+        )
         if extra_tools:
+            all_tools = list(ADVISOR_TOOLS) + list(extra_tools)
+            # DEBUG: Log the full list of tools being used
+            logger.info(
+                "[BrandAdvisor] Creating agent: %d base + %d extra = %d total tools",
+                len(ADVISOR_TOOLS),
+                len(extra_tools),
+                len(all_tools),
+            )
+            logger.info(
+                "[BrandAdvisor.chat_with_metadata] Tool names: %s",
+                [t.name if hasattr(t, "name") else str(t) for t in all_tools],
+            )
             agent_to_run = Agent(
                 name=self._agent.name,
                 model=self._agent.model,
                 instructions=self._agent.instructions,
-                tools=list(ADVISOR_TOOLS) + list(extra_tools),
+                tools=all_tools,
             )
         try:
             result = await Runner.run(

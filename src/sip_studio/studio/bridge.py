@@ -402,6 +402,12 @@ class StudioBridge:
         deep_research_enabled: bool = False,
     ) -> dict:
         logger.info("[Bridge.chat] attached_style_references=%s", attached_style_references)
+        # DEBUG: Log research flags received from frontend
+        logger.info(
+            "[Bridge.chat] RESEARCH FLAGS: web_search_enabled=%s, deep_research_enabled=%s",
+            web_search_enabled,
+            deep_research_enabled,
+        )
         return self._chat.chat(
             message,
             attachments,

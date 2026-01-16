@@ -542,6 +542,8 @@ class TestResearchTools:
 
     def test_web_search_checks_cache_first(self, monkeypatch):
         """Test that web_search checks cache before making API call."""
+        import asyncio
+
         self.service._storage.add_entry(
             "luxury skincare trends",
             category="trends",
@@ -551,7 +553,7 @@ class TestResearchTools:
         )
         from sip_studio.advisor.tools.research_tools import _impl_web_search
 
-        result = _impl_web_search("skincare trends")
+        result = asyncio.run(_impl_web_search("skincare trends"))
         assert "[From cache" in result
         assert "Cached skincare trends result" in result
 

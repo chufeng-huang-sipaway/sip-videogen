@@ -493,6 +493,12 @@ class ChatService:
                     )
             # Build extra tools list based on research flags
             extra_tools = []
+            # DEBUG: Log research flags before building extra_tools
+            logger.info(
+                "[ChatService.chat] RESEARCH FLAGS: web_search=%s, deep_research=%s",
+                web_search_enabled,
+                deep_research_enabled,
+            )
             if web_search_enabled or deep_research_enabled:
                 from sip_studio.advisor.tools import search_research_cache, web_search
 
@@ -501,6 +507,42 @@ class ChatService:
                 from sip_studio.advisor.tools import get_research_status, request_deep_research
 
                 extra_tools.extend([request_deep_research, get_research_status])
+            # DEBUG: Log what extra_tools are being passed to the agent
+            logger.info(
+                "[ChatService.chat] EXTRA_TOOLS being passed: %s",
+                [t.name if hasattr(t, "name") else str(t) for t in extra_tools],
+            )
+            # Build research mode context to prepend to message
+            research_context = ""
+            if web_search_enabled and not deep_research_enabled:
+                research_context = (
+                    "## Research Mode: Web Search Enabled\n\n"
+                    "**IMPORTANT**: The user has enabled web search mode. "
+                    "You MUST use the `web_search` tool to find current, up-to-date "
+                    "information from the internet before answering. "
+                    "Do NOT answer from your training data alone - search the web first."
+                    "\n\n---\n\n"
+                )
+            elif deep_research_enabled:
+                research_context = (
+                    "## Research Mode: Deep Research Enabled\n\n"
+                    "**IMPORTANT**: The user has enabled deep research mode. "
+                    "For questions requiring comprehensive investigation "
+                    "(market trends, competitor analysis, best practices), "
+                    "you MUST use the `request_deep_research` tool to trigger "
+                    "a thorough investigation. This will present clarification options "
+                    "to the user and then perform extensive web research (10-30 min). "
+                    "Do NOT answer complex research questions from training data alone.\n\n"
+                    "For quick factual queries, use `web_search` for faster results."
+                    "\n\n---\n\n"
+                )
+            # Prepend research context to the message if enabled
+            if research_context:
+                prepared = research_context + prepared
+                logger.info(
+                    "[ChatService.chat] Research context prepended (%d chars)",
+                    len(research_context),
+                )
             # Run advisor - pass aspect ratios as passive defaults (not instructions)
             result = asyncio.run(
                 advisor.chat_with_metadata(

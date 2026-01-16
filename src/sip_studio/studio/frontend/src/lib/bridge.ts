@@ -798,8 +798,10 @@ export const bridge = {
     catch (e) { console.warn('[bridge.getImageMetadata] Error loading metadata:', p, e); return null }
   },
   getProgress: async () => await callBridge(() => window.pywebview!.api.get_progress()),
-  chat: (m: string, attachments?: ChatAttachment[], context?: ChatContext) =>
-    callBridge(() =>
+  chat: (m: string, attachments?: ChatAttachment[], context?: ChatContext) => {
+    //DEBUG: Log research flags being sent to backend
+    console.log('[BRIDGE.CHAT] web_search_enabled=', context?.web_search_enabled, 'deep_research_enabled=', context?.deep_research_enabled)
+    return callBridge(() =>
       window.pywebview!.api.chat(
         m,
         attachments || [],
@@ -811,7 +813,8 @@ export const bridge = {
         context?.web_search_enabled || false,
         context?.deep_research_enabled || false
       )
-    ),
+    )
+  },
   clearChat: () => callBridge(() => window.pywebview!.api.clear_chat()),
   refreshBrandMemory: () => callBridge(() => window.pywebview!.api.refresh_brand_memory()),
   //Research methods

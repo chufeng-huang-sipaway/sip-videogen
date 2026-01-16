@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Callable
 
 from agents import function_tool
@@ -46,8 +45,10 @@ def get_pending_research_clarification() -> dict | None:
     return result
 
 
-def _impl_web_search(query: str) -> str:
+async def _impl_web_search(query: str) -> str:
     """Implementation - calls ResearchService.trigger_web_search."""
+    # DEBUG: Log when web_search tool is actually called
+    logger.info("[web_search] TOOL CALLED with query=%s", query)
     service = _get_research_service()
     brand_slug = _common.get_active_brand()
     # Check cache first
@@ -59,17 +60,13 @@ def _impl_web_search(query: str) -> str:
             if sources_str
             else f"[From cache]\n{cached.summary}"
         )
-    # Trigger web search (sync wrapper for async)
-    try:
-        result = asyncio.get_event_loop().run_until_complete(service.trigger_web_search(query))
-        return result
-    except RuntimeError:
-        # No running event loop - use asyncio.run
-        return asyncio.run(service.trigger_web_search(query))
+    # Trigger web search (now properly async)
+    result = await service.trigger_web_search(query)
+    return result
 
 
 @function_tool
-def web_search(query: str) -> str:
+async def web_search(query: str) -> str:
     """Search the web for current brand/trend information.
     Use when you need up-to-date information not in your training data.
     Results include sources with URLs for verification.
@@ -78,11 +75,15 @@ def web_search(query: str) -> str:
     Returns:
         Search results with summaries and source links.
     """
-    return _impl_web_search(query)
+    return await _impl_web_search(query)
 
 
 def _impl_request_deep_research(query: str, context: str) -> str:
     """Set pending clarification interaction (like propose_choices)."""
+    # DEBUG: Log when request_deep_research tool is actually called
+    logger.info(
+        "[request_deep_research] TOOL CALLED with query=%s, context=%s", query, context[:100]
+    )
     global _pending_research_clarification
     # Build ClarificationQuestions based on query analysis
     questions = [
@@ -134,15 +135,10 @@ def request_deep_research(query: str, context: str) -> str:
     return _impl_request_deep_research(query, context)
 
 
-def _impl_get_research_status(response_id: str) -> str:
+async def _impl_get_research_status(response_id: str) -> str:
     """Implementation for research status polling."""
     service = _get_research_service()
-    try:
-        result = asyncio.get_event_loop().run_until_complete(
-            service.poll_deep_research(response_id)
-        )
-    except RuntimeError:
-        result = asyncio.run(service.poll_deep_research(response_id))
+    result = await service.poll_deep_research(response_id)
     if result.status == "completed":
         sources_str = ""
         if result.sources:
@@ -158,14 +154,14 @@ def _impl_get_research_status(response_id: str) -> str:
 
 
 @function_tool
-def get_research_status(response_id: str) -> str:
+async def get_research_status(response_id: str) -> str:
     """Check status of a pending deep research job.
     Args:
         response_id: The ID returned when research was started
     Returns:
         Status update with progress or results.
     """
-    return _impl_get_research_status(response_id)
+    return await _impl_get_research_status(response_id)
 
 
 def _impl_search_research_cache(keywords: list[str], category: str | None = None) -> str:
