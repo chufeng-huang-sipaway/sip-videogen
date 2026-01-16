@@ -94,7 +94,7 @@ app = BUNDLE(coll,name='Sip Studio.app',icon='assets/SipStudio.icns',
     bundle_identifier='com.sip.sipstudio',
     info_plist={
         'CFBundleName': 'Sip Studio','CFBundleDisplayName': 'Sip Studio',
-        'CFBundleVersion': '0.9.7','CFBundleShortVersionString': '0.9.7',
+        'CFBundleVersion': '0.9.8','CFBundleShortVersionString': '0.9.8',
         'NSHighResolutionCapable': True,'LSMinimumSystemVersion': '10.13.0',
         'NSRequiresAquaSystemAppearance': False,
     },)
