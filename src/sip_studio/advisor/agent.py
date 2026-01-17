@@ -28,6 +28,7 @@ from sip_studio.advisor.session_manager import Message, SessionManager, SessionS
 from sip_studio.advisor.skills.registry import get_skills_registry
 from sip_studio.advisor.tools import (
     ADVISOR_TOOLS,
+    has_pending_research_clarification,
     reset_workflow_state,
     set_active_aspect_ratio,
     set_tool_progress_callback,
@@ -624,9 +625,14 @@ class BrandAdvisor:
             )
             response = result.final_output
             response_text = response.text if hasattr(response, "text") else str(response)
+            suppress_response = has_pending_research_clarification()
+            if suppress_response:
+                response_text = ""
             # Save response ID for conversation chaining
             if self._session_aware:
-                self._save_response_id(result.last_response_id)
+                # If we suppressed the user-visible response (e.g., deep research confirmation),
+                # don't chain to a hidden model response the user never saw.
+                self._save_response_id(None if suppress_response else result.last_response_id)
             # Add to history (session-aware or legacy)
             if self._session_aware and self._session_history:
                 user_msg = Message.create("user", ctx.raw_user_message)

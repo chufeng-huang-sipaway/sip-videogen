@@ -45,6 +45,16 @@ def get_pending_research_clarification() -> dict | None:
     return result
 
 
+def peek_pending_research_clarification() -> dict | None:
+    """Check pending research clarification without clearing it."""
+    return _pending_research_clarification
+
+
+def has_pending_research_clarification() -> bool:
+    """Return True if a research clarification panel is pending."""
+    return _pending_research_clarification is not None
+
+
 async def _impl_web_search(query: str) -> str:
     """Implementation - calls ResearchService.trigger_web_search."""
     # DEBUG: Log when web_search tool is actually called

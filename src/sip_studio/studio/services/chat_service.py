@@ -573,6 +573,8 @@ class ChatService:
             memory_update = result.get("memory_update")
             # Check for research clarification (similar to interaction capture)
             research_clarification = get_pending_research_clarification()
+            if research_clarification is not None:
+                response = ""
             images = self._collect_new_images(slug, before_images)
             videos = self._collect_new_videos(slug, before_videos)
             style_refs = self._collect_new_style_references(slug, before_style_refs)

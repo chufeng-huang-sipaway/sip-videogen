@@ -518,6 +518,34 @@ class TestResearchTools:
         assert get_pending_research_clarification() is not None
         assert get_pending_research_clarification() is None
 
+    def test_peek_pending_does_not_clear(self):
+        """Test that peek_pending_research_clarification does not clear state."""
+        from sip_studio.advisor.tools.research_tools import (
+            _impl_request_deep_research,
+            get_pending_research_clarification,
+            peek_pending_research_clarification,
+        )
+
+        _impl_request_deep_research("test", "context")
+        assert peek_pending_research_clarification() is not None
+        assert peek_pending_research_clarification() is not None
+        assert get_pending_research_clarification() is not None
+        assert peek_pending_research_clarification() is None
+
+    def test_has_pending_reflects_state(self):
+        """Test has_pending_research_clarification reflects pending state."""
+        from sip_studio.advisor.tools.research_tools import (
+            _impl_request_deep_research,
+            get_pending_research_clarification,
+            has_pending_research_clarification,
+        )
+
+        assert has_pending_research_clarification() is False
+        _impl_request_deep_research("test", "context")
+        assert has_pending_research_clarification() is True
+        assert get_pending_research_clarification() is not None
+        assert has_pending_research_clarification() is False
+
     def test_search_research_cache_no_results(self):
         """Test search cache with no matching results."""
         from sip_studio.advisor.tools.research_tools import _impl_search_research_cache

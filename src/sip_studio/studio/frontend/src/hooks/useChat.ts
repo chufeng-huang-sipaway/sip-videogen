@@ -189,12 +189,14 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       try{
         const result=await bridge.pollResearch(responseId)
         if(result.status==='completed'){
-          setPendingResearch(prev=>prev?{...prev,status:'completed',progressPercent:100}:null)
           //Add completed research to messages as assistant message
-          if(result.finalSummary){
-            const researchMsg:Message={id:generateId(),role:'assistant',content:`**Deep Research Complete**\n\n${result.finalSummary}`,images:[],timestamp:new Date(),status:'sent'}
-            setMessages(prev=>[...prev,researchMsg])
-          }
+          const summary=(result.finalSummary||'').trim()
+          const researchMsg:Message={id:generateId(),role:'assistant',content:summary?`**Deep Research Complete**\n\n${summary}`:'**Deep Research Complete**',images:[],timestamp:new Date(),status:'sent'}
+          setMessages(prev=>[...prev,researchMsg])
+          //Remove progress card once results are posted
+          if(researchPollRef.current)clearTimeout(researchPollRef.current)
+          researchPollRef.current=null
+          setPendingResearch(null)
           //Notify completion for unread tracking
           if(initial.sessionId&&options?.onResearchCompleted)options.onResearchCompleted(initial.sessionId)
           return
