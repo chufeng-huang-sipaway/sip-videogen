@@ -319,6 +319,8 @@ class TestChatDelegation:
             [{"slug": "tmpl-1"}],
             "16:9",
             "image",
+            True,
+            True,
         )
         bridge._chat.chat.assert_called_once_with(
             "hi",
@@ -328,6 +330,8 @@ class TestChatDelegation:
             [{"slug": "tmpl-1"}],
             "16:9",
             "image",
+            True,
+            True,
         )
 
     def test_clear_chat_delegates(self, bridge):

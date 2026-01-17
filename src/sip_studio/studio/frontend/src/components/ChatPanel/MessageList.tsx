@@ -64,9 +64,10 @@ interface MessageListProps {
   onResume?: () => void
   onStop?: () => void
   onNewDirection?: (msg: string) => void
+  webSearchActive?: boolean
 }
 
-function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails, liveThinkingSteps, liveSkills, todoList, isPaused, onPause, onResume, onStop, onNewDirection }: {
+function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails, liveThinkingSteps, liveSkills, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive }: {
   message: Message;
   products: ProductEntry[];
   styleReferences?: StyleReferenceSummary[];
@@ -83,6 +84,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   onResume?: () => void;
   onStop?: () => void;
   onNewDirection?: (msg: string) => void;
+  webSearchActive?: boolean;
 }) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
@@ -152,7 +154,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
     return (
       <div className={cn('group relative flex w-full px-2 py-0 transition-colors duration-200 justify-start')}>
         <div className="flex flex-col items-start w-full gap-3">
-          <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} />
+          <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} webSearchActive={webSearchActive}/>
           {/* TodoList appears after thinking timeline */}
           {todoList && onPause && onResume && onStop && onNewDirection && (
             <TodoList todoList={todoList} isPaused={isPaused || false} onPause={onPause} onResume={onResume} onStop={onStop} onNewDirection={onNewDirection} />
@@ -276,7 +278,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   )
 }
 
-export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, onInteractionSelect, onRegenerate, todoList, isPaused, onPause, onResume, onStop, onNewDirection }: MessageListProps) {
+export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, onInteractionSelect, onRegenerate, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [detailsMeta,setDetailsMeta]=useState<ImageGenerationMetadata|null>(null)
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinkingSteps])
@@ -288,7 +290,7 @@ export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, 
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
       {messages.map((message, idx) => (
-        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills} todoList={idx === lastIdx ? todoList : undefined} isPaused={idx === lastIdx ? isPaused : undefined} onPause={idx === lastIdx ? onPause : undefined} onResume={idx === lastIdx ? onResume : undefined} onStop={idx === lastIdx ? onStop : undefined} onNewDirection={idx === lastIdx ? onNewDirection : undefined}/>
+        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills} todoList={idx === lastIdx ? todoList : undefined} isPaused={idx === lastIdx ? isPaused : undefined} onPause={idx === lastIdx ? onPause : undefined} onResume={idx === lastIdx ? onResume : undefined} onStop={idx === lastIdx ? onStop : undefined} onNewDirection={idx === lastIdx ? onNewDirection : undefined} webSearchActive={idx === lastIdx ? webSearchActive : undefined}/>
       ))}
       <div ref={bottomRef} className="h-px" />
       {/* Modal rendered ONCE at parent level */}

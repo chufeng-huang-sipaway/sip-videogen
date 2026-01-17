@@ -38,6 +38,9 @@ activation_prompt: |
   - "A frosted glass bottle..." NOT "bottle, glass, frosted, minimalist"
   - Include texture/material details for realism
   - Quote exact text with typography: **"BRAND NAME"** in bold serif
+  - **NEVER name real people** (politicians, celebrities, public figures) - Gemini will refuse
+
+  **When product has human model**: Refer as "the person/model in the product image" - never try to identify or name them
 
   **Minimum prompt length**: 80+ words (your current prompts are ~100 words - good)
 
@@ -111,6 +114,72 @@ If Visual Directive context is included, use it as your Phase 2 foundation:
 3. **Mood Guidelines** → Sets Phase 2 lighting/atmosphere defaults
 4. **Photography Style** → Informs Phase 2 composition/DoF choices
 5. **Learned Rules** → Apply both Phase 1 and Phase 2 adjustments based on past feedback
+
+## Content Policy & Real People
+
+**CRITICAL**: Gemini refuses to generate images of identifiable real people, especially politicians, celebrities, and public figures. Plan around this constraint.
+
+### Rule 1: Never Name Real People in Prompts
+
+Even if the user's request references a real person (from news, web search results, etc.), **never include their name** in the prompt.
+
+| Bad (will be refused) | Good (will work) |
+|---|---|
+| "Nicolas Maduro being arrested by police" | "A middle-aged man in a suit being escorted by officials in a dramatic news scene" |
+| "Taylor Swift performing on stage" | "A female pop star with long blonde hair performing on a grand concert stage" |
+| "Elon Musk presenting a product" | "A tech executive presenting a sleek new device at a keynote event" |
+
+### Rule 2: Use Attached Product Images as "The Person"
+
+When the user attaches a product that contains a human model (clothing, lifestyle shots, etc.), **refer to them generically**:
+
+- ✅ "The person shown in the product image"
+- ✅ "The model wearing the outfit"
+- ✅ "The figure from the reference"
+- ❌ Never try to identify or name who they might be
+
+**Example - User asks for news-inspired image with attached product:**
+
+User request: "Create an image based on recent news about [politician]. Use my product."
+
+Your prompt should be:
+```
+The model shown in the product image, wearing the [product name] outfit,
+in a dramatic scene reminiscent of breaking news coverage - cameras flashing,
+reporters in background, urban government building setting.
+Editorial photography style, high contrast, decisive moment captured.
+```
+
+This works because:
+1. No real person is named
+2. The product image provides the "person" reference
+3. The scene captures the mood without depicting actual events
+
+### Rule 3: Warn Before Likely Refusals
+
+If the user requests content that will likely be refused AND no product reference is attached:
+
+**Proactive response pattern:**
+```
+I can't generate images of [specific real person] directly - Gemini's content policy
+prevents depicting identifiable public figures.
+
+**Alternatives:**
+1. Attach a product image with a model - I can place them in this scenario
+2. I can create a generic scene capturing the mood without specific individuals
+3. Describe the type of person you want (age, style, profession) instead of naming someone
+
+Which approach would you prefer?
+```
+
+### Quick Reference: Content Policy Checklist
+
+Before crafting any prompt involving people:
+
+- [ ] Does the request mention a real person by name? → Remove the name, use generic description
+- [ ] Is a product with human model attached? → Use "the person in the product image"
+- [ ] Is the scenario based on real news/events? → Capture the mood, not the specific event
+- [ ] No reference AND involves real people? → Warn user, offer alternatives
 
 ## Advanced Prompting Techniques
 

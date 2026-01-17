@@ -414,12 +414,14 @@ class BatchExecutor:
             instruction = self._build_instruction(task_desc, context, attempt)
             try:
                 # Call advisor for single task
+                # Pass display_message to hide system instructions from chat history
                 resp = await self.advisor.chat_with_metadata(
                     instruction,
                     project_slug=context.get("project_slug"),
                     attached_products=context.get("product_slugs"),
                     attached_style_references=context.get("style_refs"),
                     image_aspect_ratio=context.get("aspect_ratio", "1:1"),
+                    display_message=f"[Batch {task_num}] {task_desc}",
                 )
                 response_text = resp.get("response", "")
                 # Check if images were generated

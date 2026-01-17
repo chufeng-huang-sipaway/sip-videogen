@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { AlertCircle, Upload, Plus, History } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useChatSessions } from '@/hooks/useChatSessions'
+import { useUnreadSessions } from '@/hooks/useUnreadSessions'
 import { useProducts } from '@/context/ProductContext'
 import { useProjects } from '@/context/ProjectContext'
 import { useStyleReferences } from '@/context/StyleReferenceContext'
@@ -19,6 +20,7 @@ import { GenerationSettings } from './GenerationSettings'
 import { PanelModeToggle, type PanelMode } from './PanelModeToggle'
 import { PlaygroundMode } from './PlaygroundMode'
 import { SessionHistoryPopover } from './SessionHistoryPopover'
+import { ResearchProgress } from './ResearchProgress'
 //ImageBatchCard removed - now handled by TodoList with virtual items
 import { resolveMentions } from '@/lib/mentionParser'
 import type { ImageStatusEntry, AttachedStyleReference } from '@/lib/bridge'
@@ -64,6 +66,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
   const { prependToBatch } = useWorkstation()
   const { dragData, getDragData, clearDrag, registerDropZone, unregisterDropZone } = useDrag()
   const { sessionsByDate, activeSessionId, isLoading: sessionsLoading, createSession, switchSession, deleteSession: delSession, renameSession } = useChatSessions(brandSlug)
+  const { hasUnread, isUnread, markUnread, markRead } = useUnreadSessions()
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   const mainRef = useCallback((el: HTMLElement | null) => { setMainEl(el) }, [])
   const [inputText, setInputText] = useState('')
@@ -125,7 +128,14 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     handleStop,
     handleNewDirection,
     loadMessagesFromSession,
-  } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated })
+    webSearchEnabled,
+    deepResearchEnabled,
+    setWebSearchEnabled,
+    setDeepResearchEnabled,
+    pendingResearch,
+    startResearchPolling,
+    dismissResearch,
+  } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated, onResearchCompleted: (sessionId) => { if(sessionId&&sessionId!==activeSessionId)markUnread(sessionId) } })
   //Handle session switch - load messages from selected session
   const handleSwitchSession = useCallback(async (sessionId: string): Promise<boolean> => {
     const data = await switchSession(sessionId)
@@ -397,17 +407,35 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             onRenameSession={renameSession}
             onCreateSession={async () => { await createSession(); clearMessages(); clearAttachments(); clearStyleReferenceAttachments(); setInputText('') }}
             isLoading={sessionsLoading}
+            isUnread={isUnread}
+            onMarkRead={markRead}
           >
-            <Button variant="ghost" size="sm" disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><History className="w-3.5 h-3.5" /><span>History</span></Button>
+            <Button variant="ghost" size="sm" disabled={!brandSlug} className="gap-1.5 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground relative"><History className="w-3.5 h-3.5" /><span>History</span>{hasUnread&&<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full"/>}</Button>
           </SessionHistoryPopover>
           <Button variant="ghost" size="sm" onClick={async () => { clearMessages(); clearAttachments(); clearStyleReferenceAttachments(); setInputText(''); await createSession() }} disabled={isLoading || !brandSlug} className="gap-2 text-xs font-medium h-8 rounded-full bg-white/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-transparent hover:border-black/5 dark:hover:border-white/10 shadow-sm transition-all text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5" /><span>New Chat</span></Button>
         </div>
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
             {/* TodoList rendered inline with message turn - now includes virtual items for image batches */}
-            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async (messageId, selection) => { resolveInteraction(messageId); await sendMessage(selection, { image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio }); await refreshProducts() }} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection} />
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async (messageId, selection) => {
+              resolveInteraction(messageId)
+              //Handle research started - start polling instead of sending message
+              if(selection.startsWith('__research_started__:')){
+                const parts=selection.slice('__research_started__:'.length).split(':')
+                const responseId=parts[0]
+                const query=parts.slice(1).join(':')
+                startResearchPolling(responseId,{responseId,query,brandSlug,sessionId:activeSessionId||'',startedAt:new Date().toISOString(),estimatedMinutes:15})
+                return
+              }
+              if(selection==='__cancelled__')return
+              if(selection.startsWith('__research_error__:'))return
+              await sendMessage(selection, { image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio })
+              await refreshProducts()
+            }} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection} webSearchActive={(webSearchEnabled||deepResearchEnabled)&&isLoading}/>
           </div>
         </ScrollArea>
+        {/* Research progress indicator */}
+        {pendingResearch&&(<div className="px-4 pb-2 max-w-3xl mx-auto w-full"><ResearchProgress research={pendingResearch} onDismiss={dismissResearch}/></div>)}
         {/* Chips row */}
         <div className="px-4 max-w-3xl mx-auto w-full">
           <AttachmentChips products={products} attachedProductSlugs={combinedAttachments.products} onDetachProduct={handleDetachProduct} styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetachStyleReference={handleDetachStyleReference} attachments={attachments} onRemoveAttachment={removeAttachment} />
@@ -419,7 +447,10 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         </div>
         {/* Input Area - Clean, no gradient background */}
         <div className="px-4 pb-6 pt-2 w-full max-w-3xl mx-auto z-20">
-          <MessageInput ref={messageInputRef} disabled={isLoading || !brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} onSend={async (text) => { const mentionAtts = resolveMentions(text, products, styleReferences); const allProducts = [...new Set([...attachedProducts, ...mentionAtts.products])]; const srMap = new Map<string, AttachedStyleReference>(); for (const t of mentionAtts.styleReferences) srMap.set(t.style_reference_slug, t); for (const t of attachedStyleReferences) srMap.set(t.style_reference_slug, t); const allStyleRefs = Array.from(srMap.values()); await sendMessage(text, { project_slug: activeProject, attached_products: allProducts.length > 0 ? allProducts : undefined, attached_style_references: allStyleRefs.length > 0 ? allStyleRefs : undefined, image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio }); for (const slug of mentionAtts.products) { if (!attachedProducts.includes(slug)) attachProduct(slug) } for (const sr of mentionAtts.styleReferences) { if (!attachedStyleReferences.some(t => t.style_reference_slug === sr.style_reference_slug)) attachStyleReference(sr.style_reference_slug, sr.strict) } await refreshProducts() }} canSendWithoutText={attachments.length > 0} onSelectImages={handleSelectImages} hasProducts={products.length > 0} hasStyleReferences={styleReferences.length > 0} />
+          <MessageInput ref={messageInputRef} disabled={isLoading || !brandSlug} isGenerating={isLoading} onCancel={cancelGeneration} placeholder="" onMessageChange={setInputText} webSearchEnabled={webSearchEnabled} deepResearchEnabled={deepResearchEnabled} onWebSearchToggle={() => { if(!webSearchEnabled)setDeepResearchEnabled(false); setWebSearchEnabled(!webSearchEnabled) }} onDeepResearchToggle={() => { if(!deepResearchEnabled)setWebSearchEnabled(false); setDeepResearchEnabled(!deepResearchEnabled) }} onSend={async (text) => {
+  //DEBUG: Log research toggle states in onSend
+  console.log('[ChatPanel.onSend] webSearchEnabled=', webSearchEnabled, 'deepResearchEnabled=', deepResearchEnabled)
+  const mentionAtts = resolveMentions(text, products, styleReferences); const allProducts = [...new Set([...attachedProducts, ...mentionAtts.products])]; const srMap = new Map<string, AttachedStyleReference>(); for (const t of mentionAtts.styleReferences) srMap.set(t.style_reference_slug, t); for (const t of attachedStyleReferences) srMap.set(t.style_reference_slug, t); const allStyleRefs = Array.from(srMap.values()); await sendMessage(text, { project_slug: activeProject, attached_products: allProducts.length > 0 ? allProducts : undefined, attached_style_references: allStyleRefs.length > 0 ? allStyleRefs : undefined, image_aspect_ratio: imageAspectRatio, video_aspect_ratio: videoAspectRatio, web_search_enabled: webSearchEnabled, deep_research_enabled: deepResearchEnabled }); setWebSearchEnabled(false); setDeepResearchEnabled(false); for (const slug of mentionAtts.products) { if (!attachedProducts.includes(slug)) attachProduct(slug) } for (const sr of mentionAtts.styleReferences) { if (!attachedStyleReferences.some(t => t.style_reference_slug === sr.style_reference_slug)) attachStyleReference(sr.style_reference_slug, sr.strict) } await refreshProducts() }} canSendWithoutText={attachments.length > 0} onSelectImages={handleSelectImages} hasProducts={products.length > 0} hasStyleReferences={styleReferences.length > 0} />
         </div>
       </div>
       {/* Playground Mode - hidden when assistant active (keeps state) */}

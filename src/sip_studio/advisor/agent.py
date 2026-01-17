@@ -394,19 +394,24 @@ class BrandAdvisor:
         attached_style_references: list[dict] | None = None,
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
+        display_message: str | None = None,
     ) -> ChatContext:
         """Prepare all context needed for a chat turn.
         Args:
-            message: User message to process.
+            message: User message to process (may include system context).
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
             attached_style_references: List of style reference dicts with style_ref_slug and strict.
             image_aspect_ratio: Default aspect ratio for image generation (passive, used by tools).
             video_aspect_ratio: Default aspect ratio for video generation (passive, used by tools).
+            display_message: Original user message for history storage (without system context).
         Returns:
             ChatContext with prepared prompt and metadata.
         """
-        raw_user_message = message
+        # Use message (may include research context) for building prompt to LLM
+        # Use display_message (clean) for storing in history
+        prompt_message = message
+        raw_user_message = display_message or message
         skills_context, matched_skills = self._get_relevant_skills_context(raw_user_message)
         # Build history text - HYBRID APPROACH: include client history even in session-aware mode
         # Server chain may summarize/lose details, so we send local history as backup
@@ -439,13 +444,14 @@ class BrandAdvisor:
         if image_aspect_ratio:
             set_active_aspect_ratio(image_aspect_ratio)
         # Build augmented message with turn context prepended
+        # Use prompt_message (has research context) for LLM, not raw_user_message (for history)
         if turn_context:
             augmented_message = (
                 f"## Current Context\n\n{turn_context}\n\n---\n\n"
-                f"## User Request\n\n{raw_user_message}"
+                f"## User Request\n\n{prompt_message}"
             )
         else:
-            augmented_message = raw_user_message
+            augmented_message = prompt_message
         # Check budget and trim if needed (skip history for session-aware mode)
         budget_result, _, trimmed_skills, trimmed_history, _ = self._budget_manager.check_and_trim(
             system_prompt=self._agent.instructions or "",
@@ -535,15 +541,19 @@ class BrandAdvisor:
         attached_style_references: list[dict] | None = None,
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
+        extra_tools: list | None = None,
+        display_message: str | None = None,
     ) -> dict:
         """Send a message and get a response plus UI metadata.
         Args:
-            message: User message to process.
+            message: User message to process (may include system context like research mode).
             project_slug: Active project slug for context injection.
             attached_products: List of product slugs to include in context.
             attached_style_references: Style reference dicts with style_ref_slug and strict.
             image_aspect_ratio: Default image aspect ratio (passive, used by tools).
             video_aspect_ratio: Default video aspect ratio (passive, used by tools).
+            extra_tools: Optional list of additional tools to include (e.g., research tools).
+            display_message: Original user message for history storage (without system context).
         Returns:
             Dict with response, interaction, and memory_update.
         """
@@ -556,6 +566,7 @@ class BrandAdvisor:
             attached_style_references,
             image_aspect_ratio,
             video_aspect_ratio,
+            display_message=display_message,
         )
         self._emit_skill_events(ctx.matched_skills)
         self._log_budget_warnings(ctx)
@@ -575,9 +586,37 @@ class BrandAdvisor:
         # Dynamic max_turns based on estimated task count
         task_count = self._estimate_task_count(ctx.full_prompt)
         max_turns = self._calculate_max_turns(task_count)
+        # Use agent with extra tools if provided
+        agent_to_run = self._agent
+        # DEBUG: Log extra_tools received
+        logger.info(
+            "[BrandAdvisor.chat_with_metadata] extra_tools received: %s",
+            [t.name if hasattr(t, "name") else str(t) for t in extra_tools]
+            if extra_tools
+            else None,
+        )
+        if extra_tools:
+            all_tools = list(ADVISOR_TOOLS) + list(extra_tools)
+            # DEBUG: Log the full list of tools being used
+            logger.info(
+                "[BrandAdvisor] Creating agent: %d base + %d extra = %d total tools",
+                len(ADVISOR_TOOLS),
+                len(extra_tools),
+                len(all_tools),
+            )
+            logger.info(
+                "[BrandAdvisor.chat_with_metadata] Tool names: %s",
+                [t.name if hasattr(t, "name") else str(t) for t in all_tools],
+            )
+            agent_to_run = Agent(
+                name=self._agent.name,
+                model=self._agent.model,
+                instructions=self._agent.instructions,
+                tools=all_tools,
+            )
         try:
             result = await Runner.run(
-                self._agent,
+                agent_to_run,
                 ctx.full_prompt,
                 hooks=ctx.hooks,
                 previous_response_id=prev_response_id,

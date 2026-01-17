@@ -19,6 +19,7 @@ from sip_studio.advisor.tools import (
     _impl_update_task,
     clear_tool_context,
     get_image_metadata,
+    get_pending_research_clarification,
     get_video_metadata,
     set_current_batch_id,
     set_tool_context,
@@ -255,6 +256,8 @@ class ChatService:
         attached_style_references: list[dict] | None = None,
         image_aspect_ratio: str | None = None,
         video_aspect_ratio: str | None = None,
+        web_search_enabled: bool = False,
+        deep_research_enabled: bool = False,
     ) -> dict:
         """Send a message to the Brand Advisor with optional context."""
         self._state.execution_trace = []
@@ -330,9 +333,12 @@ class ChatService:
             validated_video_ratio = (
                 video_aspect_ratio if video_aspect_ratio in ("16:9", "9:16") else "16:9"
             )
+            research_mode_enabled = web_search_enabled or deep_research_enabled
+            if research_mode_enabled:
+                logger.info("[CHAT] Research mode enabled; skipping batch mode shortcuts")
             # Single-turn: "give me N ideas and generate images for each" → plan + parallel execute
             idea_count = self._detect_idea_batch_request(prepared)
-            if idea_count and idea_count >= 3:
+            if not research_mode_enabled and idea_count and idea_count >= 3:
                 logger.info(f"[BATCH] Detected idea+generate request ({idea_count} ideas)")
                 try:
                     from sip_studio.brands.context import HierarchicalContextBuilder
@@ -353,7 +359,7 @@ class ChatService:
                         # TASKS.md: 1 planning step + N image tasks
                         title = f"{idea_count} Image Concepts"
                         task_items = [f"Generate {idea_count} image concepts"] + [
-                            f"Image: {p.get('title','').strip()}" for p in planned
+                            f"Image: {p.get('title', '').strip()}" for p in planned
                         ]
                         created_msg = _impl_create_task_file(
                             title, task_items, context=prepared[:2000]
@@ -423,7 +429,7 @@ class ChatService:
                             summary += f" ({failed} failed)"
                         _impl_complete_task_file(summary)
                         ideas_text = "\n".join(
-                            f"{i+1}. {p.get('title','').strip()}"
+                            f"{i + 1}. {p.get('title', '').strip()}"
                             for i, p in enumerate(planned[:idea_count])
                         )
                         response_text = (
@@ -455,39 +461,100 @@ class ChatService:
                 except Exception as e:
                     logger.warning(f"[BATCH] Idea batch mode failed, falling back to agent: {e}")
             # Check for batch request follow-up (e.g., "generate all of them")
-            history = self._get_conversation_history(advisor)
-            if BatchDetector.is_batch_request(prepared, history):
-                tasks = asyncio.run(TaskExtractor.extract(prepared, history))
-                if len(tasks) >= 3:
-                    logger.info(f"[BATCH] Executing batch mode with {len(tasks)} tasks")
-                    if self._current_batch_id:
-                        self._emit_image_batch_start(self._current_batch_id, len(tasks))
-                    executor = BatchExecutor(advisor, self._state, self._batch_progress_callback)
-                    batch_result = asyncio.run(
-                        executor.run(
-                            tasks,
-                            {
-                                "product_slugs": attached_products,
-                                "style_refs": attached_style_references,
-                                "aspect_ratio": validated_image_ratio.value,
-                                "project_slug": effective_project,
-                            },
+            if not research_mode_enabled:
+                history = self._get_conversation_history(advisor)
+                if BatchDetector.is_batch_request(prepared, history):
+                    tasks = asyncio.run(TaskExtractor.extract(prepared, history))
+                    if len(tasks) >= 3:
+                        logger.info(f"[BATCH] Executing batch mode with {len(tasks)} tasks")
+                        if self._current_batch_id:
+                            self._emit_image_batch_start(self._current_batch_id, len(tasks))
+                        executor = BatchExecutor(
+                            advisor, self._state, self._batch_progress_callback
                         )
-                    )
-                    images = self._collect_new_images(slug, before_images)
-                    videos = self._collect_new_videos(slug, before_videos)
-                    style_refs = self._collect_new_style_references(slug, before_style_refs)
-                    return bridge_ok(
-                        {
-                            "response": batch_result.response,
-                            "images": images,
-                            "videos": videos,
-                            "style_references": style_refs,
-                            "execution_trace": self._state.execution_trace,
-                            "interaction": None,
-                            "memory_update": None,
-                        }
-                    )
+                        batch_result = asyncio.run(
+                            executor.run(
+                                tasks,
+                                {
+                                    "product_slugs": attached_products,
+                                    "style_refs": attached_style_references,
+                                    "aspect_ratio": validated_image_ratio.value,
+                                    "project_slug": effective_project,
+                                },
+                            )
+                        )
+                        images = self._collect_new_images(slug, before_images)
+                        videos = self._collect_new_videos(slug, before_videos)
+                        style_refs = self._collect_new_style_references(slug, before_style_refs)
+                        return bridge_ok(
+                            {
+                                "response": batch_result.response,
+                                "images": images,
+                                "videos": videos,
+                                "style_references": style_refs,
+                                "execution_trace": self._state.execution_trace,
+                                "interaction": None,
+                                "memory_update": None,
+                            }
+                        )
+            # Build extra tools list based on research flags
+            extra_tools = []
+            # DEBUG: Log research flags before building extra_tools
+            logger.info(
+                "[ChatService.chat] RESEARCH FLAGS: web_search=%s, deep_research=%s",
+                web_search_enabled,
+                deep_research_enabled,
+            )
+            if web_search_enabled or deep_research_enabled:
+                from sip_studio.advisor.tools import search_research_cache, web_search
+
+                extra_tools.extend([web_search, search_research_cache])
+            if deep_research_enabled:
+                from sip_studio.advisor.tools import get_research_status, request_deep_research
+
+                extra_tools.extend([request_deep_research, get_research_status])
+            # DEBUG: Log what extra_tools are being passed to the agent
+            logger.info(
+                "[ChatService.chat] EXTRA_TOOLS being passed: %s",
+                [t.name if hasattr(t, "name") else str(t) for t in extra_tools],
+            )
+            # Build research mode context to prepend to message
+            research_context = ""
+            if web_search_enabled and not deep_research_enabled:
+                research_context = (
+                    "## Research Mode: Web Search Enabled\n\n"
+                    "**IMPORTANT**: The user has enabled web search mode. "
+                    "You MUST use the `web_search` tool to find current, up-to-date "
+                    "information from the internet before answering. "
+                    "Do NOT answer from your training data alone - search the web first."
+                    "\n\n---\n\n"
+                )
+            elif deep_research_enabled:
+                research_context = (
+                    "## Research Mode: Deep Research Enabled\n\n"
+                    "**IMPORTANT**: The user explicitly enabled deep research for this message. "
+                    "Before answering, you MUST initiate the deep research workflow "
+                    "by doing ONE of:\n"
+                    "1) Use `search_research_cache` to check for relevant cached research "
+                    "and use it if found; OR\n"
+                    "2) Call `request_deep_research(query, context)` to present the deep-research "
+                    "confirmation panel.\n\n"
+                    "Do NOT provide a general answer from training data. "
+                    "Your immediate response should be to start deep research "
+                    "(or clearly explain why deep research is unnecessary and proceed "
+                    "only if the user agrees).\n\n"
+                    "For quick factual checks while waiting, you may also use `web_search`."
+                    "\n\n---\n\n"
+                )
+            # Prepend research context to the message if enabled
+            # Store original message for history display (without system context)
+            display_message = prepared
+            if research_context:
+                prepared = research_context + prepared
+                logger.info(
+                    "[ChatService.chat] Research context prepended (%d chars)",
+                    len(research_context),
+                )
             # Run advisor - pass aspect ratios as passive defaults (not instructions)
             result = asyncio.run(
                 advisor.chat_with_metadata(
@@ -497,11 +564,15 @@ class ChatService:
                     attached_style_references=attached_style_references,
                     image_aspect_ratio=validated_image_ratio.value,
                     video_aspect_ratio=validated_video_ratio,
+                    extra_tools=extra_tools if extra_tools else None,
+                    display_message=display_message if research_context else None,
                 )
             )
             response = result["response"]
             interaction = result.get("interaction")
             memory_update = result.get("memory_update")
+            # Check for research clarification (similar to interaction capture)
+            research_clarification = get_pending_research_clarification()
             images = self._collect_new_images(slug, before_images)
             videos = self._collect_new_videos(slug, before_videos)
             style_refs = self._collect_new_style_references(slug, before_style_refs)
@@ -524,6 +595,7 @@ class ChatService:
                     "execution_trace": self._state.execution_trace,
                     "interaction": interaction,
                     "memory_update": memory_update,
+                    "research_clarification": research_clarification,
                 }
             )
         except Exception as e:

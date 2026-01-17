@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent, type ChatMessage } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent, type ChatMessage, type PendingResearch } from '@/lib/bridge'
 import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
 import { DEFAULT_ASPECT_RATIO, DEFAULT_VIDEO_ASPECT_RATIO, type AspectRatio, type VideoAspectRatio } from '@/types/aspectRatio'
@@ -55,6 +55,7 @@ interface UseChatOptions {
   onStyleReferencesCreated?: (slugs: string[]) => void
   onImagesGenerated?: (images: ImageStatusEntry[]) => void
   onVideosGenerated?: (videos: WorkstationMedia[]) => void
+  onResearchCompleted?: (sessionId: string) => void
 }
 
 export function useChat(brandSlug: string | null, options?: UseChatOptions) {
@@ -74,6 +75,12 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [imageAspectRatio, setImageAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const [videoAspectRatio, setVideoAspectRatio] = useState<VideoAspectRatio>(DEFAULT_VIDEO_ASPECT_RATIO)
+  //Research toggle state
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false)
+  const [deepResearchEnabled, setDeepResearchEnabled] = useState(false)
+  //Pending research polling state
+  const [pendingResearch, setPendingResearch] = useState<(PendingResearch&{status?:string;progressPercent?:number|null})|null>(null)
+  const researchPollRef = useRef<ReturnType<typeof setTimeout>|null>(null)
   //Todo list state
   const [todoList,setTodoList]=useState<TodoListData|null>(null)
   const [isPaused,setIsPaused]=useState(false)
@@ -175,6 +182,42 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   useEffect(() => {
     attachmentsRef.current = attachments
   }, [attachments])
+  //Research polling with exponential backoff
+  const startResearchPolling = useCallback((responseId:string,initial:PendingResearch)=>{
+    let delay=5000
+    const poll=async()=>{
+      try{
+        const result=await bridge.pollResearch(responseId)
+        if(result.status==='completed'){
+          setPendingResearch(prev=>prev?{...prev,status:'completed',progressPercent:100}:null)
+          //Add completed research to messages as assistant message
+          if(result.finalSummary){
+            const researchMsg:Message={id:generateId(),role:'assistant',content:`**Deep Research Complete**\n\n${result.finalSummary}`,images:[],timestamp:new Date(),status:'sent'}
+            setMessages(prev=>[...prev,researchMsg])
+          }
+          //Notify completion for unread tracking
+          if(initial.sessionId&&options?.onResearchCompleted)options.onResearchCompleted(initial.sessionId)
+          return
+        }
+        if(result.status==='failed'){
+          setPendingResearch(prev=>prev?{...prev,status:'failed'}:null)
+          return
+        }
+        //Update progress and continue polling
+        setPendingResearch(prev=>prev?{...prev,status:result.status,progressPercent:result.progressPercent??null}:null)
+        delay=Math.min(delay*1.5,30000)//Backoff 5s->30s max
+        researchPollRef.current=setTimeout(poll,delay)
+      }catch{setPendingResearch(prev=>prev?{...prev,status:'failed'}:null)}
+    }
+    setPendingResearch({...initial,status:'in_progress'})
+    poll()
+  },[])
+  const dismissResearch=useCallback(()=>{
+    if(researchPollRef.current)clearTimeout(researchPollRef.current)
+    setPendingResearch(null)
+  },[])
+  //Cleanup research polling on unmount
+  useEffect(()=>{return()=>{if(researchPollRef.current)clearTimeout(researchPollRef.current)}},[])
 
 //Clear messages when brand changes, load persisted preferences from backend
   useEffect(() => {
@@ -413,9 +456,11 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       const stepsFromTrace = (result.execution_trace || []).filter(e => e.type === 'thinking_step').map((e, i) => ({ id: `trace-${e.timestamp}-${i}`, step: e.message, detail: e.detail, timestamp: e.timestamp }))
       //Persist skills with message (use ref for latest values)
       const finalSkills = loadedSkillsRef.current.length > 0 ? [...loadedSkillsRef.current] : undefined
+      //Use research_clarification as interaction if present (extends Interaction union)
+      const finalInteraction = result.research_clarification || result.interaction
       setMessages(prev => prev.map(m =>
         m.id === assistantId
-          ? { ...m, content: result.response, images: result.images, videos: result.videos || [], executionTrace: result.execution_trace || [], interaction: result.interaction, memoryUpdate: result.memory_update, status: 'sent', thinkingSteps: stepsFromTrace, loadedSkills: finalSkills }
+          ? { ...m, content: result.response, images: result.images, videos: result.videos || [], executionTrace: result.execution_trace || [], interaction: finalInteraction, memoryUpdate: result.memory_update, status: 'sent', thinkingSteps: stepsFromTrace, loadedSkills: finalSkills }
           : m
       ))
       setAttachments([])
@@ -644,6 +689,15 @@ return {
     attachments,
     imageAspectRatio,
     videoAspectRatio,
+    //Research toggle state
+    webSearchEnabled,
+    deepResearchEnabled,
+    setWebSearchEnabled,
+    setDeepResearchEnabled,
+    //Pending research state and handlers
+    pendingResearch,
+    startResearchPolling,
+    dismissResearch,
     //Todo list state and handlers - displayTodoList includes virtual items from imageBatch
     todoList:displayTodoList(),
     isPaused,
