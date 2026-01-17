@@ -333,9 +333,12 @@ class ChatService:
             validated_video_ratio = (
                 video_aspect_ratio if video_aspect_ratio in ("16:9", "9:16") else "16:9"
             )
+            research_mode_enabled = web_search_enabled or deep_research_enabled
+            if research_mode_enabled:
+                logger.info("[CHAT] Research mode enabled; skipping batch mode shortcuts")
             # Single-turn: "give me N ideas and generate images for each" → plan + parallel execute
             idea_count = self._detect_idea_batch_request(prepared)
-            if idea_count and idea_count >= 3:
+            if not research_mode_enabled and idea_count and idea_count >= 3:
                 logger.info(f"[BATCH] Detected idea+generate request ({idea_count} ideas)")
                 try:
                     from sip_studio.brands.context import HierarchicalContextBuilder
@@ -356,7 +359,7 @@ class ChatService:
                         # TASKS.md: 1 planning step + N image tasks
                         title = f"{idea_count} Image Concepts"
                         task_items = [f"Generate {idea_count} image concepts"] + [
-                            f"Image: {p.get('title','').strip()}" for p in planned
+                            f"Image: {p.get('title', '').strip()}" for p in planned
                         ]
                         created_msg = _impl_create_task_file(
                             title, task_items, context=prepared[:2000]
@@ -426,7 +429,7 @@ class ChatService:
                             summary += f" ({failed} failed)"
                         _impl_complete_task_file(summary)
                         ideas_text = "\n".join(
-                            f"{i+1}. {p.get('title','').strip()}"
+                            f"{i + 1}. {p.get('title', '').strip()}"
                             for i, p in enumerate(planned[:idea_count])
                         )
                         response_text = (
@@ -458,39 +461,42 @@ class ChatService:
                 except Exception as e:
                     logger.warning(f"[BATCH] Idea batch mode failed, falling back to agent: {e}")
             # Check for batch request follow-up (e.g., "generate all of them")
-            history = self._get_conversation_history(advisor)
-            if BatchDetector.is_batch_request(prepared, history):
-                tasks = asyncio.run(TaskExtractor.extract(prepared, history))
-                if len(tasks) >= 3:
-                    logger.info(f"[BATCH] Executing batch mode with {len(tasks)} tasks")
-                    if self._current_batch_id:
-                        self._emit_image_batch_start(self._current_batch_id, len(tasks))
-                    executor = BatchExecutor(advisor, self._state, self._batch_progress_callback)
-                    batch_result = asyncio.run(
-                        executor.run(
-                            tasks,
-                            {
-                                "product_slugs": attached_products,
-                                "style_refs": attached_style_references,
-                                "aspect_ratio": validated_image_ratio.value,
-                                "project_slug": effective_project,
-                            },
+            if not research_mode_enabled:
+                history = self._get_conversation_history(advisor)
+                if BatchDetector.is_batch_request(prepared, history):
+                    tasks = asyncio.run(TaskExtractor.extract(prepared, history))
+                    if len(tasks) >= 3:
+                        logger.info(f"[BATCH] Executing batch mode with {len(tasks)} tasks")
+                        if self._current_batch_id:
+                            self._emit_image_batch_start(self._current_batch_id, len(tasks))
+                        executor = BatchExecutor(
+                            advisor, self._state, self._batch_progress_callback
                         )
-                    )
-                    images = self._collect_new_images(slug, before_images)
-                    videos = self._collect_new_videos(slug, before_videos)
-                    style_refs = self._collect_new_style_references(slug, before_style_refs)
-                    return bridge_ok(
-                        {
-                            "response": batch_result.response,
-                            "images": images,
-                            "videos": videos,
-                            "style_references": style_refs,
-                            "execution_trace": self._state.execution_trace,
-                            "interaction": None,
-                            "memory_update": None,
-                        }
-                    )
+                        batch_result = asyncio.run(
+                            executor.run(
+                                tasks,
+                                {
+                                    "product_slugs": attached_products,
+                                    "style_refs": attached_style_references,
+                                    "aspect_ratio": validated_image_ratio.value,
+                                    "project_slug": effective_project,
+                                },
+                            )
+                        )
+                        images = self._collect_new_images(slug, before_images)
+                        videos = self._collect_new_videos(slug, before_videos)
+                        style_refs = self._collect_new_style_references(slug, before_style_refs)
+                        return bridge_ok(
+                            {
+                                "response": batch_result.response,
+                                "images": images,
+                                "videos": videos,
+                                "style_references": style_refs,
+                                "execution_trace": self._state.execution_trace,
+                                "interaction": None,
+                                "memory_update": None,
+                            }
+                        )
             # Build extra tools list based on research flags
             extra_tools = []
             # DEBUG: Log research flags before building extra_tools
@@ -526,14 +532,18 @@ class ChatService:
             elif deep_research_enabled:
                 research_context = (
                     "## Research Mode: Deep Research Enabled\n\n"
-                    "**IMPORTANT**: The user has enabled deep research mode. "
-                    "For questions requiring comprehensive investigation "
-                    "(market trends, competitor analysis, best practices), "
-                    "you MUST use the `request_deep_research` tool to trigger "
-                    "a thorough investigation. This will present clarification options "
-                    "to the user and then perform extensive web research (10-30 min). "
-                    "Do NOT answer complex research questions from training data alone.\n\n"
-                    "For quick factual queries, use `web_search` for faster results."
+                    "**IMPORTANT**: The user explicitly enabled deep research for this message. "
+                    "Before answering, you MUST initiate the deep research workflow "
+                    "by doing ONE of:\n"
+                    "1) Use `search_research_cache` to check for relevant cached research "
+                    "and use it if found; OR\n"
+                    "2) Call `request_deep_research(query, context)` to present the deep-research "
+                    "confirmation panel.\n\n"
+                    "Do NOT provide a general answer from training data. "
+                    "Your immediate response should be to start deep research "
+                    "(or clearly explain why deep research is unnecessary and proceed "
+                    "only if the user agrees).\n\n"
+                    "For quick factual checks while waiting, you may also use `web_search`."
                     "\n\n---\n\n"
                 )
             # Prepend research context to the message if enabled
