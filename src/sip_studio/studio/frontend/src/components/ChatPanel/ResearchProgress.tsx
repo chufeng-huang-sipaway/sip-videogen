@@ -1,31 +1,56 @@
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Telescope, X } from 'lucide-react'
+import { Telescope } from 'lucide-react'
 import type { PendingResearch } from '@/lib/bridge'
-interface Props {research:PendingResearch&{status?:string;progressPercent?:number|null};onDismiss:()=>void;onViewResults?:()=>void}
-export function ResearchProgress({research,onDismiss,onViewResults}:Props){
-const elapsed=Math.max(0,Math.floor((Date.now()-new Date(research.startedAt).getTime())/60000))
-const progressValue=research.progressPercent??undefined
-const isComplete=research.status==='completed'
-const isFailed=research.status==='failed'
-return(
-<div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-soft">
-<div className="flex items-center justify-between">
-<div className="flex items-center gap-2">
-<Telescope className={`h-5 w-5 text-brand-500 ${!isComplete&&!isFailed?'animate-pulse':''}`}/>
-<span className="font-medium">{isComplete?'Deep Research Complete':isFailed?'Deep Research Failed':'Deep Research in Progress'}</span>
-</div>
-<Button variant="ghost" size="icon" onClick={onDismiss} className="h-7 w-7"><X className="h-4 w-4"/></Button>
-</div>
-<p className="text-sm text-muted-foreground line-clamp-2">{research.query}</p>
-{!isComplete&&!isFailed&&(<div className="space-y-1">
-<Progress value={progressValue} className="h-1"/>
-<div className="flex justify-between text-xs text-muted-foreground">
-<span>{elapsed} min elapsed</span>
-<span>Est. {research.estimatedMinutes} min</span>
-</div>
-</div>)}
-{!isComplete&&!isFailed&&(<p className="text-xs text-warning">⚠️ Research continues in background. You can continue chatting.</p>)}
-{isComplete&&onViewResults&&(<Button size="sm" onClick={onViewResults}>View Results</Button>)}
-{isFailed&&(<p className="text-xs text-destructive">Research failed. Please try again.</p>)}
-</div>)}
+interface Props { research: PendingResearch & { status?: string; progressPercent?: number | null }; onDismiss: () => void; onViewResults?: () => void }
+export function ResearchProgress({ research, onDismiss, onViewResults }: Props) {
+    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(research.startedAt).getTime()) / 60000))
+    const progressValue = research.progressPercent ?? undefined
+    const isComplete = research.status === 'completed'
+    const isFailed = research.status === 'failed'
+    return (
+        <div className="rounded-2xl border border-white/20 bg-white/80 dark:bg-black/60 backdrop-blur-xl p-6 shadow-float w-full max-w-sm mx-auto animate-fade-in-up text-center relative overflow-hidden group">
+            {/* Searchlight effect (optional subtle animation) */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+
+            <div className="flex flex-col items-center justify-center space-y-4 relative z-10">
+                <div className="relative">
+                    <div className={`absolute inset-0 bg-brand-500/20 blur-xl rounded-full ${!isComplete && !isFailed ? 'animate-pulse' : ''}`} />
+                    <Telescope className={`h-8 w-8 text-brand-500 relative z-10 ${!isComplete && !isFailed ? 'animate-bounce-subtle' : ''}`} style={{ animationDuration: '3s' }} />
+                </div>
+
+                <div className="space-y-1">
+                    <h3 className="font-medium text-lg leading-tight">
+                        {isComplete ? 'Research Complete' : isFailed ? 'Research Failed' : 'Exploring...'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground line-clamp-1 max-w-[200px] mx-auto">
+                        {research.query}
+                    </p>
+                </div>
+
+                {!isComplete && !isFailed && (
+                    <div className="w-full space-y-2">
+                        <Progress value={progressValue} className="h-1 bg-secondary" indicatorClassName="bg-gradient-to-r from-blue-400 to-brand-500" />
+                        <div className="flex justify-between text-xs text-muted-foreground font-medium px-1">
+                            <span>{elapsed}m elapsed</span>
+                            <span>~{research.estimatedMinutes}m left</span>
+                        </div>
+                    </div>
+                )}
+
+                {isComplete && onViewResults && (
+                    <Button size="sm" onClick={onViewResults} className="w-full bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20">
+                        View Results
+                    </Button>
+                )}
+
+                {isFailed && (
+                    <Button variant="ghost" size="sm" onClick={onDismiss} className="text-destructive hover:text-destructive/80">
+                        Dismiss
+                    </Button>
+                )}
+            </div>
+
+        </div>
+    )
+}
