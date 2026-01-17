@@ -168,7 +168,7 @@ class DeepResearchClarification(BaseModel):
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     type: Literal["deep_research_clarification"] = "deep_research_clarification"
-    context_summary: str
+    context_summary: str | None = None  # Deprecated
     questions: list[ClarificationQuestion]
     estimated_duration: str
     query: str

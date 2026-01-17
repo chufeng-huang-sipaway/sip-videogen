@@ -310,7 +310,7 @@ export interface ClarificationOption {value:string;label:string;recommended:bool
 export interface ClarificationQuestion {id:string;question:string;options:ClarificationOption[];allowCustom:boolean}
 export interface DeepResearchClarification {
   type:'deep_research_clarification'
-  contextSummary:string
+  contextSummary?:string  // Optional, deprecated
   questions:ClarificationQuestion[]
   estimatedDuration:string
   query:string

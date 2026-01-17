@@ -82,7 +82,7 @@ function ClarificationPanel({ interaction, onSubmit, onCancel, disabled }: { int
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-semibold leading-none pt-1">Deep Research</h3>
-            <p className="text-sm text-muted-foreground">{interaction.contextSummary || "I need a bit more detail to get the best results."}</p>
+            <p className="text-sm text-muted-foreground">A few questions before I begin.</p>
           </div>
         </div>
 

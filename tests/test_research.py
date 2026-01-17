@@ -531,14 +531,33 @@ class TestResearchTools:
     def test_request_deep_research_sets_clarification(self):
         """Test that request_deep_research sets pending clarification."""
         from sip_studio.advisor.tools.research_tools import (
+            ToolOptionInput,
+            ToolQuestionInput,
             _impl_request_deep_research,
             get_pending_research_clarification,
         )
 
-        result = _impl_request_deep_research(
-            "luxury coffee trends", "User wants to know about trends"
-        )
-        assert "[Presenting deep research options" in result
+        questions = [
+            ToolQuestionInput(
+                id="focus",
+                question="What aspect?",
+                options=[
+                    ToolOptionInput(value="visual", label="Visual trends", recommended=True),
+                    ToolOptionInput(value="messaging", label="Messaging"),
+                ],
+                allow_custom=True,
+            ),
+            ToolQuestionInput(
+                id="depth",
+                question="How deep?",
+                options=[
+                    ToolOptionInput(value="quick", label="Quick"),
+                    ToolOptionInput(value="thorough", label="Thorough", recommended=True),
+                ],
+            ),
+        ]
+        result = _impl_request_deep_research("luxury coffee trends", questions)
+        assert "[Presenting clarification questions" in result
         clarification = get_pending_research_clarification()
         assert clarification is not None
         assert clarification["type"] == "deep_research_clarification"
@@ -548,28 +567,42 @@ class TestResearchTools:
         q1 = clarification["questions"][0]
         assert q1["id"] == "focus"
         assert q1["allowCustom"] is True
-        assert len(q1["options"]) == 3
+        assert len(q1["options"]) == 2
 
     def test_get_pending_clears_after_read(self):
         """Test that get_pending_research_clarification clears after read."""
         from sip_studio.advisor.tools.research_tools import (
+            ToolOptionInput,
+            ToolQuestionInput,
             _impl_request_deep_research,
             get_pending_research_clarification,
         )
 
-        _impl_request_deep_research("test", "context")
+        questions = [
+            ToolQuestionInput(
+                id="q1", question="Q?", options=[ToolOptionInput(value="a", label="A")]
+            )
+        ]
+        _impl_request_deep_research("test", questions)
         assert get_pending_research_clarification() is not None
         assert get_pending_research_clarification() is None
 
     def test_peek_pending_does_not_clear(self):
         """Test that peek_pending_research_clarification does not clear state."""
         from sip_studio.advisor.tools.research_tools import (
+            ToolOptionInput,
+            ToolQuestionInput,
             _impl_request_deep_research,
             get_pending_research_clarification,
             peek_pending_research_clarification,
         )
 
-        _impl_request_deep_research("test", "context")
+        questions = [
+            ToolQuestionInput(
+                id="q1", question="Q?", options=[ToolOptionInput(value="a", label="A")]
+            )
+        ]
+        _impl_request_deep_research("test", questions)
         assert peek_pending_research_clarification() is not None
         assert peek_pending_research_clarification() is not None
         assert get_pending_research_clarification() is not None
@@ -578,13 +611,20 @@ class TestResearchTools:
     def test_has_pending_reflects_state(self):
         """Test has_pending_research_clarification reflects pending state."""
         from sip_studio.advisor.tools.research_tools import (
+            ToolOptionInput,
+            ToolQuestionInput,
             _impl_request_deep_research,
             get_pending_research_clarification,
             has_pending_research_clarification,
         )
 
+        questions = [
+            ToolQuestionInput(
+                id="q1", question="Q?", options=[ToolOptionInput(value="a", label="A")]
+            )
+        ]
         assert has_pending_research_clarification() is False
-        _impl_request_deep_research("test", "context")
+        _impl_request_deep_research("test", questions)
         assert has_pending_research_clarification() is True
         assert get_pending_research_clarification() is not None
         assert has_pending_research_clarification() is False
