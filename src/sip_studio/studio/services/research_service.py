@@ -268,10 +268,22 @@ class ResearchService:
         try:
             interaction = await asyncio.to_thread(client.interactions.get, response_id)  # type: ignore[attr-defined]
             raw_status = interaction.status
+            # Get current_stage from pending cache
+            pending = self._storage.get_pending(response_id)
+            current_stage = pending.current_stage if pending else None
+            # Try to extract stage from interaction metadata if available
+            if hasattr(interaction, "thinking_summary") and interaction.thinking_summary:
+                current_stage = str(interaction.thinking_summary)[:100]
+                if pending:
+                    self._storage.update_pending_stage(response_id, current_stage)
             if raw_status == "queued":
-                return ResearchResult(status="queued", progress_percent=None)
+                return ResearchResult(
+                    status="queued", progress_percent=None, current_stage=current_stage
+                )
             if raw_status == "in_progress":
-                return ResearchResult(status="in_progress", progress_percent=None)
+                return ResearchResult(
+                    status="in_progress", progress_percent=None, current_stage=current_stage
+                )
             if raw_status == "completed":
                 text, sources = _extract_deep_research_result(interaction)
                 # Get pending info for category/brand

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent, type ChatMessage, type PendingResearch } from '@/lib/bridge'
+import { bridge, isPyWebView, type ChatAttachment, type ExecutionEvent, type Interaction, type ActivityEventType, type ChatContext, type GeneratedImage, type GeneratedVideo, type AttachedStyleReference, type ImageStatusEntry, type RegisterImageInput, type ThinkingStep, type ImageEvent, type ImageProgressEvent, type ChatMessage, type PendingResearch, type DeepResearchMetadata } from '@/lib/bridge'
 import type{TodoListData,TodoUpdateData,TodoItemData}from'@/lib/types/todo'
 import { getAllowedAttachmentExts, getAllowedImageExts } from '@/lib/constants'
 import { DEFAULT_ASPECT_RATIO, DEFAULT_VIDEO_ASPECT_RATIO, type AspectRatio, type VideoAspectRatio } from '@/types/aspectRatio'
@@ -33,6 +33,8 @@ export interface Message {
   thinkingSteps?: ThinkingStep[]
   /** Skills that were loaded during generation of this message */
   loadedSkills?: string[]
+  /** Deep research metadata for completed research messages */
+  deepResearch?: DeepResearchMetadata
 }
 
 interface PendingAttachment extends ChatAttachment {
@@ -189,9 +191,10 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       try{
         const result=await bridge.pollResearch(responseId)
         if(result.status==='completed'){
-          //Add completed research to messages as assistant message
+          //Add completed research to messages as assistant message with metadata
           const summary=(result.finalSummary||'').trim()
-          const researchMsg:Message={id:generateId(),role:'assistant',content:summary?`**Deep Research Complete**\n\n${summary}`:'**Deep Research Complete**',images:[],timestamp:new Date(),status:'sent'}
+          const deepResearchMeta:DeepResearchMetadata={isDeepResearch:true,query:initial.query,result}
+          const researchMsg:Message={id:generateId(),role:'assistant',content:summary?`**Deep Research Complete**\n\n${summary}`:'**Deep Research Complete**',images:[],timestamp:new Date(),status:'sent',deepResearch:deepResearchMeta}
           setMessages(prev=>[...prev,researchMsg])
           //Remove progress card once results are posted
           if(researchPollRef.current)clearTimeout(researchPollRef.current)
@@ -206,7 +209,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
           return
         }
         //Update progress and continue polling
-        setPendingResearch(prev=>prev?{...prev,status:result.status,progressPercent:result.progressPercent??null}:null)
+        setPendingResearch(prev=>prev?{...prev,status:result.status,progressPercent:result.progressPercent??null,currentStage:result.currentStage??prev.currentStage}:null)
         delay=Math.min(delay*1.5,30000)//Backoff 5s->30s max
         researchPollRef.current=setTimeout(poll,delay)
       }catch{setPendingResearch(prev=>prev?{...prev,status:'failed'}:null)}

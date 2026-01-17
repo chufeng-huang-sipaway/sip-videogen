@@ -119,6 +119,7 @@ class PendingResearch(BaseModel):
     session_id: str = Field(description="Session that started this research")
     started_at: datetime = Field(default_factory=datetime.utcnow)
     estimated_minutes: int = Field(default=15)
+    current_stage: str | None = Field(default=None, description="Current research stage")
 
 
 class PendingResearchList(BaseModel):
@@ -140,6 +141,7 @@ class ResearchResult(BaseModel):
     sources: list[ResearchSource] = Field(default_factory=list)
     full_report: str | None = None
     error: str | None = None
+    current_stage: str | None = None
 
 
 class ClarificationOption(BaseModel):

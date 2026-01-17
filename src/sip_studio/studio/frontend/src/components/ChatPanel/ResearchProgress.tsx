@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Telescope } from 'lucide-react'
 import type { PendingResearch } from '@/lib/bridge'
-interface Props { research: PendingResearch & { status?: string; progressPercent?: number | null }; onDismiss: () => void; onViewResults?: () => void }
+interface Props { research: PendingResearch & { status?: string; progressPercent?: number | null; currentStage?: string }; onDismiss: () => void; onViewResults?: () => void }
 export function ResearchProgress({ research, onDismiss, onViewResults }: Props) {
     const elapsed = Math.max(0, Math.floor((Date.now() - new Date(research.startedAt).getTime()) / 60000))
     const progressValue = research.progressPercent ?? undefined
@@ -21,7 +21,7 @@ export function ResearchProgress({ research, onDismiss, onViewResults }: Props) 
 
                 <div className="space-y-1">
                     <h3 className="font-medium text-lg leading-tight">
-                        {isComplete ? 'Research Complete' : isFailed ? 'Research Failed' : 'Exploring...'}
+                        {isComplete ? 'Research Complete' : isFailed ? 'Research Failed' : research.currentStage || 'Exploring...'}
                     </h3>
                     <p className="text-sm text-muted-foreground line-clamp-1 max-w-[200px] mx-auto">
                         {research.query}
