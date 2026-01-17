@@ -636,11 +636,14 @@ class BrandAdvisor:
             # Add to history (session-aware or legacy)
             if self._session_aware and self._session_history:
                 user_msg = Message.create("user", ctx.raw_user_message)
-                assistant_msg = Message.create("assistant", response_text)
-                self._session_history.add_messages([user_msg, assistant_msg])
+                msgs = [user_msg]
+                if response_text.strip():
+                    msgs.append(Message.create("assistant", response_text))
+                self._session_history.add_messages(msgs)
             else:
                 self._history_manager.add("user", ctx.raw_user_message)
-                self._history_manager.add("assistant", response_text)
+                if response_text.strip():
+                    self._history_manager.add("assistant", response_text)
             return {
                 "response": response_text,
                 "interaction": ctx.hooks.captured_interaction,

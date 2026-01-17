@@ -645,7 +645,7 @@ const clearMessages = useCallback(() => {
       attachments:m.attachments?.map((a,i)=>({id:`att-${m.id}-${i}`,name:a.name||'attachment',path:a.url,source:'asset' as const})),
       attachedProductSlugs:m.metadata?.attached_products as string[]||undefined,
       attachedStyleReferences:m.metadata?.attached_style_references as AttachedStyleReference[]||undefined,
-    }))
+    })).filter(m=>m.role==='user'||m.content.trim().length>0||m.images.length>0||(m.videos?.length??0)>0||(m.attachments?.length??0)>0)
     setMessages(converted)
     setError(null)
     setAttachments([])

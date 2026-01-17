@@ -457,6 +457,49 @@ class TestResearchService:
         q2 = _build_research_query("test", {"focus": "custom:specific detail"})
         assert "specific detail" in q2
 
+    def test_poll_deep_research_persists_result_to_session_history(
+        self, isolated_home, monkeypatch, svc_mock_state
+    ):
+        """Deep research completion should be persisted so it shows up in chat history."""
+        import asyncio
+        from unittest.mock import MagicMock
+
+        from sip_studio.advisor.session_manager import SessionManager
+        from sip_studio.studio.services.research_service import ResearchService
+
+        brand_slug = "test-brand"
+        mgr = SessionManager(brand_slug)
+        session = mgr.create_session(title="Test Session")
+
+        service = ResearchService(svc_mock_state)
+        response_id = "resp123"
+        summary = "This is the final deep research report."
+        service._storage.add_pending(response_id, "test query", brand_slug, session.id)
+
+        class _DummyOutput:
+            def __init__(self, text: str):
+                self.text = text
+
+        class _DummyInteraction:
+            def __init__(self, status: str, text: str):
+                self.status = status
+                self.outputs = [_DummyOutput(text)]
+                self.grounding_metadata = None
+
+        mock_client = MagicMock()
+        mock_client.interactions.get.return_value = _DummyInteraction("completed", summary)
+        monkeypatch.setattr(service, "_get_client", lambda: mock_client)
+
+        result = asyncio.run(service.poll_deep_research(response_id))
+        assert result.status == "completed"
+
+        mf = mgr.load_messages_file(session.id)
+        assert mf is not None
+        assert any(
+            m.role == "assistant" and "Deep Research Complete" in m.content and summary in m.content
+            for m in mf.full_history
+        )
+
 
 # Research tools tests
 class TestResearchTools:
