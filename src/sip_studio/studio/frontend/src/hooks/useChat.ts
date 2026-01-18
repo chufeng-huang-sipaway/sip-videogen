@@ -191,11 +191,15 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       try{
         const result=await bridge.pollResearch(responseId)
         if(result.status==='completed'){
-          //Add completed research to messages as assistant message with metadata
+          //Add completed research to messages ONLY if not already present (avoid duplicate on recovery)
           const summary=(result.finalSummary||'').trim()
           const deepResearchMeta:DeepResearchMetadata={isDeepResearch:true,query:initial.query,result}
           const researchMsg:Message={id:generateId(),role:'assistant',content:summary?`**Deep Research Complete**\n\n${summary}`:'**Deep Research Complete**',images:[],timestamp:new Date(),status:'sent',deepResearch:deepResearchMeta}
-          setMessages(prev=>[...prev,researchMsg])
+          setMessages(prev=>{
+            //Check if research result already exists (persisted by backend during app closure)
+            const exists=prev.some(m=>m.deepResearch?.query===initial.query)
+            return exists?prev:[...prev,researchMsg]
+          })
           //Remove progress card once results are posted
           if(researchPollRef.current)clearTimeout(researchPollRef.current)
           researchPollRef.current=null
@@ -647,19 +651,25 @@ const clearMessages = useCallback(() => {
 //Load messages from a session response (for session switching)
   const loadMessagesFromSession=useCallback((chatMessages:ChatMessage[])=>{
     if(!chatMessages)return
-    const converted:Message[]=chatMessages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({
-      id:m.id,
-      role:m.role as 'user'|'assistant',
-      content:m.content,
-      images:m.metadata?.images as GeneratedImage[]||[],
-      videos:m.metadata?.videos as GeneratedVideo[]||undefined,
-      timestamp:new Date(m.timestamp),
-      status:'sent' as const,
-      executionTrace:m.metadata?.execution_trace as ExecutionEvent[]||undefined,
-      attachments:m.attachments?.map((a,i)=>({id:`att-${m.id}-${i}`,name:a.name||'attachment',path:a.url,source:'asset' as const})),
-      attachedProductSlugs:m.metadata?.attached_products as string[]||undefined,
-      attachedStyleReferences:m.metadata?.attached_style_references as AttachedStyleReference[]||undefined,
-    })).filter(m=>m.role==='user'||m.content.trim().length>0||m.images.length>0||(m.videos?.length??0)>0||(m.attachments?.length??0)>0)
+    const converted:Message[]=chatMessages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>{
+      //Extract deep research metadata if present (persisted by backend)
+      const dr=m.metadata?.deep_research as{query?:string;sources?:unknown[]}|undefined
+      const deepResearch:DeepResearchMetadata|undefined=dr?.query?{isDeepResearch:true,query:dr.query,result:{status:'completed',sources:dr.sources as DeepResearchMetadata['result']['sources']}}:undefined
+      return{
+        id:m.id,
+        role:m.role as 'user'|'assistant',
+        content:m.content,
+        images:m.metadata?.images as GeneratedImage[]||[],
+        videos:m.metadata?.videos as GeneratedVideo[]||undefined,
+        timestamp:new Date(m.timestamp),
+        status:'sent' as const,
+        executionTrace:m.metadata?.execution_trace as ExecutionEvent[]||undefined,
+        attachments:m.attachments?.map((a,i)=>({id:`att-${m.id}-${i}`,name:a.name||'attachment',path:a.url,source:'asset' as const})),
+        attachedProductSlugs:m.metadata?.attached_products as string[]||undefined,
+        attachedStyleReferences:m.metadata?.attached_style_references as AttachedStyleReference[]||undefined,
+        deepResearch,
+      }
+    }).filter(m=>m.role==='user'||m.content.trim().length>0||m.images.length>0||(m.videos?.length??0)>0||(m.attachments?.length??0)>0||m.deepResearch)
     setMessages(converted)
     setError(null)
     setAttachments([])

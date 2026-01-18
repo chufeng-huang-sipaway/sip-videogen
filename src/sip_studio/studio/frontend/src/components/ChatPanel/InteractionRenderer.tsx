@@ -71,17 +71,17 @@ function ClarificationPanel({ interaction, onSubmit, onCancel, disabled }: { int
 
   return (
     <div className="mt-6 w-full max-w-lg mx-auto animate-fade-in-up">
-      <div className="glass-panel rounded-2xl p-6 space-y-6 shadow-float relative overflow-hidden">
+      <div className="glass-panel rounded-2xl p-6 space-y-6 shadow-float relative overflow-hidden dark:bg-[#1a1a1a]/95 dark:border-white/5">
         {/* Subtle top brand accent */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-500/20 via-brand-500/40 to-brand-500/20" />
 
         {/* Header */}
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-500/10 flex items-center justify-center text-brand-500">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-500/10 flex items-center justify-center text-brand-500 ring-1 ring-brand-500/20">
             <Telescope className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-base font-semibold leading-none pt-1">Deep Research</h3>
+            <h3 className="text-base font-semibold leading-none pt-1 text-foreground">Deep Research</h3>
             <p className="text-sm text-muted-foreground">A few questions before I begin.</p>
           </div>
         </div>
@@ -100,10 +100,10 @@ function ClarificationPanel({ interaction, onSubmit, onCancel, disabled }: { int
                       onClick={() => setAnswers(a => ({ ...a, [q.id]: opt.value }))}
                       disabled={disabled || submitting}
                       className={cn(
-                        "relative flex items-center w-full px-4 py-3 text-left transition-all duration-200 rounded-xl border border-transparent",
+                        "relative flex items-center w-full px-4 py-3 text-left transition-all duration-200 rounded-xl border",
                         isSelected
-                          ? "bg-brand-500/5 border-brand-500/20 shadow-sm"
-                          : "bg-secondary/50 hover:bg-secondary border-border/50 hover:border-border",
+                          ? "bg-brand-500/10 border-brand-500/50 shadow-sm dark:bg-brand-500/20 dark:border-brand-500/50"
+                          : "bg-secondary/50 hover:bg-secondary border-transparent hover:border-border dark:bg-white/5 dark:hover:bg-white/10 dark:hover:border-white/10",
                         "group"
                       )}
                     >
@@ -114,7 +114,7 @@ function ClarificationPanel({ interaction, onSubmit, onCancel, disabled }: { int
                         {opt.label}
                       </span>
                       {isSelected && (
-                        <div className="w-2 h-2 rounded-full bg-brand-500 shadow-sm ml-2" />
+                        <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(237,9,66,0.6)] ml-2" />
                       )}
                     </button>
                   )
