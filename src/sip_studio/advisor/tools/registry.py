@@ -12,8 +12,9 @@ from typing import Any
 from sip_studio.config.logging import get_logger
 
 logger = get_logger(__name__)
-# Core tools - always available (6 tools)
+# Core tools - always available (7 tools)
 # report_thinking is MANDATORY per advisor.md - agent must always show reasoning
+# update_memory is needed for preference persistence across sessions
 CORE_TOOLS = [
     "load_brand",
     "propose_choices",
@@ -21,6 +22,7 @@ CORE_TOOLS = [
     "list_products",
     "check_interrupt",
     "report_thinking",
+    "update_memory",
 ]
 # Skill-to-tool mapping (skill name -> list of tool names)
 # Skills with empty lists are instruction-only (guidelines, no extra tools)
