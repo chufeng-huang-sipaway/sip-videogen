@@ -168,8 +168,8 @@ get_context(entity_type: Literal["product", "style_reference"], slug: str) -> st
 ## Stage 2: Dynamic Tool Loading
 
 **Goal:** Load tools based on activated skills (25 → ~10 active at once)
-**Success Criteria:** Agent gets 8-12 tools per turn, not 25+
-**Status:** Not Started
+**Success Criteria:** Agent gets 8-12 tools per turn, not 37+
+**Status:** Complete
 
 ### 2.1 Define Tool Categories (Revised for Budget)
 

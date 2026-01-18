@@ -34,6 +34,7 @@ from sip_studio.advisor.tools import (
     set_tool_progress_callback,
 )
 from sip_studio.advisor.tools.context_tools import set_context_cache
+from sip_studio.advisor.tools.registry import get_tools_for_skills
 from sip_studio.brands.context import HierarchicalContextBuilder
 from sip_studio.brands.storage import get_active_brand, get_brand_dir, set_active_brand
 from sip_studio.config.constants import Limits
@@ -321,6 +322,24 @@ class BrandAdvisor:
         logger.info(f"[DYNAMIC_TURNS] Calculated max_turns: {max_turns} (base=25 + 5×{task_count})")
         return max_turns
 
+    def _get_tools_for_turn(
+        self, matched_skills: list[tuple[str, str]], extra_tools: list | None = None
+    ) -> list:
+        """Build tool list for this turn based on matched skills.
+        Uses dynamic tool loading: CORE_TOOLS + tools for matched skills.
+        Args:
+            matched_skills: List of (skill_name, description) tuples from skill matching.
+            extra_tools: Optional additional tools to include.
+        Returns:
+            List of tools for the agent to use this turn.
+        """
+        skill_names = [name for name, _ in matched_skills]
+        tools = get_tools_for_skills(skill_names)
+        if extra_tools:
+            tools = tools + list(extra_tools)
+        logger.info(f"[DYNAMIC_TOOLS] {len(tools)} tools for skills: {skill_names}")
+        return tools
+
     async def _enforce_context_limit(self, system_prompt: str) -> list[Message]:
         """Enforce hard context limit with compaction and emergency truncation.
         Per IMPLEMENTATION_PLAN.md Stage 7 - Hard context limit guardrail.
@@ -587,34 +606,19 @@ class BrandAdvisor:
         # Dynamic max_turns based on estimated task count
         task_count = self._estimate_task_count(ctx.full_prompt)
         max_turns = self._calculate_max_turns(task_count)
-        # Use agent with extra tools if provided
-        agent_to_run = self._agent
-        # DEBUG: Log extra_tools received
-        logger.info(
-            "[BrandAdvisor.chat_with_metadata] extra_tools received: %s",
-            [t.name if hasattr(t, "name") else str(t) for t in extra_tools]
-            if extra_tools
-            else None,
+        # Dynamic tool loading based on matched skills (Stage 2)
+        # Instead of loading all 37+ tools, load only CORE + skill-specific tools
+        dynamic_tools = self._get_tools_for_turn(ctx.matched_skills, extra_tools)
+        agent_to_run = Agent(
+            name=self._agent.name,
+            model=self._agent.model,
+            instructions=self._agent.instructions,
+            tools=dynamic_tools,
         )
-        if extra_tools:
-            all_tools = list(ADVISOR_TOOLS) + list(extra_tools)
-            # DEBUG: Log the full list of tools being used
-            logger.info(
-                "[BrandAdvisor] Creating agent: %d base + %d extra = %d total tools",
-                len(ADVISOR_TOOLS),
-                len(extra_tools),
-                len(all_tools),
-            )
-            logger.info(
-                "[BrandAdvisor.chat_with_metadata] Tool names: %s",
-                [t.name if hasattr(t, "name") else str(t) for t in all_tools],
-            )
-            agent_to_run = Agent(
-                name=self._agent.name,
-                model=self._agent.model,
-                instructions=self._agent.instructions,
-                tools=all_tools,
-            )
+        logger.info(
+            "[BrandAdvisor.chat_with_metadata] Dynamic tools: %s",
+            [t.name if hasattr(t, "name") else str(t) for t in dynamic_tools],
+        )
         try:
             result = await Runner.run(
                 agent_to_run,

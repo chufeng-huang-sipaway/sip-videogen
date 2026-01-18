@@ -85,6 +85,10 @@ __all__ = [
     "add_style_reference_image",
     "reanalyze_style_reference",
     "delete_style_reference",
+    # registry (dynamic tool loading)
+    "CORE_TOOLS",
+    "SKILL_TOOL_MAPPING",
+    "get_tools_for_skills",
     # brand_tools
     "load_brand",
     "fetch_brand_detail",
@@ -323,6 +327,7 @@ from .product_tools import (
     update_product,
     update_product_packaging_text,
 )
+from .registry import CORE_TOOLS, SKILL_TOOL_MAPPING, get_tools_for_skills
 from .research_tools import (
     RESEARCH_TOOLS,
     _impl_get_research_status,
