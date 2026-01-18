@@ -12,13 +12,15 @@ from typing import Any
 from sip_studio.config.logging import get_logger
 
 logger = get_logger(__name__)
-# Core tools - always available (5 tools)
+# Core tools - always available (6 tools)
+# report_thinking is MANDATORY per advisor.md - agent must always show reasoning
 CORE_TOOLS = [
     "load_brand",
     "propose_choices",
     "activate_skill",
     "list_products",
     "check_interrupt",
+    "report_thinking",
 ]
 # Skill-to-tool mapping (skill name -> list of tool names)
 # Skills with empty lists are instruction-only (guidelines, no extra tools)
@@ -26,7 +28,11 @@ SKILL_TOOL_MAPPING: dict[str, list[str]] = {
     "image-composer": ["generate_image", "propose_images", "get_recent_generated_images"],
     "image-prompt-engineering": [],  # Instructions only
     "video-prompt-engineering": [],  # Instructions only
-    "brand-evolution": [],  # Instructions only
+    "brand-evolution": [
+        "read_file",
+        "write_file",
+        "list_files",
+    ],  # Needs file access to update identity
     "product-management": [
         "manage_product",
         "analyze_packaging",
@@ -40,7 +46,13 @@ SKILL_TOOL_MAPPING: dict[str, list[str]] = {
         "get_research_status",
         "search_research_cache",
     ],
-    "brand-identity": ["fetch_brand_detail", "browse_brand_assets"],
+    "brand-identity": [
+        "fetch_brand_detail",
+        "browse_brand_assets",
+        "read_file",
+        "write_file",
+        "list_files",
+    ],
     "file-operations": ["read_file", "write_file", "list_files"],
     "project-management": ["list_projects", "get_project_detail"],
     "video-generation": ["generate_video_clip"],

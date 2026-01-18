@@ -176,7 +176,11 @@ async def _impl_create_style_references_from_images_async(
         if not img_path.startswith("uploads/"):
             errors.append(f"{img_path}: must be in uploads/ folder")
             continue
-        full_path = brand_dir / img_path
+        full_path = (brand_dir / img_path).resolve()
+        # Security: prevent path traversal attacks
+        if not full_path.is_relative_to(brand_dir.resolve()):
+            errors.append(f"{img_path}: invalid path - traversal not allowed")
+            continue
         if not full_path.exists():
             errors.append(f"{img_path}: file not found")
             continue
@@ -268,7 +272,10 @@ async def _impl_add_style_reference_image_async(
     if not image_path.startswith("uploads/"):
         return "Error: image_path must be within uploads/ folder."
     brand_dir = _common.get_brand_dir(slug)
-    full_path = brand_dir / image_path
+    full_path = (brand_dir / image_path).resolve()
+    # Security: prevent path traversal attacks (e.g., "uploads/../../../etc/passwd")
+    if not full_path.is_relative_to(brand_dir.resolve()):
+        return "Error: Invalid path - path traversal not allowed."
     if not full_path.exists():
         return f"Error: File not found: {image_path}"
     try:

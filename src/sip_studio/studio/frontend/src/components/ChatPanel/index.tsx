@@ -135,6 +135,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     startResearchPolling,
     dismissResearch,
     recoverPendingResearch,
+    currentTool,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated, onResearchCompleted: (sessionId) => { if(sessionId&&sessionId!==activeSessionId)markUnread(sessionId) } })
   //Recover pending research on app startup when session is available
   const recoveredSessionRef = useRef<string|null>(null)
@@ -425,7 +426,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
             {/* TodoList rendered inline with message turn - now includes virtual items for image batches */}
-            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} pendingResearch={pendingResearch} onDismissResearch={dismissResearch} onInteractionSelect={async (messageId, selection) => {
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} pendingResearch={pendingResearch} onDismissResearch={dismissResearch} currentTool={currentTool} onInteractionSelect={async (messageId, selection) => {
               resolveInteraction(messageId)
               //Handle research started - start polling instead of sending message
               if(selection.startsWith('__research_started__:')){
