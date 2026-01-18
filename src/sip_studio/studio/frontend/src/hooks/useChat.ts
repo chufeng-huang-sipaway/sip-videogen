@@ -86,6 +86,8 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
   //Todo list state
   const [todoList,setTodoList]=useState<TodoListData|null>(null)
   const [isPaused,setIsPaused]=useState(false)
+  //Current tool being called (for tool badge display)
+  const [currentTool,setCurrentTool]=useState<{name:string;startedAt:number}|null>(null)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const requestIdRef = useRef(0)
@@ -417,6 +419,11 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
         try {
           const ps = await bridge.getProgress()
           if (ps.status) { setProgress(ps.status); setProgressType(ps.type || '') }
+          //Track current tool for tool badge display
+          if(ps.type==='tool_start'&&ps.status){
+            const match=ps.status.match(/^Using\s+(.+)$/i)
+            if(match)setCurrentTool({name:match[1],startedAt:Date.now()})
+          }else if(ps.type==='tool_end'){setCurrentTool(null)}
           //Accumulate skills with ref (closure-safe)
           if (ps.skills && ps.skills.length > 0) {
             const nu = ps.skills.filter((s: string) => !loadedSkillsRef.current.includes(s))
@@ -545,7 +552,7 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
       ))
     } finally {
       if (progressInterval.current) { clearInterval(progressInterval.current); progressInterval.current = null }
-      setProgress(''); setProgressType(''); setLoadedSkills([]); setThinkingSteps([]); thinkingStepsRef.current=[]
+      setProgress(''); setProgressType(''); setLoadedSkills([]); setThinkingSteps([]); thinkingStepsRef.current=[]; setCurrentTool(null)
       const finalEmptyBatch={batchId:null,expectedCount:0,tickets:new Map<string,ImageProgressEvent>()}
       setImageBatch(finalEmptyBatch); imageBatchRef.current=finalEmptyBatch
       setIsLoading(false)
@@ -728,6 +735,8 @@ return {
     //Todo list state and handlers - displayTodoList includes virtual items from imageBatch
     todoList:displayTodoList(),
     isPaused,
+    //Current tool being called (for tool badge)
+    currentTool,
     handlePause,
     handleResume,
     handleStop,

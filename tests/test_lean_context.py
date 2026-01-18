@@ -231,7 +231,7 @@ class TestProductsListSummary:
     def test_empty_list(self):
         result = build_products_list_summary([])
         assert "No products" in result
-        assert "create_product" in result
+        assert "manage_product(action='create')" in result
 
     def test_list_with_products(self, mock_product_summaries):
         result = build_products_list_summary(mock_product_summaries)

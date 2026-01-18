@@ -17,11 +17,9 @@ triggers:
   - delete product
   - remove product
 tools_required:
-  - create_product
-  - update_product
-  - delete_product
-  - add_product_image
-  - set_product_primary_image
+  - manage_product
+  - analyze_packaging
+  - update_packaging_text
   - list_products
   - get_product_detail
   - list_files
@@ -62,9 +60,9 @@ Be proactive when intent is clear, but ALWAYS use `propose_choices(allow_custom=
 
 1. **Extract name from message** (or ask with `propose_choices(allow_custom=True)`)
 2. **Check existing products** using `list_products()`
-3. **Call `create_product()`** with name and description (put attributes in description)
-4. **Call `add_product_image()`** with uploaded file from uploads/ folder
-5. **Use returned brand-relative path** for `set_product_primary_image()` if needed
+3. **Call `manage_product(action="create")`** with name and description
+4. **Call `manage_product(action="add_image")`** with uploaded file from uploads/ folder
+5. **Use `manage_product(action="set_primary")`** to set primary image if needed
 
 ### Example Workflow
 ```python
@@ -77,7 +75,8 @@ propose_choices(
 )
 
 # 3. Create product (include attributes in description)
-create_product(
+manage_product(
+    action="create",
     name="Summer T-Shirt",
     description=(
         "Comfortable cotton t-shirt for summer.\n\n"
@@ -88,8 +87,9 @@ create_product(
 )
 
 # 4. Add uploaded image
-add_product_image(
-    product_slug="summer-t-shirt",
+manage_product(
+    action="add_image",
+    slug="summer-t-shirt",
     image_path="uploads/product-photo.jpg",
     set_as_primary=True
 )
@@ -240,14 +240,14 @@ Attributes:
 ### Multi-Product Campaign
 ```python
 # Create campaign products
-create_product(name="Summer T-Shirt", ...)
-create_product(name="Summer Shorts", ...)
-create_product(name="Summer Hat", ...)
+manage_product(action="create", name="Summer T-Shirt", ...)
+manage_product(action="create", name="Summer Shorts", ...)
+manage_product(action="create", name="Summer Hat", ...)
 
 # Add images for all products
-add_product_image(product_slug="summer-t-shirt", image_path="uploads/t-shirt.jpg")
-add_product_image(product_slug="summer-shorts", image_path="uploads/shorts.jpg")
-add_product_image(product_slug="summer-hat", image_path="uploads/hat.jpg")
+manage_product(action="add_image", slug="summer-t-shirt", image_path="uploads/t-shirt.jpg")
+manage_product(action="add_image", slug="summer-shorts", image_path="uploads/shorts.jpg")
+manage_product(action="add_image", slug="summer-hat", image_path="uploads/hat.jpg")
 
 # Generate campaign image with all products
 generate_image(
@@ -260,8 +260,9 @@ generate_image(
 ### Product Update Workflow
 ```python
 # Update product attributes
-update_product(
-    product_slug="summer-t-shirt",
+manage_product(
+    action="update",
+    slug="summer-t-shirt",
     description="New organic cotton summer t-shirt",
     attributes=[
         {"key": "material", "value": "organic cotton", "category": "materials"}
@@ -270,8 +271,9 @@ update_product(
 )
 
 # Update primary image if needed
-add_product_image(
-    product_slug="summer-t-shirt",
+manage_product(
+    action="add_image",
+    slug="summer-t-shirt",
     image_path="uploads/new-t-shirt.jpg",
     set_as_primary=True
 )

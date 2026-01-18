@@ -129,7 +129,9 @@ def _impl_create_product(
         return f"Error: Cannot generate valid slug from name '{name}'. {slug_error}"
     existing = _common.load_product(brand_slug, slug)
     if existing:
-        return f"Error: Product '{slug}' already exists. Use update_product() instead."
+        return (
+            f"Error: Product '{slug}' already exists. Use manage_product(action='update') instead."
+        )
     step_id = emit_tool_thinking(
         "Setting up your product...", name, expertise="Product Setup", status="pending"
     )
@@ -222,7 +224,7 @@ async def _impl_add_product_image(
                     or is_suitable_reference is False
                 ):
                     pretty_type = image_type or "non-reference"
-                    return f"Error: This upload was classified as **{pretty_type}** and is not suitable as a product reference image. Use it for extracting information only, and upload a clean product photo instead. If you still want to store it in the product images anyway, call `add_product_image(..., allow_non_reference=True)`."
+                    return f"Error: This upload was classified as **{pretty_type}** and is not suitable as a product reference image. Use it for extracting information only, and upload a clean product photo instead. If you still want to store it in the product images anyway, call `manage_product(action='add_image', ..., allow_non_reference=True)`."
     filename = resolved.name
     filename_error = _validate_filename(filename)
     if filename_error:
@@ -367,7 +369,7 @@ def _impl_delete_product(product_slug: str, confirm: bool = False) -> str:
         return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
     if not confirm:
         image_count = len(product.images)
-        return f"This will permanently delete **{product.name}** and all {image_count} images.\n\nTo confirm, call `delete_product(product_slug, confirm=True)`."
+        return f"This will permanently delete **{product.name}** and all {image_count} images.\n\nTo confirm, call `manage_product(action='delete', slug='{product_slug}', confirm=True)`."
     try:
         _common.storage_delete_product(brand_slug, product_slug)
         logger.info(f"Deleted product '{product_slug}' from brand '{brand_slug}'")
@@ -544,17 +546,187 @@ def _impl_update_product_packaging_text(
 
 
 @function_tool
+async def manage_product(
+    action: str,
+    slug: str | None = None,
+    name: str | None = None,
+    description: str | None = None,
+    attributes: list[AttributeInput] | None = None,
+    image_path: str | None = None,
+    confirm: bool = False,
+    set_as_primary: bool = False,
+    allow_non_reference: bool = False,
+    replace_attributes: bool = False,
+) -> str:
+    """Manage products for the active brand. Handles all CRUD operations.
+
+    PREREQUISITE: Call load_brand() first to set active brand context.
+
+    Use when user wants to:
+    - Create a new product ("add product", "new item")
+    - Update product details ("change name", "edit description")
+    - Delete a product ("remove", "delete")
+    - Add images to a product ("upload photo", "add picture")
+    - Set primary/hero image ("make this the main image")
+
+    Does NOT:
+    - Analyze packaging text (use analyze_packaging)
+    - Update packaging text (use update_packaging_text)
+    - Generate new images (use generate_image)
+
+    Args:
+        action: Operation to perform. Must be one of:
+            - "create": New product (requires name)
+            - "update": Modify existing (requires slug)
+            - "delete": Remove product (requires slug, confirm=True)
+            - "add_image": Add image from uploads/ (requires slug, image_path)
+            - "set_primary": Set hero image (requires slug, image_path)
+        slug: Product identifier (e.g., "sunrise-blend"). Required for all except "create".
+        name: Product name. Required for "create", optional for "update".
+        description: Product description text.
+        attributes: List of {"key": str, "value": str, "category"?: str}.
+        image_path: Path within uploads/ folder (e.g., "uploads/photo.png").
+        confirm: Must be True for delete action (server-enforced).
+        set_as_primary: For add_image, also set as primary image.
+        allow_non_reference: For add_image, allow non-reference images.
+        replace_attributes: For update, replace all attributes instead of merge.
+
+    Returns:
+        JSON string with result or error message.
+
+    Examples:
+        manage_product("create", name="Sunrise Blend", description="Morning coffee")
+        manage_product("update", slug="sunrise-blend", name="New Name")
+        manage_product("delete", slug="sunrise-blend", confirm=True)
+        manage_product("add_image", slug="sunrise-blend", image_path="uploads/photo.png")
+        manage_product("set_primary", slug="sunrise-blend", image_path="products/sunrise-blend/images/photo.png")
+    """
+    valid_actions = {"create", "update", "delete", "add_image", "set_primary"}
+    if action not in valid_actions:
+        return f"Error: Invalid action '{action}'. Must be one of: {sorted(valid_actions)}"
+    if action == "create":
+        if not name:
+            return "Error: 'name' is required for action='create'"
+        return _impl_create_product(name, description or "", attributes)
+    if action == "update":
+        if not slug:
+            return "Error: 'slug' is required for action='update'"
+        return _impl_update_product(slug, name, description, attributes, replace_attributes)
+    if action == "delete":
+        if not slug:
+            return "Error: 'slug' is required for action='delete'"
+        if not confirm:
+            return "Error: 'confirm=True' is required for action='delete'. This is a destructive operation."
+        return _impl_delete_product(slug, confirm)
+    if action == "add_image":
+        if not slug:
+            return "Error: 'slug' is required for action='add_image'"
+        if not image_path:
+            return "Error: 'image_path' is required for action='add_image'"
+        return await _impl_add_product_image(slug, image_path, set_as_primary, allow_non_reference)
+    if action == "set_primary":
+        if not slug:
+            return "Error: 'slug' is required for action='set_primary'"
+        if not image_path:
+            return "Error: 'image_path' is required for action='set_primary'"
+        return _impl_set_product_primary_image(slug, image_path)
+    return f"Error: Unhandled action '{action}'"
+
+
+@function_tool
+async def analyze_packaging(
+    slug: str | None = None,
+    mode: str = "single",
+    force: bool = False,
+    offset: int = 0,
+    limit: int = 20,
+) -> str:
+    """Analyze packaging text from product images using AI vision.
+
+    PREREQUISITE: Call load_brand() first. Product must have a primary image.
+
+    Use when user wants to:
+    - Extract text from product packaging ("read the label", "what does it say")
+    - Analyze all products' packaging ("scan all products")
+
+    Does NOT:
+    - Update/edit packaging text (use update_packaging_text)
+    - Add images (use manage_product with action="add_image")
+
+    Args:
+        slug: Product slug. Required for mode="single", ignored for mode="all".
+        mode: "single" to analyze one product, "all" to analyze all products.
+        force: Re-analyze even if packaging_text exists.
+        offset: For mode="all", skip first N products (pagination).
+        limit: For mode="all", max products to process (default 20).
+
+    Returns:
+        JSON string with analysis results or error message.
+
+    Examples:
+        analyze_packaging(slug="sunrise-blend")  # Analyze one product
+        analyze_packaging(mode="all")  # Analyze all products
+        analyze_packaging(mode="all", offset=20, limit=20)  # Page 2
+    """
+    if mode not in {"single", "all"}:
+        return f"Error: Invalid mode '{mode}'. Must be 'single' or 'all'."
+    if mode == "single":
+        if not slug:
+            return "Error: 'slug' is required for mode='single'"
+        return await _impl_analyze_product_packaging(slug, force)
+    return await _impl_analyze_all_product_packaging(
+        skip_existing=not force, skip_human_edited=True, max_products=limit
+    )
+
+
+@function_tool
+def update_packaging_text(
+    slug: str,
+    field: str,
+    value: str,
+) -> str:
+    """Update a specific packaging text field with human corrections.
+
+    PREREQUISITE: Product must exist and have packaging_text (run analyze_packaging first).
+
+    Use when user wants to:
+    - Correct extracted text ("fix the headline", "change the tagline")
+    - Update packaging copy ("update the description")
+
+    Does NOT:
+    - Re-analyze images (use analyze_packaging with force=True)
+    - Add new images (use manage_product with action="add_image")
+
+    Args:
+        slug: Product slug identifier.
+        field: Field to update. Must be one of: "summary", "layout_notes".
+        value: New value for the field.
+
+    Returns:
+        Success message or error.
+
+    Examples:
+        update_packaging_text(slug="sunrise-blend", field="summary", value="Bold morning roast")
+        update_packaging_text(slug="sunrise-blend", field="layout_notes", value="Text centered on front")
+    """
+    valid_fields = {"summary", "layout_notes"}
+    if field not in valid_fields:
+        return f"Error: Invalid field '{field}'. Must be one of: {sorted(valid_fields)}"
+    if field == "summary":
+        return _impl_update_product_packaging_text(slug, summary=value)
+    if field == "layout_notes":
+        return _impl_update_product_packaging_text(slug, layout_notes=value)
+    return f"Error: Unhandled field '{field}'"
+
+
+# Legacy tools - kept for backwards compatibility during migration
+# TODO: Remove after migration complete
+@function_tool
 def create_product(
     name: str, description: str = "", attributes: list[AttributeInput] | None = None
 ) -> str:
-    """Create a new product for the active brand.
-    Args:
-        name: Product name. A URL-safe slug will be generated.
-        description: Optional product description.
-        attributes: Optional list of product attributes.
-    Returns:
-        Success message with product name and slug, or error message.
-    """
+    """[DEPRECATED] Use manage_product(action="create") instead."""
+    logger.warning("create_product is deprecated, use manage_product(action='create')")
     return _impl_create_product(name, description, attributes)
 
 
@@ -565,15 +737,8 @@ async def add_product_image(
     set_as_primary: bool = False,
     allow_non_reference: bool = False,
 ) -> str:
-    """Add an image to a product from the uploads folder.
-    Args:
-        product_slug: The product's slug identifier.
-        image_path: Path to the image within the brand directory (must be in uploads/).
-        set_as_primary: If True, set this image as the product's primary image.
-        allow_non_reference: If True, allow adding non-reference images.
-    Returns:
-        Success message with the added filename, or error message.
-    """
+    """[DEPRECATED] Use manage_product(action="add_image") instead."""
+    logger.warning("add_product_image is deprecated, use manage_product(action='add_image')")
     return await _impl_add_product_image(
         product_slug, image_path, set_as_primary, allow_non_reference
     )
@@ -587,52 +752,31 @@ def update_product(
     attributes: list[AttributeInput] | None = None,
     replace_attributes: bool = False,
 ) -> str:
-    """Update an existing product's details. Attributes merge by default.
-    Args:
-        product_slug: The product's slug identifier.
-        name: Optional new product name.
-        description: Optional new product description.
-        attributes: Optional list of product attributes to merge or replace.
-        replace_attributes: If True, replace all existing attributes.
-    Returns:
-        Success message with the updated product name and slug, or error message.
-    """
+    """[DEPRECATED] Use manage_product(action="update") instead."""
+    logger.warning("update_product is deprecated, use manage_product(action='update')")
     return _impl_update_product(product_slug, name, description, attributes, replace_attributes)
 
 
 @function_tool
 def delete_product(product_slug: str, confirm: bool = False) -> str:
-    """Delete a product and all its files. Requires confirm=True.
-    Args:
-        product_slug: The product's slug identifier.
-        confirm: Must be True to actually delete the product.
-    Returns:
-        Success message or error/warning.
-    """
+    """[DEPRECATED] Use manage_product(action="delete") instead."""
+    logger.warning("delete_product is deprecated, use manage_product(action='delete')")
     return _impl_delete_product(product_slug, confirm)
 
 
 @function_tool
 def set_product_primary_image(product_slug: str, image_path: str) -> str:
-    """Set the primary image for a product.
-    Args:
-        product_slug: The product's slug identifier.
-        image_path: Path to the image within the product's images list.
-    Returns:
-        Success message or error message.
-    """
+    """[DEPRECATED] Use manage_product(action="set_primary") instead."""
+    logger.warning(
+        "set_product_primary_image is deprecated, use manage_product(action='set_primary')"
+    )
     return _impl_set_product_primary_image(product_slug, image_path)
 
 
 @function_tool
 async def analyze_product_packaging(product_slug: str, force: bool = False) -> str:
-    """Analyze packaging text from product's primary image using AI vision.
-    Args:
-        product_slug: Product to analyze (must have a primary image).
-        force: Re-analyze even if packaging_text exists.
-    Returns:
-        Summary of extracted text elements or error message.
-    """
+    """[DEPRECATED] Use analyze_packaging(slug=...) instead."""
+    logger.warning("analyze_product_packaging is deprecated, use analyze_packaging()")
     return await _impl_analyze_product_packaging(product_slug, force)
 
 
@@ -642,14 +786,8 @@ async def analyze_all_product_packaging(
     skip_human_edited: bool = True,
     max_products: int = Limits.MAX_PRODUCTS,
 ) -> str:
-    """Bulk analyze packaging text for all products in the active brand.
-    Args:
-        skip_existing: Skip products that already have packaging_text.
-        skip_human_edited: Skip products where packaging_text was manually edited.
-        max_products: Max products to process in one batch.
-    Returns:
-        Summary with counts of analyzed, skipped, and failed products.
-    """
+    """[DEPRECATED] Use analyze_packaging(mode='all') instead."""
+    logger.warning("analyze_all_product_packaging is deprecated, use analyze_packaging(mode='all')")
     return await _impl_analyze_all_product_packaging(skip_existing, skip_human_edited, max_products)
 
 
@@ -660,13 +798,6 @@ def update_product_packaging_text(
     elements: list[PackagingTextElementInput] | None = None,
     layout_notes: str | None = None,
 ) -> str:
-    """Update packaging text with human corrections.
-    Args:
-        product_slug: Product to update.
-        summary: New summary text (or None to keep existing).
-        elements: New list of element objects.
-        layout_notes: New layout notes (or None to keep existing).
-    Returns:
-        Success message or error.
-    """
+    """[DEPRECATED] Use update_packaging_text() instead."""
+    logger.warning("update_product_packaging_text is deprecated, use update_packaging_text()")
     return _impl_update_product_packaging_text(product_slug, summary, elements, layout_notes)

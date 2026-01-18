@@ -70,9 +70,10 @@ interface MessageListProps {
   onStop?: () => void
   onNewDirection?: (msg: string) => void
   webSearchActive?: boolean
+  currentTool?: {name:string;startedAt:number}|null
 }
 
-function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails, liveThinkingSteps, liveSkills, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive }: {
+function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, onViewDetails, liveThinkingSteps, liveSkills, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive, currentTool }: {
   message: Message;
   products: ProductEntry[];
   styleReferences?: StyleReferenceSummary[];
@@ -90,6 +91,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   onStop?: () => void;
   onNewDirection?: (msg: string) => void;
   webSearchActive?: boolean;
+  currentTool?: {name:string;startedAt:number}|null;
 }) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
@@ -159,7 +161,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
     return (
       <div className={cn('group relative flex w-full px-2 py-0 transition-colors duration-200 justify-start')}>
         <div className="flex flex-col items-start w-full gap-3">
-          <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} webSearchActive={webSearchActive}/>
+          <ThinkingTimeline steps={liveThinkingSteps || []} isGenerating={true} skills={liveSkills || []} webSearchActive={webSearchActive} currentTool={currentTool}/>
           {/* TodoList appears after thinking timeline */}
           {todoList && onPause && onResume && onStop && onNewDirection && (
             <TodoList todoList={todoList} isPaused={isPaused || false} onPause={onPause} onResume={onResume} onStop={onStop} onNewDirection={onNewDirection} />
@@ -285,7 +287,7 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   )
 }
 
-export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, pendingResearch, onDismissResearch, onInteractionSelect, onRegenerate, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive }: MessageListProps) {
+export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, pendingResearch, onDismissResearch, onInteractionSelect, onRegenerate, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive, currentTool }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [detailsMeta,setDetailsMeta]=useState<ImageGenerationMetadata|null>(null)
   const [researchReport,setResearchReport]=useState<{result:ResearchResult;query:string}|null>(null)
@@ -312,7 +314,7 @@ export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, 
           const{query,result}=message.deepResearch
           return(<div key={message.id} className="px-2"><DeepResearchCard research={result} query={query} onViewReport={()=>setResearchReport({result,query})}/></div>)
         }
-        return(<MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills} todoList={idx === lastIdx ? todoList : undefined} isPaused={idx === lastIdx ? isPaused : undefined} onPause={idx === lastIdx ? onPause : undefined} onResume={idx === lastIdx ? onResume : undefined} onStop={idx === lastIdx ? onStop : undefined} onNewDirection={idx === lastIdx ? onNewDirection : undefined} webSearchActive={idx === lastIdx ? webSearchActive : undefined}/>)
+        return(<MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills} todoList={idx === lastIdx ? todoList : undefined} isPaused={idx === lastIdx ? isPaused : undefined} onPause={idx === lastIdx ? onPause : undefined} onResume={idx === lastIdx ? onResume : undefined} onStop={idx === lastIdx ? onStop : undefined} onNewDirection={idx === lastIdx ? onNewDirection : undefined} webSearchActive={idx === lastIdx ? webSearchActive : undefined} currentTool={idx === lastIdx ? currentTool : undefined}/>)
       })}
       {pendingResearch&&(<div className="px-2"><ResearchProgress research={pendingResearch} onDismiss={onDismissResearch||(()=>{})}/></div>)}
       <div ref={bottomRef} className="h-px" />

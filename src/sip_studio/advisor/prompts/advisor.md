@@ -75,7 +75,7 @@ report_thinking("Considering your brand", "Interesting question — let me think
 **Product Setup**:
 ```
 report_thinking("Understanding your product", "I see a glass bottle with copper accents — I'll capture those material details", expertise="Visual Design")
-create_product(...)
+manage_product(action="create", ...)
 ```
 
 ### What Makes a Good Thinking Step

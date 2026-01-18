@@ -48,7 +48,11 @@ __all__ = [
     "_impl_read_file",
     "_impl_write_file",
     "_resolve_brand_path",
-    # product_tools
+    # product_tools (consolidated)
+    "manage_product",
+    "analyze_packaging",
+    "update_packaging_text",
+    # Legacy exports (deprecated, for backwards compatibility)
     "create_product",
     "add_product_image",
     "update_product",
@@ -69,7 +73,10 @@ __all__ = [
     "_impl_update_product",
     "_impl_update_product_packaging_text",
     "_validate_slug",
-    # style_reference_tools
+    # style_reference_tools (consolidated)
+    "manage_style_reference",
+    "get_style_reference",
+    # Legacy exports (deprecated, for backwards compatibility)
     "list_style_references",
     "get_style_reference_detail",
     "create_style_reference",
@@ -78,6 +85,10 @@ __all__ = [
     "add_style_reference_image",
     "reanalyze_style_reference",
     "delete_style_reference",
+    # registry (dynamic tool loading)
+    "CORE_TOOLS",
+    "SKILL_TOOL_MAPPING",
+    "get_tools_for_skills",
     # brand_tools
     "load_brand",
     "fetch_brand_detail",
@@ -302,15 +313,21 @@ from .product_tools import (
     _impl_update_product,
     _impl_update_product_packaging_text,
     _validate_slug,
+    # Legacy (deprecated)
     add_product_image,
     analyze_all_product_packaging,
+    analyze_packaging,
     analyze_product_packaging,
     create_product,
     delete_product,
+    # New consolidated tools
+    manage_product,
     set_product_primary_image,
+    update_packaging_text,
     update_product,
     update_product_packaging_text,
 )
+from .registry import CORE_TOOLS, SKILL_TOOL_MAPPING, get_tools_for_skills
 from .research_tools import (
     RESEARCH_TOOLS,
     _impl_get_research_status,
@@ -338,12 +355,16 @@ from .skill_tools import (
     reset_workflow_state,
 )
 from .style_reference_tools import (
+    # Legacy (deprecated)
     add_style_reference_image,
     create_style_reference,
     create_style_references_from_images,
     delete_style_reference,
+    get_style_reference,
     get_style_reference_detail,
     list_style_references,
+    # New consolidated tools
+    manage_style_reference,
     reanalyze_style_reference,
     update_style_reference,
 )
@@ -392,7 +413,9 @@ from .utility_tools import (
 from .video_tools import _impl_generate_video_clip, generate_video_clip
 
 # List of all tools for the advisor agent
+# Target: ~25 tools after consolidation (down from 48)
 ADVISOR_TOOLS = [
+    # Core tools
     generate_image,
     generate_video_clip,
     get_recent_generated_images,
@@ -403,45 +426,31 @@ ADVISOR_TOOLS = [
     propose_choices,
     propose_images,
     update_memory,
+    # Brand exploration
     list_products,
     list_projects,
     get_product_detail,
     get_project_detail,
-    create_product,
-    update_product,
-    delete_product,
-    add_product_image,
-    set_product_primary_image,
-    list_style_references,
-    get_style_reference_detail,
-    create_style_reference,
-    create_style_references_from_images,
-    update_style_reference,
-    add_style_reference_image,
-    reanalyze_style_reference,
-    delete_style_reference,
-    analyze_product_packaging,
-    analyze_all_product_packaging,
-    update_product_packaging_text,
     fetch_brand_detail,
     browse_brand_assets,
+    # Product tools (consolidated: 8 → 3)
+    manage_product,
+    analyze_packaging,
+    update_packaging_text,
+    # Style reference tools (consolidated: 8 → 2)
+    manage_style_reference,
+    get_style_reference,
+    # Utility
     fetch_url_content,
     report_thinking,
-    # todo tools
-    create_todo_list,
-    update_todo_item,
-    add_todo_output,
-    complete_todo_list,
-    check_interrupt,
-    # task tools (file-based persistence)
+    # task tools (consolidated: 9 → 5, file-based persistence)
     create_task_file,
     get_remaining_tasks,
     update_task,
     complete_task_file,
-    # context tools (lean context pattern)
+    check_interrupt,
+    # context tools (consolidated: 3 → 1)
     fetch_context_cached,
-    get_cached_product_context,
-    get_cached_style_reference_context,
     # skill tools (progressive disclosure)
     activate_skill,
     mark_brief_complete,
