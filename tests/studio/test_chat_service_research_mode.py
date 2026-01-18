@@ -60,3 +60,34 @@ def test_research_mode_skips_batch_shortcuts(
     assert advisor.called is True
     assert advisor.last_message is not None
     assert expected_header in advisor.last_message
+
+
+def test_deep_research_clarification_suppresses_text_response(isolated_home, monkeypatch):
+    state = BridgeState()
+    state._cached_slug = "test-brand"
+    state._cache_valid = True
+    svc = ChatService(state)
+
+    advisor = _DummyAdvisor()
+    monkeypatch.setattr(svc, "_ensure_advisor", lambda: (advisor, None))
+
+    import sip_studio.studio.services.chat_service as chat_service_mod
+
+    monkeypatch.setattr(chat_service_mod, "get_image_pool", lambda: _DummyImagePool())
+    monkeypatch.setattr(
+        chat_service_mod,
+        "get_pending_research_clarification",
+        lambda: {
+            "type": "deep_research_clarification",
+            "query": "test query",
+            "contextSummary": "test context",
+            "questions": [],
+            "estimatedDuration": "15-20 minutes",
+        },
+    )
+
+    result = svc.chat("Do deep research on this", deep_research_enabled=True)
+
+    assert result["success"] is True
+    assert result["data"]["response"] == ""
+    assert result["data"]["research_clarification"]["type"] == "deep_research_clarification"

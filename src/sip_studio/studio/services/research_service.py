@@ -13,6 +13,7 @@ from packaging.version import Version
 
 from sip_studio.research.models import (
     ClarificationResponse,
+    PendingResearch,
     ResearchEntry,
     ResearchResult,
     ResearchSource,
@@ -108,6 +109,51 @@ class ResearchService:
         self._state = state
         self._storage = ResearchStorage()
         self._client: genai.Client | None = None
+
+    def _persist_deep_research_result_to_session(
+        self,
+        pending: PendingResearch,
+        response_id: str,
+        final_summary: str,
+        sources: list[ResearchSource],
+    ) -> None:
+        """Persist deep research result into the originating chat session history.
+
+        This ensures results show up in chat history after restarts/session switching.
+        """
+        brand_slug = pending.brand_slug
+        session_id = pending.session_id
+        if not brand_slug or not session_id:
+            return
+        try:
+            from sip_studio.advisor.session_history_manager import SessionHistoryManager
+            from sip_studio.advisor.session_manager import Message, SessionManager
+
+            mgr = SessionManager(brand_slug)
+            if not mgr.get_session(session_id):
+                log.warning(
+                    "Cannot persist deep research result: session not found (brand=%s, session=%s)",
+                    brand_slug,
+                    session_id,
+                )
+                return
+            history = SessionHistoryManager(brand_slug, session_id, mgr)
+            summary = (final_summary or "").strip()
+            content = (
+                f"**Deep Research Complete**\n\n{summary}"
+                if summary
+                else "**Deep Research Complete**"
+            )
+            meta = {
+                "deep_research": {
+                    "response_id": response_id,
+                    "query": pending.query,
+                    "sources": [s.model_dump(by_alias=True) for s in sources[:10]],
+                }
+            }
+            history.add_message(Message.create("assistant", content, metadata=meta))
+        except Exception as e:
+            log.exception("Failed to persist deep research result to session history: %s", e)
 
     def _get_client(self) -> genai.Client:
         """Lazily create Gemini client."""
@@ -222,24 +268,41 @@ class ResearchService:
         try:
             interaction = await asyncio.to_thread(client.interactions.get, response_id)  # type: ignore[attr-defined]
             raw_status = interaction.status
+            # Get current_stage from pending cache
+            pending = self._storage.get_pending(response_id)
+            current_stage = pending.current_stage if pending else None
+            # Try to extract stage from interaction metadata if available
+            if hasattr(interaction, "thinking_summary") and interaction.thinking_summary:
+                current_stage = str(interaction.thinking_summary)[:100]
+                if pending:
+                    self._storage.update_pending_stage(response_id, current_stage)
             if raw_status == "queued":
-                return ResearchResult(status="queued", progress_percent=None)
+                return ResearchResult(
+                    status="queued", progress_percent=None, current_stage=current_stage
+                )
             if raw_status == "in_progress":
-                return ResearchResult(status="in_progress", progress_percent=None)
+                return ResearchResult(
+                    status="in_progress", progress_percent=None, current_stage=current_stage
+                )
             if raw_status == "completed":
                 text, sources = _extract_deep_research_result(interaction)
                 # Get pending info for category/brand
                 pending = self._storage.get_pending(response_id)
                 if pending:
-                    self._storage.add_entry(
-                        query=pending.query,
-                        category="techniques",
-                        brand_slug=pending.brand_slug,
-                        summary=text[:2000] if len(text) > 2000 else text,
-                        sources=sources,
-                        full_report=text if len(text) > 2000 else None,
-                    )
-                    self._storage.remove_pending(response_id)
+                    # Only the first completion poll should persist/cache results.
+                    # Use removal as the idempotency gate to avoid duplicates.
+                    if self._storage.remove_pending(response_id):
+                        self._persist_deep_research_result_to_session(
+                            pending, response_id, text, sources
+                        )
+                        self._storage.add_entry(
+                            query=pending.query,
+                            category="techniques",
+                            brand_slug=pending.brand_slug,
+                            summary=text[:2000] if len(text) > 2000 else text,
+                            sources=sources,
+                            full_report=text if len(text) > 2000 else None,
+                        )
                 return ResearchResult(
                     status="completed",
                     final_summary=text,

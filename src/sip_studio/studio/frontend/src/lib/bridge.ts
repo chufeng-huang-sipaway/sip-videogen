@@ -310,7 +310,7 @@ export interface ClarificationOption {value:string;label:string;recommended:bool
 export interface ClarificationQuestion {id:string;question:string;options:ClarificationOption[];allowCustom:boolean}
 export interface DeepResearchClarification {
   type:'deep_research_clarification'
-  contextSummary:string
+  contextSummary?:string  // Optional, deprecated
   questions:ClarificationQuestion[]
   estimatedDuration:string
   query:string
@@ -323,6 +323,7 @@ export interface PendingResearch {
   sessionId:string
   startedAt:string
   estimatedMinutes:number
+  currentStage?:string
 }
 export interface ResearchResult {
   status:'queued'|'in_progress'|'completed'|'failed'
@@ -332,6 +333,13 @@ export interface ResearchResult {
   sources?:ResearchSource[]
   fullReport?:string|null
   error?:string|null
+  currentStage?:string|null
+}
+//Deep research message metadata for completed research displayed in chat
+export interface DeepResearchMetadata {
+  isDeepResearch:true
+  query:string
+  result:ResearchResult
 }
 export interface ResearchSource {url:string;title:string;snippet:string}
 export interface ResearchEntry {

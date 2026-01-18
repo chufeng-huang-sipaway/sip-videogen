@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Package, Paperclip, Play, Film, Layout, XCircle, RefreshCw, Download, Copy, Check } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { type GeneratedVideo, type StyleReferenceSummary, type ProductEntry, type ThinkingStep, type GeneratedImage, type ImageGenerationMetadata } from '@/lib/bridge'
+import { type GeneratedVideo, type StyleReferenceSummary, type ProductEntry, type ThinkingStep, type GeneratedImage, type ImageGenerationMetadata, type PendingResearch, type ResearchResult } from '@/lib/bridge'
 import type { Message } from '@/hooks/useChat'
 import type { TodoListData } from '@/lib/types/todo'
 import { MarkdownContent } from './MarkdownContent'
@@ -11,6 +11,9 @@ import { InteractionRenderer } from './InteractionRenderer'
 import { ChatImageGallery } from './ChatImageGallery'
 import { PromptDetailsModal } from './PromptDetailsModal'
 import { TodoList } from './TodoList'
+import { ResearchProgress } from './ResearchProgress'
+import { DeepResearchCard } from './DeepResearchCard'
+import { ResearchReportModal } from './ResearchReportModal'
 import { cn } from '@/lib/utils'
 import { useStyleReferences } from '@/context/StyleReferenceContext'
 import { Button } from '@/components/ui/button'
@@ -55,6 +58,8 @@ interface MessageListProps {
   isLoading: boolean
   products: ProductEntry[]
   styleReferences?: StyleReferenceSummary[]
+  pendingResearch?: (PendingResearch & { status?: string; progressPercent?: number | null }) | null
+  onDismissResearch?: () => void
   onInteractionSelect: (messageId: string, selection: string) => void
   onRegenerate?: (messageId: string) => void
   //TodoList props for inline rendering
@@ -186,9 +191,11 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           </div>
         ):(
-          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-p:my-2 prose-li:my-0.5 text-foreground/90 px-1 overflow-hidden break-words">
-            <MarkdownContent content={message.content} />
-          </div>
+          message.content?.trim() ? (
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-p:my-2 prose-li:my-0.5 text-foreground/90 px-1 overflow-hidden break-words">
+              <MarkdownContent content={message.content} />
+            </div>
+          ) : null
         )}
 
         {/* Attachments */}
@@ -278,23 +285,40 @@ function MessageBubble({ message, onInteractionSelect, isLoading, onRegenerate, 
   )
 }
 
-export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, onInteractionSelect, onRegenerate, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive }: MessageListProps) {
+export function MessageList({ messages, loadedSkills, thinkingSteps, isLoading, products, styleReferences, pendingResearch, onDismissResearch, onInteractionSelect, onRegenerate, todoList, isPaused, onPause, onResume, onStop, onNewDirection, webSearchActive }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [detailsMeta,setDetailsMeta]=useState<ImageGenerationMetadata|null>(null)
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinkingSteps])
+  const [researchReport,setResearchReport]=useState<{result:ResearchResult;query:string}|null>(null)
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinkingSteps, pendingResearch?.responseId])
   const { styleReferences: contextStyleRefs } = useStyleReferences()
   const allStyleRefs = styleReferences || contextStyleRefs
   if (messages.length === 0) return null
+  const renderMessages = messages.filter(m => {
+    if (m.role !== 'assistant') return true
+    if (!m.interaction || !m.interactionResolved) return true
+    const hasText = Boolean(m.content?.trim())
+    const hasImages = Boolean(m.images?.length)
+    const hasVideos = Boolean(m.videos?.length)
+    const hasAttachments = Boolean(m.attachments?.length)
+    return hasText || hasImages || hasVideos || hasAttachments
+  })
   //Find the last message index (for passing todoList to 'sending' message only)
-  const lastIdx = messages.length - 1
+  const lastIdx = renderMessages.length - 1
   return (
     <div className="flex flex-col pb-4 w-full gap-8">
-      {messages.map((message, idx) => (
-        <MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills} todoList={idx === lastIdx ? todoList : undefined} isPaused={idx === lastIdx ? isPaused : undefined} onPause={idx === lastIdx ? onPause : undefined} onResume={idx === lastIdx ? onResume : undefined} onStop={idx === lastIdx ? onStop : undefined} onNewDirection={idx === lastIdx ? onNewDirection : undefined} webSearchActive={idx === lastIdx ? webSearchActive : undefined}/>
-      ))}
+      {renderMessages.map((message, idx) => {
+        //Render deep research messages as card
+        if(message.deepResearch?.isDeepResearch){
+          const{query,result}=message.deepResearch
+          return(<div key={message.id} className="px-2"><DeepResearchCard research={result} query={query} onViewReport={()=>setResearchReport({result,query})}/></div>)
+        }
+        return(<MessageBubble key={message.id} message={message} products={products} styleReferences={allStyleRefs} onInteractionSelect={onInteractionSelect} isLoading={isLoading} onRegenerate={onRegenerate} onViewDetails={setDetailsMeta} liveThinkingSteps={thinkingSteps} liveSkills={loadedSkills} todoList={idx === lastIdx ? todoList : undefined} isPaused={idx === lastIdx ? isPaused : undefined} onPause={idx === lastIdx ? onPause : undefined} onResume={idx === lastIdx ? onResume : undefined} onStop={idx === lastIdx ? onStop : undefined} onNewDirection={idx === lastIdx ? onNewDirection : undefined} webSearchActive={idx === lastIdx ? webSearchActive : undefined}/>)
+      })}
+      {pendingResearch&&(<div className="px-2"><ResearchProgress research={pendingResearch} onDismiss={onDismissResearch||(()=>{})}/></div>)}
       <div ref={bottomRef} className="h-px" />
-      {/* Modal rendered ONCE at parent level */}
+      {/* Modals rendered ONCE at parent level */}
       {detailsMeta&&<PromptDetailsModal metadata={detailsMeta} onClose={()=>setDetailsMeta(null)}/>}
+      {researchReport&&<ResearchReportModal research={researchReport.result} query={researchReport.query} onClose={()=>setResearchReport(null)}/>}
     </div>
   )
 }

@@ -5,18 +5,36 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 from agents import function_tool
+from pydantic import BaseModel
 
 from sip_studio.config.logging import get_logger
-from sip_studio.research.models import (
-    ClarificationOption,
-    ClarificationQuestion,
-)
+from sip_studio.research.models import ClarificationOption, ClarificationQuestion
 
 from . import _common
 
 if TYPE_CHECKING:
     from sip_studio.studio.services.research_service import ResearchService
 logger = get_logger(__name__)
+
+
+# Pydantic models for tool parameters (required by OpenAI Agents SDK strict schema)
+class ToolOptionInput(BaseModel):
+    """Option for a clarification question."""
+
+    value: str
+    label: str
+    recommended: bool = False
+
+
+class ToolQuestionInput(BaseModel):
+    """Clarification question with options."""
+
+    id: str
+    question: str
+    options: list[ToolOptionInput]
+    allow_custom: bool = False
+
+
 # Module-level state for pending research clarification (same pattern as _pending_interaction)
 _pending_research_clarification: dict | None = None
 _research_service_factory: Callable[[], ResearchService] | None = None
@@ -43,6 +61,16 @@ def get_pending_research_clarification() -> dict | None:
     result = _pending_research_clarification
     _pending_research_clarification = None
     return result
+
+
+def peek_pending_research_clarification() -> dict | None:
+    """Check pending research clarification without clearing it."""
+    return _pending_research_clarification
+
+
+def has_pending_research_clarification() -> bool:
+    """Return True if a research clarification panel is pending."""
+    return _pending_research_clarification is not None
 
 
 async def _impl_web_search(query: str) -> str:
@@ -78,61 +106,59 @@ async def web_search(query: str) -> str:
     return await _impl_web_search(query)
 
 
-def _impl_request_deep_research(query: str, context: str) -> str:
-    """Set pending clarification interaction (like propose_choices)."""
-    # DEBUG: Log when request_deep_research tool is actually called
+def _impl_request_deep_research(
+    query: str, questions: list[ToolQuestionInput], estimated_duration: str = "15-20 minutes"
+) -> str:
+    """Set pending clarification with agent-constructed questions."""
     logger.info(
-        "[request_deep_research] TOOL CALLED with query=%s, context=%s", query, context[:100]
+        "[request_deep_research] TOOL CALLED with query=%s, %d questions", query, len(questions)
     )
     global _pending_research_clarification
-    # Build ClarificationQuestions based on query analysis
-    questions = [
+    # Convert to internal ClarificationQuestion models
+    validated = [
         ClarificationQuestion(
-            id="focus",
-            question="What aspect should I focus on?",
+            id=q.id,
+            question=q.question,
             options=[
-                ClarificationOption(value="visual", label="Visual trends", recommended=True),
-                ClarificationOption(value="messaging", label="Messaging & copy"),
-                ClarificationOption(value="positioning", label="Market positioning"),
+                ClarificationOption(value=o.value, label=o.label, recommended=o.recommended)
+                for o in q.options
             ],
-            allow_custom=True,
-        ),
-        ClarificationQuestion(
-            id="depth",
-            question="How comprehensive should the research be?",
-            options=[
-                ClarificationOption(value="quick", label="Quick overview (10-15 min)"),
-                ClarificationOption(
-                    value="thorough", label="Thorough analysis (20-30 min)", recommended=True
-                ),
-            ],
-        ),
+            allow_custom=q.allow_custom,
+        )
+        for q in questions
     ]
     _pending_research_clarification = {
         "type": "deep_research_clarification",
-        "contextSummary": context,
-        "questions": [q.model_dump(by_alias=True) for q in questions],
-        "estimatedDuration": "15-20 minutes",
+        "questions": [q.model_dump(by_alias=True) for q in validated],
+        "estimatedDuration": estimated_duration,
         "query": query,
     }
-    return "[Presenting deep research options to user]"
+    return "[Presenting clarification questions to user]"
 
 
 @function_tool
-def request_deep_research(query: str, context: str) -> str:
-    """Request comprehensive deep research on a topic.
-    IMPORTANT: This presents a confirmation dialog to the user before starting.
-    Deep research takes 10-30 minutes and searches extensively across the web.
-    Use for complex questions requiring thorough investigation:
-    - "How do luxury skincare brands photograph products?"
-    - "What packaging innovations are trending in sustainable food?"
+def request_deep_research(
+    query: str, questions: list[ToolQuestionInput], estimated_duration: str = "15-20 minutes"
+) -> str:
+    """Request deep research with custom clarification questions.
+    IMPORTANT: Construct questions tailored to the user's specific request.
+    Each question should have a recommended option based on your understanding.
     Args:
         query: The research question
-        context: Your understanding of what the user wants to learn
+        questions: List of clarification questions. Each question has:
+            - id: unique identifier (e.g., "focus", "scope", "format")
+            - question: The question text
+            - options: List of options with value, label, and recommended (exactly ONE should be True)
+            - allow_custom: bool (optional, default False)
+        estimated_duration: e.g. "10-15 minutes" or "20-30 minutes"
+    Example questions based on user intent:
+    - For visual research: focus areas (photography style, color palettes, composition)
+    - For competitive analysis: which competitors, what aspects
+    - For trends research: timeframe, geographic scope, sub-categories
     Returns:
-        Confirmation that options are being presented to the user.
+        Confirmation that clarification questions are being presented.
     """
-    return _impl_request_deep_research(query, context)
+    return _impl_request_deep_research(query, questions, estimated_duration)
 
 
 async def _impl_get_research_status(response_id: str) -> str:

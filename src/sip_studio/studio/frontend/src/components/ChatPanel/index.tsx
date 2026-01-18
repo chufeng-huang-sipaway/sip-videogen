@@ -20,7 +20,6 @@ import { GenerationSettings } from './GenerationSettings'
 import { PanelModeToggle, type PanelMode } from './PanelModeToggle'
 import { PlaygroundMode } from './PlaygroundMode'
 import { SessionHistoryPopover } from './SessionHistoryPopover'
-import { ResearchProgress } from './ResearchProgress'
 //ImageBatchCard removed - now handled by TodoList with virtual items
 import { resolveMentions } from '@/lib/mentionParser'
 import type { ImageStatusEntry, AttachedStyleReference } from '@/lib/bridge'
@@ -135,13 +134,22 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     pendingResearch,
     startResearchPolling,
     dismissResearch,
+    recoverPendingResearch,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated, onResearchCompleted: (sessionId) => { if(sessionId&&sessionId!==activeSessionId)markUnread(sessionId) } })
+  //Recover pending research on app startup when session is available
+  const recoveredSessionRef = useRef<string|null>(null)
+  useEffect(()=>{
+    if(activeSessionId&&activeSessionId!==recoveredSessionRef.current){
+      recoveredSessionRef.current=activeSessionId
+      recoverPendingResearch(activeSessionId)
+    }
+  },[activeSessionId,recoverPendingResearch])
   //Handle session switch - load messages from selected session
   const handleSwitchSession = useCallback(async (sessionId: string): Promise<boolean> => {
     const data = await switchSession(sessionId)
-    if (data) { loadMessagesFromSession(data.messages); return true }
+    if(data){loadMessagesFromSession(data.messages);recoverPendingResearch(sessionId);return true}
     return false
-  }, [switchSession, loadMessagesFromSession])
+  }, [switchSession, loadMessagesFromSession, recoverPendingResearch])
   //Handle detach product - remove from Quick Insert AND from input text @mentions
   const handleDetachProduct = useCallback((slug: string) => {
     detachProduct(slug)
@@ -417,7 +425,7 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
         <ScrollArea className="flex-1">
           <div className="px-4 pb-4 max-w-3xl mx-auto w-full">
             {/* TodoList rendered inline with message turn - now includes virtual items for image batches */}
-            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} onInteractionSelect={async (messageId, selection) => {
+            <MessageList messages={messages} loadedSkills={loadedSkills} thinkingSteps={thinkingSteps} isLoading={isLoading} products={products} pendingResearch={pendingResearch} onDismissResearch={dismissResearch} onInteractionSelect={async (messageId, selection) => {
               resolveInteraction(messageId)
               //Handle research started - start polling instead of sending message
               if(selection.startsWith('__research_started__:')){
@@ -434,8 +442,6 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
             }} onRegenerate={regenerateMessage} todoList={todoList} isPaused={isPaused} onPause={handlePause} onResume={handleResume} onStop={handleStop} onNewDirection={handleNewDirection} webSearchActive={(webSearchEnabled||deepResearchEnabled)&&isLoading}/>
           </div>
         </ScrollArea>
-        {/* Research progress indicator */}
-        {pendingResearch&&(<div className="px-4 pb-2 max-w-3xl mx-auto w-full"><ResearchProgress research={pendingResearch} onDismiss={dismissResearch}/></div>)}
         {/* Chips row */}
         <div className="px-4 max-w-3xl mx-auto w-full">
           <AttachmentChips products={products} attachedProductSlugs={combinedAttachments.products} onDetachProduct={handleDetachProduct} styleReferences={styleReferences} attachedStyleReferences={combinedAttachments.styleReferences} onDetachStyleReference={handleDetachStyleReference} attachments={attachments} onRemoveAttachment={removeAttachment} />

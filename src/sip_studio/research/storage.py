@@ -205,3 +205,13 @@ class ResearchStorage:
             if j.response_id == response_id:
                 return j
         return None
+
+    def update_pending_stage(self, response_id: str, stage: str) -> bool:
+        """Update current_stage for pending job. Returns True if found."""
+        pl = self.load_pending()
+        for j in pl.jobs:
+            if j.response_id == response_id:
+                j.current_stage = stage
+                self.save_pending(pl)
+                return True
+        return False
