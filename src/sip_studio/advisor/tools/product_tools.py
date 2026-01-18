@@ -129,7 +129,9 @@ def _impl_create_product(
         return f"Error: Cannot generate valid slug from name '{name}'. {slug_error}"
     existing = _common.load_product(brand_slug, slug)
     if existing:
-        return f"Error: Product '{slug}' already exists. Use update_product() instead."
+        return (
+            f"Error: Product '{slug}' already exists. Use manage_product(action='update') instead."
+        )
     step_id = emit_tool_thinking(
         "Setting up your product...", name, expertise="Product Setup", status="pending"
     )
@@ -222,7 +224,7 @@ async def _impl_add_product_image(
                     or is_suitable_reference is False
                 ):
                     pretty_type = image_type or "non-reference"
-                    return f"Error: This upload was classified as **{pretty_type}** and is not suitable as a product reference image. Use it for extracting information only, and upload a clean product photo instead. If you still want to store it in the product images anyway, call `add_product_image(..., allow_non_reference=True)`."
+                    return f"Error: This upload was classified as **{pretty_type}** and is not suitable as a product reference image. Use it for extracting information only, and upload a clean product photo instead. If you still want to store it in the product images anyway, call `manage_product(action='add_image', ..., allow_non_reference=True)`."
     filename = resolved.name
     filename_error = _validate_filename(filename)
     if filename_error:
@@ -367,7 +369,7 @@ def _impl_delete_product(product_slug: str, confirm: bool = False) -> str:
         return f"Error: Product '{product_slug}' not found in brand '{brand_slug}'."
     if not confirm:
         image_count = len(product.images)
-        return f"This will permanently delete **{product.name}** and all {image_count} images.\n\nTo confirm, call `delete_product(product_slug, confirm=True)`."
+        return f"This will permanently delete **{product.name}** and all {image_count} images.\n\nTo confirm, call `manage_product(action='delete', slug='{product_slug}', confirm=True)`."
     try:
         _common.storage_delete_product(brand_slug, product_slug)
         logger.info(f"Deleted product '{product_slug}' from brand '{brand_slug}'")

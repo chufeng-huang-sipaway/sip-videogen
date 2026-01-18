@@ -23,13 +23,15 @@ _tool_progress_callback: "Callable[[str,str,str|None,str,str|None],None]|None" =
 TOOL_EXPERTISE_MAP = {
     "generate_image": "Image Generation",
     "generate_video": "Video Generation",
-    "create_product": "Product Setup",
+    "manage_product": "Product Setup",
+    "analyze_packaging": "Product Setup",
+    "update_packaging_text": "Product Setup",
     "fetch_brand_detail": "Research",
     "fetch_brand_identity": "Research",
     "browse_brand_assets": "Research",
     "search_assets": "Research",
-    "create_style_reference": "Visual Design",
-    "reanalyze_style_reference": "Visual Design",
+    "manage_style_reference": "Visual Design",
+    "get_style_reference": "Visual Design",
 }
 
 

@@ -121,7 +121,7 @@ def _impl_list_products() -> str:
         return "Error: No active brand selected. Use load_brand() first."
     products = _common.storage_list_products(brand_slug)
     if not products:
-        return f"No products found for brand '{brand_slug}'. Use create_product() to add products."
+        return f"No products found for brand '{brand_slug}'. Use manage_product(action='create') to add products."
     lines = [f"Products for brand '{brand_slug}':\n"]
     for product in products:
         primary = f" (primary image: {product.primary_image})" if product.primary_image else ""

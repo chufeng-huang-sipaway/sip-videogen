@@ -61,7 +61,7 @@ def build_products_list_summary(products: list["ProductSummary"]) -> str:
     ~30 tokens per product vs ~200+ for full product details.
     """
     if not products:
-        return "No products registered. Use `create_product()` to add one."
+        return "No products registered. Use `manage_product(action='create')` to add one."
     lines = ["**Products** ({} total):".format(len(products))]
     for p in products[:10]:
         pkg = "📦" if p.has_packaging_text else ""
@@ -86,20 +86,20 @@ def build_style_reference_knowledge_pointer(summary: "StyleReferenceSummary") ->
     return f"""### Style: {summary.name} (`{summary.slug}`)
 {summary.description[:100] if summary.description else"No description"}
 **Mode**: {mode}
-→ Use `get_style_reference_detail("{summary.slug}")` for layout constraints."""
+→ Use `get_style_reference(slug="{summary.slug}")` for layout constraints."""
 
 
 def build_style_references_list_summary(style_refs: list["StyleReferenceSummary"]) -> str:
     """Build compact style reference list for context."""
     if not style_refs:
-        return "No style references. Use `create_style_reference()` to add one."
+        return "No style references. Use `manage_style_reference(action='create')` to add one."
     lines = ["**Style References** ({} total):".format(len(style_refs))]
     for sr in style_refs[:5]:
         mode = "⚡" if sr.default_strict else "~"
         lines.append(f"- `{sr.slug}`: {sr.name[:25]} {mode}")
     if len(style_refs) > 5:
         lines.append(f"  ...and {len(style_refs)-5} more")
-    lines.append("→ Use `get_style_reference_detail(slug)` for constraints.")
+    lines.append("→ Use `get_style_reference(slug=...)` for constraints.")
     return "\n".join(lines)
 
 

@@ -31,7 +31,7 @@ Research shows performance drops significantly above 15 tools.
 
 **Goal:** Reduce 48 → ~25 tools via CRUD consolidation
 **Success Criteria:** All tests pass, same functionality
-**Status:** Not Started
+**Status:** Complete (1.1 & 1.2)
 
 ### 1.1 Product Tools Consolidation
 
@@ -459,7 +459,7 @@ turn_context: ContextVar[TurnContext] = ContextVar("turn_context")
 
 **Goal:** Update all references to old tool names
 **Success Criteria:** No runtime "unknown tool" errors, all tests pass
-**Status:** Not Started
+**Status:** Complete
 
 ### 5.1 Audit Old Tool References (Complete List)
 

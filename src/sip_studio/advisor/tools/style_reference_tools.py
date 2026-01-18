@@ -344,7 +344,7 @@ def _impl_delete_style_reference(style_ref_slug: str, confirm: bool = False) -> 
     if not sr:
         return f"Error: Style reference '{style_ref_slug}' not found."
     if not confirm:
-        return f"This will permanently delete **{sr.name}** and {len(sr.images)} image(s). To confirm, call `delete_style_reference(style_ref_slug, confirm=True)`."
+        return f"This will permanently delete **{sr.name}** and {len(sr.images)} image(s). To confirm, call `manage_style_reference(action='delete', slug='{style_ref_slug}', confirm=True)`."
     try:
         _common.storage_delete_style_reference(slug, style_ref_slug)
         return f"Deleted style reference **{sr.name}** (`{style_ref_slug}`)."
