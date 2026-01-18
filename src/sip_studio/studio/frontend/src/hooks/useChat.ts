@@ -221,6 +221,17 @@ export function useChat(brandSlug: string | null, options?: UseChatOptions) {
     if(researchPollRef.current)clearTimeout(researchPollRef.current)
     setPendingResearch(null)
   },[])
+  //Recover pending research for a session (called on session switch or app startup)
+  const recoverPendingResearch=useCallback(async(sessionId:string)=>{
+    if(!isPyWebView()||!sessionId)return
+    try{
+      const jobs=await bridge.getPendingResearch()
+      const job=jobs.find(j=>j.sessionId===sessionId)
+      if(job&&!pendingResearch){
+        startResearchPolling(job.responseId,job)
+      }
+    }catch{/*ignore recovery errors*/}
+  },[startResearchPolling,pendingResearch])
   //Cleanup research polling on unmount
   useEffect(()=>{return()=>{if(researchPollRef.current)clearTimeout(researchPollRef.current)}},[])
 
@@ -703,6 +714,7 @@ return {
     pendingResearch,
     startResearchPolling,
     dismissResearch,
+    recoverPendingResearch,
     //Todo list state and handlers - displayTodoList includes virtual items from imageBatch
     todoList:displayTodoList(),
     isPaused,

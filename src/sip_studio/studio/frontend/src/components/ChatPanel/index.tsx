@@ -134,13 +134,22 @@ export function ChatPanel({ brandSlug }: ChatPanelProps) {
     pendingResearch,
     startResearchPolling,
     dismissResearch,
+    recoverPendingResearch,
   } = useChat(brandSlug, { onStyleReferencesCreated: () => refreshStyleRefs(), onImagesGenerated: handleImagesGenerated, onVideosGenerated: handleVideosGenerated, onResearchCompleted: (sessionId) => { if(sessionId&&sessionId!==activeSessionId)markUnread(sessionId) } })
+  //Recover pending research on app startup when session is available
+  const recoveredSessionRef = useRef<string|null>(null)
+  useEffect(()=>{
+    if(activeSessionId&&activeSessionId!==recoveredSessionRef.current){
+      recoveredSessionRef.current=activeSessionId
+      recoverPendingResearch(activeSessionId)
+    }
+  },[activeSessionId,recoverPendingResearch])
   //Handle session switch - load messages from selected session
   const handleSwitchSession = useCallback(async (sessionId: string): Promise<boolean> => {
     const data = await switchSession(sessionId)
-    if (data) { loadMessagesFromSession(data.messages); return true }
+    if(data){loadMessagesFromSession(data.messages);recoverPendingResearch(sessionId);return true}
     return false
-  }, [switchSession, loadMessagesFromSession])
+  }, [switchSession, loadMessagesFromSession, recoverPendingResearch])
   //Handle detach product - remove from Quick Insert AND from input text @mentions
   const handleDetachProduct = useCallback((slug: string) => {
     detachProduct(slug)
