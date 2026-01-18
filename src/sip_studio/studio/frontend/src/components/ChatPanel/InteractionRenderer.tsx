@@ -71,13 +71,12 @@ function ClarificationPanel({ interaction, onSubmit, onCancel, disabled }: { int
 
   return (
     <div className="mt-6 w-full max-w-lg mx-auto animate-fade-in-up">
-      <div className="glass-panel rounded-2xl p-6 space-y-6 shadow-float relative overflow-hidden dark:bg-[#1a1a1a]/95 dark:border-white/5">
+      <div className="glass-panel rounded-2xl p-6 space-y-6 shadow-float relative overflow-hidden">
         {/* Subtle top brand accent */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-500/20 via-brand-500/40 to-brand-500/20" />
-
         {/* Header */}
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-500/10 flex items-center justify-center text-brand-500 ring-1 ring-brand-500/20">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-500/10 dark:bg-brand-500/20 flex items-center justify-center text-brand-500">
             <Telescope className="h-5 w-5" />
           </div>
           <div className="space-y-1">
@@ -85,7 +84,6 @@ function ClarificationPanel({ interaction, onSubmit, onCancel, disabled }: { int
             <p className="text-sm text-muted-foreground">A few questions before I begin.</p>
           </div>
         </div>
-
         {/* Questions */}
         <div className="space-y-6">
           {interaction.questions.map(q => (
@@ -93,66 +91,32 @@ function ClarificationPanel({ interaction, onSubmit, onCancel, disabled }: { int
               <p className="text-sm font-medium text-foreground px-1">{q.question}</p>
               <div className="flex flex-col gap-2">
                 {q.options.map(opt => {
-                  const isSelected = answers[q.id] === opt.value;
+                  const isSelected = answers[q.id] === opt.value
                   return (
-                    <button
-                      key={opt.value}
-                      onClick={() => setAnswers(a => ({ ...a, [q.id]: opt.value }))}
-                      disabled={disabled || submitting}
-                      className={cn(
-                        "relative flex items-center w-full px-4 py-3 text-left transition-all duration-200 rounded-xl border",
-                        isSelected
-                          ? "bg-brand-500/10 border-brand-500/50 shadow-sm dark:bg-brand-500/20 dark:border-brand-500/50"
-                          : "bg-secondary/50 hover:bg-secondary border-transparent hover:border-border dark:bg-white/5 dark:hover:bg-white/10 dark:hover:border-white/10",
-                        "group"
-                      )}
-                    >
-                      <span className={cn(
-                        "flex-grow text-sm transition-colors",
-                        isSelected ? "text-foreground font-medium" : "text-muted-foreground group-hover:text-foreground"
-                      )}>
-                        {opt.label}
-                      </span>
-                      {isSelected && (
-                        <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(237,9,66,0.6)] ml-2" />
-                      )}
+                    <button key={opt.value} onClick={() => setAnswers(a => ({ ...a, [q.id]: opt.value }))} disabled={disabled || submitting} className={cn(
+                      "relative flex items-center w-full px-4 py-3 text-left transition-all duration-200 rounded-xl border group",
+                      isSelected
+                        ? "bg-brand-500/10 border-brand-500/40 dark:bg-brand-500/20 dark:border-brand-500/40"
+                        : "bg-white/50 dark:bg-white/[0.03] border-black/5 dark:border-white/5 hover:bg-white/80 dark:hover:bg-white/[0.06] hover:border-black/10 dark:hover:border-white/10"
+                    )}>
+                      <span className={cn("flex-grow text-sm transition-colors", isSelected ? "text-foreground font-medium" : "text-muted-foreground group-hover:text-foreground")}>{opt.label}</span>
+                      {isSelected && <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(237,9,66,0.5)] ml-2" />}
                     </button>
                   )
                 })}
                 {q.allowCustom && (
-                  <div className={cn(
-                    "relative flex items-center w-full px-4 py-2 transition-all duration-200 rounded-xl border",
-                    answers[q.id]?.startsWith('custom:')
-                      ? "bg-background border-brand-500/30 ring-1 ring-brand-500/10"
-                      : "bg-transparent border-transparent"
-                  )}>
-                    <Input
-                      placeholder="Type something else..."
-                      value={answers[q.id]?.startsWith('custom:') ? answers[q.id].slice(7) : ''}
-                      onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value ? `custom:${e.target.value}` : '' }))}
-                      disabled={disabled || submitting}
-                      className="text-sm border-0 bg-transparent px-0 focus-visible:ring-0 placeholder:text-muted-foreground/50 h-auto py-1 shadow-none"
-                    />
+                  <div className={cn("relative flex items-center w-full px-4 py-2 transition-all duration-200 rounded-xl border", answers[q.id]?.startsWith('custom:') ? "bg-background border-brand-500/30" : "bg-transparent border-transparent")}>
+                    <Input placeholder="Type something else..." value={answers[q.id]?.startsWith('custom:') ? answers[q.id].slice(7) : ''} onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value ? `custom:${e.target.value}` : '' }))} disabled={disabled || submitting} className="text-sm border-0 bg-transparent px-0 focus-visible:ring-0 placeholder:text-muted-foreground/50 h-auto py-1 shadow-none" />
                   </div>
                 )}
               </div>
             </div>
           ))}
         </div>
-
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 pt-2">
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={disabled || submitting} className="text-muted-foreground hover:text-foreground">
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={disabled || submitting || !allAnswered}
-            className="bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/25 transition-all duration-300 px-6"
-          >
-            {submitting ? 'Starting...' : 'Start Research'}
-          </Button>
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={disabled || submitting} className="text-muted-foreground hover:text-foreground">Cancel</Button>
+          <Button size="sm" onClick={handleSubmit} disabled={disabled || submitting || !allAnswered} className="bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/25 px-6">{submitting ? 'Starting...' : 'Start Research'}</Button>
         </div>
       </div>
     </div>
