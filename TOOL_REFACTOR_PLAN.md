@@ -128,7 +128,7 @@ get_style_reference(slug: str | None = None, offset: int = 0, limit: int = 20) -
 - `src/sip_studio/advisor/tools/style_reference_tools.py`
 - `src/sip_studio/advisor/tools/__init__.py`
 
-### 1.3 Todo/Task Tools Deduplication
+### 1.3 Todo/Task Tools Deduplication ✓ COMPLETE
 
 **Current:** Two overlapping systems (todo_tools + task_tools)
 **Decision:** Keep task_tools (file-based persistence), deprecate todo_tools
@@ -149,7 +149,7 @@ get_style_reference(slug: str | None = None, offset: int = 0, limit: int = 20) -
 **Files to modify:**
 - `src/sip_studio/advisor/tools/__init__.py` (remove todo_tools except check_interrupt)
 
-### 1.4 Context Tools Consolidation
+### 1.4 Context Tools Consolidation ✓ COMPLETE
 
 **Before (3 tools):**
 - fetch_context_cached, get_cached_product_context, get_cached_style_reference_context

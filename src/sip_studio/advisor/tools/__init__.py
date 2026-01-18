@@ -443,21 +443,14 @@ ADVISOR_TOOLS = [
     # Utility
     fetch_url_content,
     report_thinking,
-    # todo tools
-    create_todo_list,
-    update_todo_item,
-    add_todo_output,
-    complete_todo_list,
-    check_interrupt,
-    # task tools (file-based persistence)
+    # task tools (consolidated: 9 → 5, file-based persistence)
     create_task_file,
     get_remaining_tasks,
     update_task,
     complete_task_file,
-    # context tools (lean context pattern)
+    check_interrupt,
+    # context tools (consolidated: 3 → 1)
     fetch_context_cached,
-    get_cached_product_context,
-    get_cached_style_reference_context,
     # skill tools (progressive disclosure)
     activate_skill,
     mark_brief_complete,
