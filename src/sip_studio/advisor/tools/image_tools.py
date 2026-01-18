@@ -794,21 +794,41 @@ async def generate_image(
     validate_identity: bool = False,
     max_retries: int = 3,
 ) -> str:
-    """Generate an image using Gemini 3.0 Pro.
-    Creates a high-quality image from a text prompt. Use for brand assets like logos, mascots, lifestyle photos, and marketing materials.
-    Aspect ratio is automatically applied from user's settings - do not specify it.
+    """Generate a brand-consistent image using Gemini 3.0 Pro.
+
+    PREREQUISITE: Call load_brand() first. For product shots, ensure product has images.
+
+    Use when user wants to:
+    - Create marketing images ("make a hero banner", "lifestyle shot")
+    - Generate product photography ("shoot the coffee bag")
+    - Create multi-product compositions ("show both products together")
+    - Apply style references ("use the warm style", "match this look")
+
+    Does NOT:
+    - Generate videos (use generate_video_clip)
+    - Edit existing images (re-generate with reference_image instead)
+    - Create brand identity from scratch (use Brand Director first)
+
     Args:
-        prompt: Detailed description of the image to generate.
-        filename: Optional filename to save as (without extension).
-        reference_image: Optional path to a reference image within the brand directory.
-        product_slug: Optional product slug. Automatically loads product's images and enables identity validation.
-        product_slugs: Optional list of product slugs for MULTI-PRODUCT images.
-        template_slug: Optional template slug. When provided, applies template layout constraints.
-        strict: When True with template_slug, enforces exact layout reproduction.
-        validate_identity: When True AND reference_image is provided, enables validation loop.
-        max_retries: Maximum attempts for validation loop (default 3).
+        prompt: Detailed description of desired image. Include composition, lighting, mood.
+            Example: "Coffee bag on marble counter, morning light, steam from cup"
+        filename: Output filename without extension. Auto-generated if omitted.
+        reference_image: Path within brand dir to use as reference (e.g., "uploads/hero.png").
+        product_slug: Single product slug. Auto-loads images and enables identity validation.
+        product_slugs: List of slugs for multi-product shots. Example: ["coffee-bag", "mug"]
+        template_slug: Style reference slug to apply color grading and mood.
+        strict: With template_slug, enforce exact style reproduction (default True).
+        validate_identity: Enable AI validation loop to ensure product accuracy.
+        max_retries: Max validation attempts (default 3). Higher = more accurate but slower.
+
     Returns:
-        Path to the saved image file, or error message.
+        Path to saved image file, or error message.
+
+    Examples:
+        generate_image("Coffee bag hero shot, dramatic lighting")
+        generate_image("Product on white background", product_slug="sunrise-blend")
+        generate_image("Both products together", product_slugs=["coffee", "mug"])
+        generate_image("Warm lifestyle shot", product_slug="tea", template_slug="cozy-style")
     """
     import asyncio
 
@@ -934,13 +954,30 @@ def wait_for_batch_images() -> str:
 
 @function_tool
 def propose_images(question: str, image_paths: list[str], labels: list[str] | None = None) -> str:
-    """Present images for the user to select from.
+    """Present generated images for user to choose from.
+
+    PREREQUISITE: Generate images first with generate_image.
+
+    Use when user wants to:
+    - Choose between image options ("which do you prefer?")
+    - Review generated variations ("here are 3 options")
+    - Select a final image ("pick the one you like")
+
+    Does NOT:
+    - Generate images (use generate_image first)
+    - Save user's choice (UI handles selection)
+
     Args:
-        question: The question (e.g., "Which logo do you prefer?")
-        image_paths: List of image file paths.
-        labels: Optional short labels for each image.
+        question: Question to ask user. Example: "Which hero banner do you prefer?"
+        image_paths: List of 2+ image file paths to present.
+        labels: Optional short labels. Example: ["Warm tones", "Cool tones"]
+
     Returns:
-        Confirmation that image selection is being presented.
+        Confirmation that selection UI is being presented.
+
+    Examples:
+        propose_images("Which version?", [path1, path2])
+        propose_images("Pick a logo", paths, labels=["Bold", "Minimal", "Classic"])
     """
     import sip_studio.advisor.tools.memory_tools as mem
 

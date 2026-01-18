@@ -316,16 +316,35 @@ def _impl_browse_brand_assets(category: str | None = None) -> str:
 def load_brand(
     slug: str | None = None, detail_level: Literal["summary", "full"] = "summary"
 ) -> str:
-    """Load brand identity and context for creative work.
-    Call this at the start of a session to understand the brand you're working with.
-    The brand context informs all creative decisions.
+    """Load brand identity context for creative work.
+
+    PREREQUISITE: None - this is typically the FIRST tool to call.
+
+    Use when user wants to:
+    - Start working with a brand ("let's work on Summit Coffee")
+    - Get brand context ("what's our brand about?", "show me the brand")
+    - Switch brands ("switch to Acme brand")
+    - Understand brand guidelines ("what are our colors?", "brand voice?")
+
+    Does NOT:
+    - Create a new brand (use Brand Director workflow)
+    - List products (use list_products)
+    - Get detailed product info (use get_product_detail)
+
     Args:
-        slug: Brand slug to load. If not provided, uses active brand.
-        detail_level: Level of detail to return:
-            - "summary" (default): Quick overview (~500 chars)
-            - "full": Complete brand context (~2000 chars)
+        slug: Brand slug to load. If None, uses active brand or lists available.
+            Example: "summit-coffee", "acme-corp"
+        detail_level: Amount of context to return:
+            - "summary": Quick overview with colors, tone, audience (~500 chars)
+            - "full": Complete identity with voice, positioning, values (~2000 chars)
+
     Returns:
-        Formatted brand context as markdown.
+        Formatted markdown with brand context, or list of available brands.
+
+    Examples:
+        load_brand()  # Load active brand summary
+        load_brand("summit-coffee")  # Load specific brand
+        load_brand(detail_level="full")  # Full context for deep creative work
     """
     return _impl_load_brand(slug, detail_level)
 
@@ -333,9 +352,23 @@ def load_brand(
 @function_tool
 def list_products() -> str:
     """List all products for the active brand.
+
+    PREREQUISITE: Call load_brand() first to set active brand.
+
+    Use when user wants to:
+    - See available products ("what products do we have?")
+    - Find a product slug ("which product is the coffee?")
+    - Check product status ("do products have images?")
+
+    Does NOT:
+    - Show detailed product info (use get_product_detail)
+    - Create/update products (use manage_product)
+
     Returns:
-        Formatted list of products with names, slugs, image counts, and descriptions.
-        Use get_product_detail() for complete product information.
+        Formatted list with names, slugs, image counts, descriptions.
+
+    Examples:
+        list_products()  # Show all products for active brand
     """
     return _impl_list_products()
 
@@ -353,10 +386,27 @@ def list_projects() -> str:
 @function_tool
 def get_product_detail(product_slug: str) -> str:
     """Get detailed information about a specific product.
+
+    PREREQUISITE: Call load_brand() first. Use list_products() to find slugs.
+
+    Use when user wants to:
+    - Understand a product deeply ("tell me about the coffee")
+    - Check product attributes ("what flavors does it have?")
+    - See product images ("show me the product photos")
+
+    Does NOT:
+    - List all products (use list_products)
+    - Update product info (use manage_product)
+
     Args:
-        product_slug: Product identifier (e.g., "night-cream").
+        product_slug: Product identifier. Example: "sunrise-blend", "night-cream"
+
     Returns:
-        Complete product info including description, attributes, and images.
+        Complete product info: description, attributes, images, metadata.
+
+    Examples:
+        get_product_detail("sunrise-blend")
+        get_product_detail("premium-tea")
     """
     return _impl_get_product_detail(product_slug)
 
@@ -378,18 +428,34 @@ def fetch_brand_detail(
         "visual_identity", "voice_guidelines", "audience_profile", "positioning", "full_identity"
     ],
 ) -> str:
-    """Fetch detailed brand information.
-    Use this tool to get comprehensive information about a specific aspect
-    of the brand before making creative decisions.
+    """Fetch deep brand information for a specific aspect.
+
+    PREREQUISITE: Call load_brand() first. Use for deep creative decisions.
+
+    Use when user wants to:
+    - Understand visual guidelines ("what's our typography?")
+    - Get voice/messaging details ("how should we write copy?")
+    - Know target audience ("who are we targeting?")
+    - Understand market positioning ("what's our differentiator?")
+
+    Does NOT:
+    - Load basic brand context (use load_brand)
+    - Browse brand assets (use browse_brand_assets)
+
     Args:
-        detail_type: The type of detail to fetch:
-            - "visual_identity": Colors, typography, imagery guidelines
+        detail_type: Aspect to fetch:
+            - "visual_identity": Colors, typography, imagery style
             - "voice_guidelines": Tone, messaging, copy examples
-            - "audience_profile": Target audience demographics and psychographics
-            - "positioning": Market position and competitive differentiation
-            - "full_identity": Complete brand identity (use sparingly)
+            - "audience_profile": Demographics, psychographics, pain points
+            - "positioning": Market position, competitors, UVP
+            - "full_identity": Everything (use sparingly - large response)
+
     Returns:
-        JSON string containing the requested brand details.
+        JSON string with comprehensive brand details.
+
+    Examples:
+        fetch_brand_detail("visual_identity")  # For image generation
+        fetch_brand_detail("voice_guidelines")  # For copy writing
     """
     return _impl_fetch_brand_detail(detail_type)
 
