@@ -352,24 +352,149 @@ def _impl_delete_style_reference(style_ref_slug: str, confirm: bool = False) -> 
         return f"Error deleting style reference: {e}"
 
 
-# Wrapped style reference tools
+# Consolidated style reference tools
+@function_tool
+async def manage_style_reference(
+    action: str,
+    slug: str | None = None,
+    name: str | None = None,
+    description: str | None = None,
+    image_path: str | None = None,
+    image_paths: list[str] | None = None,
+    default_strict: bool | None = None,
+    reanalyze: bool = True,
+    confirm: bool = False,
+) -> str:
+    """Manage style references for the active brand. Handles all CRUD operations.
+
+    PREREQUISITE: Call load_brand() first to set active brand context.
+
+    Use when user wants to:
+    - Create a new style reference ("add style", "new template")
+    - Create multiple from images ("create style refs from these images")
+    - Update style reference details ("rename", "change description")
+    - Delete a style reference ("remove style", "delete template")
+    - Add images to a style reference ("add this image to style")
+    - Re-analyze style reference ("refresh analysis", "re-analyze")
+
+    Does NOT:
+    - Generate new images (use generate_image)
+    - Get style reference details (use get_style_reference)
+
+    Args:
+        action: Operation to perform. Must be one of:
+            - "create": New style reference (requires name)
+            - "create_batch": Create one per image (requires image_paths)
+            - "update": Modify existing (requires slug)
+            - "delete": Remove style reference (requires slug, confirm=True)
+            - "add_image": Add image from uploads/ (requires slug, image_path)
+            - "reanalyze": Re-run V2 analysis (requires slug)
+        slug: Style reference identifier. Required for all except "create"/"create_batch".
+        name: Style reference name. Required for "create", optional for "update".
+        description: Style reference description text.
+        image_path: Single image path within uploads/ (for "create" or "add_image").
+        image_paths: List of image paths within uploads/ (for "create_batch").
+        default_strict: Default strict mode for style reference.
+        reanalyze: For "add_image", re-run analysis after adding (default True).
+        confirm: Must be True for delete action (server-enforced).
+
+    Returns:
+        JSON string with result or error message.
+
+    Examples:
+        manage_style_reference("create", name="Hero Banner", image_path="uploads/banner.png")
+        manage_style_reference("create_batch", image_paths=["uploads/a.png", "uploads/b.png"])
+        manage_style_reference("update", slug="hero-banner", name="New Name")
+        manage_style_reference("delete", slug="hero-banner", confirm=True)
+        manage_style_reference("add_image", slug="hero-banner", image_path="uploads/new.png")
+        manage_style_reference("reanalyze", slug="hero-banner")
+    """
+    valid_actions = {"create", "create_batch", "update", "delete", "add_image", "reanalyze"}
+    if action not in valid_actions:
+        return f"Error: Invalid action '{action}'. Must be one of: {sorted(valid_actions)}"
+    if action == "create":
+        if not name:
+            return "Error: 'name' is required for action='create'"
+        return await _impl_create_style_reference_async(
+            name,
+            description or "",
+            image_path,
+            default_strict if default_strict is not None else True,
+        )
+    if action == "create_batch":
+        if not image_paths:
+            return "Error: 'image_paths' is required for action='create_batch'"
+        return await _impl_create_style_references_from_images_async(
+            image_paths, default_strict if default_strict is not None else True
+        )
+    if action == "update":
+        if not slug:
+            return "Error: 'slug' is required for action='update'"
+        return _impl_update_style_reference(slug, name, description, default_strict)
+    if action == "delete":
+        if not slug:
+            return "Error: 'slug' is required for action='delete'"
+        if not confirm:
+            return "Error: 'confirm=True' is required for action='delete'. This is a destructive operation."
+        return _impl_delete_style_reference(slug, confirm)
+    if action == "add_image":
+        if not slug:
+            return "Error: 'slug' is required for action='add_image'"
+        if not image_path:
+            return "Error: 'image_path' is required for action='add_image'"
+        return await _impl_add_style_reference_image_async(slug, image_path, reanalyze)
+    if action == "reanalyze":
+        if not slug:
+            return "Error: 'slug' is required for action='reanalyze'"
+        return await _impl_reanalyze_style_reference_async(slug)
+    return f"Error: Unhandled action '{action}'"
+
+
+@function_tool
+def get_style_reference(slug: str | None = None, offset: int = 0, limit: int = 20) -> str:
+    """Get style reference details or list all style references.
+
+    PREREQUISITE: Call load_brand() first to set active brand context.
+
+    Use when user wants to:
+    - See all style references ("show styles", "list templates")
+    - Get details of a specific style reference ("show hero banner details")
+
+    Does NOT:
+    - Create/update/delete style references (use manage_style_reference)
+    - Generate images (use generate_image)
+
+    Args:
+        slug: Style reference slug to get details. If None, lists all style references.
+        offset: For listing, skip first N items (pagination).
+        limit: For listing, max items to return (default 20).
+
+    Returns:
+        Style reference details or list, as formatted text.
+
+    Examples:
+        get_style_reference()  # List all
+        get_style_reference(slug="hero-banner")  # Get details
+        get_style_reference(offset=20, limit=20)  # Page 2
+    """
+    if slug is None:
+        return _impl_list_style_references()
+    return _impl_get_style_reference_detail(slug)
+
+
+# Legacy tools - kept for backwards compatibility during migration
+# TODO: Remove after migration complete
 @function_tool
 def list_style_references() -> str:
-    """List all style references for the active brand.
-    Returns:
-        Formatted list of style references with name, slug, and image count.
-    """
+    """[DEPRECATED] Use get_style_reference() instead."""
+    logger.warning("list_style_references is deprecated, use get_style_reference()")
     return _impl_list_style_references()
 
 
 @function_tool
 def get_style_reference_detail(style_ref_slug: str) -> str:
-    """Get detailed style reference information including analysis.
-    Args:
-        style_ref_slug: The style reference's slug identifier. Use list_style_references() to see available ones.
-    Returns:
-        Style reference details including name, description, images, and analysis summary.
-    """
+    """[DEPRECATED] Use get_style_reference(slug=...) instead."""
+    logger.warning("get_style_reference_detail is deprecated, use get_style_reference(slug=...)")
     return _impl_get_style_reference_detail(style_ref_slug)
 
 
@@ -377,15 +502,10 @@ def get_style_reference_detail(style_ref_slug: str) -> str:
 async def create_style_reference(
     name: str, description: str = "", image_path: str | None = None, default_strict: bool = True
 ) -> str:
-    """Create a new style reference for reusable visual styles.
-    Args:
-        name: Style reference name (e.g., "Hero Centered Product", "Split Banner").
-        description: Optional style reference description.
-        image_path: Optional path to image within uploads/ folder.
-        default_strict: Default strict mode for this style reference (default True).
-    Returns:
-        Success message with style reference slug, or error message.
-    """
+    """[DEPRECATED] Use manage_style_reference(action="create") instead."""
+    logger.warning(
+        "create_style_reference is deprecated, use manage_style_reference(action='create')"
+    )
     return await _impl_create_style_reference_async(name, description, image_path, default_strict)
 
 
@@ -393,17 +513,10 @@ async def create_style_reference(
 async def create_style_references_from_images(
     image_paths: list[str], default_strict: bool = True
 ) -> str:
-    """Create one style reference per image with auto-generated names.
-    Use this when user drops multiple images and wants a style reference for each.
-    The style reference name is auto-generated by analyzing each image's visual style.
-    Args:
-        image_paths: List of paths within uploads/ folder. Each creates a separate style reference.
-        default_strict: Default strict mode for created style references (default True).
-    Returns:
-        Summary of created style references and any errors.
-    Example:
-        create_style_references_from_images(["uploads/banner1.png", "uploads/card.png"])
-    """
+    """[DEPRECATED] Use manage_style_reference(action="create_batch") instead."""
+    logger.warning(
+        "create_style_references_from_images is deprecated, use manage_style_reference(action='create_batch')"
+    )
     return await _impl_create_style_references_from_images_async(image_paths, default_strict)
 
 
@@ -414,15 +527,10 @@ def update_style_reference(
     description: str | None = None,
     default_strict: bool | None = None,
 ) -> str:
-    """Update style reference metadata.
-    Args:
-        style_ref_slug: The style reference's slug identifier.
-        name: Optional new name.
-        description: Optional new description.
-        default_strict: Optional new default strict mode.
-    Returns:
-        Success message or error.
-    """
+    """[DEPRECATED] Use manage_style_reference(action="update") instead."""
+    logger.warning(
+        "update_style_reference is deprecated, use manage_style_reference(action='update')"
+    )
     return _impl_update_style_reference(style_ref_slug, name, description, default_strict)
 
 
@@ -430,36 +538,26 @@ def update_style_reference(
 async def add_style_reference_image(
     style_ref_slug: str, image_path: str, reanalyze: bool = True
 ) -> str:
-    """Add an image to a style reference from uploads folder.
-    Args:
-        style_ref_slug: The style reference's slug identifier.
-        image_path: Path within uploads/ folder (e.g., "uploads/design.png").
-        reanalyze: Re-run V2 analysis after adding image (default True).
-    Returns:
-        Success message or error.
-    """
+    """[DEPRECATED] Use manage_style_reference(action="add_image") instead."""
+    logger.warning(
+        "add_style_reference_image is deprecated, use manage_style_reference(action='add_image')"
+    )
     return await _impl_add_style_reference_image_async(style_ref_slug, image_path, reanalyze)
 
 
 @function_tool
 async def reanalyze_style_reference(style_ref_slug: str) -> str:
-    """Re-run V2 Gemini analysis on style reference images.
-    Use when style reference images have changed or you want to refresh the analysis.
-    Args:
-        style_ref_slug: The style reference's slug identifier.
-    Returns:
-        Success message or error.
-    """
+    """[DEPRECATED] Use manage_style_reference(action="reanalyze") instead."""
+    logger.warning(
+        "reanalyze_style_reference is deprecated, use manage_style_reference(action='reanalyze')"
+    )
     return await _impl_reanalyze_style_reference_async(style_ref_slug)
 
 
 @function_tool
 def delete_style_reference(style_ref_slug: str, confirm: bool = False) -> str:
-    """Delete a style reference and all its files. Requires confirm=True.
-    Args:
-        style_ref_slug: The style reference's slug identifier.
-        confirm: Must be True to actually delete. If False, returns warning.
-    Returns:
-        Success message, warning, or error.
-    """
+    """[DEPRECATED] Use manage_style_reference(action="delete") instead."""
+    logger.warning(
+        "delete_style_reference is deprecated, use manage_style_reference(action='delete')"
+    )
     return _impl_delete_style_reference(style_ref_slug, confirm)
