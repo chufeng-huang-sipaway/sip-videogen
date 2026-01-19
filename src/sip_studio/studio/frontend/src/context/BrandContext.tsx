@@ -1,11 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import{createContext,useContext,useState,useEffect,useCallback}from'react'
+import{createContext,useContext,useState,useEffect,useCallback,useRef}from'react'
 import type{ReactNode}from'react'
 import{bridge,waitForPyWebViewReady}from'@/lib/bridge'
-import type{BrandEntry}from'@/lib/bridge'
+import type{BrandEntry,BrandCreationJob}from'@/lib/bridge'
 import type{BrandIdentityFull,IdentitySection,SectionDataMap}from'@/types/brand-identity'
-interface BrandContextType{brands:BrandEntry[];activeBrand:string|null;isLoading:boolean;error:string|null;selectBrand:(slug:string)=>Promise<void>;refresh:()=>Promise<void>;identity:BrandIdentityFull|null;isIdentityLoading:boolean;identityError:string|null;refreshIdentity:()=>Promise<void>;setIdentity:(identity:BrandIdentityFull|null)=>void;updateIdentitySection:<S extends IdentitySection>(section:S,data:SectionDataMap[S])=>Promise<BrandIdentityFull>;refreshAdvisorContext:()=>Promise<{success:boolean;message?:string;error?:string}>}
+import{toast}from'@/components/ui/toaster'
+interface BrandContextType{brands:BrandEntry[];activeBrand:string|null;isLoading:boolean;error:string|null;selectBrand:(slug:string)=>Promise<void>;refresh:()=>Promise<void>;identity:BrandIdentityFull|null;isIdentityLoading:boolean;identityError:string|null;refreshIdentity:()=>Promise<void>;setIdentity:(identity:BrandIdentityFull|null)=>void;updateIdentitySection:<S extends IdentitySection>(section:S,data:SectionDataMap[S])=>Promise<BrandIdentityFull>;refreshAdvisorContext:()=>Promise<{success:boolean;message?:string;error?:string}>;creatingBrand:BrandCreationJob|null;checkBrandCreationJob:()=>Promise<void>;clearBrandCreationJob:()=>Promise<void>}
 const BrandContext=createContext<BrandContextType|null>(null)
+const POLL_INTERVAL=5000
 export function BrandProvider({children}:{children:ReactNode}){
 const[brands,setBrands]=useState<BrandEntry[]>([])
 const[activeBrand,setActiveBrand]=useState<string|null>(null)
@@ -15,6 +17,9 @@ const[error,setError]=useState<string|null>(null)
 const[identity,setIdentityState]=useState<BrandIdentityFull|null>(null)
 const[isIdentityLoading,setIsIdentityLoading]=useState(false)
 const[identityError,setIdentityError]=useState<string|null>(null)
+//Brand creation job state
+const[creatingBrand,setCreatingBrand]=useState<BrandCreationJob|null>(null)
+const pollRef=useRef<number|null>(null)
 const applyIdentity=useCallback((next:BrandIdentityFull|null)=>{setIdentityState(next);if(next){setBrands(prev=>prev.map(brand=>brand.slug===next.slug?{...brand,name:next.core.name}:brand))}},[])
 const refresh=useCallback(async()=>{setIsLoading(true);setError(null)
 try{const ready=await waitForPyWebViewReady()
@@ -45,7 +50,32 @@ applyIdentity(updated)
 await refreshAdvisorContext()
 return updated
 },[refreshAdvisorContext,applyIdentity])
+//Brand creation job polling
+const checkBrandCreationJob=useCallback(async()=>{
+try{const ready=await waitForPyWebViewReady();if(!ready)return
+const job=await bridge.getBrandCreationJob()
+if(!job){setCreatingBrand(null);return}
+setCreatingBrand(job)
+//Handle completion
+if(job.status==='completed'){setCreatingBrand(null);toast.success(`Brand "${job.brand_name}" created successfully!`);await refresh();await selectBrand(job.slug);await bridge.clearBrandCreationJob().catch(()=>{})}
+//Handle failure
+else if(job.status==='failed'){toast.error(job.error||'Brand creation failed')}
+//Handle cancellation
+else if(job.status==='cancelled'){toast.info('Brand creation was cancelled')}
+}catch(err){console.warn('[BrandContext] Failed to check brand creation job:',err)}},[refresh,selectBrand])
+//Clear failed/cancelled job
+const clearBrandCreationJob=useCallback(async()=>{
+try{const ready=await waitForPyWebViewReady();if(!ready)return
+await bridge.clearBrandCreationJob();setCreatingBrand(null)
+}catch(err){console.warn('[BrandContext] Failed to clear brand creation job:',err)}},[])
+//Poll for brand creation job on startup and periodically
+useEffect(()=>{checkBrandCreationJob()},[checkBrandCreationJob])
+useEffect(()=>{
+//Only poll if we have an active job in running/pending state
+if(!creatingBrand||creatingBrand.status==='completed'||creatingBrand.status==='failed'||creatingBrand.status==='cancelled')return
+pollRef.current=window.setInterval(()=>{checkBrandCreationJob()},POLL_INTERVAL)
+return()=>{if(pollRef.current){clearInterval(pollRef.current);pollRef.current=null}}},[creatingBrand,checkBrandCreationJob])
 useEffect(()=>{applyIdentity(null);setIdentityError(null)},[activeBrand,applyIdentity])
 useEffect(()=>{refresh()},[refresh])
-return(<BrandContext.Provider value={{brands,activeBrand,isLoading,error,selectBrand,refresh,identity,isIdentityLoading,identityError,refreshIdentity,setIdentity:applyIdentity,updateIdentitySection,refreshAdvisorContext}}>{children}</BrandContext.Provider>)}
+return(<BrandContext.Provider value={{brands,activeBrand,isLoading,error,selectBrand,refresh,identity,isIdentityLoading,identityError,refreshIdentity,setIdentity:applyIdentity,updateIdentitySection,refreshAdvisorContext,creatingBrand,checkBrandCreationJob,clearBrandCreationJob}}>{children}</BrandContext.Provider>)}
 export function useBrand(){const context=useContext(BrandContext);if(!context)throw new Error('useBrand must be used within a BrandProvider');return context}
