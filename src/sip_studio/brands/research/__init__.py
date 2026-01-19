@@ -5,6 +5,11 @@ from .deep_research import (
     BrandResearchWrapper,
     research_brand,
 )
+from .evaluation import (
+    EvaluationError,
+    ResearchEvaluator,
+    evaluate_research,
+)
 from .job_storage import (
     cancel_job,
     cleanup_on_startup,
@@ -43,6 +48,8 @@ __all__ = [
     "BrandResearchBundle",
     "BrandResearchError",
     "BrandResearchWrapper",
+    "EvaluationError",
+    "ResearchEvaluator",
     "JobPhase",
     "JobStatus",
     "ResearchCompleteness",
@@ -58,6 +65,7 @@ __all__ = [
     "clear_job",
     "complete_job",
     "create_job",
+    "evaluate_research",
     "fail_job",
     "get_job_path",
     "get_jobs_dir",
