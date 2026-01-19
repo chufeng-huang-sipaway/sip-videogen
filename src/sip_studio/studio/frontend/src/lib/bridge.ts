@@ -47,6 +47,27 @@ export interface BrandEntry {
   category: string
 }
 
+//Brand creation job types
+export type BrandCreationJobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+export type BrandCreationJobPhase = 'starting' | 'researching' | 'creating' | 'finalizing' | 'complete' | 'failed'
+export interface BrandCreationJob {
+  schema_version: number
+  job_id: string
+  brand_name: string
+  website_url: string
+  slug: string
+  status: BrandCreationJobStatus
+  phase: BrandCreationJobPhase
+  phase_detail: string | null
+  percent_complete: number
+  error: string | null
+  error_code: string | null
+  cancel_requested: boolean
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
 export interface AssetNode {
   name: string
   path: string
@@ -513,6 +534,10 @@ interface PyWebViewAPI {
     images: Array<{ filename: string; data: string }>,
     documents: Array<{ filename: string; data: string }>
   ): Promise<BridgeResponse<{ slug: string; name: string }>>
+  create_brand_from_website(name: string, url: string): Promise<BridgeResponse<{ job_id: string; slug: string }>>
+  get_brand_creation_job(): Promise<BridgeResponse<BrandCreationJob | null>>
+  cancel_brand_creation(): Promise<BridgeResponse<{ cancelled: boolean }>>
+  clear_brand_creation_job(): Promise<BridgeResponse<{ cleared: boolean }>>
 
   // Documents (text files)
   get_documents(slug?: string): Promise<BridgeResponse<{ documents: DocumentEntry[] }>>
@@ -780,6 +805,10 @@ export const bridge = {
     images: Array<{ filename: string; data: string }>,
     documents: Array<{ filename: string; data: string }>
   ) => callBridge(() => window.pywebview!.api.create_brand_from_materials(description, images, documents)),
+  createBrandFromWebsite: (name: string, url: string) => callBridge(() => window.pywebview!.api.create_brand_from_website(name, url)),
+  getBrandCreationJob: () => callBridge(() => window.pywebview!.api.get_brand_creation_job()),
+  cancelBrandCreation: async () => (await callBridge(() => window.pywebview!.api.cancel_brand_creation())).cancelled,
+  clearBrandCreationJob: async () => (await callBridge(() => window.pywebview!.api.clear_brand_creation_job())).cleared,
 
   // Documents
   getDocuments: async (s?: string) => (await callBridge(() => window.pywebview!.api.get_documents(s))).documents,
