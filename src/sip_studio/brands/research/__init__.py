@@ -1,5 +1,10 @@
 """Brand creation research module - models for website scraping and job management."""
 
+from .deep_research import (
+    BrandResearchError,
+    BrandResearchWrapper,
+    research_brand,
+)
 from .job_storage import (
     cancel_job,
     cleanup_on_startup,
@@ -36,6 +41,8 @@ from .website_scraper import (
 __all__ = [
     "BrandCreationJob",
     "BrandResearchBundle",
+    "BrandResearchError",
+    "BrandResearchWrapper",
     "JobPhase",
     "JobStatus",
     "ResearchCompleteness",
@@ -58,6 +65,7 @@ __all__ = [
     "is_cancellation_requested",
     "load_job",
     "request_cancellation",
+    "research_brand",
     "save_job",
     "update_job_progress",
 ]
