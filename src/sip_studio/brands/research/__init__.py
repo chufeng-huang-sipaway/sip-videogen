@@ -1,5 +1,21 @@
 """Brand creation research module - models for website scraping and job management."""
 
+from .job_storage import (
+    cancel_job,
+    cleanup_on_startup,
+    clear_job,
+    complete_job,
+    create_job,
+    fail_job,
+    get_job_path,
+    get_jobs_dir,
+    has_active_job,
+    is_cancellation_requested,
+    load_job,
+    request_cancellation,
+    save_job,
+    update_job_progress,
+)
 from .models import (
     BrandCreationJob,
     BrandResearchBundle,
@@ -30,4 +46,18 @@ __all__ = [
     "InvalidContentTypeError",
     "scrape_website",
     "validate_url_for_scraping",
+    "cancel_job",
+    "cleanup_on_startup",
+    "clear_job",
+    "complete_job",
+    "create_job",
+    "fail_job",
+    "get_job_path",
+    "get_jobs_dir",
+    "has_active_job",
+    "is_cancellation_requested",
+    "load_job",
+    "request_cancellation",
+    "save_job",
+    "update_job_progress",
 ]
