@@ -45,6 +45,10 @@ class StudioBridge:
     def __init__(self):
         # Load API keys on bridge initialization rather than module import
         load_api_keys_from_config()
+        # Clean up orphaned jobs from previous app crash/restart
+        from sip_studio.brands.research.job_storage import cleanup_on_startup
+
+        cleanup_on_startup()
         self._state = BridgeState()
         self._brand = BrandService(self._state)
         self._document = DocumentService(self._state)
@@ -178,6 +182,18 @@ class StudioBridge:
 
     def generate_visual_directive(self) -> dict:
         return self._brand.generate_visual_directive()
+
+    def create_brand_from_website(self, name: str, url: str) -> dict:
+        return self._brand.create_brand_from_website(name, url)
+
+    def get_brand_creation_job(self) -> dict:
+        return self._brand.get_brand_creation_job()
+
+    def cancel_brand_creation(self) -> dict:
+        return self._brand.cancel_brand_creation()
+
+    def clear_brand_creation_job(self) -> dict:
+        return self._brand.clear_brand_creation_job()
 
     # ===========================================================================
     # Document Management

@@ -17,6 +17,14 @@ from sip_studio.brands.models import (
     VisualIdentity,
     VoiceGuidelines,
 )
+from sip_studio.brands.research import (
+    clear_job,
+    has_active_job,
+    load_job,
+    request_cancellation,
+    start_brand_creation_job,
+    validate_url_for_scraping,
+)
 from sip_studio.brands.storage import (
     backup_brand_identity,
     get_brand_dir,
@@ -354,8 +362,8 @@ class BrandService:
             if not concept_parts:
                 return bridge_error("No readable documents found in docs/ folder.")
             concept = "\n\n---\n\n".join(concept_parts)
-            if len(concept) > 4800:
-                concept = concept[:4800] + "\n...[truncated]"
+            if len(concept) > 50000:
+                concept = concept[:50000] + "\n...[truncated]"
             try:
                 backup_filename = backup_brand_identity(slug)
                 logger.info("Backed up identity to: %s", backup_filename)
@@ -452,7 +460,7 @@ class BrandService:
             return None, "Please provide a description or upload documents."
         concept = "\n\n---\n\n".join(parts)
         logger.debug("Combined concept length: %d chars", len(concept))
-        max_len = 4800
+        max_len = 50000
         if len(concept) > max_len:
             logger.debug("Concept too long (%d), truncating...", len(concept))
             if description.strip():
@@ -615,4 +623,93 @@ class BrandService:
         except Exception as e:
             self._state.current_progress = ""
             logger.exception("[VisualDirective] Generation error: %s", e)
+            return bridge_error(str(e))
+
+    # ===========================================================================
+    # Website-based Brand Creation
+    # ===========================================================================
+    def create_brand_from_website(self, name: str, url: str) -> dict:
+        """Start brand creation from website URL.
+        Args:
+            name: Brand name
+            url: Website URL
+        Returns:
+            {success: True, data: {job_id, slug}} or {success: False, error: str}
+        """
+        try:
+            name = (name or "").strip()
+            url = (url or "").strip()
+            if not name:
+                return bridge_error("Brand name is required")
+            if not url:
+                return bridge_error("Website URL is required")
+            # Ensure URL has scheme
+            if not url.startswith(("http://", "https://")):
+                url = f"https://{url}"
+            # Validate URL format
+            err = validate_url_for_scraping(url)
+            if err:
+                if "not allowed" in err.lower() or "ssrf" in err.lower():
+                    return bridge_error("This URL cannot be accessed for security reasons")
+                return bridge_error(f"Please enter a valid website URL (https://...): {err}")
+            # Check if job already running
+            if has_active_job():
+                return bridge_error("Brand creation already in progress")
+            # Start background job
+            job = start_brand_creation_job(name, url)
+            if job is None:
+                return bridge_error("Brand creation already in progress")
+            logger.info("Started brand creation job %s for %s (%s)", job.job_id, name, url)
+            return bridge_ok({"job_id": job.job_id, "slug": job.slug})
+        except Exception as e:
+            logger.exception("Error starting brand creation: %s", e)
+            return bridge_error(str(e))
+
+    def get_brand_creation_job(self) -> dict:
+        """Get current brand creation job status.
+        Returns:
+            {success: True, data: {job} | null} - job object or null if no job
+        """
+        try:
+            job = load_job()
+            if not job:
+                return bridge_ok(None)
+            return bridge_ok(job.to_json_dict())
+        except Exception as e:
+            logger.exception("Error getting brand creation job: %s", e)
+            return bridge_error(str(e))
+
+    def cancel_brand_creation(self) -> dict:
+        """Request cancellation of current brand creation job.
+        Returns:
+            {success: True} or {success: False, error: str}
+        """
+        try:
+            job = load_job()
+            if not job:
+                return bridge_error("No brand creation job found")
+            if job.status not in ("pending", "running"):
+                return bridge_error("Job is not running")
+            ok = request_cancellation(job.job_id)
+            if not ok:
+                return bridge_error("Failed to request cancellation")
+            logger.info("Requested cancellation for job %s", job.job_id)
+            return bridge_ok({"cancelled": True})
+        except Exception as e:
+            logger.exception("Error cancelling brand creation: %s", e)
+            return bridge_error(str(e))
+
+    def clear_brand_creation_job(self) -> dict:
+        """Clear failed/cancelled brand creation job.
+        Returns:
+            {success: True} or {success: False, error: str}
+        """
+        try:
+            ok = clear_job()
+            if not ok:
+                return bridge_error("Cannot clear job while it is running")
+            logger.info("Cleared brand creation job")
+            return bridge_ok({"cleared": True})
+        except Exception as e:
+            logger.exception("Error clearing brand creation job: %s", e)
             return bridge_error(str(e))

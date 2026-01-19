@@ -36,6 +36,7 @@ dependencies = [
     "firecrawl-py>=1.0.0",
     "platformdirs>=4.0.0",
     "screeninfo>=0.8.1",
+    "filelock>=3.12.0",
 ]
 
 [project.urls]
@@ -74,6 +75,11 @@ select = ["E", "F", "I", "N", "W"]
 "src/sip_studio/brands/context.py" = ["E501"]
 "src/sip_studio/brands/models/*.py" = ["E501"]
 "src/sip_studio/advisor/validation/*.py" = ["E501"]
+# Compact code style per CLAUDE.md
+"src/sip_studio/brands/research/*.py" = ["E501", "E701"]
+"tests/test_website_scraper.py" = ["E501", "E701"]
+"tests/test_brand_creation_models.py" = ["E501", "E701"]
+"tests/test_job_storage.py" = ["E501", "E701"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

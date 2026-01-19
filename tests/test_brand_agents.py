@@ -655,7 +655,7 @@ class TestBrandDirectorAgent:
         """Test that too long concept raises ValueError."""
         from sip_studio.agents.brand_director import develop_brand
 
-        long_concept = "A" * 5001
+        long_concept = "A" * 60001
         with pytest.raises(ValueError) as exc_info:
             await develop_brand(concept=long_concept)
 
