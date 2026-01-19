@@ -179,6 +179,18 @@ class StudioBridge:
     def generate_visual_directive(self) -> dict:
         return self._brand.generate_visual_directive()
 
+    def create_brand_from_website(self, name: str, url: str) -> dict:
+        return self._brand.create_brand_from_website(name, url)
+
+    def get_brand_creation_job(self) -> dict:
+        return self._brand.get_brand_creation_job()
+
+    def cancel_brand_creation(self) -> dict:
+        return self._brand.cancel_brand_creation()
+
+    def clear_brand_creation_job(self) -> dict:
+        return self._brand.clear_brand_creation_job()
+
     # ===========================================================================
     # Document Management
     # ===========================================================================
