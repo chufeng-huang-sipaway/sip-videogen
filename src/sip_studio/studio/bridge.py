@@ -45,6 +45,10 @@ class StudioBridge:
     def __init__(self):
         # Load API keys on bridge initialization rather than module import
         load_api_keys_from_config()
+        # Clean up orphaned jobs from previous app crash/restart
+        from sip_studio.brands.research.job_storage import cleanup_on_startup
+
+        cleanup_on_startup()
         self._state = BridgeState()
         self._brand = BrandService(self._state)
         self._document = DocumentService(self._state)
