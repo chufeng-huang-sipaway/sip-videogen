@@ -29,7 +29,7 @@ from .website_scraper import MaxRetriesError, SSRFError, scrape_website
 
 log = logging.getLogger(__name__)
 MAX_GAP_FILL_ROUNDS = 3
-MAX_CONCEPT_CHARS = 4800
+MAX_CONCEPT_CHARS = 50000  # ~12.5K tokens - conservative for 128K context models
 CONFIDENCE_THRESHOLD = 0.8
 
 

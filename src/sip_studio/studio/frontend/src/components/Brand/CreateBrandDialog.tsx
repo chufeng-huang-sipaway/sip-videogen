@@ -10,10 +10,12 @@ import{processUploadedFiles}from'@/lib/file-utils'
 import type{ProcessedFile}from'@/lib/file-utils'
 import{useAsyncAction}from'@/hooks/useAsyncAction'
 import{toast}from'@/components/ui/toaster'
+import{useBrand}from'@/context/BrandContext'
 const MAX_DOC_SIZE=50*1024
 type CreateMode='materials'|'website'
 interface CreateBrandDialogProps{open:boolean;onOpenChange:(open:boolean)=>void;onCreated:(slug:string)=>void;hasActiveJob?:boolean}
 export function CreateBrandDialog({open,onOpenChange,onCreated,hasActiveJob}:CreateBrandDialogProps){
+const{startBrandCreation}=useBrand()
 const[mode,setMode]=useState<CreateMode>('materials')
 const[description,setDescription]=useState('')
 const[files,setFiles]=useState<ProcessedFile[]>([])
@@ -42,7 +44,7 @@ for(const{file,base64,type}of files){if(type==='image')images.push({filename:fil
 if(isPyWebView()){const result=await bridge.createBrandFromMaterials(description,images,documents)
 toast.success(`Brand "${result.name||result.slug}" created`);onCreated(result.slug);onOpenChange(false);resetState()}
 })
-//Website mode action
+//Website mode action - uses context to trigger polling
 const{execute:execWebsite,isLoading:isWebsiteLoading,error:websiteError,clearError:clearWebsiteError}=useAsyncAction(async()=>{
 const n=brandName.trim()
 const u=websiteUrl.trim()
@@ -51,8 +53,8 @@ if(!u)throw new Error('Please enter a website URL.')
 //Basic URL validation
 const urlPattern=/^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}/
 if(!urlPattern.test(u))throw new Error('Please enter a valid website URL (e.g., example.com)')
-if(isPyWebView()){const result=await bridge.createBrandFromWebsite(n,u)
-toast.success(`Creating brand "${n}"... This may take a few minutes.`);onCreated(result.slug);onOpenChange(false);resetState()}
+if(isPyWebView()){await startBrandCreation(n,u)//Context handles polling & completion
+toast.success(`Creating brand "${n}"... This may take a few minutes.`);onOpenChange(false);resetState()}
 })
 const resetState=()=>{setDescription('');setFiles([]);setBrandName('');setWebsiteUrl('');setMode('materials')}
 const handleClose=useCallback(()=>{const isLoading=isMaterialsLoading||isWebsiteLoading

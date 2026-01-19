@@ -362,8 +362,8 @@ class BrandService:
             if not concept_parts:
                 return bridge_error("No readable documents found in docs/ folder.")
             concept = "\n\n---\n\n".join(concept_parts)
-            if len(concept) > 4800:
-                concept = concept[:4800] + "\n...[truncated]"
+            if len(concept) > 50000:
+                concept = concept[:50000] + "\n...[truncated]"
             try:
                 backup_filename = backup_brand_identity(slug)
                 logger.info("Backed up identity to: %s", backup_filename)
@@ -460,7 +460,7 @@ class BrandService:
             return None, "Please provide a description or upload documents."
         concept = "\n\n---\n\n".join(parts)
         logger.debug("Combined concept length: %d chars", len(concept))
-        max_len = 4800
+        max_len = 50000
         if len(concept) > max_len:
             logger.debug("Concept too long (%d), truncating...", len(concept))
             if description.strip():

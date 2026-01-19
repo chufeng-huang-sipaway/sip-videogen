@@ -512,5 +512,5 @@ class TestBuildConcept:
         docs = [{"filename": "big.txt", "data": long_content}]
         concept, err = service._build_concept("", docs)
         assert err is None
-        assert len(concept) <= 5000
+        assert len(concept) <= 50100  # 50000 limit + header overhead
         assert "truncated" in concept.lower()

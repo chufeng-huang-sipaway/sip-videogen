@@ -240,8 +240,8 @@ async def develop_brand(
     # Validate inputs
     if not concept or not concept.strip():
         raise ValueError("Brand concept cannot be empty")
-    if len(concept) > 5000:
-        raise ValueError("Brand concept is too long (max 5000 characters)")
+    if len(concept) > 60000:
+        raise ValueError("Brand concept is too long (max 60000 characters)")
 
     concept = concept.strip()
     logger.info(
@@ -369,8 +369,8 @@ async def develop_brand_with_output(
     # Validate inputs
     if not concept or not concept.strip():
         raise ValueError("Brand concept cannot be empty")
-    if len(concept) > 5000:
-        raise ValueError("Brand concept is too long (max 5000 characters)")
+    if len(concept) > 60000:
+        raise ValueError("Brand concept is too long (max 60000 characters)")
 
     concept = concept.strip()
     logger.info(

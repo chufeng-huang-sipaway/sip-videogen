@@ -101,10 +101,10 @@ class TestTruncateConcept:
 
     def test_truncation_long_content(self):
         bundle = BrandResearchBundle(
-            brand_name="Test", website_url="https://test.com", deep_research_summary="A" * 10000
+            brand_name="Test", website_url="https://test.com", deep_research_summary="A" * 60000
         )
         concept = _truncate_concept(bundle)
-        assert len(concept) <= 4800
+        assert len(concept) <= 50000
         assert "[...truncated]" in concept
 
     def test_gap_fill_results(self):
