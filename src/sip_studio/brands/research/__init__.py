@@ -34,6 +34,12 @@ from .models import (
     ResearchCompleteness,
     WebsiteAssets,
 )
+from .orchestrator import (
+    BrandCreationOrchestrator,
+    OrchestrationError,
+    run_brand_creation_async,
+    start_brand_creation_job,
+)
 from .website_scraper import (
     ContentTooLargeError,
     InvalidContentTypeError,
@@ -45,10 +51,12 @@ from .website_scraper import (
 
 __all__ = [
     "BrandCreationJob",
+    "BrandCreationOrchestrator",
     "BrandResearchBundle",
     "BrandResearchError",
     "BrandResearchWrapper",
     "EvaluationError",
+    "OrchestrationError",
     "ResearchEvaluator",
     "JobPhase",
     "JobStatus",
@@ -74,6 +82,8 @@ __all__ = [
     "load_job",
     "request_cancellation",
     "research_brand",
+    "run_brand_creation_async",
     "save_job",
+    "start_brand_creation_job",
     "update_job_progress",
 ]
